@@ -1,126 +1,18 @@
-// import React from 'react';
-// import { View, Text, Image, StyleSheet } from 'react-native';
-
-// interface UserCardProps {
-//   name: string;
-//   age: number;
-//   distance: string;
-//   image: string;
-// }
-
-// const UserCard = ({ name, age, distance, image }: UserCardProps) => {
-//   return (
-//     <View style={styles.card}>
-//       <Image source={{ uri: image }} style={styles.image} />
-//       <View style={styles.details}>
-//         <Text style={styles.name}>{name}, {age}</Text>
-//         <Text style={styles.distance}>{distance}</Text>
-//       </View>
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   card: {
-//     margin: 10,
-//     borderRadius: 15,
-//     overflow: 'hidden',
-//     backgroundColor: '#fff',
-//     shadowColor: '#000',
-//     shadowOpacity: 0.1,
-//     shadowOffset: { width: 0, height: 5 },
-//     shadowRadius: 10,
-//     elevation: 4,
-//   },
-//   image: {
-//     width: '100%',
-//     height: 300,
-//   },
-//   details: {
-//     padding: 15,
-//   },
-//   name: {
-//     fontSize: 22,
-//     fontWeight: '600',
-//   },
-//   distance: {
-//     fontSize: 16,
-//     color: '#888',
-//     marginTop: 5,
-//   },
-// });
-
-// export default UserCard;
-
-
-
-
-
-
-
-
-// // components/UserCard.tsx
-
-// import React from 'react';
-// import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
-
-// interface UserCardProps {
-//   name: string;
-//   age: number;
-//   image: string;
-// }
-
-// const CARD_WIDTH = (Dimensions.get('window').width - 45) / 2; // spacing + 2 columns
-
-// const UserCard = ({ name, age, image }: UserCardProps) => {
-//   return (
-//     <View style={styles.card}>
-//       <Image source={{ uri: image }} style={styles.image} />
-//       <Text style={styles.name}>{name}, {age}</Text>
-//     </View>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   card: {
-//     width: CARD_WIDTH,
-//     borderRadius: 12,
-//     backgroundColor: '#fff',
-//     overflow: 'hidden',
-//     marginBottom: 15,
-//     marginHorizontal: 7.5,
-//     shadowColor: '#000',
-//     shadowOpacity: 0.1,
-//     shadowOffset: { width: 0, height: 4 },
-//     shadowRadius: 8,
-//     elevation: 3,
-//   },
-//   image: {
-//     width: '100%',
-//     height: 170,
-//     borderTopLeftRadius: 12,
-//     borderTopRightRadius: 12,
-//   },
-//   name: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     padding: 10,
-//   },
-// });
-
-// export default UserCard;
-
-
-
-
-
-
-
-
-// components/UserCard.tsx
-
-import React from 'react';
-import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
+import React, {useContext, useEffect} from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
+  Button,
+  Pressable,
+} from 'react-native';
+import AppContext from '../../context/CreateGlobalStateContext';
+import {useNavigation} from '@react-navigation/native';
+import {StackNavigationProp} from '@react-navigation/stack';
+import {RootParamList} from '../../utils/types/navigation.types';
 
 interface UserCardProps {
   name: string;
@@ -131,18 +23,49 @@ interface UserCardProps {
 
 const CARD_WIDTH = (Dimensions.get('window').width - 45) / 2;
 
-const UserCard = ({ name, age, image, distance }: UserCardProps) => {
+const UserCard = ({name, age, image, distance}: UserCardProps) => {
+  const navigation =
+    useNavigation<StackNavigationProp<RootParamList, 'ViewMyProfileScreen'>>();
+  const {
+    viewMyProfile,
+    setViewMyProfile,
+    setSelectedUserImage,
+    cardUserName,
+    setCardUserName,
+    cardUserAge,
+    setCardUserAge,
+  } = useContext(AppContext);
+  // useEffect(() => {
+  //   console.log('View My Profile:', viewMyProfile);
+
+  // },[viewMyProfile])
+    
+
+
+  const handleUserCard = () => {
+    console.log('User details:', name, age, image, distance);
+
+    setCardUserName(name);
+    setCardUserAge(age);
+
+    setViewMyProfile(false);
+    setSelectedUserImage(image);
+    navigation.navigate('ViewMyProfileScreen');
+  };
   return (
-    <View style={styles.card}>
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: image }} style={styles.image} />
-        <View style={styles.overlayText}>
-          <Text style={styles.name}>{name}, {age}</Text>
-          <Text style={styles.distance}>{distance}</Text>
+    <Pressable onPress={handleUserCard}>
+      <View style={styles.card}>
+        <View style={styles.imageContainer}>
+          <Image source={{uri: image}} style={styles.image} />
+          <View style={styles.overlayText}>
+            <Text style={styles.name}>
+              {name}, {age}
+            </Text>
+            <Text style={styles.distance}>{distance}</Text>
+          </View>
         </View>
       </View>
-      {/* <Text style={styles.distance}>{distance}</Text> */}
-    </View>
+    </Pressable>
   );
 };
 
@@ -156,7 +79,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 7.5,
     shadowColor: '#000',
     shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {width: 0, height: 4},
     shadowRadius: 8,
     elevation: 3,
   },
@@ -184,7 +107,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   distance: {
-    color: 'white'
+    color: 'white',
   },
 });
 

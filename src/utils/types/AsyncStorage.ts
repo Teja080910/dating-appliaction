@@ -61,3 +61,13 @@ export class AsyncStorageService {
     }
   }
 }
+
+
+export const isFirstImageUploaded = async (): Promise<boolean> => {
+  const value = await AsyncStorage.getItem('firstImageUploaded');
+  return value === 'true';
+};
+
+export const markFirstImageUploaded = async (): Promise<void> => {
+  await AsyncStorage.setItem('firstImageUploaded', 'true');
+};

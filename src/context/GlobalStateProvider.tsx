@@ -4,7 +4,7 @@ import AppContext from "./CreateGlobalStateContext";
 const GlobalStateProvider =  ({children}: any) => {
 
   const [initialScreen, setInitialScreen] = useState<string | null>(null);
-  const [date, setDate] = useState(new Date(1995, 3, 11)); 
+  const [date, setDate] = useState(new Date(2004, 9, 7)); 
   const [selected, setSelected] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,6 +17,7 @@ const GlobalStateProvider =  ({children}: any) => {
       null,
       null,
     ]);
+    const [filter, setFilter] = useState<'online' | 'newest'>('online');
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [login, setLogin] = useState(false);
@@ -33,6 +34,72 @@ const GlobalStateProvider =  ({children}: any) => {
    const [selectedSmoking, setSelectedSmoking] = useState<string | null>('');
    const [selectedKidCount, setSelectedKidCount] = useState<string | null>('');
    const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
+    const [selectedNetWorth, setSelectedNetWorth] = useState<string | null>(null);
+
+    const [profilePreferences, setProfilePreferences] = useState({
+      appearance: null,
+      bodyType: null,
+      smoking: null,
+      englishSkill: null,
+      ethnicity: null,
+      height: null,
+      kidCount: null,
+      languages: [],
+      lookingFor: null,
+    });
+    
+    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [profileText, setProfileText] = useState('');
+
+    const [ageRange, setAgeRange] = useState([18, 55]);
+    const [isChecked, setIsChecked] = useState(false);
+    
+    const [location, setLocation] = useState('My current location');
+    const [locationModalVisible, setLocationModalVisible] = useState(false);
+
+    const [searchLanguages, setSearchLanguages] = useState<string[]>([]);
+
+    const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+
+    const [bodyHeight, setBodyHeight] = useState([120, 200]);
+
+    const [selectBodyTypes, setSelectBodyTypes] = useState<string[]>([]);
+
+    const [distanceRange, setDistanceRange] = useState(1100);
+
+    const [englishProficiency, setEnglishProficiency] = useState<string[]>([]);
+
+    const [ethnicity, setEthnicity] = useState<string[]>([]);
+
+    const [lookingFor, setLookingFor] = useState<string[]>([]);
+
+    const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
+     
+    const [smoke, setSmoke] = useState<string[]>([]);
+    
+    const [searchPreferences, setSearchPreferences] = useState({
+      agesBetween: [],
+      distanceRange: null,
+      location: null,
+      bodyHeightBetween: [],
+      bodyType: null,
+      appearance: [],
+      languages: [],
+      englishLevel:[],
+      ethnicity:[],
+      smoking: [],
+      lookingFor: [],
+      showMe: null,
+      
+      
+    });
+
+    const [viewMyProfile, setViewMyProfile] = useState(false);
+    const [selectedUserImage, setSelectedUserImage] = useState<string | null>(null);
+
+    const [cardUserName, setCardUserName] = useState<string | null>(null);
+    const [cardUserAge, setCardUserAge] = useState<number | null>(null);
+
 
   return (
     <AppContext.Provider value={{
@@ -50,6 +117,8 @@ const GlobalStateProvider =  ({children}: any) => {
       setPassword,
       images,
       setImages,
+      filter,
+      setFilter,
       isModalVisible,
       setIsModalVisible,
       selectedIndex,
@@ -82,6 +151,50 @@ const GlobalStateProvider =  ({children}: any) => {
       setSelectedKidCount,
       selectedLookingFor,
       setSelectedLookingFor,
+      selectedNetWorth,
+      setSelectedNetWorth,
+      profilePreferences,
+      setProfilePreferences,
+      profileImage,
+      setProfileImage,
+      profileText,
+      setProfileText,
+      ageRange,
+      setAgeRange,
+      isChecked,
+      setIsChecked,
+      location,
+      setLocation,
+      locationModalVisible,
+      setLocationModalVisible,
+      searchLanguages,
+      setSearchLanguages,
+      selectedOptions,
+      setSelectedOptions,
+      bodyHeight,
+      setBodyHeight,
+      selectBodyTypes,
+      setSelectBodyTypes,
+      distanceRange, 
+      setDistanceRange,
+      englishProficiency, 
+      setEnglishProficiency,
+      ethnicity, 
+      setEthnicity,
+      lookingFor, 
+      setLookingFor,
+      showMe, 
+      setShowMe,
+      smoke, 
+      setSmoke,
+      viewMyProfile,
+      setViewMyProfile,
+      selectedUserImage,
+      setSelectedUserImage,
+      cardUserName,
+      setCardUserName,
+      cardUserAge,
+      setCardUserAge,
      
     }}>
       {children}

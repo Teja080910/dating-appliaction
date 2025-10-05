@@ -1,190 +1,3 @@
-// import React, { useEffect, useState } from 'react';
-// import { NavigationContainer } from '@react-navigation/native';
-// import { createNativeStackNavigator } from '@react-navigation/native-stack';
-// import RegisterScreen from '../RegisterScreen';
-// import LoginScreen from '../LoginScreen';
-// import ForgotPasswordScreen from '../ForgotPasswordScreen';
-// import PrivacyScreen from '../PrivacyScreen';
-// import HomeScreen from '../HomeScreen';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// const Stack = createNativeStackNavigator();
-
-// const Routes = () => {
-//   const [initialScreen, setInitialScreen] = useState<string | null>(null);
-//   useEffect(() => {
-//     const checkTerms = async () => {
-//       const accepted = await AsyncStorage.getItem('acceptedTerms');
-//       console.log('Accepted Terms:', accepted);
-      
-//       setInitialScreen(accepted === 'true' ? 'Home' : 'Privacy');
-//     };
-//     checkTerms();
-//   }, []);
-
-//   if (!initialScreen) return null; 
-//   return (
-//     <NavigationContainer>
-//       <Stack.Navigator screenOptions={{ headerShown: false }}>
-//         {initialScreen === 'Privacy' && (
-//           <>
-//             <Stack.Screen name="Register" component={RegisterScreen} />
-//             <Stack.Screen name="Privacy" component={PrivacyScreen} />
-//           </>
-//         )}
-//         {/* <Stack.Screen
-//           name="Register"
-//           component={RegisterScreen}
-//           options={{ headerShown: false }}
-//         /> */}
-//         <Stack.Screen 
-//         name="Login" 
-//         component={LoginScreen} 
-//         options={{ headerShown: false }}
-//         />
-//         <Stack.Screen 
-//         name="Forgot Password" 
-//         component={ForgotPasswordScreen} 
-//         options={{ headerShown: false }}
-//         />
-//         {/* <Stack.Screen 
-//         name="Privacy" 
-//         component={PrivacyScreen} 
-//         options={{ headerShown: false }}
-//         /> */}
-//         <Stack.Screen 
-//         name="Home" 
-//         component={HomeScreen} 
-//         options={{ headerShown: false }}
-//         />
-//       </Stack.Navigator>
-//     </NavigationContainer>
-//   );
-// };
-
-// export default Routes;
-
-
-
-
-
-
-
-
-
-
-
-
-
-// import React, { useEffect, useState } from 'react';
-// import { NavigationContainer } from '@react-navigation/native';
-// import { createNativeStackNavigator } from '@react-navigation/native-stack';
-// import RegisterScreen from '../RegisterScreen';
-// import LoginScreen from '../LoginScreen';
-// import ForgotPasswordScreen from '../ForgotPasswordScreen';
-// import PrivacyScreen from '../PrivacyScreen';
-// import HomeScreen from '../HomeScreen';
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// const Stack = createNativeStackNavigator();
-
-// const Routes = () => {
-//   const [initialScreen, setInitialScreen] = useState<string | null>(null);
-
-//   useEffect(() => {
-//     const checkTerms = async () => {
-//       const accepted = await AsyncStorage.getItem('acceptedTerms');
-//       console.log('Accepted Terms:', accepted);
-
-//       setInitialScreen(accepted === 'true' ? 'Home' : 'Privacy');
-//     };
-//     checkTerms();
-//   }, []);
-
-//   if (!initialScreen) return null;
-
-//   return (
-//     <NavigationContainer>
-//       <Stack.Navigator initialRouteName={initialScreen} screenOptions={{ headerShown: false }}>
-//         <Stack.Screen name="Register" component={RegisterScreen} />
-//         <Stack.Screen name="Login" component={LoginScreen} />
-//         <Stack.Screen name="Forgot Password" component={ForgotPasswordScreen} />
-//         <Stack.Screen name="Privacy" component={PrivacyScreen} />
-//         <Stack.Screen name="Home" component={HomeScreen} />
-//       </Stack.Navigator>
-//     </NavigationContainer>
-//   );
-// };
-
-// export default Routes
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// import React, { useEffect, useState } from 'react';
-// import { NavigationContainer } from '@react-navigation/native';
-// import { createNativeStackNavigator } from '@react-navigation/native-stack';
-// import RegisterScreen from '../RegisterScreen';
-// import PrivacyScreen from '../PrivacyScreen';
-// import HomeScreen from '../HomeScreen'; // 👈 Your actual app screen
-
-// const Stack = createNativeStackNavigator();
-
-// const Routes = () => {
-//   const [initialScreen, setInitialScreen] = useState<string | null>(null);
-
-//   useEffect(() => {
-//     const checkTerms = async () => {
-//       const accepted = await AsyncStorage.getItem('acceptedTerms');
-//       console.log('Accepted Terms:', accepted);
-      
-//       setInitialScreen(accepted === 'true' ? 'Home' : 'Privacy');
-//     };
-//     checkTerms();
-//   }, []);
-
-//   if (!initialScreen) return null; // or splash loader
-
-//   return (
-//     <NavigationContainer>
-//       <Stack.Navigator screenOptions={{ headerShown: false }}>
-//         {initialScreen === 'Privacy' && (
-//           <>
-//             <Stack.Screen name="Register" component={RegisterScreen} />
-//             <Stack.Screen name="Privacy" component={PrivacyScreen} />
-//           </>
-//         )}
-//         <Stack.Screen name="Home" component={HomeScreen} />
-//       </Stack.Navigator>
-//     </NavigationContainer>
-//   );
-// };
-
-// export default Routes;
-
-
-
-
-
-
-
-
-
-
-
-
 import React, { useContext, useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -200,6 +13,11 @@ import DOBScreen from '../onboarding/DOBScreen';
 import AppContext from '../../context/CreateGlobalStateContext';
 import UploadImageScreen from '../onboarding/UploadImageScreen';
 import BottomTabs from './BottomTabs';
+import AboutProfileScreen from '../onboarding/AboutProfileScreen';
+import ConnectTelegramScreen from '../onboarding/ConnectTelegramScreen';
+import SearchScreen from '../SearchSettings/SearchScreen';
+import ProfileSettingsScreen from '../ProfileTab/ProfileSettingsScreen';
+import ViewMyProfileScreen from '../ProfileTab/ViewMyProfileScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -267,6 +85,11 @@ const Routes = () => {
         <Stack.Screen name="DOB" component={DOBScreen} />
         <Stack.Screen name="UploadImage" component={UploadImageScreen} />
         <Stack.Screen name="BottomTabs" component={BottomTabs} />
+        <Stack.Screen name="AboutProfile" component={AboutProfileScreen} />
+        <Stack.Screen name="ConnectTelegram" component={ConnectTelegramScreen} />
+        <Stack.Screen name="SearchSettings" component={SearchScreen} />
+        <Stack.Screen name="ProfileSettingsScreen" component={ProfileSettingsScreen} />
+        <Stack.Screen name="ViewMyProfileScreen" component={ViewMyProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

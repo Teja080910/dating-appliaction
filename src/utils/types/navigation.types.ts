@@ -7,4 +7,7 @@ export type RootParamList = {
   DisplayName: undefined;
   GenderOrientation: undefined;
   DOB: undefined;
+  SearchSettings: undefined;
+  ProfileSettingsScreen: undefined;
+  ViewMyProfileScreen: undefined;
 };

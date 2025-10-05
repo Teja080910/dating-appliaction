@@ -1,148 +1,8 @@
-// import React from 'react';
-// import { FlatList } from 'react-native';
-// import mockUsers from '../utils/mockUsers';
-// import UserCard from './UserCard';
-
-// interface HomeUserListProps {
-//   filterByGender: string | null;
-// }
-
-// const UserList = ({ filterByGender }: HomeUserListProps) => {
-//   const filteredUsers = mockUsers.filter(user => user.gender === filterByGender);
-
-//   return (
-//     <FlatList
-//       data={filteredUsers}
-//       keyExtractor={(item) => item.id}
-//       renderItem={({ item }) => (
-//         <UserCard
-//           name={item.name}
-//           age={item.age}
-//           distance={item.distance}
-//           image={item.image}
-//         />
-//       )}
-//     />
-//   );
-// };
-
-// export default UserList;
-
-
-
-
-
-
-
-
-
-
-// /// components/UserList.tsx
-
-// import React from 'react';
-// import { FlatList, View, StyleSheet } from 'react-native';
-// import mockUsers from '../utils/mockUsers';
-// import UserCard from './UserCard';
-
-// interface HomeUserListProps {
-//   filterByGender: string | null;
-// }
-
-// const UserList = ({ filterByGender }: HomeUserListProps) => {
-//   const filteredUsers = mockUsers.filter(user => user.gender === filterByGender);
-
-//   return (
-//     <FlatList
-//       data={filteredUsers}
-//       numColumns={2}
-//       key={2}
-//       keyExtractor={(item) => item.id}
-//       columnWrapperStyle={styles.row}
-//       renderItem={({ item }) => (
-//         <UserCard
-//           name={item.name}
-//           age={item.age}
-//           image={item.image}
-//         />
-//       )}
-//       contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
-//     />
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   row: {
-//     justifyContent: 'space-between',
-//   },
-// });
-
-// export default UserList;
-
-
-
-
-
-
-
-
-
-
-
-// // components/UserList.tsx
-
-// import React from 'react';
-// import { FlatList, View, StyleSheet } from 'react-native';
-// import mockUsers from '../utils/mockUsers';
-// import UserCard from './UserCard';
-
-// interface HomeUserListProps {
-//   filterByGender: string | null;
-// }
-
-// const UserList = ({ filterByGender }: HomeUserListProps) => {
-//   const filteredUsers = mockUsers.filter(user => user.gender === filterByGender);
-
-//   return (
-//       <FlatList
-//       data={filteredUsers}
-//       numColumns={2}
-//       key={2}
-//       keyExtractor={(item) => item.id}
-//       columnWrapperStyle={styles.row}
-//       renderItem={({ item }) => (
-//         <UserCard
-//           name={item.name}
-//           age={item.age}
-//           image={item.image}
-//           distance={item.distance}
-//         />
-//       )}
-//       contentContainerStyle={{ paddingHorizontal: 10, paddingTop: 10 }}
-//     />
-    
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   row: {
-//     justifyContent: 'space-between',
-//   },
-// });
-
-// export default UserList;
-
-
-
-
-
-
-
-
-
-import React from 'react';
+import React, { useContext, useEffect } from 'react';
 import { FlatList, View, StyleSheet } from 'react-native';
 import mockUsers from '../../utils/mockUsers';
 import UserCard from './UserCard';
+import AppContext from '../../context/CreateGlobalStateContext';
 
 interface HomeUserListProps {
   filterByGender: string | null;
@@ -150,6 +10,12 @@ interface HomeUserListProps {
 
 const UserList = ({ filterByGender }: HomeUserListProps) => {
   const filteredUsers = mockUsers.filter(user => user.gender === filterByGender);
+  // const {viewMyProfile, setViewMyProfile} = useContext(AppContext)
+  // useEffect(() => {
+  //   console.log('View My Profile:', viewMyProfile);
+    
+  // },[viewMyProfile])
+  
 
   return (
     <FlatList
