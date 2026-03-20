@@ -43,8 +43,8 @@ const YourBirthday = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f2f2f2',
-    padding: 16,
+    backgroundColor: '#fff',
+    padding: 20,
   },
   title: {
     fontSize: 20,
@@ -58,10 +58,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputBox: {
-    backgroundColor: '#f2f2f2',
+    backgroundColor: '#fff',
     padding: 14,
     borderRadius: 8,
-    borderColor: '#e2e2e2',
+    borderColor: '#e5e5e5',
     borderWidth: 1,
   },
   dateText: {

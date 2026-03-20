@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { Colors } from '../../utils/colors';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,18 +42,18 @@ const LoginScreen = ({navigation}: any) => {
     
   }
   return (
-    <LinearGradient colors={['#d13964', '#d94868']} style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#d13964" />
+    <LinearGradient colors={[Colors.pink, '#D94466']} style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.pink} />
       <SafeAreaView style={styles.safe}>
         {/* <Image
           source={require('../assets/logo.png')} // Add your flame "g" logo here
           style={styles.logo}
         /> */}
-        <Text style={styles.title}>Dating</Text>
+        <Text style={styles.title}>AMARA</Text>
         <Text style={styles.subtitle}>Login to your account</Text>
 
         <View style={styles.inputContainer}>
-          <Icon name="email-outline" size={20} color="#d13964" style={styles.icon} />
+          <Icon name="email-outline" size={20} color="#FF5A79" style={styles.icon} />
           <TextInput
             placeholder="Enter your e-mail address"
             style={styles.input}
@@ -65,7 +66,7 @@ const LoginScreen = ({navigation}: any) => {
         </View>
 
         <View style={styles.inputContainer}>
-          <Icon name="lock-outline" size={20} color="#d13964" style={styles.icon} />
+          <Icon name="lock-outline" size={20} color="#FF5A79" style={styles.icon} />
           <TextInput
             placeholder="Enter your password"
             style={styles.input}
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 50,
     alignItems: 'center',
     paddingHorizontal: 15,
@@ -141,19 +142,19 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#000',
+    color: Colors.darkGrey,
   },
   forgot: {
     alignSelf: 'flex-end',
     marginBottom: 30,
   },
   forgotText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
     fontWeight: 'bold',
   },
   loginButton: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 50,
     paddingVertical: 15,
     paddingHorizontal: 20,
@@ -162,12 +163,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   loginText: {
-    color: '#000',
+    color: Colors.pink,
     fontWeight: 'bold',
     fontSize: 16,
   },
   outlinedButton: {
-    borderColor: '#fff',
+    borderColor: Colors.white,
     borderWidth: 1,
     borderRadius: 50,
     paddingVertical: 15,
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   outlinedText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: 'bold',
     fontSize: 14,
   },

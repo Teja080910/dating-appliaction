@@ -1,39 +1,6 @@
-// // navigation/BottomTabs.tsx
-// import React from 'react';
-// import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-// import HomeScreen from '../HomeTab/HomeScreen';
-// import MessageScreen from '../MessageTab/MessageScreen';
-// import ProfileScreen from '../ProfileTab/ProfileScreen';
-// import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
-
-// const Tab = createBottomTabNavigator();
-
-// const BottomTabs = () => {
-//   return (
-//     <Tab.Navigator>
-//       <Tab.Screen name="Home" component={HomeScreen} />
-//       <Tab.Screen name="Message" component={MessageScreen} />
-//       <Tab.Screen name="Profile" component={ProfileScreen} />
-//       <Tab.Screen name="MoreInfo" component={MoreInfoScreen} />
-//     </Tab.Navigator>
-//   );
-// };
-
-// export default BottomTabs;
-
-
-
-
-
-
-
-
-
-
-
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image } from 'react-native';
+import { Image, StyleSheet, View, Platform } from 'react-native';
 import HomeScreen from '../HomeTab/HomeScreen';
 import MessageScreen from '../MessageTab/MessageScreen';
 import ProfileScreen from '../ProfileTab/ProfileScreen';
@@ -45,14 +12,9 @@ const BottomTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarShowLabel: false, // Hides the "Home", "Message" text
+        tabBarShowLabel: false,
         headerShown: false,
-        tabBarStyle: {
-          height: 60,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          position: 'absolute',
-        },
+        tabBarStyle: styles.tabBar,
       }}
     >
       <Tab.Screen
@@ -60,10 +22,12 @@ const BottomTabs = () => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/HomeTabImages/HomeTab.png')} // replace with your actual icon path
-              style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
-            />
+            <View style={focused && styles.activeIconContainer}>
+                <Image
+                source={require('../../assets/HomeTabImages/HomeTab.png')}
+                style={[styles.icon, { tintColor: focused ? '#FF5A79' : '#999' }]}
+                />
+            </View>
           ),
         }}
       />
@@ -72,10 +36,12 @@ const BottomTabs = () => {
         component={MessageScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/MessageTabImages/MessageTab.png')} // replace with your actual icon path
-              style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
-            />
+            <View style={focused && styles.activeIconContainer}>
+                <Image
+                source={require('../../assets/MessageTabImages/MessageTab.png')}
+                style={[styles.icon, { tintColor: focused ? '#FF5A79' : '#999' }]}
+                />
+            </View>
           ),
         }}
       />
@@ -84,10 +50,12 @@ const BottomTabs = () => {
         component={MoreInfoScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')} // replace with your actual icon path
-              style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
-            />
+            <View style={focused && styles.activeIconContainer}>
+                <Image
+                source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')}
+                style={[styles.icon, { tintColor: focused ? '#FF5A79' : '#999' }]}
+                />
+            </View>
           ),
         }}
       />
@@ -96,15 +64,45 @@ const BottomTabs = () => {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/ProfileTabImages/ProfileTab.png')} // replace with your actual icon path
-              style={{ width: 30, height: 24, tintColor: focused ? '#000' : '#ccc' }}
-            />
+            <View style={focused && styles.activeIconContainer}>
+                <Image
+                source={require('../../assets/ProfileTabImages/ProfileTab.png')}
+                style={[styles.iconProfile, { tintColor: focused ? '#FF5A79' : '#999' }]}
+                />
+            </View>
           ),
         }}
       />
     </Tab.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  tabBar: {
+    height: Platform.OS === 'ios' ? 85 : 70,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+  },
+  icon: {
+    width: 26,
+    height: 26,
+  },
+  iconProfile: {
+    width: 32,
+    height: 26,
+  },
+  activeIconContainer: {
+      paddingBottom: 2,
+      borderBottomWidth: 2,
+      borderBottomColor: '#FF5A79',
+  }
+});
 
 export default BottomTabs;

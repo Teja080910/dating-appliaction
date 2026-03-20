@@ -8,97 +8,112 @@ import {
   SafeAreaView,
   StatusBar,
   BackHandler,
+  Dimensions,
+  Alert,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome5'; // for gender icons
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { saveGender } from '../../utils/types/AsyncStorage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const GenderOrientationScreen = ({ navigation }: any) => {
-  // const [selected, setSelected] = useState<string | null>(null);
-
-  const {selected, setSelected} = useContext(AppContext);
+  const { setSelected } = useContext(AppContext);
+  const [selection, setSelection] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        navigation.replace('Privacy'); // Go back to the previous screen
-        return true; // Prevent default behavior
+        navigation.replace('Privacy');
+        return true;
       }
       const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => backHandler.remove(); // Cleanup the event listener on unmount
-    },[navigation]),
+      return () => backHandler.remove();
+    }, [navigation]),
   )
 
-  const options = [
-    { label: "I'm a straight woman", icon: 'venus', value: 'straight_woman' },
-    { label: "I'm a straight man", icon: 'mars', value: 'straight_man' },
-    { label: "I’m LGBTQIA+", icon: 'bars', value: 'lgbtqia' },
-  ];
-
-  const handleNext = () => {
-    if (selected) {
-      navigation.navigate('DisplayName'); // replace with actual screen
+  const handleNext = async () => {
+    if (selection) {
+      try {
+        console.log('Final Selection:', selection);
+        setSelected(selection);
+        await saveGender(selection);
+        // CRITICAL: Set GenderOrientation to true so Routes.tsx knows we finished this step
+        await AsyncStorage.setItem('GenderOrientation', 'true');
+        
+        console.log('Navigating to DisplayName...');
+        navigation.navigate('DisplayName');
+      } catch (error) {
+        console.error('Navigation Error:', error);
+        Alert.alert("Error", "Failed to save selection. Please try again.");
+      }
+    } else {
+      Alert.alert("Selection Required", "Please select your gender and orientation to continue.");
     }
   };
 
- 
+  const renderCard = (label: string, value: string, icon: string) => {
+    const isSelected = selection === value;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[
+          styles.card,
+          isSelected && styles.selectedCard
+        ]}
+        onPress={() => {
+            console.log('Selected:', value);
+            setSelection(value);
+        }}
+      >
+        <Icon name={icon} size={42} color={isSelected ? '#FF5A79' : '#CCC'} />
+        <Text style={[styles.cardLabel, isSelected && styles.selectedCardLabel]}>
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
+      
       {/* Progress Bar */}
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressBarFill} />
+      <View style={styles.progressContainer}>
+          <View style={styles.progressFill} />
       </View>
 
-      <Text style={styles.title}>What's your gender and orientation?</Text>
-
-      {/* Option Buttons */}
-      <View style={styles.optionsContainer}>
-        {options.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.optionButton,
-              selected === option.value && styles.selectedOption,
-            ]}
-            onPress={() => {
-              setSelected(option.value)
-              saveGender(option.value); 
-              console.log('saveGender', option.value);
-                  
-            } }
-          >
-            <Icon
-              name={option.icon}
-              size={24}
-              color={selected === option.value ? '#E94057' : '#555'}
-              style={{ marginBottom: 8 }}
-            />
-            <Text style={styles.optionText}>{option.label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.content}>
+        <Text style={styles.title}>What's your gender and orientation?</Text>
+        
+        <View style={styles.cardsRow}>
+          {renderCard("I'm a straight woman", "straight_woman", "gender-female")}
+          {renderCard("I'm a straight man", "straight_man", "gender-male")}
+          {renderCard("I'm LGBTQIA+", "lgbtqia", "equal")}
+        </View>
       </View>
 
-      {/* Bottom Info and Next Button */}
-      <View style={styles.bottomContainer}>
-        <View style={styles.infoContainer}>
-          <Icon name="info-circle" size={16} color="#999" />
-          <Text style={styles.infoText}>
-            Men have total privacy at Dating. Only people you invite can see your profile.
-          </Text>
+      <View style={styles.footer}>
+        <View style={styles.infoRow}>
+            <View style={styles.infoIconCircle}>
+                <Text style={styles.infoIconText}>i</Text>
+            </View>
+            <Text style={styles.infoText}>
+                Men have total privacy at AMARA. Only people you invite can see your profile.
+            </Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.nextButton, !selected && styles.disabledButton]}
+          style={[styles.nextButton, !selection && styles.disabledButton]}
           onPress={handleNext}
-          disabled={!selected}
+          activeOpacity={0.9}
         >
-          <Text style={styles.nextButtonText}>Next</Text>
+          <Text style={styles.nextText}>NEXT</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
-  );   
+  );
 };
 
 export default GenderOrientationScreen;
@@ -107,78 +122,120 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingHorizontal: 24,
   },
-  progressBarContainer: {
-    height: 5,
-    backgroundColor: '#e0e0e0',
+  progressContainer: {
+    height: 4,
+    backgroundColor: '#F0F0F0',
+    marginHorizontal: 20,
     marginTop: 10,
-    borderRadius: 10,
+    borderRadius: 2,
     overflow: 'hidden',
   },
-  progressBarFill: {
-    width: '20%',
+  progressFill: {
+    width: '30%',
     height: '100%',
-    backgroundColor: '#E94057',
+    backgroundColor: '#FF5A79',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 15,
+    paddingTop: 40,
   },
   title: {
-    marginTop: 30,
-    fontSize: 20,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#333',
+    textAlign: 'center',
+    marginBottom: 25,
   },
-  optionsContainer: {
-    marginTop: 30,
+  cardsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 8,
   },
-  optionButton: {
-    width: '30%',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  selectedOption: {
-    borderColor: '#E94057',
-    backgroundColor: '#fff0f3',
-  },
-  optionText: {
-    textAlign: 'center',
-    fontSize: 13,
-    color: '#555',
-  },
-  bottomContainer: {
+  card: {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 30,
+    height: SCREEN_WIDTH * 0.45,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: '#F0F0F0',
+    backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  infoContainer: {
+  selectedCard: {
+    borderColor: '#FF5A79',
+    borderWidth: 2,
+    backgroundColor: '#FFF5F6',
+  },
+  cardLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 15,
+    lineHeight: 18,
+  },
+  selectedCardLabel: {
+    color: '#000',
+  },
+  footer: {
+    paddingHorizontal: 25,
+    paddingBottom: 40,
+  },
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 40,
+    paddingHorizontal: 5,
+  },
+  infoIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  infoIconText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#CCC',
+    fontStyle: 'italic',
   },
   infoText: {
-    fontSize: 12,
-    color: '#999',
-    marginLeft: 8,
     flex: 1,
+    fontSize: 12.5,
+    color: '#AAA',
+    lineHeight: 18,
   },
   nextButton: {
-    backgroundColor: '#E94057',
-    paddingVertical: 14,
-    borderRadius: 24,
+    backgroundColor: '#FF5A79',
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#FF5A79',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   disabledButton: {
-    backgroundColor: '#ddd',
+    backgroundColor: '#FF5A79',
+    opacity: 0.4,
   },
-  nextButtonText: {
+  nextText: {
     color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
 });

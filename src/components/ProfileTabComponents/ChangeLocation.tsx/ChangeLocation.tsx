@@ -28,6 +28,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
   },
   left: {
+    flex: 1,
+
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -36,12 +38,12 @@ const styles = StyleSheet.create({
     color: '#2f2f2f',
   },
   text: {
+    flexShrink: 1,
+
     fontSize: 16,
     color: '#000',
   },
-  chevron: {
-    marginLeft: 193,
-  }
+  chevron: {}
 });
 
 export default ChangeLocation;

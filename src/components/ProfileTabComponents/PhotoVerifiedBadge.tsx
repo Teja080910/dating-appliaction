@@ -26,6 +26,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   text: {
+    flexShrink: 1,
+
     fontSize: 16,
     color: '#000',
   },

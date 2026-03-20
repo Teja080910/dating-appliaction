@@ -26,6 +26,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
   },
   leftSection: {
+    flex: 1,
+
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -33,12 +35,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   text: {
+    flexShrink: 1,
+
     fontSize: 16,
     color: '#1f1f1f',
   },
-   chevron: {
-    marginLeft: 260,
-  }
+   chevron: {}
 });
 
 export default Privacy;

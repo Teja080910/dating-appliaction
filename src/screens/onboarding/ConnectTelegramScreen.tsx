@@ -6,15 +6,16 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  Image
+  Image,
+  Dimensions
 } from 'react-native';
-// import { useNavigation } from '@react-navigation/native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ConnectTelegramScreen = ({navigation}: any) => {
-  // const navigation = useNavigation();
 
   const handleSkip = () => {
-    navigation.navigate('BottomTabs'); // Replace with your actual screen
+    navigation.navigate('BottomTabs');
   };
 
   const handleBack = () => {
@@ -22,7 +23,7 @@ const ConnectTelegramScreen = ({navigation}: any) => {
   };
 
   const handleConnectTelegram = () => {
-    // Add logic to connect to Telegram API or redirect
+    // Logic to connect to Telegram
     console.log('Connect Telegram button pressed');
   };
 
@@ -46,44 +47,45 @@ const ConnectTelegramScreen = ({navigation}: any) => {
         </TouchableOpacity>
       </View>
 
-      {/* Center Content */}
-      <View style={styles.card}>
-        <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg' }}
-          style={styles.telegramIcon}
-        />
+      {/* Content */}
+      <View style={styles.content}>
+        <View style={styles.card}>
+            <Image
+            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png' }}
+            style={styles.telegramIcon}
+            />
 
-        <Text style={styles.heading}>Connect Your Telegram</Text>
+            <Text style={styles.heading}>Connect Your Telegram</Text>
 
-        <Text style={styles.description}>
-          Effortlessly manage your invitations directly from the Telegram app and invite nearby users with just one click.
-        </Text>
+            <Text style={styles.description}>
+            Effortlessly manage your invitations directly from the Telegram app and invite nearby users with just one click.
+            </Text>
 
-        <View style={styles.bulletRow}>
-          <Text style={styles.bullet}>💙</Text>
-          <Text style={styles.bulletText}>Receive accepted invitations instantly on Telegram.</Text>
+            <View style={styles.bulletRow}>
+            <Text style={styles.bullet}>💙</Text>
+            <Text style={styles.bulletText}>Receive accepted invitations instantly on Telegram.</Text>
+            </View>
+
+            <View style={styles.bulletRow}>
+            <Text style={styles.bullet}>🔔</Text>
+            <Text style={styles.bulletText}>
+                Discover new profiles near you and send invites with a single tap.
+            </Text>
+            </View>
+
+            <TouchableOpacity style={styles.connectBtn} onPress={handleConnectTelegram}>
+                <Text style={styles.connectBtnText}>Connect Telegram</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.footerText}>
+                Your Telegram information is always private—we never share it with anyone.
+            </Text>
         </View>
 
-        <View style={styles.bulletRow}>
-          <Text style={styles.bullet}>🔔</Text>
-          <Text style={styles.bulletText}>
-            Discover new profiles near you and send invites with a single tap.
-          </Text>
-        </View>
-
-        <TouchableOpacity style={styles.connectBtn} onPress={handleConnectTelegram}>
-          <Text style={styles.connectBtnText}>Connect Telegram</Text>
+        <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
+            <Text style={styles.bottomSkipText}>Keep it for later</Text>
         </TouchableOpacity>
-
-        <Text style={styles.footerText}>
-          Your Telegram information is always private—we never share it with anyone.
-        </Text>
       </View>
-
-      {/* Bottom Skip Button */}
-      <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
-        <Text style={styles.skipBtnText}>Skip</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -95,103 +97,125 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: '#eee',
+    borderRadius: 2,
     marginTop: 10,
     marginBottom: 10,
-    borderRadius: 2,
     overflow: 'hidden',
   },
   progressBar: {
     height: 4,
     width: '95%',
-    backgroundColor: '#c34e59',
+    backgroundColor: '#FF5A79',
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 10,
   },
   closeIcon: {
     fontSize: 26,
-    color: '#c34e59',
+    color: '#FF5A79',
+    fontWeight: '300',
   },
   skipBtn: {
-    backgroundColor: '#aaa',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: '#AAA',
+    paddingHorizontal: 15,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   skipBtnText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  content: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingBottom: 40,
   },
   card: {
-    padding: 25,
+    padding: 30,
     marginHorizontal: 20,
-    marginTop: 10,
-    backgroundColor: '#fdfdfd',
-    borderRadius: 8,
-    elevation: 3,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
   },
   telegramIcon: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     alignSelf: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
   },
   heading: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '900',
     textAlign: 'center',
-    color: '#111',
-    marginBottom: 10,
+    color: '#000',
+    marginBottom: 12,
   },
   description: {
     fontSize: 15,
     textAlign: 'center',
-    color: '#444',
-    marginBottom: 20,
+    color: '#666',
+    marginBottom: 25,
+    lineHeight: 22,
   },
   bulletRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingHorizontal: 5,
   },
   bullet: {
     fontSize: 18,
-    marginRight: 8,
+    marginRight: 10,
   },
   bulletText: {
     flex: 1,
-    fontSize: 15,
-    color: '#333',
+    fontSize: 14,
+    color: '#444',
+    lineHeight: 20,
+    fontWeight: '600',
   },
   connectBtn: {
-    backgroundColor: '#229ED9',
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: '#0088CC',
+    height: 56,
+    borderRadius: 15,
     alignItems: 'center',
-    marginVertical: 20,
+    justifyContent: 'center',
+    marginVertical: 25,
+    elevation: 4,
+    shadowColor: '#0088CC',
+    shadowOpacity: 0.3,
   },
   connectBtnText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '900',
   },
   footerText: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
-    color: '#aaa',
+    color: '#BBB',
+    lineHeight: 18,
   },
   bottomSkip: {
-    marginTop: 10,
+    marginTop: 30,
     alignSelf: 'center',
-    backgroundColor: '#888',
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginBottom: 20,
   },
+  bottomSkipText: {
+      color: '#AAA',
+      fontSize: 15,
+      fontWeight: '700',
+      textDecorationLine: 'underline',
+  }
 });
 
 export default ConnectTelegramScreen;

@@ -1,17 +1,23 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather'; // You can use Ionicons or MaterialIcons too
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
+import AppContext from '../../../context/CreateGlobalStateContext';
 
 const ProfileSettingsHeader = () => {
   const navigation = useNavigation();
   const onCancel = () => {
     navigation.goBack()
   }
+  const { name, profileText } = React.useContext(AppContext);
+
   const onSave = () => {
-    console.log('Settings saved');
-    
-  }
+    if (!name || name.trim() === '' || !profileText || profileText.trim() === '') {
+      Alert.alert("Incomplete", "Please enter your name and some description.");
+      return;
+    }
+    Alert.alert("Success", "Profile settings updated!", [{ text: "OK", onPress: () => navigation.goBack() }]);
+  };
   return (
     <SafeAreaView>
     <View style={styles.header}>
@@ -31,7 +37,7 @@ const ProfileSettingsHeader = () => {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: '#e24b5a', // Match the red background
+    backgroundColor: '#FF5A79', // Amara Theme color
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

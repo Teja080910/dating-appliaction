@@ -28,7 +28,7 @@ const GlobalStateProvider =  ({children}: any) => {
     const [selectedBodyType, setSelectedBodyType] = useState<string | null>(null);
     const [height, setHeight] = useState(165);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-    const [tempHeight, setTempHeight] = useState(height);4
+    const [tempHeight, setTempHeight] = useState(height);
     const [englishSkillLevel, setEnglishSkillLevel] = useState(0);
    const [selectedEthinicity, setSelectedEthinicity] = useState<string | null>('');
    const [selectedSmoking, setSelectedSmoking] = useState<string | null>('');
@@ -99,6 +99,9 @@ const GlobalStateProvider =  ({children}: any) => {
 
     const [cardUserName, setCardUserName] = useState<string | null>(null);
     const [cardUserAge, setCardUserAge] = useState<number | null>(null);
+    const [invitations, setInvitations] = useState<any[]>([]);
+    const [isSubscribed, setIsSubscribed] = useState(false);
+    const [paywallVisible, setPaywallVisible] = useState(false);
 
 
   return (
@@ -195,6 +198,12 @@ const GlobalStateProvider =  ({children}: any) => {
       setCardUserName,
       cardUserAge,
       setCardUserAge,
+      invitations,
+      setInvitations,
+      isSubscribed,
+      setIsSubscribed,
+      paywallVisible,
+      setPaywallVisible,
      
     }}>
       {children}

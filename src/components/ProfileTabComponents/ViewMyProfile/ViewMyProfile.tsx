@@ -45,12 +45,14 @@ const styles = StyleSheet.create({
     color: '#2f2f2f',
   },
   text: {
+    flexShrink: 1,
+
     fontSize: 16,
     color: '#000',
     flex: 1,
   },
   chevron:{
-     marginLeft: -13,
+     
   }
 });
 

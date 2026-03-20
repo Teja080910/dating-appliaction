@@ -1,22 +1,54 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import AppContext from '../../context/CreateGlobalStateContext';
+import { useNavigation } from '@react-navigation/native';
 
 const SaveResetButtons = () => {
+  const navigation = useNavigation();
+  const {
+    setAgeRange,
+    setLocation,
+    setDistanceRange,
+    setBodyHeight,
+    setSearchLanguages,
+    setSelectedOptions,
+    setSelectBodyTypes,
+    setEnglishProficiency,
+    setEthnicity,
+    setLookingFor,
+    setShowMe,
+    setSmoke,
+  } = useContext(AppContext);
+
   const onSave = () => {
     console.log('Settings saved');
+    // For now, saving just means navigating back since states are already in Context
+    navigation.goBack();
   };
 
   const onReset = () => {
     console.log('Settings reset');
+    setAgeRange([18, 55]);
+    setLocation('My current location');
+    setDistanceRange(1100);
+    setBodyHeight([120, 200]);
+    setSearchLanguages([]);
+    setSelectedOptions([]);
+    setSelectBodyTypes([]);
+    setEnglishProficiency([]);
+    setEthnicity([]);
+    setLookingFor([]);
+    setShowMe(null);
+    setSmoke([]);
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.button} onPress={onSave}>
-        <Text style={styles.buttonText}>Save</Text>
+      <TouchableOpacity style={[styles.button, styles.resetButton]} onPress={onReset}>
+        <Text style={styles.resetButtonText}>Reset</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={onReset}>
-        <Text style={styles.buttonText}>Reset</Text>
+      <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={onSave}>
+        <Text style={styles.saveButtonText}>Save</Text>
       </TouchableOpacity>
     </View>
   );
@@ -34,13 +66,26 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    backgroundColor: '#d33',
     paddingVertical: 14,
-    borderRadius: 14,
-    marginHorizontal: 5,
+    borderRadius: 30,
+    marginHorizontal: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: {
+  resetButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  saveButton: {
+    backgroundColor: '#FF5A79', // Amara Theme color
+  },
+  resetButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

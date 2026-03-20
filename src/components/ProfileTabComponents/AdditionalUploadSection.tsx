@@ -1,4 +1,3 @@
-
 import {
   Image,
   StyleSheet,
@@ -11,6 +10,7 @@ import React, { useContext } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { launchImageLibrary } from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/Feather';
 
 const AdditionalUploadSection = () => {
   const {
@@ -70,7 +70,7 @@ const AdditionalUploadSection = () => {
   };
 
   return (
-    <View>
+    <View style={styles.container}>
       <Text style={styles.textPhoto}>PHOTOS</Text>
 
       <View style={styles.grid}>
@@ -86,16 +86,18 @@ const AdditionalUploadSection = () => {
                 <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
               ) : (
                 <View style={styles.iconContainer}>
-                  <Text style={styles.cameraIcon}>📷</Text>
+                  <Icon name="camera" size={24} color="#777" />
                   <View style={styles.plusBadge}>
-                    <Text style={styles.plusText}>+</Text>
+                    <Icon name="plus" size={12} color="#fff" />
                   </View>
                 </View>
               )}
             </TouchableOpacity>
           );
         })}
+      </View>
 
+      <View style={styles.badgeWrapper}>
         <PhotoVerifiedBadge />
       </View>
     </View>
@@ -105,6 +107,9 @@ const AdditionalUploadSection = () => {
 export default AdditionalUploadSection;
 
 const styles = StyleSheet.create({
+  container: {
+    paddingBottom: 20,
+  },
   textPhoto: {
     fontSize: 13,
     fontWeight: '600',
@@ -116,18 +121,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 10,
     paddingHorizontal: 10,
   },
   imageBox: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
+    width: '30%',
+    aspectRatio: 1,
+    borderRadius: 12,
     backgroundColor: '#f2f2f2',
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 5,
+    margin: '1.5%', // Gives approx 3 items per row evenly
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   uploadedImage: {
     width: '100%',
@@ -136,29 +145,26 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  cameraIcon: {
-    fontSize: 28,
-    color: '#333',
+    backgroundColor: '#e6e6e6',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   plusBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#d63d4c',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    backgroundColor: '#E94057',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
   },
-  plusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+  badgeWrapper: {
+    alignItems: 'center',
+    marginTop: 20,
   },
 });

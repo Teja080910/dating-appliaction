@@ -10,4 +10,6 @@ export type RootParamList = {
   SearchSettings: undefined;
   ProfileSettingsScreen: undefined;
   ViewMyProfileScreen: undefined;
+  MatchScreen: { matchedUser: any };
+  PrivacyPolicy: { type: 'privacy' | 'terms' };
 };

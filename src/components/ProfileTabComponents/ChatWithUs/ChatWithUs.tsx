@@ -27,6 +27,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
   },
   left: {
+    flex: 1,
+
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -35,12 +37,12 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   text: {
+    flexShrink: 1,
+
     fontSize: 16,
     color: '#000',
   },
-  chevron: {
-    marginLeft: 215,
-  }
+  chevron: {}
 });
 
 export default ChatWithUs;

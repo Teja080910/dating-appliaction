@@ -27,6 +27,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
   },
   left: {
+    flex: 1,
+
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -36,12 +38,12 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '5deg' }], // mimic paper plane direction
   },
   text: {
+    flexShrink: 1,
+
     fontSize: 16,
     color: '#000',
   },
-  chevron: {
-    marginLeft: 140,
-  }
+  chevron: {}
 });
 
 export default ConnectTelegram;

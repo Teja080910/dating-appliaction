@@ -14,9 +14,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 const AboutProfileScreen = ({ navigation }: any) => {
 
   const {profileText, setProfileText} = useContext(AppContext);
-  // const [profileText, setProfileText] = useState('');
 
-  // console.log('Profile Text:', profileText);
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -50,7 +48,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
 
       {/* Footer Info */}
       <Text style={styles.footerText}>
-        For more info, questions, feedback, and perhaps to say hello, kindly send an e-mail to hi@dating.com. We will respond within 24 hours :-)
+        For more info, questions, feedback, and perhaps to say hello, kindly send an e-mail to hi@amara.app. We will respond within 24 hours :-)
       </Text>
 
       {/* Next Button */}
@@ -82,7 +80,7 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: '#eee',
     borderRadius: 2,
     marginTop: 10,
     marginBottom: 20,
@@ -91,54 +89,61 @@ const styles = StyleSheet.create({
   progressBar: {
     width: '85%',
     height: '100%',
-    backgroundColor: '#c34e59',
+    backgroundColor: '#FF5A79',
   },
   heading: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '900',
     color: '#000',
     marginBottom: 10,
   },
   subtext: {
     fontSize: 16,
     color: '#555',
+    lineHeight: 22,
     marginBottom: 20,
   },
   input: {
     height: 180,
-    borderWidth: 1,
-    borderColor: '#c34e59',
-    borderRadius: 2,
-    padding: 10,
+    borderWidth: 1.2,
+    borderColor: '#FF5A79',
+    borderRadius: 12,
+    padding: 15,
     textAlignVertical: 'top',
     fontSize: 16,
     color: '#000',
-    // borderColor: '#e5e5e5'
+    backgroundColor: '#fdfdfd',
   },
   charCount: {
     textAlign: 'right',
     color: '#888',
-    marginTop: 4,
+    marginTop: 6,
     marginBottom: 30,
+    fontWeight: '600',
   },
   footerText: {
     fontSize: 13,
     color: '#999',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 25,
+    lineHeight: 18,
   },
   nextButton: {
-    backgroundColor: '#c34e59',
-    paddingVertical: 15,
-    borderRadius: 30,
+    backgroundColor: '#FF5A79',
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
+    shadowColor: '#FF5A79',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   nextButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '900',
   },
 });
-
-

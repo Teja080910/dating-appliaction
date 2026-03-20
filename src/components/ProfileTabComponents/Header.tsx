@@ -4,8 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 const Header = () => {
   return (
     <View style={styles.headerContainer}>
-      <Text style={styles.headerText}>Dating</Text>
-      <View style={styles.divider} />
+      <Text style={styles.headerText}>AMARA</Text>
     </View>
   );
 };
@@ -14,20 +13,16 @@ export default Header;
 
 const styles = StyleSheet.create({
   headerContainer: {
-    backgroundColor: '#f5f5f5', // same as screenshot background
+    backgroundColor: '#fff',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   headerText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#cc1e42',
-    fontFamily: 'sans-serif-medium',
-  },
-  divider: {
-    marginTop: 14, // pushed further down
-    width: '100%',
-    height: 2,
-    backgroundColor: '#cc1e42',
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FF5A79', // Amara Theme color
+    letterSpacing: 2,
   },
 });

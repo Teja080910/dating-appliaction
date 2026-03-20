@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Colors } from '../../utils/colors';
 
 const ForgotPasswordScreen = ({ navigation }: any) => {
   return (
-    <LinearGradient colors={['#ee486b', '#e14c61']} style={styles.container}>
+    <LinearGradient colors={[Colors.pink, '#D94466']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Logo + Glambu Name */}
         <View style={styles.logoContainer}>
@@ -22,14 +23,14 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
             style={styles.logo}
             resizeMode="contain"
           /> */}
-          <Text style={styles.appName}>Dating</Text>
+          <Text style={styles.appName}>AMARA</Text>
         </View>
 
         <Text style={styles.forgotText}>Forgot Password</Text>
 
         {/* Email Input */}
         <View style={styles.inputWrapper}>
-          <Icon name="email-outline" size={20} color="#e14c61" style={styles.icon} />
+          <Icon name="email-outline" size={20} color="#FF5A79" style={styles.icon} />
           <TextInput
             placeholder="Enter your e-mail address"
             placeholderTextColor="#666"

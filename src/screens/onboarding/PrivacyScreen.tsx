@@ -59,14 +59,14 @@ const PrivacyScreen = ({ navigation }: any) => {
 
       <TouchableOpacity
         style={styles.linkBtn}
-        onPress={() => Linking.openURL('https://example.com/eula')}
+        onPress={() => navigation.navigate('PrivacyPolicy', { type: 'terms' })}
       >
-        <Text style={styles.linkText}>📄 End user license agreement</Text>
+        <Text style={styles.linkText}>📄 Terms of Use</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.linkBtn}
-        onPress={() => Linking.openURL('https://example.com/privacy')}
+        onPress={() => navigation.navigate('PrivacyPolicy', { type: 'privacy' })}
       >
         <Text style={styles.linkText}>📄 Privacy Policy</Text>
       </TouchableOpacity>
@@ -76,7 +76,7 @@ const PrivacyScreen = ({ navigation }: any) => {
       </Text>
 
       <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept}>
-        <Text style={styles.acceptBtnText}>Accept terms of use</Text>
+        <Text style={styles.acceptBtnText}>Accept terms and privacy policy</Text>
       </TouchableOpacity>
     </View>
   );
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   progress: {
     height: 5,
     width: '10%',
-    backgroundColor: '#e14c61',
+    backgroundColor: '#FF5A79',
   },
   header: {
     fontSize: 26,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     color: '#444',
   },
   acceptBtn: {
-    backgroundColor: '#e14c61',
+    backgroundColor: '#FF5A79',
     borderRadius: 30,
     paddingVertical: 14,
     marginTop: 30,

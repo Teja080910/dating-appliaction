@@ -73,7 +73,7 @@ const DOBScreen = ({ navigation }: any) => {
         <View style={styles.infoContainer}>
           <Icon name="info-circle" size={14} color="#999" style={{ marginTop: 2 }} />
           <Text style={styles.infoText}>
-            Did you know that you have 100% privacy at Dating? Only the people
+            Did you know that you have 100% privacy at AMARA? Only the people
             who you have sent an invitation to will be able to view your profile!
           </Text>
         </View>

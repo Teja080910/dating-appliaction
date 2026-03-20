@@ -14,6 +14,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors } from '../../utils/colors';
 // import useRegisterMutation from '../../api/useRegisterMutation';
 
 const RegisterScreen = ({navigation}: any) => {
@@ -31,7 +32,7 @@ const RegisterScreen = ({navigation}: any) => {
   };
 
   return (
-    <LinearGradient colors={['#ee486b', '#e14c61']} style={styles.container}>
+    <LinearGradient colors={[Colors.pink, '#D94466']} style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled">
@@ -41,7 +42,7 @@ const RegisterScreen = ({navigation}: any) => {
             style={styles.logo}
             resizeMode="contain"
           /> */}
-          <Text style={styles.appName}>Dating</Text>
+          <Text style={styles.appName}>AMARA</Text>
         </View>
 
         <Text style={styles.registerText}>Register Now</Text>
@@ -50,7 +51,7 @@ const RegisterScreen = ({navigation}: any) => {
           <Icon
             name="email-outline"
             size={20}
-            color="#e14c61"
+            color={Colors.pink}
             style={styles.icon}
           />
           <TextInput
@@ -67,7 +68,7 @@ const RegisterScreen = ({navigation}: any) => {
           <Icon
             name="lock-outline"
             size={20}
-            color="#e14c61"
+            color={Colors.pink}
             style={styles.icon}
           />
           <TextInput
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   registerBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 30,
     width: '100%',
     height: 55,
@@ -173,12 +174,12 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   registerBtnText: {
-    color: '#000',
+    color: Colors.pink,
     fontWeight: 'bold',
     fontSize: 15,
   },
   loginBtn: {
-    borderColor: '#fff',
+    borderColor: Colors.white,
     borderWidth: 1,
     borderRadius: 30,
     width: '100%',
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loginBtnText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: 'bold',
     fontSize: 15,
   },

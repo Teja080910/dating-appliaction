@@ -6,7 +6,7 @@ import { View, Text, StyleSheet } from 'react-native';
 const AllRightsReserved = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.brand}>Dating</Text>
+      <Text style={styles.brand}>AMARA</Text>
       <Text style={styles.footerText}>2025 © Glambu app. All rights reserved.{'\n'}v. 4.2.2</Text>
     </View>
   );

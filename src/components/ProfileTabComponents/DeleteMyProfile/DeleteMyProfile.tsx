@@ -26,6 +26,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   row: {
+    flex: 1,
+
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -33,6 +35,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   text: {
+    flexShrink: 1,
+
     fontSize: 16,
     color: '#d9534f', // red (Bootstrap danger-like)
   },

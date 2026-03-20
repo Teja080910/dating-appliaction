@@ -744,7 +744,9 @@ const mockUsers = [
     distance: '12 km away',
     age: 28,
     image: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    about: 'Tech enthusiast and coffee lover. Enjoys hiking and exploring new cuisines. Looking for someone to share adventures with.'
+    about: 'Tech enthusiast and coffee lover. Enjoys hiking and exploring new cuisines. Looking for someone to share adventures with.',
+    isOnline: true,
+    isNew: true,
   },
   {
     id: '2',
@@ -753,7 +755,8 @@ const mockUsers = [
     distance: '5 km away',
     age: 31,
     image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=200',
-    about: 'Entrepreneur with a passion for travel. Loves playing cricket and trying new restaurants. Seeking a fun-loving partner.'
+    about: 'Entrepreneur with a passion for travel. Loves playing cricket and trying new restaurants. Seeking a fun-loving partner.',
+    isOnline: true,
   },
   {
     id: '3',
@@ -762,7 +765,8 @@ const mockUsers = [
     distance: '18 km away',
     age: 26,
     image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    about: 'Fitness freak and music lover. Enjoys long drives and deep conversations. Looking for someone who shares my vibe.'
+    about: 'Fitness freak and music lover. Enjoys long drives and deep conversations. Looking for someone who shares my vibe.',
+    isNew: true,
   },
   {
     id: '4',
@@ -789,7 +793,8 @@ const mockUsers = [
     distance: '7 km away',
     age: 27,
     image: 'https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=200',
-    about: 'Gamer and tech geek. Loves street food and spontaneous trips. Seeking a partner for fun and chill vibes.'
+    about: 'Gamer and tech geek. Loves street food and spontaneous trips. Seeking a partner for fun and chill vibes.',
+    isOnline: true,
   },
   {
     id: '7',
@@ -1114,17 +1119,19 @@ const mockUsers = [
     gender: 'straight_man',
     distance: '19 km away',
     age: 28,
-    image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    about: 'Musician and nature lover. Enjoys camping and live music. Looking for someone to share outdoor vibes.'
+    image: 'https://images.unsplash.com/photo-1480429370139-e0132c086e2a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
+    about: 'Outdoor enthusiast and nature lover. Enjoys camping and photography. Looking for someone to share the view.',
+    isNew: true,
   },
   {
     id: '43',
     name: 'Brandon Clark',
-    gender: 'straight_man',
-    distance: '5 km away',
-    age: 31,
-    image: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=200',
-    about: 'Foodie and fitness enthusiast. Loves trying new cuisines and gym sessions. Seeking a partner for fun and health.'
+    gender: 'straight_woman',
+    distance: '6 km away',
+    age: 30,
+    image: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=200',
+    about: 'Foodie and movie buff. Loves trying new recipes and cozy movie nights. Seeking a partner for fun and comfort.',
+    isNew: true,
   },
   {
     id: '44',
@@ -1198,7 +1205,8 @@ const mockUsers = [
     distance: '11 km away',
     age: 27,
     image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-    about: 'Dancer and book lover. Enjoys classical music and cozy cafes. Seeking a partner for meaningful connections.'
+    about: 'Art lover and yoga enthusiast. Loves sunset walks and meaningful talks. Seeking a partner for a soulful connection.',
+    isOnline: true,
   },
   {
     id: '52',
@@ -1424,8 +1432,10 @@ const mockUsers = [
     gender: 'straight_woman',
     distance: '12 km away',
     age: 28,
-    image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=200',
-    about: 'Photographer and coffee lover. Enjoys city walks and capturing moments. Seeking a partner for creative adventures.'
+    image: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&dpr=1&w=200',
+    about: 'Fitness lover and sports fan. Enjoys morning runs and watching cricket. Seeking a partner for an active lifestyle.',
+    isNew: true,
+    isOnline: true,
   },
   {
     id: '77',

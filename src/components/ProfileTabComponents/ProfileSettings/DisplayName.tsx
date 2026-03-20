@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 24,
-    backgroundColor: '#f8f8f8', // soft background similar to image
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 20,

@@ -12,13 +12,16 @@ import GenderOrientationScreen from '../onboarding/GenderOrientationScreen';
 import DOBScreen from '../onboarding/DOBScreen';
 import AppContext from '../../context/CreateGlobalStateContext';
 import UploadImageScreen from '../onboarding/UploadImageScreen';
+import FaceVerificationScreen from '../onboarding/FaceVerificationScreen';
 import BottomTabs from './BottomTabs';
 import AboutProfileScreen from '../onboarding/AboutProfileScreen';
 import ConnectTelegramScreen from '../onboarding/ConnectTelegramScreen';
 import SearchScreen from '../SearchSettings/SearchScreen';
 import ProfileSettingsScreen from '../ProfileTab/ProfileSettingsScreen';
 import ViewMyProfileScreen from '../ProfileTab/ViewMyProfileScreen';
-
+import MatchScreen from '../HomeTab/MatchScreen';
+import PrivacyPolicyScreen from '../ProfileTab/PrivacyPolicyScreen';
+import ChatDetailScreen from '../MessageTab/ChatDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -84,12 +87,16 @@ const Routes = () => {
         <Stack.Screen name="GenderOrientation" component={GenderOrientationScreen} />
         <Stack.Screen name="DOB" component={DOBScreen} />
         <Stack.Screen name="UploadImage" component={UploadImageScreen} />
+        <Stack.Screen name="FaceVerification" component={FaceVerificationScreen} />
         <Stack.Screen name="BottomTabs" component={BottomTabs} />
         <Stack.Screen name="AboutProfile" component={AboutProfileScreen} />
         <Stack.Screen name="ConnectTelegram" component={ConnectTelegramScreen} />
         <Stack.Screen name="SearchSettings" component={SearchScreen} />
         <Stack.Screen name="ProfileSettingsScreen" component={ProfileSettingsScreen} />
         <Stack.Screen name="ViewMyProfileScreen" component={ViewMyProfileScreen} />
+        <Stack.Screen name="MatchScreen" component={MatchScreen} />
+        <Stack.Screen name="ChatDetailScreen" component={ChatDetailScreen} />
+        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -83,7 +83,7 @@ const DisplayNameScreen = ({ navigation }: any) => {
 
       {/* Content wrapper */}
       <View style={styles.content}>
-        <Text style={styles.title}>Welcome to Dating!</Text>
+        <Text style={styles.title}>Welcome to AMARA!</Text>
         <Text style={styles.subtitle}>Please choose a display name!</Text>
 
         <TextInput

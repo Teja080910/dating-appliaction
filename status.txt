@@ -1,0 +1,11 @@
+ M android/app/src/main/res/values/strings.xml
+ M app.json
+ M babel.config.js
+ M index.js
+ M ios/DatingApp/Info.plist
+ M package-lock.json
+ M package.json
+ M src/screens/Navigations/Routes.tsx
+ M src/screens/onboarding/UploadImageScreen.tsx
+?? src/screens/onboarding/FaceVerificationScreen.tsx
+?? status.txt

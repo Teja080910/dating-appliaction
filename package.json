@@ -1,5 +1,5 @@
 {
-  "name": "DatingApp",
+  "name": "amara",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -27,6 +27,7 @@
     "react": "19.0.0",
     "react-native": "0.78.2",
     "react-native-date-picker": "^5.0.12",
+    "react-native-deck-swiper": "^2.0.19",
     "react-native-elements": "^3.4.3",
     "react-native-encrypted-storage": "^4.0.3",
     "react-native-gesture-handler": "^2.25.0",
@@ -40,7 +41,8 @@
     "react-native-screens": "^4.10.0",
     "react-native-snap-carousel": "^3.9.1",
     "react-native-toast-message": "^2.3.0",
-    "react-native-vector-icons": "^10.2.0"
+    "react-native-vector-icons": "^10.2.0",
+    "react-native-vision-camera": "^4.7.3"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

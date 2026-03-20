@@ -4,7 +4,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 
 const options = [
   'Hookup',
-  'Casual dating',
+  'Casual AMARA',
   'Relationship',
   'Marriage',
   'Online relationship',
@@ -17,7 +17,7 @@ const LookingFor = () => {
 
   const toggleOption = (option: string) => {
     if (lookingFor.includes(option)) {
-      setLookingFor(lookingFor.filter((item) => item !== option));
+      setLookingFor(lookingFor.filter((item: string) => item !== option));
     } else {
       setLookingFor([...lookingFor, option]);
     }
@@ -27,7 +27,7 @@ const LookingFor = () => {
     <View style={styles.container}>
       <Text style={styles.label}>Looking for</Text>
       <View style={styles.optionsWrapper}>
-        {options.map((item, index) => (
+        {options.map((item: string, index) => (
           <TouchableOpacity
             key={index}
             style={[

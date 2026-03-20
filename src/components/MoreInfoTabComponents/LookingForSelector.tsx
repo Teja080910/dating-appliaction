@@ -4,7 +4,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 
 const options = [
   'Hookup',
-  'Casual dating',
+  'Casual AMARA',
   'Relationship',
   'Marriage',
   'Online relationship',
@@ -17,7 +17,7 @@ const LookingForSelector = () => {
 
   const toggleOption = (option: string) => {
     if (selectedLookingFor.includes(option)) {
-      setSelectedLookingFor(selectedLookingFor.filter(item => item !== option));
+      setSelectedLookingFor(selectedLookingFor.filter((item: string) => item !== option));
     } else {
       setSelectedLookingFor([...selectedLookingFor, option]);
     }
@@ -27,22 +27,22 @@ const LookingForSelector = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Looking for</Text>
       <View style={styles.optionContainer}>
-        {options.map(option => (
+        {options.map((item: string, index) => (
           <TouchableOpacity
-            key={option}
-            onPress={() => toggleOption(option)}
+            key={item}
+            onPress={() => toggleOption(item)}
             style={[
               styles.option,
-              selectedLookingFor.includes(option) && styles.selectedOption,
+              selectedLookingFor.includes(item) && styles.selectedOption,
             ]}
           >
             <Text
               style={[
                 styles.optionText,
-                selectedLookingFor.includes(option) && styles.selectedText,
+                selectedLookingFor.includes(item) && styles.selectedText,
               ]}
             >
-              {option}
+              {item}
             </Text>
           </TouchableOpacity>
         ))}
