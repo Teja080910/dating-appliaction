@@ -1,21 +1,35 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckBox } from 'react-native-elements';
 import AppContext from '../../context/CreateGlobalStateContext';
 
-const SearchWorldWide = () => {
-  // const [isChecked, setIsChecked] = useState(false);
-  const { isChecked, setIsChecked} = useContext(AppContext)
+interface SearchWorldWideProps {
+  onToggle?: (val: boolean) => void;
+}
+
+const SearchWorldWide: React.FC<SearchWorldWideProps> = ({ onToggle }) => {
+  const { isChecked, setIsChecked, isSubscribed, setPaywallVisible } = useContext(AppContext);
+
+  const handleToggle = () => {
+    if (!isSubscribed) {
+      setPaywallVisible(true);
+      return;
+    }
+    const newVal = !isChecked;
+    setIsChecked(newVal);
+    if (onToggle) {
+      onToggle(newVal);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => setIsChecked(!isChecked)}>
+      <TouchableOpacity onPress={handleToggle} activeOpacity={0.7}>
         <CheckBox
           checked={isChecked}
-          onPress={() => setIsChecked(!isChecked)}
+          onPress={handleToggle}
           checkedColor="#e94e77"
           containerStyle={styles.checkboxContainer}
-          
         />
       </TouchableOpacity>
 

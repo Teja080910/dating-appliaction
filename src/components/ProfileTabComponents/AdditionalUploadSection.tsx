@@ -5,67 +5,149 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import React, { useContext } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
+import { mapImagesToSlots, useUserImages } from '../../api/useImages';
+import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
 
 const AdditionalUploadSection = () => {
   const {
     images,
-    profileImage,
     setProfileImage,
-    setSelectedIndex,
-    setIsModalVisible,
+    setProfileImageUrl,
     setImages,
+    authUserId,
+    setAuthUserId,
   } = useContext(AppContext);
 
-  const onPressImage = async (index: number) => {
-    const currentImage = images[index];
+  const { uploadImage, getAllImages, deleteImage, setProfilePhoto } = useUserImages();
+  const [localUserId, setLocalUserId] = useState<string | null>(null);
+  const [imageMap, setImageMap] = useState<Record<number, number>>({}); // index -> imageId
 
-    // Count how many images are non-empty
-    const totalImages = images.filter(img => img && img.trim() !== '').length;
+  const resolveActiveUserId = useCallback(async () => {
+    if (authUserId && isResolvedApiUserId(authUserId)) {
+      return String(authUserId);
+    }
 
-    if (currentImage && currentImage.trim() !== '') {
-      // REMOVE CASE
-      if (totalImages === 1) {
-        Alert.alert(
-          'Hold on!',
-          "At least one photo must remain. You can't remove your only profile picture."
-        );
+    const authSession = await getAuthSession();
+    if (authSession?.userId && isResolvedApiUserId(authSession.userId)) {
+      return String(authSession.userId);
+    }
+
+    return null;
+  }, [authUserId]);
+
+  const syncImagesFromServer = useCallback((uid?: string | null) => {
+    getAllImages.mutate(uid || undefined, {
+      onSuccess: (data: any) => {
+        const mapped = mapImagesToSlots(data);
+        setImages(mapped.slots);
+        setImageMap(mapped.imageIdByIndex);
+        setProfileImage(mapped.profileImageUrl);
+        setProfileImageUrl(mapped.profileImageUrl);
+      },
+      onError: (error: any) => {
+        const message =
+          error?.response?.data?.message ||
+          error?.message ||
+          'Unable to sync your images right now.';
+        Alert.alert('Error', String(message));
+      },
+    });
+  }, [getAllImages, setImages, setProfileImage, setProfileImageUrl]);
+
+  useEffect(() => {
+    const init = async () => {
+      const uid = await resolveActiveUserId();
+      if (uid) {
+        const uidStr = uid.toString();
+        setLocalUserId(uidStr);
+        setAuthUserId?.(uidStr);
+        syncImagesFromServer(uidStr);
         return;
       }
 
-      const newImages = [...images];
-      newImages[index] = null;
-      setImages(newImages);
+      syncImagesFromServer();
+    };
+    init().catch(() => null);
+  }, [resolveActiveUserId, setAuthUserId, syncImagesFromServer]);
 
-      if (profileImage === currentImage) {
-        setProfileImage(null);
-      }
+  const onPressImage = async (index: number) => {
+    const currentImage = images[index];
+    const imageId = imageMap[index];
 
-      setSelectedIndex(null);
-      setIsModalVisible(false);
+    if (currentImage && currentImage.trim() !== '') {
+      // REMOVE CASE
+      Alert.alert('Remove Photo', 'Are you sure you want to remove this photo?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            if (imageId) {
+              deleteImage.mutate(imageId, {
+                onSuccess: () => {
+                  syncImagesFromServer(localUserId);
+                },
+                onError: () => Alert.alert('Error', 'Failed to delete image from server.'),
+              });
+            } else {
+              const newImages = [...images];
+              newImages[index] = null;
+              setImages(newImages);
+            }
+          },
+        },
+      ]);
     } else {
       // UPLOAD CASE
-      const result = await launchImageLibrary({ mediaType: 'photo' });
+      const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
 
       if (result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        if (uri) {
-          const updatedImages = [...images];
-          updatedImages[index] = uri;
-          setImages(updatedImages);
+        const asset = result.assets[0];
+        if (asset.uri) {
+          uploadImage.mutate({
+            uid: localUserId || undefined,
+            photo: {
+              uri: asset.uri,
+              fileName: asset.fileName || `upload_${Date.now()}.jpg`,
+              type: asset.type || 'image/jpeg',
+            },
+          }, {
+            onSuccess: async (response: any) => {
+              const uploadedImageId =
+                typeof response?.id === 'number'
+                  ? response.id
+                  : typeof response?.data?.id === 'number'
+                    ? response.data.id
+                    : null;
 
-          if (!profileImage) {
-            setProfileImage(uri);
-          }
+              if (index === 0 && uploadedImageId && localUserId) {
+                try {
+                  await setProfilePhoto.mutateAsync({
+                    uid: localUserId,
+                    imageId: uploadedImageId,
+                  });
+                } catch {}
+              }
+
+              syncImagesFromServer(localUserId);
+            },
+            onError: (error: any) => {
+              const message =
+                error?.response?.data?.message ||
+                error?.message ||
+                'Failed to upload image to server.';
+              Alert.alert('Error', String(message));
+            },
+          });
         }
       }
-
-      setIsModalVisible(false);
     }
   };
 
@@ -76,20 +158,28 @@ const AdditionalUploadSection = () => {
       <View style={styles.grid}>
         {Array.from({ length: 6 }).map((_, i) => {
           const imageUri = images[i];
+          const isProcessing = (uploadImage.isPending || deleteImage.isPending || getAllImages.isPending);
 
           return (
             <TouchableOpacity
               key={i}
               style={styles.imageBox}
-              onPress={() => onPressImage(i)}>
+              onPress={() => onPressImage(i)}
+              disabled={isProcessing}>
               {imageUri ? (
                 <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
               ) : (
                 <View style={styles.iconContainer}>
-                  <Icon name="camera" size={24} color="#777" />
-                  <View style={styles.plusBadge}>
-                    <Icon name="plus" size={12} color="#fff" />
-                  </View>
+                  {uploadImage.isPending ? (
+                    <ActivityIndicator color="#E94057" />
+                  ) : (
+                    <>
+                      <Icon name="camera" size={24} color="#777" />
+                      <View style={styles.plusBadge}>
+                        <Icon name="plus" size={12} color="#fff" />
+                      </View>
+                    </>
+                  )}
                 </View>
               )}
             </TouchableOpacity>
@@ -130,7 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
     justifyContent: 'center',
     alignItems: 'center',
-    margin: '1.5%', // Gives approx 3 items per row evenly
+    margin: '1.5%',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.1,

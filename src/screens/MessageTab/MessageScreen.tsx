@@ -1,41 +1,159 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  FlatList, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  Dimensions,
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  FlatList,
+  TouchableOpacity,
   TextInput,
-  StatusBar
+  StatusBar,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AvatarGroup from '../../components/MessageTabComponents/AvatarGroup';
 import InviteButton from '../../components/MessageTabComponents/InviteButton';
 import { getGender } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import Toast from 'react-native-toast-message';
+import { getUserId } from '../../utils/sessionHelper';
+import useSubscriptionGate from '../../utils/useSubscriptionGate';
 
 // Mock Messages Data
-const MOCK_CHATS = [
-    { id: '1', name: 'Alisha', lastMsg: 'I really like your profile!', time: '10:15 AM', unread: 2, image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format' },
-    { id: '2', name: 'Sneha', lastMsg: 'Are you from Mumbai originally?', time: 'Yesterday', unread: 0, image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format' },
-    { id: '3', name: 'Pooja', lastMsg: 'Sent you a heart!', time: 'Tue', unread: 1, image: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=500&auto=format' },
-];
+// const MOCK_CHATS = [
+//     { id: '1', name: 'Alisha', lastMsg: 'I really like your profile!', time: '10:15 AM', unread: 2, image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format' },
+//     { id: '2', name: 'Sneha', lastMsg: 'Are you from Mumbai originally?', time: 'Yesterday', unread: 0, image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format' },
+//     { id: '3', name: 'Pooja', lastMsg: 'Sent you a heart!', time: 'Tue', unread: 1, image: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=500&auto=format' },
+// ];
 
-const MOCK_RECEIVED = [
-    { id: 'rec1', name: 'Kavita', age: 23, time: '2h ago', image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&auto=format' },
-];
+
+// const MOCK_RECEIVED = [
+//     { id: 'rec1', name: 'Kavita', age: 23, time: '2h ago', image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&auto=format' },
+// ];
+
+
+import { useConnection } from '../../api/useConnection';
+import { getAbsoluteUrl } from '../../api/apiClient';
 
 export default function MessageScreen() {
   const navigation = useNavigation<any>();
-  const { oppositeGender, setOppositeGender, invitations } = useContext(AppContext);
+  const [userId, setUserId] = useState<string | null>(null);
   const [activeMainTab, setActiveMainTab] = useState<'Invitations' | 'Messages'>('Invitations');
   const [activeInviteTab, setActiveInviteTab] = useState<'Sent' | 'Received'>('Sent');
+
+  // Load userId from storage
+  useEffect(() => {
+    getUserId().then(setUserId);
+  }, []);
+
+  const connection = useConnection(userId || undefined);
+  const { requireSubscription } = useSubscriptionGate();
+
+  const formatInviteTime = (value?: string) => {
+    if (!value) return 'now';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'now';
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const normalizeInvite = useCallback((request: any, mode: 'sent' | 'received') => {
+    const targetUser = mode === 'sent' ? request?.receiver : request?.sender;
+    const profile = targetUser?.profile;
+
+    return {
+      id: request?.id,
+      requestId: request?.id,
+      userId: targetUser?.id,
+      name: profile?.displayName || targetUser?.name || 'User',
+      age: profile?.age ?? '',
+      image: profile?.profileImageUrl ? getAbsoluteUrl(profile.profileImageUrl) : null,
+      time: formatInviteTime(request?.updatedAt || request?.createdAt),
+      status: request?.status || 'PENDING',
+      online: profile?.online ?? false,
+    };
+  }, []);
+
+  const normalizeChat = useCallback((request: any) => {
+    const numericUserId = userId ? Number(userId) : null;
+    const sender = request?.sender;
+    const receiver = request?.receiver;
+    const targetUser = sender?.id === numericUserId ? receiver : sender;
+    const profile = targetUser?.profile;
+    const status = String(request?.status || 'CONNECTED').toUpperCase();
+
+    return {
+      id: String(request?.id || targetUser?.id || `${status}-${Date.now()}`),
+      name: profile?.displayName || targetUser?.name || 'User',
+      lastMsg:
+        status === 'ACCEPTED'
+          ? 'You are connected. Start the conversation.'
+          : `Connection status: ${status}`,
+      time: formatInviteTime(request?.updatedAt || request?.createdAt),
+      unread: 0,
+      image: profile?.profileImageUrl ? getAbsoluteUrl(profile.profileImageUrl) : null,
+      online: profile?.online ?? false,
+    };
+  }, [userId]);
+
+  const { setOppositeGender, chats } = useContext(AppContext);
+
+  const sentInvites = useMemo(() => {
+    const items = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+    return items.map((item: any) => normalizeInvite(item, 'sent'));
+  }, [connection.sentList.data, normalizeInvite]);
+
+  const receivedInvites = useMemo(() => {
+    const items = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
+    return items.map((item: any) => normalizeInvite(item, 'received'));
+  }, [connection.receivedList.data, normalizeInvite]);
+
+  const connectionChats = useMemo(() => {
+    const items = Array.isArray(connection.connectionList.data) ? connection.connectionList.data : [];
+    return items.map((item: any) => normalizeChat(item));
+  }, [connection.connectionList.data, normalizeChat]);
+
+  const sentLoading = Boolean(userId) && (connection.sentList.isLoading || connection.sentList.isRefetching);
+  const receivedLoading = Boolean(userId) && (connection.receivedList.isLoading || connection.receivedList.isRefetching);
+  const messagesLoading = Boolean(userId) && (connection.connectionList.isLoading || connection.connectionList.isRefetching);
+
+  const handleRecall = (id: string | number) => {
+    connection.cancel.mutate(Number(id), {
+      onSuccess: () => {
+        void connection.sentList.refetch();
+        Toast.show({
+          type: 'success',
+          text1: 'Invitation Recalled',
+          text2: 'The invitation has been cancelled.'
+        });
+      },
+      onError: () => {
+        Alert.alert('Error', 'Failed to recall invitation.');
+      }
+    });
+  };
+
+  const handleAccept = (item: any) => {
+    connection.accept.mutate(Number(item.requestId || item.id), {
+        onSuccess: () => {
+            void connection.receivedList.refetch();
+            void connection.connectionList.refetch();
+            Toast.show({
+                type: 'success',
+                text1: 'Invitation Accepted!',
+                text2: `You can now chat with ${item.name || item.username || 'them'}.`
+            });
+        },
+        onError: () => {
+            Alert.alert('Error', 'Failed to accept invitation.');
+        }
+    });
+  };
 
   useEffect(() => {
     const fetchGender = async () => {
@@ -48,30 +166,41 @@ export default function MessageScreen() {
         setOppositeGender('lgbtqia');
       }
     };
-    fetchGender();
-  }, []);
 
-  const isLookingForWoman = oppositeGender === 'straight_woman';
+    fetchGender();
+  }, [setOppositeGender]);
+
+  const isInvitesLoading = activeInviteTab === 'Sent' ? sentLoading : receivedLoading;
+
+  // Use mock data if list is empty for UI testing (Optional)
+  const displaySentInvites = sentInvites.length > 0 ? sentInvites : []; // Add mock data here if needed
+  const displayReceivedInvites = receivedInvites.length > 0 ? receivedInvites : [];
+  const displayChats = connectionChats.length > 0 ? connectionChats : chats;
 
   const renderInviteItem = ({ item }: { item: any }) => (
     <View style={styles.listItem}>
         <View style={styles.avatarBox}>
             {item.image ? <Image source={{ uri: item.image }} style={styles.avatar} /> : <View style={styles.placeholderAvatar}><Icon name="account" size={30} color="#ccc" /></View>}
-            <View style={styles.onlineDot} />
+            {item.online ? <View style={styles.onlineDot} /> : null}
         </View>
         <View style={styles.itemContent}>
             <View style={styles.itemHeader}>
-                <Text style={styles.itemName}>{item.name}, {item.age}</Text>
+                <Text style={styles.itemName}>{item.age ? `${item.name}, ${item.age}` : item.name}</Text>
                 <Text style={styles.itemTime}>{item.time || 'now'}</Text>
             </View>
             <View style={styles.itemStatusRow}>
                 <Icon name="clock-check-outline" size={14} color="#FF5A79" />
-                <Text style={styles.itemStatusLabel}>{activeInviteTab === 'Sent' ? (item.status || 'Pending') : 'Invited you'}</Text>
+                <Text style={styles.itemStatusLabel}>{activeInviteTab === 'Sent' ? (item.status || 'PENDING') : 'Invited you'}</Text>
             </View>
         </View>
-        <TouchableOpacity style={styles.actionPill}>
+        <TouchableOpacity 
+            style={styles.actionPill} 
+            onPress={() => activeInviteTab === 'Sent' ? handleRecall(item.requestId || item.id) : handleAccept(item)}
+        >
             <Text style={styles.actionPillText}>{activeInviteTab === 'Sent' ? 'Recall' : 'Accept'}</Text>
         </TouchableOpacity>
+
+
     </View>
   );
 
@@ -79,11 +208,21 @@ export default function MessageScreen() {
       <TouchableOpacity 
         style={styles.listItem} 
         activeOpacity={0.7}
-        onPress={() => navigation.navigate('ChatDetailScreen', { name: item.name, image: item.image })}
+        onPress={() =>
+          requireSubscription(() =>
+            navigation.navigate('ChatDetailScreen', { name: item.name, image: item.image })
+          )
+        }
       >
           <View style={styles.avatarBox}>
-              <Image source={{ uri: item.image }} style={styles.avatar} />
-              <View style={styles.onlineDot} />
+              {item.image ? (
+                <Image source={{ uri: item.image }} style={styles.avatar} />
+              ) : (
+                <View style={styles.placeholderAvatar}>
+                  <Icon name="account" size={30} color="#ccc" />
+                </View>
+              )}
+              {item.online ? <View style={styles.onlineDot} /> : null}
           </View>
           <View style={styles.itemContent}>
               <View style={styles.itemHeader}>
@@ -119,7 +258,9 @@ export default function MessageScreen() {
 
           <TouchableOpacity 
             style={[styles.navBtn, activeMainTab === 'Messages' && styles.activeNavBtn]}
-            onPress={() => setActiveMainTab('Messages')}
+            onPress={() =>
+              requireSubscription(() => setActiveMainTab('Messages'))
+            }
           >
               <Icon name="chat-processing-outline" size={26} color={activeMainTab === 'Messages' ? '#FF5A79' : '#999'} />
               <Text style={[styles.navText, activeMainTab === 'Messages' && styles.activeNavText]}>Messages</Text>
@@ -131,32 +272,34 @@ export default function MessageScreen() {
           {activeMainTab === 'Invitations' ? (
               <View style={{ flex: 1 }}>
                   {/* Secondary Invitation Tabs */}
-                  <View style={styles.subTabs}>
-                      <TouchableOpacity onPress={() => setActiveInviteTab('Sent')} style={[styles.subTab, activeInviteTab === 'Sent' && styles.activeSubTab]}>
-                        <Text style={[styles.subTabText, activeInviteTab === 'Sent' && styles.activeSubTabText]}>Sent ({invitations.length})</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => setActiveInviteTab('Received')} style={[styles.subTab, activeInviteTab === 'Received' && styles.activeSubTab]}>
-                        <Text style={[styles.subTabText, activeInviteTab === 'Received' && styles.activeSubTabText]}>Received ({MOCK_RECEIVED.length})</Text>
-                      </TouchableOpacity>
-                  </View>
-
-                  {(activeInviteTab === 'Sent' ? invitations.length : MOCK_RECEIVED.length) > 0 ? (
-                      <FlatList
-                        data={activeInviteTab === 'Sent' ? invitations : MOCK_RECEIVED}
-                        renderItem={renderInviteItem}
-                        keyExtractor={item => item.id}
-                        contentContainerStyle={styles.listContainer}
-                        showsVerticalScrollIndicator={false}
-                      />
-                  ) : (
-                      <View style={styles.emptyView}>
-                          <AvatarGroup />
-                          <Text style={styles.emptyTitle}>No invitations yet</Text>
-                          <Text style={styles.emptyDesc}>Invite people you like to start a conversation!</Text>
-                          <View style={{ width: '80%', marginTop: 20 }}><InviteButton /></View>
-                      </View>
-                  )}
-              </View>
+                   <View style={styles.subTabs}>
+                       <TouchableOpacity onPress={() => setActiveInviteTab('Sent')} style={[styles.subTab, activeInviteTab === 'Sent' && styles.activeSubTab]}>
+                         <Text style={[styles.subTabText, activeInviteTab === 'Sent' && styles.activeSubTabText]}>Sent ({sentInvites?.length || 0})</Text>
+                       </TouchableOpacity>
+                       <TouchableOpacity onPress={() => setActiveInviteTab('Received')} style={[styles.subTab, activeInviteTab === 'Received' && styles.activeSubTab]}>
+                         <Text style={[styles.subTabText, activeInviteTab === 'Received' && styles.activeSubTabText]}>Received ({receivedInvites?.length || 0})</Text>
+                       </TouchableOpacity>
+                   </View>
+ 
+                   {isInvitesLoading ? (
+                       <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color="#FF5A79" /></View>
+                   ) : (activeInviteTab === 'Sent' ? displaySentInvites?.length : displayReceivedInvites?.length) > 0 ? (
+                       <FlatList
+                         data={activeInviteTab === 'Sent' ? displaySentInvites : displayReceivedInvites}
+                         renderItem={renderInviteItem}
+                         keyExtractor={item => item.id?.toString() || Math.random().toString()}
+                         contentContainerStyle={styles.listContainer}
+                         showsVerticalScrollIndicator={false}
+                       />
+                   ) : (
+                       <View style={styles.emptyView}>
+                           <AvatarGroup />
+                           <Text style={styles.emptyTitle}>No invitations yet</Text>
+                           <Text style={styles.emptyDesc}>Invite people you like to start a conversation!</Text>
+                           <View style={{ width: '80%', marginTop: 20 }}><InviteButton /></View>
+                       </View>
+                   )}
+               </View>
           ) : (
               <View style={{ flex: 1 }}>
                   {/* Search Bar for Messages */}
@@ -165,13 +308,26 @@ export default function MessageScreen() {
                       <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor="#BBB" />
                   </View>
 
-                  <FlatList
-                    data={MOCK_CHATS}
-                    renderItem={renderChatItem}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={styles.listContainer}
-                    showsVerticalScrollIndicator={false}
-                  />
+                  {messagesLoading ? (
+                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                      <ActivityIndicator color="#FF5A79" />
+                    </View>
+                  ) : displayChats.length > 0 ? (
+                    <FlatList
+                      data={displayChats}
+                      renderItem={renderChatItem}
+                      keyExtractor={item => String(item.id)}
+                      contentContainerStyle={styles.listContainer}
+                      showsVerticalScrollIndicator={false}
+                    />
+                  ) : (
+                    <View style={styles.emptyView}>
+                      <AvatarGroup />
+                      <Text style={styles.emptyTitle}>No messages yet</Text>
+                      <Text style={styles.emptyDesc}>Accepted connections will appear here for quick access.</Text>
+                      <View style={{ width: '80%', marginTop: 20 }}><InviteButton /></View>
+                    </View>
+                  )}
               </View>
           )}
       </View>
@@ -182,14 +338,14 @@ export default function MessageScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   mainNav: {
     flexDirection: 'row',
     height: 75,
     borderBottomWidth: 1,
     borderBottomColor: '#F5F5F5',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   navBtn: {
       flex: 1,

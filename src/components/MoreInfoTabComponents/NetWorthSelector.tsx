@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
@@ -24,7 +24,7 @@ const NetWorthSelector = () => {
           <TouchableOpacity
             key={option}
             onPress={() =>
-              setSelectedNetWorth(prev => (prev === option ? null : option))
+              setSelectedNetWorth((prev: string | null) => (prev === option ? null : option))
             }
             style={[
               styles.option,

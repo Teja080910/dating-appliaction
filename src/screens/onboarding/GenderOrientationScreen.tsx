@@ -5,25 +5,30 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   BackHandler,
   Dimensions,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { saveGender } from '../../utils/types/AsyncStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Colors } from '../../utils/colors';
+import { useProfile } from '../../api/useProfile';
+import { getUserId } from '../../utils/sessionHelper';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const GenderOrientationScreen = ({ navigation }: any) => {
   const { setSelected } = useContext(AppContext);
   const [selection, setSelection] = useState<string | null>(null);
+  const { genderOrientation } = useProfile();
 
   useFocusEffect(
     useCallback(() => {
+      AsyncStorage.setItem('onboardingStep', 'GenderOrientation');
       const onBackPress = () => {
         navigation.replace('Privacy');
         return true;
@@ -39,6 +44,17 @@ const GenderOrientationScreen = ({ navigation }: any) => {
         console.log('Final Selection:', selection);
         setSelected(selection);
         await saveGender(selection);
+        const resolvedUserId = await getUserId();
+
+        const genderPayload =
+          selection === 'straight_woman'
+            ? { userId: resolvedUserId, gender: 'woman', orientation: 'straight' }
+            : selection === 'straight_man'
+              ? { userId: resolvedUserId, gender: 'man', orientation: 'straight' }
+              : { userId: resolvedUserId, gender: 'lgbtqia', orientation: 'lgbtqia' };
+
+        await genderOrientation.mutateAsync(genderPayload);
+
         // CRITICAL: Set GenderOrientation to true so Routes.tsx knows we finished this step
         await AsyncStorage.setItem('GenderOrientation', 'true');
         
@@ -46,7 +62,13 @@ const GenderOrientationScreen = ({ navigation }: any) => {
         navigation.navigate('DisplayName');
       } catch (error) {
         console.error('Navigation Error:', error);
-        Alert.alert("Error", "Failed to save selection. Please try again.");
+        const apiMessage =
+          (error as any)?.response?.data?.message ||
+          (error as any)?.response?.data?.error ||
+          (typeof (error as any)?.response?.data === 'string' ? (error as any).response.data : null) ||
+          (error as any)?.message ||
+          'Failed to save selection. Please try again.';
+        Alert.alert("Error", String(apiMessage));
       }
     } else {
       Alert.alert("Selection Required", "Please select your gender and orientation to continue.");
@@ -67,7 +89,7 @@ const GenderOrientationScreen = ({ navigation }: any) => {
             setSelection(value);
         }}
       >
-        <Icon name={icon} size={42} color={isSelected ? '#FF5A79' : '#CCC'} />
+        <Icon name={icon} size={42} color={isSelected ? Colors.pink : Colors.grey} />
         <Text style={[styles.cardLabel, isSelected && styles.selectedCardLabel]}>
           {label}
         </Text>
@@ -105,7 +127,8 @@ const GenderOrientationScreen = ({ navigation }: any) => {
         </View>
 
         <TouchableOpacity
-          style={[styles.nextButton, !selection && styles.disabledButton]}
+          disabled={!selection}
+          style={[styles.nextButton, !selection && { opacity: 0.5 }]}
           onPress={handleNext}
           activeOpacity={0.9}
         >
@@ -121,20 +144,20 @@ export default GenderOrientationScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   progressContainer: {
     height: 4,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: Colors.lightGrey,
     marginHorizontal: 20,
     marginTop: 10,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
-    width: '30%',
+    width: '40%',
     height: '100%',
-    backgroundColor: '#FF5A79',
+    backgroundColor: Colors.pink,
   },
   content: {
     flex: 1,
@@ -144,7 +167,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#333',
+    color: Colors.text,
     textAlign: 'center',
     marginBottom: 25,
   },
@@ -158,32 +181,32 @@ const styles = StyleSheet.create({
     height: SCREEN_WIDTH * 0.45,
     borderRadius: 15,
     borderWidth: 1.5,
-    borderColor: '#F0F0F0',
-    backgroundColor: '#FFF',
+    borderColor: Colors.lightGrey,
+    backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 2,
   },
   selectedCard: {
-    borderColor: '#FF5A79',
+    borderColor: Colors.pink,
     borderWidth: 2,
-    backgroundColor: '#FFF5F6',
+    backgroundColor: Colors.lightPink,
   },
   cardLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#999',
+    color: Colors.grey,
     textAlign: 'center',
     marginTop: 15,
     lineHeight: 18,
   },
   selectedCardLabel: {
-    color: '#000',
+    color: Colors.text,
   },
   footer: {
     paddingHorizontal: 25,
@@ -199,7 +222,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.lightGrey,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -207,33 +230,33 @@ const styles = StyleSheet.create({
   infoIconText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#CCC',
+    color: Colors.grey,
     fontStyle: 'italic',
   },
   infoText: {
     flex: 1,
     fontSize: 12.5,
-    color: '#AAA',
+    color: Colors.textSecondary,
     lineHeight: 18,
   },
   nextButton: {
-    backgroundColor: '#FF5A79',
+    backgroundColor: Colors.pink,
     height: 60,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF5A79',
+    shadowColor: Colors.pink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 8,
   },
   disabledButton: {
-    backgroundColor: '#FF5A79',
+    backgroundColor: Colors.pink,
     opacity: 0.4,
   },
   nextText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 2,

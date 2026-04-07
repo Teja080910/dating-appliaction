@@ -1,19 +1,26 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
 const bodyTypes = ['Slim', 'Curvy', 'Athletic', 'Average', 'Overweight', 'Other'];
 
-const BodyType = () => {
-  // const [selectBodyTypes, setSelectBodyTypes] = useState<string[]>([]);
+interface BodyTypeProps {
+  onChange?: (val: string[]) => void;
+}
 
-  const {selectBodyTypes, setSelectBodyTypes} = useContext(AppContext)
+const BodyType: React.FC<BodyTypeProps> = ({ onChange }) => {
+  const { selectBodyTypes, setSelectBodyTypes } = useContext(AppContext);
 
   const toggleSelection = (type: string) => {
+    let nextSelection;
     if (selectBodyTypes.includes(type)) {
-      setSelectBodyTypes(selectBodyTypes.filter(item => item !== type));
+      nextSelection = selectBodyTypes.filter((item: string) => item !== type);
     } else {
-      setSelectBodyTypes([...selectBodyTypes, type]);
+      nextSelection = [...selectBodyTypes, type];
+    }
+    setSelectBodyTypes(nextSelection);
+    if (onChange) {
+      onChange(nextSelection);
     }
   };
 

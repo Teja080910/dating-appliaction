@@ -1,18 +1,23 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
-import App from '../../../App';
 import AppContext from '../../context/CreateGlobalStateContext';
 
-const AgeRangeSlider = () => {
-  // const [ageRange, setAgeRange] = useState([18, 55]); 
+interface AgeRangeSliderProps {
+  onChange?: (min: number, max: number) => void;
+}
 
-  const { ageRange, setAgeRange} = useContext(AppContext);
-  const [localAgeRange, setLocalAgeRange] = useState(ageRange);
+const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
+  const { ageRange } = useContext(AppContext);
+  const [localAgeRange, setLocalAgeRange] = useState(ageRange || [18, 55]);
 
+  const handleValuesChange = (values: number[]) => {
+    setLocalAgeRange(values);
+    if (onChange) {
+      onChange(values[0], values[1]);
+    }
+  };
 
-  // console.log('Age Range:', ageRange);
-  
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
@@ -22,14 +27,10 @@ const AgeRangeSlider = () => {
       <MultiSlider
         values={localAgeRange}
         sliderLength={330}
-        onValuesChange={setLocalAgeRange}
+        onValuesChange={handleValuesChange}
         min={18}
         max={55}
         step={1}
-        // selectedStyle={{ backgroundColor: '#e94e77' }}
-        // unselectedStyle={{ backgroundColor: '#bbb' }}
-        // markerStyle={styles.thumb}
-        // pressedMarkerStyle={styles.thumbPressed}
         selectedStyle={{ backgroundColor: '#d33' }}
         unselectedStyle={{ backgroundColor: '#eee' }}
         markerStyle={styles.marker}

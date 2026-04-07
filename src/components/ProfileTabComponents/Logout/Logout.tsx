@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, CommonActions } from '@react-navigation/native';
+import { clearAuthSession } from '../../../utils/session';
 
 const Logout = () => {
   const navigation = useNavigation();
@@ -20,20 +20,12 @@ const Logout = () => {
           text: "Logout",
           onPress: async () => {
             try {
-              // Clear session data
-              await AsyncStorage.multiRemove([
-                'isLoggedIn',
-                'entryHomeScreen',
-                'isRegistered',
-                'acceptedTerms',
-                'GenderOrientation'
-              ]);
+              await clearAuthSession();
               
-              // Reset navigation stack and go to Register screen
               navigation.dispatch(
                 CommonActions.reset({
                   index: 0,
-                  routes: [{ name: 'Register' }],
+                  routes: [{ name: 'Login' }],
                 })
               );
             } catch (error) {

@@ -1,221 +1,102 @@
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useContext, useCallback } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  BackHandler,
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, BackHandler, StatusBar
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const DisplayNameScreen = ({ navigation }: any) => {
-  // const [name, setName] = useState('');
+  const { name, setName, displayName, setDisplayName } = useContext(AppContext);
 
-  const {name, setName, login} = useContext(AppContext)
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.setItem('onboardingStep', 'DisplayName');
 
-  // Handle Android back press to go to Privacy screen
-    // useFocusEffect(
-    //   useCallback(() => {
-    //     const onBackPress = () => {
+      const onBackPress = () => {
+        navigation.replace('GenderOrientation');
+        return true;
+      };
 
-    //       AsyncStorage.getItem('isLoggedIn').then((isLoggedIn) => {
-    //         console.log('displayScreenlogin', isLoggedIn);
-          
-    //       isLoggedIn === 'true' ? navigation.replace('Privacy') :  navigation.replace('GenderOrientation');
-        
-    //       return true;
-    //     });
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [navigation])
+  );
 
-    //     const backHandler = BackHandler.addEventListener(
-    //       'hardwareBackPress',
-    //       onBackPress
-    //     );
-
-    //     return () => backHandler.remove();
-    //   }, [navigation])
-    // );
-
-    useFocusEffect(
-      useCallback(() => {
-        const onBackPress = () => {
-          AsyncStorage.getItem('isLoggedIn').then((isLoggedIn) => {
-            console.log('displayScreenlogin', isLoggedIn);
-    
-            if (isLoggedIn === 'true') {
-              navigation.replace('Privacy');
-            } else {
-              navigation.replace('GenderOrientation');
-            }
-          });
-    
-          return true; // Prevent default behavior
-        };
-    
-        const backHandler = BackHandler.addEventListener(
-          'hardwareBackPress',
-          onBackPress
-        );
-    
-        return () => backHandler.remove();
-      }, [navigation])
-    );
-    
+  const currentName = displayName || name || '';
 
   const handleDisplayName = async () => {
+    if (!currentName.trim()) return;
 
-    const isLoggedIn = await AsyncStorage.getItem('isLoggedIn')
-    
-    isLoggedIn === 'true' ? navigation.replace('UploadImage') : navigation.replace('DOB')
-  }
+    const isLoggedIn = await AsyncStorage.getItem('isLoggedIn');
 
+    if (isLoggedIn === 'true') {
+      navigation.navigate('UploadImage');
+    } else {
+      navigation.navigate('DOB');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Progress bar */}
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressFill} />
-        <View style={styles.progressRemaining} />
-      </View>
-
-      {/* Content wrapper */}
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.content}>
         <Text style={styles.title}>Welcome to AMARA!</Text>
         <Text style={styles.subtitle}>Please choose a display name!</Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Write your nickname here"
-          placeholderTextColor="#666"
-          value={name}
-          onChangeText={setName}
+          placeholder="Enter name"
+          placeholderTextColor="#999"
+          value={currentName}
+          onChangeText={(text) => {
+            setDisplayName(text);
+            setName(text);
+          }}
+          autoFocus
         />
 
-        <Text style={styles.helperText}>
-          This name will appear on your profile.
-        </Text>
-      </View>
-
-      {/* Footer with info and button */}
-      <View style={styles.footer}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>ℹ️</Text>
-          <Text style={styles.infoText}>
-            You can use your real name or a nickname
-          </Text>
-        </View>
+        <View style={styles.spacer} />
 
         <TouchableOpacity
-          style={[
-            styles.nextButton,
-            name.trim() ? styles.nextButtonActive : {},
-          ]}
-          disabled={!name.trim()}
+          style={[styles.btn, !currentName.trim() && { opacity: 0.5 }]}
+          disabled={!currentName.trim()}
           onPress={handleDisplayName}
         >
-          <Text
-            style={[
-              styles.nextButtonText,
-              name.trim() ? styles.nextButtonTextActive : {},
-            ]}
-          >
-            Next
-          </Text>
+          <Text style={styles.btnText}>Next</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 24,
-  },
-  progressBarContainer: {
-    flexDirection: 'row',
-    height: 4,
-    backgroundColor: '#ccc',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  progressFill: {
-    width: '40%',
-    backgroundColor: '#ee486b',
-  },
-  progressRemaining: {
-    flex: 1,
-    backgroundColor: '#ccc',
-  },
-  content: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: '#000',
-  },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginBottom: 30,
-    color: '#000',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#000',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#000',
-  },
-  helperText: {
-    color: '#888',
-    marginTop: 6,
-    fontSize: 14,
-  },
-  footer: {
-    marginBottom: 30,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  infoIcon: {
-    fontSize: 16,
-    color: '#aaa',
-    marginRight: 6,
-  },
-  infoText: {
-    color: '#aaa',
-    fontSize: 14,
-  },
-  nextButton: {
-    backgroundColor: '#e0e0e0',
-    borderRadius: 50,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  nextButtonActive: {
-    backgroundColor: '#ee486b',
-  },
-  nextButtonText: {
-    color: '#888',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  nextButtonTextActive: {
-    color: '#fff',
-  },
-});
-
 export default DisplayNameScreen;
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { flex: 1, padding: 25, justifyContent: 'center' },
+  title: { fontSize: 28, fontWeight: '900', color: '#000', marginBottom: 10 },
+  subtitle: { fontSize: 16, color: '#666', marginBottom: 30 },
+  input: { 
+    borderWidth: 1.5, 
+    borderColor: '#FF5A79', 
+    padding: 16, 
+    borderRadius: 15, 
+    fontSize: 16, 
+    color: '#000',
+    backgroundColor: '#FAFAFA'
+  },
+  spacer: { flex: 1 },
+  btn: { 
+    backgroundColor: '#FF5A79', 
+    padding: 18, 
+    borderRadius: 30,
+    shadowColor: '#FF5A79',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5
+  },
+  btnText: { color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: 18 }
+});

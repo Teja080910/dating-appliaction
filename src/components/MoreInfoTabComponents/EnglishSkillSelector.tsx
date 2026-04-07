@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import { englishLevels } from '../../utils/types/englishLevels'; 
 
 import AppContext from '../../context/CreateGlobalStateContext';

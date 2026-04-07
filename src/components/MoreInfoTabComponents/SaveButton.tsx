@@ -1,60 +1,23 @@
-import {StyleSheet, Text, TouchableOpacity, View, Alert} from 'react-native';
-import React, { useContext } from 'react';
-import AppContext from '../../context/CreateGlobalStateContext';
-import { useNavigation } from '@react-navigation/native';
+import {StyleSheet, Text, TouchableOpacity, ActivityIndicator} from 'react-native';
+import React from 'react';
 
-const SaveButton = () => {
-  const navigation = useNavigation();
-  const { 
-    selectedAppearance, 
-    selectedBodyType, 
-    selectedSmoking, 
-    englishSkillLevel, 
-    selectedEthinicity, 
-    tempHeight, 
-    selectedKidCount, 
-    selectedLanguages, 
-    selectedLookingFor,
-    setProfilePreferences 
-  } = useContext(AppContext);
+interface SaveButtonProps {
+    onPress?: () => void;
+    loading?: boolean;
+}
 
-  const handleSave = () => {
-    // validation check
-    if (!selectedAppearance || !selectedBodyType || !selectedEthinicity || 
-        !selectedSmoking || !selectedKidCount || selectedLanguages.length === 0 || 
-        selectedLookingFor.length === 0) {
-      Alert.alert(
-        "Incomplete Profile", 
-        "Please fill in all the details before saving.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    console.log('Saving profile preferences...');
-    
-    setProfilePreferences({
-      appearance: selectedAppearance,
-      bodyType: selectedBodyType,
-      smoking: selectedSmoking,
-      englishSkill: englishSkillLevel,
-      ethnicity: selectedEthinicity,
-      height: tempHeight,
-      kidCount: selectedKidCount,
-      languages: selectedLanguages,
-      lookingFor: selectedLookingFor,
-    });
-
-    Alert.alert(
-      "Success",
-      "Your profile information has been saved successfully!",
-      [{ text: "OK", onPress: () => navigation.goBack() }]
-    );
-  };
-
+const SaveButton: React.FC<SaveButtonProps> = ({ onPress, loading }) => {
   return (
-    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-      <Text style={styles.saveButtonText}>Save Details</Text>
+    <TouchableOpacity 
+      style={[styles.saveButton, loading && { opacity: 0.7 }]} 
+      onPress={onPress}
+      disabled={loading}
+    >
+      {loading ? (
+          <ActivityIndicator color="#fff" />
+      ) : (
+          <Text style={styles.saveButtonText}>Save Details</Text>
+      )}
     </TouchableOpacity>
   );
 };
@@ -63,16 +26,13 @@ export default SaveButton;
 
 const styles = StyleSheet.create({
   saveButton: {
-    position: 'absolute',
-    bottom: 80,
-    left: 20,
-    right: 20,
-    backgroundColor: '#FF5A79', // Amara Theme color
     paddingVertical: 16,
     borderRadius: 30,
+    backgroundColor: '#FF5A79',
     alignItems: 'center',
     justifyContent: 'center',
-    // Add shadow
+    marginHorizontal: 20,
+    marginVertical: 20,
     elevation: 4,
     shadowColor: '#000',
     shadowOpacity: 0.2,

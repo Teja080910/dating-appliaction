@@ -1,106 +1,530 @@
 import {
-  FlatList,
-  Image,
   StyleSheet,
+  Image,
+  ImageSourcePropType,
+  FlatList,
   View,
   Dimensions,
   TouchableOpacity,
-  Text,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppContext from "../../context/CreateGlobalStateContext";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
 import Icon from "react-native-vector-icons/Feather";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+import { useProfile } from "../../api/useProfile";
+import { useConnection } from "../../api/useConnection";
+import { useUserImages } from "../../api/useImages";
+import { getAuthToken, getUserId } from "../../utils/sessionHelper";
+import { getAbsoluteUrl, isApiHostedUrl } from "../../api/apiClient";
+import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
+
+const { width: screenWidth } = Dimensions.get("window");
+const heroHeight = Math.min(Math.max(screenWidth * 1.15, 360), 520);
+
+const normalizeTextValue = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+  return normalized || null;
+};
+
+const flattenProfileSource = (value: any) => {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const nestedProfile =
+    value?.profile && typeof value.profile === "object" ? value.profile : {};
+
+  return {
+    ...nestedProfile,
+    ...value,
+  };
+};
+
+const collectImageUris = (value: unknown): string[] => {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized ? [normalized] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectImageUris(item));
+  }
+
+  if (value && typeof value === "object") {
+    const imageObject = value as Record<string, unknown>;
+    return [
+      ...collectImageUris(imageObject.imageUrl),
+      ...collectImageUris(imageObject.profileImageUrl),
+      ...collectImageUris(imageObject.url),
+      ...collectImageUris(imageObject.uri),
+      ...collectImageUris(imageObject.path),
+      ...collectImageUris(imageObject.image),
+    ];
+  }
+
+  return [];
+};
+
+const dedupeImageUris = (items: unknown[]) => {
+  const seen = new Set<string>();
+  const resolved: string[] = [];
+
+  items
+    .flatMap((item) => collectImageUris(item))
+    .forEach((item) => {
+      const normalized = item.trim();
+      if (!normalized || seen.has(normalized)) {
+        return;
+      }
+
+      seen.add(normalized);
+      resolved.push(normalized);
+    });
+
+  return resolved;
+};
+
+const resolveNumericIdentifier = (...values: unknown[]) => {
+  for (const value of values) {
+    const normalized = String(value ?? '').trim();
+    if (/^\d+$/.test(normalized)) {
+      const numericValue = Number(normalized);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        return numericValue;
+      }
+    }
+  }
+
+  return null;
+};
 
 const ViewMyProfileScreen = () => {
   const navigation = useNavigation();
-  const { 
-    images, 
-    viewMyProfile, 
-    selectedUserImage, 
-    cardUserName, 
-    cardUserAge 
+  const route = useRoute<any>();
+  const {
+    viewMyProfile,
+    name,
+    displayName,
+    date,
+    height,
+    profileText,
+    profileImage,
+    profileImageUrl,
+    images: contextImages,
+    selectedAppearance,
+    selectedBodyType,
+    selectedLanguages,
+    englishSkillLevel,
+    selectedEthinicity,
+    selectedSmoking,
+    selectedDrinking,
+    selectedLookingFor,
+    verifiedSelfie,
+    location,
   } = useContext(AppContext);
-  
+
+  // userId from params if we are viewing someone else
+  const {
+    userId: paramId,
+    targetUserId: paramTargetId,
+    profileData: routeProfileData,
+    image: routeImage,
+    fallbackImage,
+  } = route.params || {};
+
+  const [myId, setMyId] = useState<number | null>(null);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveCurrentUser = async () => {
+      const directId = await getUserId();
+      if (directId && isMounted) {
+        setMyId(Number(directId));
+        return;
+      }
+
+      const repairedId = await repairStoredSessionIdentity();
+      if (repairedId && isResolvedApiUserId(repairedId) && isMounted) {
+        setMyId(Number(repairedId));
+      }
+    };
+
+    void resolveCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAuthToken()
+      .then((token) => {
+        if (isMounted) {
+          setAuthToken(token);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAuthToken(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const { useMyProfile } = useProfile();
+  const { getAllImages } = useUserImages();
+  const { send: likeMutation } = useConnection(myId || undefined);
+
+  // Fetch based on whether it's "Me" or "Other"
+  const routeTargetId = resolveNumericIdentifier(
+    paramTargetId,
+    paramId,
+    routeProfileData?.id,
+    routeProfileData?.targetUserId,
+    routeProfileData?.userId,
+    routeProfileData?.uid,
+    routeProfileData?.profile?.id,
+    routeProfileData?.profile?.targetUserId,
+    routeProfileData?.profile?.userId,
+    routeProfileData?.profile?.uid,
+    routeProfileData?.user?.id,
+    routeProfileData?.user?.userId,
+    routeProfileData?.user?.uid,
+  );
+  const targetId = viewMyProfile ? myId : routeTargetId;
+  const hasNumericTargetId =
+    typeof targetId === 'number' ||
+    (typeof targetId === 'string' && /^\d+$/.test(targetId));
+  const { data: fetchedProfile, isLoading: loading } = useMyProfile(
+    hasNumericTargetId ? targetId : null
+  );
+  const numericTargetId = hasNumericTargetId ? Number(targetId) : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!numericTargetId) {
+      setGalleryImages([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    getAllImages.mutate(String(numericTargetId), {
+      onSuccess: (data: any) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setGalleryImages(dedupeImageUris([data]));
+      },
+      onError: () => {
+        if (isMounted) {
+          setGalleryImages([]);
+        }
+      },
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [numericTargetId]);
+
   const flatlistRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // If viewing someone else, we likely only have one image in mock logic, 
-  // but let's assume images array is used if available.
-  const displayImages = viewMyProfile 
-    ? images?.filter((img) => img && img.trim() !== '')?.map((img: string, index: number) => ({ id: index.toString(), uri: img }))
-    : [{ id: '0', uri: selectedUserImage }];
-
   const handleScroll = (event: any) => {
-    const scrollPosition = event.nativeEvent.contentOffset.x;
-    const index = Math.round(scrollPosition / screenWidth);
+    const index = Math.round(
+      event.nativeEvent.contentOffset.x / screenWidth
+    );
     setActiveIndex(index);
   };
 
-  const renderItem = ({ item }) => (
-    <View style={{ width: screenWidth, height: 500 }}>
-      <Image 
-        source={{ uri: item.uri }} 
-        style={styles.image} 
-        resizeMode="cover" 
-      />
-    </View>
-  );
+  const handleLike = () => {
+    if (!numericTargetId || !myId) return;
+    likeMutation.mutate(numericTargetId, {
+      onSuccess: () => navigation.goBack()
+    });
+  };
+
+  const handleDislike = () => {
+    navigation.goBack();
+  };
+
+  const renderItem = ({ item }: any) => {
+    const imageSource: ImageSourcePropType =
+      typeof item === 'string'
+        ? authToken && isApiHostedUrl(item)
+          ? { uri: item, headers: { Authorization: `Bearer ${authToken}` } }
+          : { uri: item }
+        : item;
+
+    return (
+      <View style={{ width: screenWidth, height: heroHeight }}>
+        <Image
+          source={imageSource}
+          style={[styles.image, { height: heroHeight }]}
+        />
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#FF5A79" />
+      </View>
+    );
+  }
+
+  const ownAge = useMemo(() => {
+    const safeDate = date ? new Date(date) : null;
+    if (!safeDate || Number.isNaN(safeDate.getTime())) {
+      return null;
+    }
+
+    const today = new Date();
+    let calculatedAge = today.getFullYear() - safeDate.getFullYear();
+    const monthGap = today.getMonth() - safeDate.getMonth();
+
+    if (monthGap < 0 || (monthGap === 0 && today.getDate() < safeDate.getDate())) {
+      calculatedAge -= 1;
+    }
+
+    return calculatedAge > 0 ? calculatedAge : null;
+  }, [date]);
+
+  const mergedProfile = useMemo(() => {
+    const fetched = flattenProfileSource(fetchedProfile);
+    const routed = flattenProfileSource(routeProfileData);
+    const contextLanguage = Array.isArray(selectedLanguages)
+      ? selectedLanguages.filter(Boolean).join(", ")
+      : null;
+    const contextLookingFor = Array.isArray(selectedLookingFor)
+      ? selectedLookingFor.filter(Boolean).join(", ")
+      : normalizeTextValue(selectedLookingFor);
+    const contextEnglishLevel =
+      ["Beginner", "Intermediate", "Advanced", "Native"][englishSkillLevel] ||
+      "Beginner";
+    const contextPrimaryImage =
+      dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
+
+    const mergedImages = dedupeImageUris([
+      fetched?.images,
+      fetched?.allImages,
+      routed?.images,
+      routed?.allImages,
+      galleryImages,
+      contextImages,
+      profileImageUrl,
+      profileImage,
+      fetched?.profileImageUrl,
+      routed?.profileImageUrl,
+      routeImage,
+    ]);
+
+    return {
+      ...routed,
+      ...fetched,
+      id: fetched?.id || routed?.id || numericTargetId || (viewMyProfile ? myId : null) || null,
+      targetUserId: numericTargetId || routed?.targetUserId || routed?.userId || null,
+      name:
+        normalizeTextValue(fetched?.name) ||
+        normalizeTextValue(routed?.name) ||
+        normalizeTextValue(name) ||
+        normalizeTextValue(displayName) ||
+        "User",
+      displayName:
+        normalizeTextValue(fetched?.displayName) ||
+        normalizeTextValue(routed?.displayName) ||
+        normalizeTextValue(displayName) ||
+        normalizeTextValue(name) ||
+        "User",
+      age: fetched?.age || routed?.age || ownAge || null,
+      bio:
+        normalizeTextValue(fetched?.bio) ||
+        normalizeTextValue(routed?.bio) ||
+        normalizeTextValue(profileText),
+      height: fetched?.height || routed?.height || height || null,
+      appearance:
+        normalizeTextValue(fetched?.appearance) ||
+        normalizeTextValue(routed?.appearance) ||
+        normalizeTextValue(selectedAppearance),
+      bodyType:
+        normalizeTextValue(fetched?.bodyType) ||
+        normalizeTextValue(routed?.bodyType) ||
+        normalizeTextValue(selectedBodyType),
+      language:
+        normalizeTextValue(fetched?.language) ||
+        normalizeTextValue(routed?.language) ||
+        contextLanguage,
+      englishLevel:
+        normalizeTextValue(fetched?.englishLevel) ||
+        normalizeTextValue(routed?.englishLevel) ||
+        contextEnglishLevel,
+      ethnicity:
+        normalizeTextValue(fetched?.ethnicity) ||
+        normalizeTextValue(routed?.ethnicity) ||
+        normalizeTextValue(selectedEthinicity),
+      smoke:
+        normalizeTextValue(fetched?.smoke) ||
+        normalizeTextValue(routed?.smoke) ||
+        normalizeTextValue(selectedSmoking),
+      drink:
+        normalizeTextValue(fetched?.drink) ||
+        normalizeTextValue(routed?.drink) ||
+        normalizeTextValue(selectedDrinking),
+      lookingFor:
+        normalizeTextValue(fetched?.lookingFor) ||
+        normalizeTextValue(routed?.lookingFor) ||
+        contextLookingFor,
+      currentCity:
+        normalizeTextValue(fetched?.currentCity) ||
+        normalizeTextValue(routed?.currentCity) ||
+        normalizeTextValue(location),
+      verifiedSelfie:
+        fetched?.verifiedSelfie ??
+        fetched?.selfieVerified ??
+        routed?.verifiedSelfie ??
+        routed?.selfieVerified ??
+        verifiedSelfie,
+      profileImageUrl:
+        normalizeTextValue(fetched?.profileImageUrl) ||
+        normalizeTextValue(routed?.profileImageUrl) ||
+        contextPrimaryImage,
+      images: mergedImages,
+    };
+  }, [
+    date,
+    displayName,
+    englishSkillLevel,
+    fetchedProfile,
+    galleryImages,
+    height,
+    location,
+    myId,
+    name,
+    numericTargetId,
+    ownAge,
+    profileImage,
+    profileImageUrl,
+    profileText,
+    routeImage,
+    routeProfileData,
+    selectedAppearance,
+    selectedBodyType,
+    selectedDrinking,
+    selectedEthinicity,
+    selectedLanguages,
+    selectedLookingFor,
+    selectedSmoking,
+    verifiedSelfie,
+    contextImages,
+  ]);
+
+  const profileImages = dedupeImageUris([
+    mergedProfile?.images,
+    mergedProfile?.profileImageUrl,
+    routeImage,
+  ]).map((image) => getAbsoluteUrl(image));
+  const sliderImages =
+    profileImages.length > 0
+      ? profileImages
+      : fallbackImage
+        ? [fallbackImage]
+        : [];
 
   return (
-    <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-          <View style={styles.sliderWrapper}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, !viewMyProfile && numericTargetId ? styles.scrollContentWithFooter : null]}
+      >
+        <View style={styles.sliderWrapper}>
+          {sliderImages.length > 0 ? (
             <FlatList
               ref={flatlistRef}
-              data={displayImages}
+              data={sliderImages}
               renderItem={renderItem}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(_, i) => i.toString()}
               horizontal
               pagingEnabled
               onScroll={handleScroll}
               showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              snapToInterval={screenWidth}
-              snapToAlignment="center"
-              bounces={false}
             />
+          ) : (
+            <View style={[styles.emptyHero, { height: heroHeight }]}>
+              <Icon name="image" size={42} color="#CFCFCF" />
+            </View>
+          )}
 
-            {/* Back Button */}
-            <TouchableOpacity 
-              style={styles.backButton} 
-              onPress={() => navigation.goBack()}
-            >
-              <Icon name="chevron-left" size={28} color="#fff" />
-            </TouchableOpacity>
+          {/* Back */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Icon name="chevron-left" size={28} color="#fff" />
+          </TouchableOpacity>
 
-            {/* Dots Overlay */}
-            {displayImages.length > 1 && (
-                <View style={styles.dotsContainer}>
-                {displayImages.map((_, index) => (
-                    <View
-                    key={index}
-                    style={[
-                        styles.dot,
-                        { 
-                        backgroundColor: index === activeIndex ? "#FF5A79" : "rgba(255,255,255,0.7)",
-                        width: index === activeIndex ? 18 : 6 
-                        },
-                    ]}
-                    />
-                ))}
-                </View>
-            )}
-          </View>
+          {/* Dots */}
+          {sliderImages.length > 1 && (
+            <View style={styles.dotsContainer}>
+              {sliderImages.map((_: any, index: number) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor:
+                        index === activeIndex
+                          ? "#FF5A79"
+                          : "rgba(255,255,255,0.7)",
+                      width: index === activeIndex ? 18 : 6,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
 
-          <UserDetails />
+        <UserDetails
+          profile={mergedProfile}
+          currentUserId={myId}
+          targetUserId={numericTargetId}
+        />
       </ScrollView>
-    </View>
+
+      {/* 🔥 ACTION BUTTONS */}
+      {!viewMyProfile && numericTargetId && (
+        <View style={styles.actionFooter}>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleDislike}>
+            <Icon name="x" size={28} color="red" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.actionBtn, { borderColor: '#FF5A79' }]} onPress={handleLike}>
+            <Icon name="heart" size={28} color="#FF5A79" />
+          </TouchableOpacity>
+        </View>
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -111,63 +535,75 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  sliderWrapper: {
-    width: "100%",
-    height: 500,
-    backgroundColor: '#000',
-  },
-  image: {
-    width: "100%",
-    height: "100%",
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  dotsContainer: {
-    position: "absolute",
-    bottom: 40, // Above UserDetails overlap
-    width: "100%",
-    flexDirection: "row",
+  loader: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 1,
+    backgroundColor: '#fff'
+  },
+  sliderWrapper: {
+    position: "relative",
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  scrollContentWithFooter: {
+    paddingBottom: 110,
+  },
+  image: {
+    width: screenWidth,
+    resizeMode: "cover",
+  },
+  emptyHero: {
+    width: screenWidth,
+    backgroundColor: "#F5F5F5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 20,
+    padding: 5,
+    zIndex: 10
+  },
+  dotsContainer: {
+    flexDirection: "row",
+    position: "absolute",
+    bottom: 20,
+    alignSelf: "center",
+    gap: 8,
+    zIndex: 1
   },
   dot: {
     height: 6,
     borderRadius: 3,
-    marginHorizontal: 3,
   },
   actionFooter: {
-      position: 'absolute',
-      bottom: 30,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 30,
-      paddingHorizontal: 20,
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderColor: "#eee",
+    backgroundColor: "#fff",
+    position: 'absolute',
+    bottom: 0,
+    width: '100%'
   },
   actionBtn: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: '#fff',
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOpacity: 0.15,
-      shadowRadius: 10,
-      elevation: 8,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: "#eee",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5
   },
-  dislikeBtn: {},
-  likeBtn: {},
 });

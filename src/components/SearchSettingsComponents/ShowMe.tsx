@@ -1,29 +1,38 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { getGender } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
 
-const ShowMe = () => {
-//  const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
+interface ShowMeProps {
+  onChange?: (val: string[]) => void;
+}
 
-const {showMe, setShowMe} = useContext(AppContext)
-
+const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
+  const { showMe, setShowMe } = useContext(AppContext);
 
   useEffect(() => {
     const fetchGender = async () => {
       try {
         const gender = await getGender(); // 'male' or 'female'
-        console.log('gender:', gender);
-
-        // if male, show "Only women"; if female, show "Only men"
-        setShowMe(gender === 'straight_man' ? 'straight_woman' : 'straight_man');
+        const initialShow = gender === 'straight_man' ? 'straight_woman' : 'straight_man';
+        setShowMe(initialShow);
+        if (onChange) {
+          onChange([initialShow]);
+        }
       } catch (error) {
         console.error('Error fetching gender:', error);
       }
     };
 
     fetchGender();
-  }, []);
+  }, [onChange, setShowMe]);
+
+  const handleSelect = (val: 'straight_man' | 'straight_woman') => {
+    setShowMe(val);
+    if (onChange) {
+      onChange([val]);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -34,7 +43,7 @@ const {showMe, setShowMe} = useContext(AppContext)
             styles.button,
             showMe === 'straight_man' && styles.selectedButton,
           ]}
-          onPress={() => setShowMe('straight_man')}
+          onPress={() => handleSelect('straight_man')}
         >
           <Text
             style={[
@@ -51,7 +60,7 @@ const {showMe, setShowMe} = useContext(AppContext)
             styles.button,
             showMe === 'straight_woman' && styles.selectedButton,
           ]}
-          onPress={() => setShowMe('straight_woman')}
+          onPress={() => handleSelect('straight_woman')}
         >
           <Text
             style={[

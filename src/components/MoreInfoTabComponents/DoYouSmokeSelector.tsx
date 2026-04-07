@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
@@ -9,7 +9,7 @@ const DoYouSmokeSelector = () => {
   const {selectedSmoking, setSelectedSmoking} = useContext(AppContext);
 
   const toggleSelect = (item: string) => {
-    setSelectedSmoking(prev => (prev === item ? null : item));
+    setSelectedSmoking((prev: string | null) => (prev === item ? null : item));
   };
 
   return (

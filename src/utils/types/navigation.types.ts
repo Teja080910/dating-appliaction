@@ -9,7 +9,22 @@ export type RootParamList = {
   DOB: undefined;
   SearchSettings: undefined;
   ProfileSettingsScreen: undefined;
-  ViewMyProfileScreen: undefined;
+  ViewMyProfileScreen: {
+    userId?: string | number;
+    targetUserId?: string | number;
+    profileData?: any;
+    image?: string | null;
+    fallbackImage?: number;
+  };
+  OTPScreen: { sessionId?: string; phone?: string; mobile?: string; name?: string; password?: string; confirmPassword?: string };
   MatchScreen: { matchedUser: any };
   PrivacyPolicy: { type: 'privacy' | 'terms' };
+  BottomTabs: undefined;
+  AboutProfile: undefined;
+  ConnectTelegram: undefined;
+  ChatDetailScreen: { name: string; image: string | null };
+  MoreDetails: undefined;
+  SupportScreen: undefined;
+  UploadImage: undefined;
+  SelfieVerification: undefined;
 };

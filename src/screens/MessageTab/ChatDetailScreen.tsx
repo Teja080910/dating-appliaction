@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -6,23 +6,22 @@ import {
   Image, 
   FlatList, 
   TouchableOpacity, 
-  SafeAreaView, 
   TextInput, 
   KeyboardAvoidingView, 
   Platform,
   StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import AppContext from '../../context/CreateGlobalStateContext';
+import useSubscriptionGate from '../../utils/useSubscriptionGate';
 
 const ChatDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
   const { name, image } = route.params || { name: 'Alisha', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format' };
-  
-  const { isSubscribed, setPaywallVisible } = useContext(AppContext);
+  const { requireSubscription } = useSubscriptionGate();
 
   const [messages, setMessages] = useState([
     { id: '1', text: 'Hey there! How is your day going?', sender: 'other', time: '10:15 AM' },
@@ -33,23 +32,19 @@ const ChatDetailScreen = () => {
   const [inputText, setInputText] = useState('');
 
   const sendMessage = () => {
-    // PAYWALL CHECK
-    if (!isSubscribed) {
-        setPaywallVisible(true);
-        return;
-    }
-
     if (inputText.trim() === '') return;
-    
-    const newMsg = {
-      id: Date.now().toString(),
-      text: inputText,
-      sender: 'me',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    
-    setMessages([...messages, newMsg]);
-    setInputText('');
+
+    requireSubscription(() => {
+      const newMsg = {
+        id: Date.now().toString(),
+        text: inputText,
+        sender: 'me',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages([...messages, newMsg]);
+      setInputText('');
+    });
   };
 
   const renderMessage = ({ item }: { item: any }) => (
@@ -102,7 +97,12 @@ const ChatDetailScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
           <View style={styles.inputContainer}>
-              <TouchableOpacity style={styles.attachBtn} onPress={() => setPaywallVisible(true)}>
+              <TouchableOpacity
+                style={styles.attachBtn}
+                onPress={() => {
+                  requireSubscription();
+                }}
+              >
                   <Feather name="plus" size={24} color="#FF5A79" />
               </TouchableOpacity>
               

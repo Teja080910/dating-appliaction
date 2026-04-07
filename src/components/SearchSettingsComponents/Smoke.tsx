@@ -1,19 +1,27 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
 const options = ['Yes', 'No', 'Sometimes'];
 
-const Smoke = () => {
-  // const [smoke, setSmoke] = useState<string[]>([]);
+interface SmokeProps {
+  onChange?: (val: boolean) => void;
+}
 
-  const {smoke, setSmoke} = useContext(AppContext)
+const Smoke: React.FC<SmokeProps> = ({ onChange }) => {
+  const { smoke, setSmoke } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
+    let nextSmoke;
     if (smoke.includes(option)) {
-      setSmoke(smoke.filter((item) => item !== option));
+      nextSmoke = smoke.filter((item: string) => item !== option);
     } else {
-      setSmoke([...smoke, option]);
+      nextSmoke = [...smoke, option];
+    }
+    setSmoke(nextSmoke);
+    if (onChange) {
+      // API expects boolean. We can treat 'Yes' or 'Sometimes' as true.
+      onChange(nextSmoke.includes('Yes') || nextSmoke.includes('Sometimes'));
     }
   };
 

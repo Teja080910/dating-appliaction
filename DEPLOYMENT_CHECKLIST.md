@@ -2,7 +2,7 @@
 
 App Name: **AMARA**  
 Package: `com.datingapp`  
-Backend URL: `http://165.22.218.70:8080`
+Backend URL: `http://165.22.218.70:9395`
 
 ---
 

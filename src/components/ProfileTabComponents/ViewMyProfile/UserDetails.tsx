@@ -1,13 +1,28 @@
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import React, { useContext, useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import React, { useContext } from 'react';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import Toast from 'react-native-toast-message';
+import { useConnection } from '../../../api/useConnection';
+import { useReport } from '../../../api/useReport';
+import { Colors } from '../../../utils/colors';
+import { repairStoredSessionIdentity, isResolvedApiUserId } from '../../../utils/session';
+import { getAuthToken } from '../../../utils/sessionHelper';
 
-const UserDetails = () => {
+interface UserDetailsProps {
+  profile?: any;
+  currentUserId?: number | null;
+  targetUserId?: number | null;
+}
+
+const { width: windowWidth } = Dimensions.get('window');
+const isCompactDevice = windowWidth < 380;
+
+const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, currentUserId, targetUserId }) => {
   const { 
     name, 
+    displayName,
     date, 
     viewMyProfile, 
     cardUserName, 
@@ -17,29 +32,175 @@ const UserDetails = () => {
     englishSkillLevel,
     selectedEthinicity,
     selectedSmoking,
-    selectedKidCount,
+    selectedDrinking,
     setInvitations,
     invitations,
     setPaywallVisible,
-    isSubscribed
+    isSubscribed,
+    verifiedSelfie,
+    profileText,
+    selectedAppearance,
+    selectedBodyType,
+    selectedLookingFor,
+    selectedLanguages,
   } = useContext(AppContext);
 
-  const [inviting, setInviting] = useState(false);
+  // 🔄 Use prop profile if available, else fall back to context (legacy match)
+  const profile = propProfile || {};
+  const resolvedProfile = profile?.profile || profile;
+  const connection = useConnection(currentUserId || undefined);
+  const reportApi = useReport(currentUserId || undefined);
+
+  const normalizeTextValue = (value: unknown, fallback: string) => {
+    if (Array.isArray(value)) {
+      const joined = value.map((item) => String(item).trim()).filter(Boolean).join(', ');
+      return joined || fallback;
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+
+    if (typeof value === 'string') {
+      return value.trim() || fallback;
+    }
+
+    if (typeof value === 'number') {
+      return String(value);
+    }
+
+    return fallback;
+  };
 
   const currentYear = new Date().getFullYear();
-  const myAge = currentYear - date.getFullYear();
+  const myAge = date ? (currentYear - date.getFullYear()) : 25;
+  const resolveNumericIdentifier = (...values: unknown[]) => {
+    for (const value of values) {
+      const normalized = String(value ?? '').trim();
+      if (/^\d+$/.test(normalized)) {
+        const numericValue = Number(normalized);
+        if (Number.isFinite(numericValue) && numericValue > 0) {
+          return numericValue;
+        }
+      }
+    }
 
-  const displayName = viewMyProfile ? name : cardUserName;
-  const displayAge = viewMyProfile ? myAge : cardUserAge;
+    return null;
+  };
+
+  const resolvedTargetUserId = resolveNumericIdentifier(
+    targetUserId,
+    propProfile?.targetUserId,
+    propProfile?.target?.id,
+    propProfile?.target?.userId,
+    propProfile?.profileId,
+    propProfile?.id,
+    propProfile?.userId,
+    propProfile?.uid,
+    propProfile?.profile?.targetUserId,
+    propProfile?.profile?.profileId,
+    propProfile?.profile?.target?.id,
+    propProfile?.profile?.target?.userId,
+    propProfile?.profile?.id,
+    propProfile?.profile?.userId,
+    propProfile?.profile?.uid,
+    propProfile?.user?.id,
+    propProfile?.user?.userId,
+    propProfile?.user?.profileId,
+    resolvedProfile?.id,
+    resolvedProfile?.targetUserId,
+    resolvedProfile?.profileId,
+    resolvedProfile?.target?.id,
+    resolvedProfile?.target?.userId,
+    resolvedProfile?.userId,
+    resolvedProfile?.uid,
+    resolvedProfile?.user?.id,
+    resolvedProfile?.user?.userId,
+    resolvedProfile?.user?.profileId,
+  );
+  const isOwnProfile = Boolean(
+    viewMyProfile ||
+    (currentUserId && resolvedTargetUserId && Number(currentUserId) === Number(resolvedTargetUserId))
+  );
+
+  const finalDisplayName = isOwnProfile
+    ? normalizeTextValue(
+        resolvedProfile?.displayName || profile.displayName || displayName || name,
+        'User'
+      )
+    : normalizeTextValue(
+        resolvedProfile?.displayName || profile.displayName || profile.name || cardUserName,
+        'User'
+      );
+
+  const displayAge = isOwnProfile
+    ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge))
+    : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, 'N/A');
 
   // Check if this user is already invited
-  const isAlreadyInvited = invitations?.some((inv: any) => inv.name === displayName);
+  const isAlreadyInvited = invitations?.some((inv: any) => Number(inv.receiverId || inv.id) === Number(resolvedTargetUserId));
+  const resolvedLanguages = (isOwnProfile || propProfile)
+    ? normalizeTextValue(resolvedProfile?.language || profile.language, '')
+        .split(',')
+        .map((lang) => lang.trim())
+        .filter(Boolean)
+    : selectedLanguages;
+  const locationText = normalizeTextValue(
+    resolvedProfile?.currentCity || profile?.currentCity,
+    isOwnProfile ? 'Your location' : 'Nearby'
+  );
+  const canAttemptInvite = Boolean(resolvedTargetUserId);
 
-  const handleInvite = () => {
-    // TRIGGER PAYWALL if not subscribed
+  const handleInvite = async () => {
+    // Always show the paywall first for unsubscribed users.
+    // Invite-specific identity validation should happen only after payment intent.
     if (!isSubscribed) {
         setPaywallVisible(true);
         return;
+    }
+
+    const repairedCurrentUserId =
+      currentUserId ||
+      (() => {
+        return null;
+      })();
+    let activeCurrentUserId = repairedCurrentUserId;
+
+    if (!isResolvedApiUserId(activeCurrentUserId)) {
+      const repairedId = await repairStoredSessionIdentity();
+      if (repairedId && isResolvedApiUserId(repairedId)) {
+        activeCurrentUserId = Number(repairedId);
+      }
+    }
+
+    if (!resolvedTargetUserId) {
+      console.warn('[invite] Missing target user id for profile:', {
+        targetUserId,
+        propProfileId: propProfile?.id,
+        propProfileUserId: propProfile?.userId,
+        propProfileTargetUserId: propProfile?.targetUserId,
+        resolvedProfileId: resolvedProfile?.id,
+        resolvedProfileUserId: resolvedProfile?.userId,
+        resolvedProfileTargetUserId: resolvedProfile?.targetUserId,
+      });
+      Toast.show({
+        type: 'error',
+        text1: 'User unavailable',
+        text2: 'This profile cannot be invited right now.',
+      });
+      return;
+    }
+
+    if (!activeCurrentUserId) {
+      const token = await getAuthToken();
+      Toast.show({
+        type: 'error',
+        text1: 'Account Sync Needed',
+        text2: token
+          ? 'Your login is missing a valid account id from the server.'
+          : 'Please log in again and try once more.',
+      });
+      return;
     }
 
     if (isAlreadyInvited) {
@@ -47,39 +208,63 @@ const UserDetails = () => {
         return;
     }
 
-    setInviting(true);
-    // Simulate API call
-    setTimeout(() => {
-        setInviting(false);
-        
-        const newInvite = {
-            id: Date.now().toString(),
-            name: displayName || "Guest",
-            age: displayAge || 25,
-            image: selectedUserImage,
-            status: 'Pending',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        
-        setInvitations([newInvite, ...invitations]);
+    const inviteData = {
+        receiverId: resolvedTargetUserId,
+        name: finalDisplayName || "Guest",
+        age: displayAge || 25,
+        image: selectedUserImage || '',
+    };
 
+    connection.send.mutate({
+      receiverId: Number(resolvedTargetUserId),
+      senderId: Number(activeCurrentUserId),
+    }, {
+      onSuccess: () => {
+        const newInvite = {
+          id: Date.now().toString(),
+          ...inviteData,
+          status: 'Pending',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setInvitations([newInvite, ...invitations]);
+        connection.refreshAll();
+        Toast.show({ type: 'success', text1: 'Invitation sent!' });
+      },
+      onError: (error: any) => {
         Toast.show({
-            type: 'success',
-            text1: 'Invitation Sent!',
-            text2: `You invited ${displayName || "Radha"} to connect.`,
-            position: 'top',
+          type: 'error',
+          text1: 'Invite failed',
+          text2: error?.response?.data?.message || 'Please try again.',
         });
-    }, 1200);
+      },
+    });
   };
 
   const handleReport = () => {
+      if (!resolvedTargetUserId || !currentUserId) {
+        Toast.show({ type: 'error', text1: 'User unavailable' });
+        return;
+      }
+
       Alert.alert(
           "Report Profile",
           "Are you sure you want to report or block this user?",
           [
               { text: "Cancel", style: "cancel" },
               { text: "Report", style: "destructive", onPress: () => {
-                  Toast.show({ type: 'info', text1: 'Profile reported successfully.' });
+                  reportApi.report.mutate({
+                    byUserId: currentUserId,
+                    targetUserId: resolvedTargetUserId,
+                    reason: 'Profile report',
+                    message: `Reported profile: ${finalDisplayName || 'Unknown user'}`,
+                  }, {
+                    onSuccess: () => {
+                      Toast.show({ type: 'info', text1: 'Profile reported successfully.' });
+                    },
+                    onError: () => {
+                      Toast.show({ type: 'error', text1: 'Report failed', text2: 'Please try again.' });
+                    },
+                  });
               }}
           ]
       );
@@ -87,15 +272,9 @@ const UserDetails = () => {
 
   const DetailPill = ({ icon, text }: { icon: string, text: string }) => (
     <View style={styles.pill}>
-      <Icon name={icon} size={18} color="#FF5A79" style={styles.pillIcon} />
+      <Icon name={icon} size={18} color={Colors.primary} style={styles.pillIcon} />
       <Text style={styles.pillText}>{text}</Text>
     </View>
-  );
-
-  const InterestTag = ({ text }: { text: string }) => (
-      <View style={styles.interestTag}>
-          <Text style={styles.interestText}>#{text}</Text>
-      </View>
   );
 
   return (
@@ -103,8 +282,10 @@ const UserDetails = () => {
       {/* Header Info */}
       <View style={styles.headerArea}>
         <View style={styles.nameRow}>
-          <Text style={styles.nameText}>{displayName || "Radha singh"}, {displayAge || "25"}</Text>
-          <Icon name="check-decagram" size={24} color="#FF5A79" style={styles.verifiedIcon} />
+          <Text style={styles.nameText}>{finalDisplayName || "User"}, {displayAge}</Text>
+          {(profile?.verifiedSelfie || resolvedProfile?.verifiedSelfie || verifiedSelfie) && (
+            <Icon name="check-decagram" size={24} color={Colors.primary} style={styles.verifiedIcon} />
+          )}
         </View>
         
         <View style={styles.statusRow}>
@@ -114,7 +295,7 @@ const UserDetails = () => {
             </View>
             <View style={styles.statusItem}>
                 <Feather name="navigation" size={12} color="#AAA" />
-                <Text style={styles.statusText}>Malihabad, 13 km away</Text>
+                <Text style={styles.statusText}>{locationText}</Text>
             </View>
         </View>
       </View>
@@ -123,9 +304,7 @@ const UserDetails = () => {
       <View style={styles.section}>
           <Text style={styles.sectionTitle}>About me</Text>
           <Text style={styles.bioText}>
-              I'm a passionate traveler and someone who loves exploring new cultures and cuisines. 
-              Looking for someone who is honest, adventurous and has a great sense of humor. 
-              Let's connect and see where it goes! ✨
+              {resolvedProfile?.bio || profile?.bio || profileText || "No bio added yet. Write something about yourself!"}
           </Text>
       </View>
 
@@ -133,81 +312,68 @@ const UserDetails = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>More info</Text>
         <View style={styles.pillsContainer}>
-          <DetailPill icon="emoticon-happy-outline" text="Attractive" />
-          <DetailPill icon="ruler" text={`${height || '171'} cm`} />
-          <DetailPill icon="human-handsup" text="Slim" />
-          <DetailPill icon="ear-hearing" text={englishSkillLevel || "Medium English"} />
-          <DetailPill icon="account-outline" text={selectedEthinicity || "Indian"} />
-          <DetailPill icon="smoking-off" text="Non-Smoker" />
-          <DetailPill icon="baby-face-outline" text={`Kids: ${selectedKidCount || "0"}`} />
-        </View>
-      </View>
-
-      {/* Interests Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Interests</Text>
-        <View style={styles.interestsContainer}>
-            <InterestTag text="Travel" />
-            <InterestTag text="Music" />
-            <InterestTag text="Cooking" />
-            <InterestTag text="Photography" />
-            <InterestTag text="Fitness" />
-            <InterestTag text="Art" />
-        </View>
-      </View>
-
-      {/* Looking for Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Looking for</Text>
-        <View style={styles.pillsContainer}>
-          <DetailPill icon="glass-cocktail" text="Hookup" />
-          <DetailPill icon="heart-outline" text="Relationship" />
-          <DetailPill icon="ring" text="Marriage" />
+          <DetailPill icon="emoticon-happy-outline" text={normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, selectedAppearance || "Natural")} />
+          <DetailPill icon="ruler" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, String(height || '---'))} cm`} />
+          <DetailPill icon="human-handsup" text={normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, selectedBodyType || "Average")} />
+          <DetailPill icon="ear-hearing" text={normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Beginner')} />
+          <DetailPill icon="account-outline" text={normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, selectedEthinicity || "Not specified")} />
+          <DetailPill icon="smoking" text={`Smoke: ${normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, selectedSmoking || 'No')}`} />
+          <DetailPill icon="glass-cocktail" text={`Drink: ${normalizeTextValue(resolvedProfile?.drink || profile?.drink, selectedDrinking || 'No')}`} />
+          <DetailPill icon="baby-face-outline" text={`Soon: ${normalizeTextValue(resolvedProfile?.lookingFor || profile?.lookingFor, Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || "Relationship"))}`} />
         </View>
       </View>
 
       {/* Languages Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Languages</Text>
-        <View style={styles.pillsContainer}>
-           <View style={styles.pill}>
-             <Text style={styles.flag}>🇺🇸</Text>
-             <Text style={styles.pillText}>English</Text>
-           </View>
-           <View style={styles.pill}>
-             <Text style={styles.flag}>🇮🇳</Text>
-             <Text style={styles.pillText}>Hindi</Text>
-           </View>
+      {(resolvedLanguages?.length || 0) > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Languages</Text>
+          <View style={styles.pillsContainer}>
+            {resolvedLanguages.map((lang: string) => (
+              <View key={lang} style={styles.pill}>
+                <Icon name="translate" size={16} color={Colors.primary} style={{ marginRight: 8 }} />
+                <Text style={styles.pillText}>{lang}</Text>
+              </View>
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Action Buttons */}
-      <View style={styles.actionSection}>
-          <TouchableOpacity 
-            activeOpacity={0.7} 
-            style={styles.reportBtn} 
-            onPress={handleReport}
-          >
-               <Icon name="alert-octagon-outline" size={18} color="#FF5A79" />
-               <Text style={styles.reportText}>Report / block this profile</Text>
-          </TouchableOpacity>
+      {!isOwnProfile && (
+        <View style={styles.actionSection}>
+            <TouchableOpacity 
+              activeOpacity={0.7} 
+              style={styles.reportBtn} 
+              onPress={handleReport}
+            >
+                 <Icon name="alert-octagon-outline" size={18} color="#FF5A79" />
+                 <Text style={styles.reportText}>Report / block this profile</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            activeOpacity={0.9} 
-            style={[styles.inviteBtn, (inviting || isAlreadyInvited) && styles.disabledBtn]} 
-            onPress={handleInvite}
-            disabled={inviting || isAlreadyInvited}
-          >
-               {inviting ? (
+            <TouchableOpacity 
+              activeOpacity={0.9} 
+              style={[styles.inviteBtn, (!canAttemptInvite || isAlreadyInvited) && styles.disabledBtn]} 
+              onPress={handleInvite}
+              disabled={!canAttemptInvite || isAlreadyInvited || connection.send.isPending}
+            >
+                 {connection.send.isPending ? (
                    <ActivityIndicator color="#fff" />
-               ) : (
+                 ) : (
                    <>
-                        <Icon name={isAlreadyInvited ? "check-all" : "heart-flash"} size={22} color="#fff" style={styles.inviteIcon} />
-                        <Text style={styles.inviteText}>{isAlreadyInvited ? "Invited" : "Invite Now"}</Text>
+                     <Icon
+                       name={!canAttemptInvite ? "lock-outline" : isAlreadyInvited ? "check-all" : "heart-flash"}
+                       size={22}
+                       color="#fff"
+                       style={styles.inviteIcon}
+                     />
+                     <Text style={styles.inviteText}>
+                       {!canAttemptInvite ? "Invite Unavailable" : isAlreadyInvited ? "Invited" : "Invite Now"}
+                     </Text>
                    </>
-               )}
-          </TouchableOpacity>
-      </View>
+                 )}
+            </TouchableOpacity>
+        </View>
+      )}
 
       <View style={{ height: 60 }} />
     </View>
@@ -234,7 +400,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   nameText: {
-    fontSize: 28,
+    fontSize: isCompactDevice ? 24 : 28,
     fontWeight: '900',
     color: '#000',
   },
@@ -252,7 +418,7 @@ const styles = StyleSheet.create({
       gap: 6,
   },
   statusText: {
-      fontSize: 14,
+      fontSize: isCompactDevice ? 13 : 14,
       color: '#999',
       fontWeight: '600',
   },
@@ -260,13 +426,13 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: isCompactDevice ? 18 : 20,
     fontWeight: '900',
     color: '#111',
     marginBottom: 16,
   },
   bioText: {
-      fontSize: 16,
+      fontSize: isCompactDevice ? 15 : 16,
       color: '#555',
       lineHeight: 24,
       fontWeight: '500',
@@ -288,7 +454,7 @@ const styles = StyleSheet.create({
       borderRadius: 10,
   },
   interestText: {
-      color: '#FF5A79',
+      color: Colors.primary,
       fontSize: 14,
       fontWeight: '700',
   },
@@ -296,10 +462,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#FF5A79',
+    borderColor: Colors.primary,
     borderRadius: 25,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: isCompactDevice ? 14 : 16,
+    paddingVertical: isCompactDevice ? 9 : 10,
     marginBottom: 4,
     backgroundColor: '#fff',
   },
@@ -311,7 +477,7 @@ const styles = StyleSheet.create({
       marginRight: 10,
   },
   pillText: {
-    fontSize: 15,
+    fontSize: isCompactDevice ? 14 : 15,
     color: '#000',
     fontWeight: '700',
   },
@@ -323,10 +489,10 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      height: 56,
+      minHeight: 56,
       borderRadius: 15,
       borderWidth: 1.5,
-      borderColor: '#F0F0F0',
+      borderColor: Colors.border,
       gap: 10,
   },
   reportText: {
@@ -335,14 +501,14 @@ const styles = StyleSheet.create({
       fontWeight: '600',
   },
   inviteBtn: {
-      backgroundColor: '#FF5A79',
-      height: 66,
+      backgroundColor: Colors.primary,
+      minHeight: isCompactDevice ? 60 : 66,
       borderRadius: 18,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 12,
-      shadowColor: '#FF5A79',
+      shadowColor: Colors.primary,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.3,
       shadowRadius: 10,
@@ -358,7 +524,7 @@ const styles = StyleSheet.create({
   },
   inviteText: {
       color: '#fff',
-      fontSize: 20,
+      fontSize: isCompactDevice ? 18 : 20,
       fontWeight: '900',
   },
 });

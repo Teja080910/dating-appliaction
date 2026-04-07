@@ -7,23 +7,23 @@ const languages = [
   'Romanian', 'Russian', 'French', 'Chinese', 'Japanese',
 ];
 
-const Languages = () => {
+interface LanguagesProps {
+  onChange?: (val: string[]) => void;
+}
+
+const Languages: React.FC<LanguagesProps> = ({ onChange }) => {
   const { searchLanguages, setSearchLanguages } = useContext(AppContext);
 
   const toggleLanguage = (lang: string) => {
-    console.log('You clicked:', lang);
-    console.log('Before click, selectedLanguages:', searchLanguages);
-
+    let nextLanguages;
     if (searchLanguages.includes(lang)) {
-      // If already selected, remove it
-      const updatedLanguages = searchLanguages.filter( (item: string) => item !== lang);
-      console.log('After removing:', updatedLanguages);
-      setSearchLanguages(updatedLanguages);
+      nextLanguages = searchLanguages.filter((item: string) => item !== lang);
     } else {
-      // If not selected, add it 
-      const updatedLanguages = [...searchLanguages, lang];
-      console.log('After adding:', updatedLanguages);
-      setSearchLanguages(updatedLanguages);
+      nextLanguages = [...searchLanguages, lang];
+    }
+    setSearchLanguages(nextLanguages);
+    if (onChange) {
+      onChange(nextLanguages);
     }
   };
 

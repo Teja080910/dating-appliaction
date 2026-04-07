@@ -1,23 +1,26 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
 const englishLevels = ['Bad', 'Medium', 'Good', 'Very good'];
 
-const EnglishProficiency = () => {
-  // const [englishProficiency, setEnglishProficiency] = useState<string[]>([]);
+interface EnglishProficiencyProps {
+  onChange?: (val: string[]) => void;
+}
 
-  const {englishProficiency, setEnglishProficiency} = useContext(AppContext)
+const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => {
+  const { englishProficiency, setEnglishProficiency } = useContext(AppContext);
 
-  interface ToggleOption {
-    (option: string): void;
-  }
-
-  const toggleOption: ToggleOption = (option) => {
+  const toggleOption = (option: string) => {
+    let nextProficiency;
     if (englishProficiency.includes(option)) {
-      setEnglishProficiency(englishProficiency.filter((item: string) => item !== option));
+      nextProficiency = englishProficiency.filter((item: string) => item !== option);
     } else {
-      setEnglishProficiency([...englishProficiency, option]);
+      nextProficiency = [...englishProficiency, option];
+    }
+    setEnglishProficiency(nextProficiency);
+    if (onChange) {
+      onChange(nextProficiency);
     }
   };
 

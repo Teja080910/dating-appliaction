@@ -1,30 +1,121 @@
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Image,
-  Dimensions
+  BackHandler,
+  Linking,
+  Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { completeOnboarding } from '../../utils/session';
+import { useTelegram } from '../../api/useTelegram';
 
 const ConnectTelegramScreen = ({navigation}: any) => {
+  const { getTelegramLink } = useTelegram();
 
-  const handleSkip = () => {
-    navigation.navigate('BottomTabs');
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.setItem('onboardingStep', 'ConnectTelegram');
+
+      const onBackPress = () => {
+         navigation.replace('AboutProfile');
+         return true;
+      };
+
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress
+      );
+
+      return () => backHandler.remove();
+    }, [navigation]),
+  );
+
+  const handleSkip = async () => {
+    try {
+      await completeOnboarding();
+      navigation.navigate('BottomTabs');
+    } catch (e) {
+      navigation.navigate('BottomTabs');
+    }
   };
 
   const handleBack = () => {
-    navigation.goBack();
+    navigation.replace('AboutProfile');
   };
 
-  const handleConnectTelegram = () => {
-    // Logic to connect to Telegram
-    console.log('Connect Telegram button pressed');
+  const handleConnectTelegram = async () => {
+    const fallbackUrls = [
+      'tg://resolve?domain=AmaraDatingBot',
+      'https://t.me/AmaraDatingBot',
+      'https://telegram.org/',
+    ];
+
+    const openFirstAvailableUrl = async (candidates: string[]) => {
+      for (const candidate of candidates) {
+        try {
+          const canOpen = await Linking.canOpenURL(candidate);
+          if (canOpen) {
+            await Linking.openURL(candidate);
+            return true;
+          }
+        } catch (error) {
+          console.warn('Telegram URL open failed:', candidate, error);
+        }
+      }
+
+      return false;
+    };
+
+    try {
+      let telegramUrl: string | null = null;
+      try {
+        const linkResponse = await getTelegramLink.mutateAsync({});
+        if (typeof linkResponse === 'string' && linkResponse.trim()) {
+          telegramUrl = linkResponse.trim();
+        } else if (linkResponse && typeof linkResponse === 'object') {
+          const record = linkResponse as Record<string, unknown>;
+          if (typeof record.link === 'string' && record.link.trim()) {
+            telegramUrl = record.link.trim();
+          } else if (typeof record.url === 'string' && record.url.trim()) {
+            telegramUrl = record.url.trim();
+          }
+        }
+      } catch (err) {
+        console.warn('Telegram link fetch failed, using fallback bot link.');
+      }
+
+      const didOpen = await openFirstAvailableUrl(
+        telegramUrl ? [telegramUrl, ...fallbackUrls] : fallbackUrls,
+      );
+
+      if (!didOpen) {
+        throw new Error('Unable to open Telegram link');
+      }
+
+      await completeOnboarding();
+      navigation.navigate('BottomTabs');
+    } catch (error) {
+      console.error('Telegram Error:', error);
+      Alert.alert('Telegram Connect', 'We could not open the Telegram bot right now. You can continue onboarding and connect Telegram later from your profile.', [
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              await completeOnboarding();
+            } catch (e) {}
+            navigation.navigate('BottomTabs');
+          },
+        },
+      ]);
+    }
   };
 
   return (
@@ -93,7 +184,7 @@ const ConnectTelegramScreen = ({navigation}: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   progressBackground: {
     height: 4,
@@ -139,7 +230,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 30,
     marginHorizontal: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     elevation: 6,
     shadowColor: '#000',
@@ -157,13 +248,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     textAlign: 'center',
-    color: '#000',
+    color: '#000000',
     marginBottom: 12,
   },
   description: {
     fontSize: 15,
     textAlign: 'center',
-    color: '#666',
+    color: '#666666',
     marginBottom: 25,
     lineHeight: 22,
   },

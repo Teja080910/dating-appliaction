@@ -1,16 +1,14 @@
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {Alert} from 'react-native';
 import {requestPermissions} from '../../utils/types/permission';
-import {useContext} from 'react';
-import AppContext from '../../context/CreateGlobalStateContext';
 
 export const handleImagePick = async (
   type: 'camera' | 'gallery',
   selectedIndex: number | null,
-  images: string[],
-  setImages: (images: string[]) => void,
+  images: (string | null)[],
+  setImages: (images: (string | null)[]) => void,
   setIsModalVisible: (visible: boolean) => void,
-  profileImage: String | null,
+  profileImage: string | null,
   setProfileImage: (uri: string | null) => void,
 ) => {
   const hasPermission = await requestPermissions();
@@ -22,7 +20,7 @@ export const handleImagePick = async (
     return;
   }
 
-  const options = {mediaType: 'photo', quality: 1};
+  const options = {mediaType: 'photo' as const, quality: 1 as const};
 
   try {
     const result =

@@ -1,20 +1,20 @@
-import React, { useContext, useState } from 'react';
+import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import AppContext from '../../../context/CreateGlobalStateContext';
 
-const DisplayName = () => {
-   const {name, setName} = useContext(AppContext)
+interface DisplayNameProps {
+  value: string;
+  onChange: (val: string) => void;
+}
 
-
+const DisplayName: React.FC<DisplayNameProps> = ({ value, onChange }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your display name</Text>
       <Text style={styles.subtitle}>You can write your real name or a nickname</Text>
       <TextInput
         style={styles.input}
-        value={name}
-        onChangeText={setName}
-        // placeholderTextColor="#aaa"
+        value={value}
+        onChangeText={onChange}
       />
     </View>
   );

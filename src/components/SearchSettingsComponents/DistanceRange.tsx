@@ -1,14 +1,22 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 
-const DistanceSlider = () => {
-  // const [distanceRange, setDistancerange] = useState(1100);
+interface DistanceSliderProps {
+  onChange?: (val: number) => void;
+}
 
-  const {distanceRange, setDistanceRange} = useContext(AppContext)
+const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange }) => {
+  const { distanceRange } = useContext(AppContext);
+  const [localDistanceRange, setLocalDistanceRange] = useState(distanceRange || 50);
 
-  const [localDistanceRange, setLocalDistanceRange] = useState(distanceRange)
+  const handleValueChange = (val: number) => {
+    setLocalDistanceRange(val);
+    if (onChange) {
+      onChange(val);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -22,7 +30,7 @@ const DistanceSlider = () => {
         maximumValue={2000}
         step={5}
         value={localDistanceRange}
-        onValueChange={setLocalDistanceRange}
+        onValueChange={handleValueChange}
         minimumTrackTintColor="#d33"
         maximumTrackTintColor="#bbb"
         thumbTintColor="#d33" // This sets the fill color of the thumb

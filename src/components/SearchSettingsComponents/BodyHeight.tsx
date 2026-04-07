@@ -3,12 +3,20 @@ import { View, Text, StyleSheet } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 
-const BodyHeight = () => {
-  // const [bodyHeight, setBodyHeight] = useState([120, 200]);
+interface BodyHeightProps {
+  onChange?: (min: number, max: number) => void;
+}
 
-  const { bodyHeight, setBodyHeight } = useContext(AppContext);
+const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
+  const { bodyHeight } = useContext(AppContext);
+  const [localBodyHeight, setLocalBodyHeight] = useState(bodyHeight || [120, 200]);
 
-  const [localBodyHeight, setLocalBodyHeight] = useState(bodyHeight);
+  const handleValuesChange = (values: number[]) => {
+    setLocalBodyHeight(values);
+    if (onChange) {
+      onChange(values[0], values[1]);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -22,7 +30,7 @@ const BodyHeight = () => {
         sliderLength={330}
         min={120}
         max={200}
-        onValuesChange={setLocalBodyHeight}
+        onValuesChange={handleValuesChange}
         step={1}
         selectedStyle={{ backgroundColor: '#d33' }}
         unselectedStyle={{ backgroundColor: '#eee' }}

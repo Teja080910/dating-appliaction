@@ -1,45 +1,60 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { StackNavigationProp } from '@react-navigation/stack';
+import AttractiveLogo from '../AttractiveLogo';
+import { Colors } from '../../utils/colors';
 
 interface Props {
   selectedFilter: 'online' | 'newest';
   onFilterChange: (filter: 'online' | 'newest') => void;
+  onMenuPress?: () => void;
 }
 
 type HomeHeaderNavigationProp = StackNavigationProp<RootParamList, 'SearchSettings'>;
 
 const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
   const navigation = useNavigation<HomeHeaderNavigationProp>();
-  
+
   const handleSearchSettingsPress = () => {
-     navigation.navigate('SearchSettings');
+    navigation.navigate('SearchSettings');
   };
 
   return (
     <View style={styles.wrapper}>
-      {/* Top bar */}
+      
+      {/* 🔝 TOP BAR */}
       <View style={styles.topBar}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoIcon}>A</Text>
-          <Text style={styles.logoText}>MARA</Text>
+          <AttractiveLogo size={40} />
+          <View style={styles.logoTextWrap}>
+            <Text style={styles.logoText}>AMARA</Text>
+            <Text style={styles.logoSubtext}>Curated private matches</Text>
+          </View>
         </View>
-        <TouchableOpacity onPress={handleSearchSettingsPress} style={styles.settingsButton}>
-          <Icon name="sliders" size={24} color="#999" />
+
+        <TouchableOpacity 
+          onPress={handleSearchSettingsPress} 
+          style={styles.settingsButton}
+          activeOpacity={0.7}
+        >
+          <Icon name="sliders" size={22} color="#666" />
         </TouchableOpacity>
       </View>
 
-      {/* Toggle buttons (Segmented Control style) */}
+      {/* 🎛 SEGMENT CONTROL */}
       <View style={styles.segmentedControl}>
+
+        {/* ONLINE */}
         <TouchableOpacity
+          activeOpacity={0.8}
           style={[
             styles.toggleButton,
             selectedFilter === 'online' ? styles.activeButton : styles.inactiveButton,
-            { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
+            styles.leftButton
           ]}
           onPress={() => onFilterChange('online')}
         >
@@ -49,21 +64,21 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
             color={selectedFilter === 'online' ? '#fff' : '#999'} 
             style={styles.toggleIcon} 
           />
-          <Text
-            style={[
-              styles.toggleText,
-              selectedFilter === 'online' ? styles.activeText : styles.inactiveText,
-            ]}
-          >
+          <Text style={[
+            styles.toggleText,
+            selectedFilter === 'online' ? styles.activeText : styles.inactiveText,
+          ]}>
             Online
           </Text>
         </TouchableOpacity>
 
+        {/* NEWEST */}
         <TouchableOpacity
+          activeOpacity={0.8}
           style={[
             styles.toggleButton,
             selectedFilter === 'newest' ? styles.activeButton : styles.inactiveButton,
-            { borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeftWidth: 0 }
+            styles.rightButton
           ]}
           onPress={() => onFilterChange('newest')}
         >
@@ -73,15 +88,14 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
             color={selectedFilter === 'newest' ? '#fff' : '#999'} 
             style={styles.toggleIcon} 
           />
-          <Text
-            style={[
-              styles.toggleText,
-              selectedFilter === 'newest' ? styles.activeText : styles.inactiveText,
-            ]}
-          >
+          <Text style={[
+            styles.toggleText,
+            selectedFilter === 'newest' ? styles.activeText : styles.inactiveText,
+          ]}>
             Newest
           </Text>
         </TouchableOpacity>
+
       </View>
     </View>
   );
@@ -90,74 +104,109 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-    backgroundColor: '#FAFAFA',
+    paddingTop: 12,
+    paddingBottom: 18,
+    backgroundColor: Colors.background,
   },
+
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 18,
   },
+
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  logoIcon: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FF5A79',
-    marginRight: -2,
-    marginTop: -8,
+  logoTextWrap: {
+    marginLeft: 10,
   },
+
   logoText: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FF5A79',
-    letterSpacing: -0.5,
+    fontSize: 22,
+    fontWeight: '900',
+    color: Colors.text,
+    letterSpacing: 1,
   },
+  logoSubtext: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
   settingsButton: {
-    padding: 4,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
+
   segmentedControl: {
     flexDirection: 'row',
-    height: 60,
+    height: 52,
+    borderRadius: 30,
+    overflow: 'hidden', // 🔥 smooth pill look
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
+
   toggleButton: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 30, // Large pill border radius
   },
+
+  leftButton: {
+    borderTopLeftRadius: 30,
+    borderBottomLeftRadius: 30,
+  },
+
+  rightButton: {
+    borderTopRightRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+
   activeButton: {
-    backgroundColor: '#6A6A6A', // Dark gray active
-    borderWidth: 1,
-    borderColor: '#6A6A6A',
-    elevation: 2, // Slight shadow
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
+    backgroundColor: Colors.primary,
+    ...Platform.select({
+      android: { elevation: 3 },
+      ios: {
+        shadowColor: Colors.primary,
+        shadowOpacity: 0.2,
+        shadowOffset: { width: 0, height: 3 },
+        shadowRadius: 4,
+      },
+    }),
   },
+
   inactiveButton: {
-    backgroundColor: '#FAFAFA',
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    backgroundColor: 'transparent',
   },
+
   toggleIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
+
   toggleText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
+
   activeText: {
     color: '#fff',
   },
+
   inactiveText: {
-    color: '#999',
+    color: Colors.grey,
   },
 });
 

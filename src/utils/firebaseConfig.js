@@ -3,7 +3,7 @@
 
 // // Your web app's Firebase configuration
 // const firebaseConfig = {
-//   apiKey: "http://165.22.218.70:8080",
+//   apiKey: "YOUR_API_KEY",
 
 // };
 

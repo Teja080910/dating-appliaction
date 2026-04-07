@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
@@ -10,16 +10,23 @@ const options = [
   'Online relationship',
 ];
 
-const LookingFor = () => {
-  // const [lookingFor, setLookingFor] = useState<string[]>([]);
+interface LookingForProps {
+  onChange?: (val: string[]) => void;
+}
 
-  const {lookingFor, setLookingFor} = useContext(AppContext)
+const LookingFor: React.FC<LookingForProps> = ({ onChange }) => {
+  const { lookingFor, setLookingFor } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
+    let nextLookingFor;
     if (lookingFor.includes(option)) {
-      setLookingFor(lookingFor.filter((item: string) => item !== option));
+      nextLookingFor = lookingFor.filter((item: string) => item !== option);
     } else {
-      setLookingFor([...lookingFor, option]);
+      nextLookingFor = [...lookingFor, option];
+    }
+    setLookingFor(nextLookingFor);
+    if (onChange) {
+      onChange(nextLookingFor);
     }
   };
 

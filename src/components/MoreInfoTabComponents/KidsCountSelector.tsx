@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
@@ -10,7 +10,7 @@ const KidsCountSelector = () => {
   const {selectedKidCount, setSelectedKidCount} = useContext(AppContext);
 
   const toggleSelect = (item: string) => {
-    setSelectedKidCount(prev => (prev === item ? null : item));
+    setSelectedKidCount((prev: string | null) => (prev === item ? null : item));
   };
 
   return (

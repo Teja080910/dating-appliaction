@@ -1,12 +1,15 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, StyleSheet, View, Platform } from 'react-native';
+import { Image, StyleSheet, View, Platform, Dimensions } from 'react-native';
 import HomeScreen from '../HomeTab/HomeScreen';
 import MessageScreen from '../MessageTab/MessageScreen';
 import ProfileScreen from '../ProfileTab/ProfileScreen';
 import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
+import { Colors } from '../../utils/colors';
 
 const Tab = createBottomTabNavigator();
+const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
+const isCompactDevice = windowWidth < 380 || windowHeight < 760;
 
 const BottomTabs = () => {
   return (
@@ -79,29 +82,32 @@ const BottomTabs = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: Platform.OS === 'ios' ? 85 : 70,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    height: Platform.OS === 'ios' ? (isCompactDevice ? 80 : 85) : (isCompactDevice ? 64 : 70),
+    backgroundColor: Colors.surface,
+    borderTopWidth: 0,
     elevation: 20,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+    shadowOpacity: 1,
+    shadowRadius: 18,
+    paddingBottom: Platform.OS === 'ios' ? (isCompactDevice ? 20 : 25) : (isCompactDevice ? 8 : 10),
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    position: 'absolute',
   },
   icon: {
-    width: 26,
-    height: 26,
+    width: isCompactDevice ? 24 : 26,
+    height: isCompactDevice ? 24 : 26,
   },
   iconProfile: {
-    width: 32,
-    height: 26,
+    width: isCompactDevice ? 28 : 32,
+    height: isCompactDevice ? 24 : 26,
   },
   activeIconContainer: {
-      paddingBottom: 2,
-      borderBottomWidth: 2,
-      borderBottomColor: '#FF5A79',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: Colors.lightPink,
   }
 });
 

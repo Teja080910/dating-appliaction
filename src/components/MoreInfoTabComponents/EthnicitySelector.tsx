@@ -1,5 +1,5 @@
-import React, {useContext, useState} from 'react';
-import {View, Text, StyleSheet, Pressable, FlatList} from 'react-native';
+import React, {useContext} from 'react';
+import {View, Text, StyleSheet, Pressable} from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
 const ETHNICITIES = [
@@ -20,7 +20,7 @@ const EthnicitySelector = () => {
 
   const {selectedEthinicity, setSelectedEthinicity} = useContext(AppContext);
   const toggleSelect = (item: string) => {
-    setSelectedEthinicity(prev => (prev === item ? null : item));
+    setSelectedEthinicity((prev: string | null) => (prev === item ? null : item));
   };
 
   return (

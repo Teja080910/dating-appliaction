@@ -3,7 +3,12 @@ import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useNavigation } from '@react-navigation/native';
 
-const SaveResetButtons = () => {
+interface SaveResetButtonsProps {
+  onSave?: () => void;
+  onReset?: () => void;
+}
+
+const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset }) => {
   const navigation = useNavigation();
   const {
     setAgeRange,
@@ -20,34 +25,41 @@ const SaveResetButtons = () => {
     setSmoke,
   } = useContext(AppContext);
 
-  const onSave = () => {
-    console.log('Settings saved');
-    // For now, saving just means navigating back since states are already in Context
-    navigation.goBack();
+  const handleSave = () => {
+    if (onSave) {
+      onSave();
+    } else {
+      console.log('Settings saved (context-only)');
+      navigation.goBack();
+    }
   };
 
-  const onReset = () => {
-    console.log('Settings reset');
-    setAgeRange([18, 55]);
-    setLocation('My current location');
-    setDistanceRange(1100);
-    setBodyHeight([120, 200]);
-    setSearchLanguages([]);
-    setSelectedOptions([]);
-    setSelectBodyTypes([]);
-    setEnglishProficiency([]);
-    setEthnicity([]);
-    setLookingFor([]);
-    setShowMe(null);
-    setSmoke([]);
+  const handleReset = () => {
+    if (onReset) {
+      onReset();
+    } else {
+      console.log('Settings reset');
+      setAgeRange([18, 55]);
+      setLocation('My current location');
+      setDistanceRange(1100);
+      setBodyHeight([120, 200]);
+      setSearchLanguages([]);
+      setSelectedOptions([]);
+      setSelectBodyTypes([]);
+      setEnglishProficiency([]);
+      setEthnicity([]);
+      setLookingFor([]);
+      setShowMe(null);
+      setSmoke([]);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={[styles.button, styles.resetButton]} onPress={onReset}>
+      <TouchableOpacity style={[styles.button, styles.resetButton]} onPress={handleReset}>
         <Text style={styles.resetButtonText}>Reset</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={onSave}>
+      <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Save</Text>
       </TouchableOpacity>
     </View>

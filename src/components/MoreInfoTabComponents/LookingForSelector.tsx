@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
@@ -27,7 +27,7 @@ const LookingForSelector = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Looking for</Text>
       <View style={styles.optionContainer}>
-        {options.map((item: string, index) => (
+        {options.map((item: string) => (
           <TouchableOpacity
             key={item}
             onPress={() => toggleOption(item)}

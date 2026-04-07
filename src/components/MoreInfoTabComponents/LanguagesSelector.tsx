@@ -16,7 +16,7 @@ const LanguagesSelector = () => {
 
     if (selectedLanguages.includes(lang)) {
       // If already selected, remove it
-      const updatedLanguages = selectedLanguages.filter( item => item !== lang);
+      const updatedLanguages = selectedLanguages.filter((item: string) => item !== lang);
       console.log('After removing:', updatedLanguages);
       setSelectedLanguages(updatedLanguages);
     } else {

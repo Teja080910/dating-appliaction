@@ -1,12 +1,14 @@
-import React, { useContext, useState } from 'react';
+import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import AppContext from '../../../context/CreateGlobalStateContext';
 
 const MAX_LENGTH = 500;
 
-const DescriptionInput = () => {
-  const {profileText, setProfileText} = useContext(AppContext);
+interface DescriptionProps {
+  value: string;
+  onChange: (val: string) => void;
+}
 
+const DescriptionInput: React.FC<DescriptionProps> = ({ value, onChange }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Your description</Text>
@@ -16,15 +18,15 @@ const DescriptionInput = () => {
 
       <TextInput
         style={styles.input}
-        value={profileText}
-        onChangeText={setProfileText}
+        value={value}
+        onChangeText={onChange}
         placeholder="Write something..."
         placeholderTextColor="#aaa"
         multiline
         maxLength={MAX_LENGTH}
       />
 
-      <Text style={styles.charCount}>{profileText.length} / {MAX_LENGTH}</Text>
+      <Text style={styles.charCount}>{value?.length || 0} / {MAX_LENGTH}</Text>
     </View>
   );
 };

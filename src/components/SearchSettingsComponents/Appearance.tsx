@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
@@ -9,16 +9,23 @@ const appearanceOptions = [
   'Below Average',
 ];
 
-const Appearance = () => {
-  // const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+interface AppearanceProps {
+  onChange?: (val: string[]) => void;
+}
 
-  const {selectedOptions, setSelectedOptions} = useContext(AppContext);
+const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
+  const { selectedOptions, setSelectedOptions } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
+    let nextOptions;
     if (selectedOptions.includes(option)) {
-      setSelectedOptions(selectedOptions.filter(item => item !== option));
+      nextOptions = selectedOptions.filter((item: string) => item !== option);
     } else {
-      setSelectedOptions([...selectedOptions, option]);
+      nextOptions = [...selectedOptions, option];
+    }
+    setSelectedOptions(nextOptions);
+    if (onChange) {
+      onChange(nextOptions);
     }
   };
 

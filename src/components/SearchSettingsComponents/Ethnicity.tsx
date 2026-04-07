@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 
@@ -15,17 +15,23 @@ const ethnicityOptions = [
   'Other',
 ];
 
-const Ethnicity = () => {
-  // const [ethnicity, setEthnicity] = useState<string[]>([]);
+interface EthnicityProps {
+  onChange?: (val: string[]) => void;
+}
 
-  const {ethnicity, setEthnicity} = useContext(AppContext)
-
+const Ethnicity: React.FC<EthnicityProps> = ({ onChange }) => {
+  const { ethnicity, setEthnicity } = useContext(AppContext);
 
   const toggleOption = (option: string): void => {
+    let nextEthnicity;
     if (ethnicity.includes(option)) {
-      setEthnicity(ethnicity.filter((item: string) => item !== option));
+      nextEthnicity = ethnicity.filter((item: string) => item !== option);
     } else {
-      setEthnicity([...ethnicity, option]);
+      nextEthnicity = [...ethnicity, option];
+    }
+    setEthnicity(nextEthnicity);
+    if (onChange) {
+      onChange(nextEthnicity);
     }
   };
 

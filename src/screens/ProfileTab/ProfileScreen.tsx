@@ -1,85 +1,79 @@
-import { useContext, useEffect } from 'react';
-import AppContext from '../../context/CreateGlobalStateContext';
-import { ScrollView, StyleSheet, Text, View, Alert, Linking } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../../components/ProfileTabComponents/Header';
 import AdditionalUploadSection from '../../components/ProfileTabComponents/AdditionalUploadSection';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import ProfileRow from '../../components/ProfileTabComponents/ProfileRow';
 import { useNavigation, CommonActions } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootParamList } from '../../utils/types/navigation.types';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuth } from '../../api/useAuth';
+import { clearFullSession } from '../../utils/session';
+import { getUserId } from '../../utils/sessionHelper';
 
 const ProfileScreen = () => {
-  const navigation = useNavigation<StackNavigationProp<RootParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  const { logout, deleteAccount } = useAuth();
 
   const handleLogout = async () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          onPress: async () => {
-            try {
-              await AsyncStorage.multiRemove(['isLoggedIn', 'entryHomeScreen', 'isRegistered', 'acceptedTerms', 'GenderOrientation']);
-              navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Register' }] }));
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          },
-          style: "destructive"
-        }
-      ]
-    );
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        onPress: async () => {
+          try {
+            await logout();
+            navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
+        },
+        style: 'destructive',
+      },
+    ]);
   };
 
   const handleDeleteProfile = async () => {
-    Alert.alert(
-      "Delete Profile",
-      "Are you sure you want to permanently delete your profile? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete My Profile",
-          onPress: async () => {
-             Alert.alert(
-               "Final Warning",
-               "All your matches, photos, and messages will be lost forever. Still proceed?",
-               [
-                 { text: "No", style: "cancel" },
-                 {
-                   text: "Yes, Delete Everything",
-                   onPress: async () => {
-                     try {
-                       await AsyncStorage.clear();
-                       Alert.alert("Profile Deleted", "Your account and data have been successfully removed.");
-                       navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Register' }] }));
-                     } catch (error) {
-                       console.error('Delete error:', error);
-                     }
-                   },
-                   style: "destructive"
-                 }
-               ]
-             );
-          },
-          style: "destructive"
-        }
-      ]
-    );
-  };
-
-  const openTelegram = async () => {
-    const telegramUrl = 'https://t.me/telegram'; // Replace with actual support bot or channel
-    Linking.openURL(telegramUrl).catch(() => {
-        Alert.alert("Error", "Telegram is not installed or the link is invalid.");
-    });
+    Alert.alert('Delete Profile', 'Are you sure you want to permanently delete your profile?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete My Profile',
+        onPress: () => {
+          Alert.alert('Final Warning', 'All your matches, photos, and messages will be lost forever. Still proceed?', [
+            { text: 'No', style: 'cancel' },
+            {
+              text: 'Yes, Delete Everything',
+              onPress: async () => {
+                try {
+                  const userId = await getUserId();
+                  if (userId) {
+                    deleteAccount.mutate(userId, {
+                      onSuccess: async () => {
+                        await clearFullSession();
+                        Alert.alert('Profile Deleted', 'Your account has been successfully removed.');
+                        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+                      },
+                      onError: async () => {
+                        await clearFullSession();
+                        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+                      },
+                    });
+                  }
+                } catch (error) {
+                  console.error('Delete error:', error);
+                }
+              },
+              style: 'destructive',
+            },
+          ]);
+        },
+        style: 'destructive',
+      },
+    ]);
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Header />
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
@@ -100,7 +94,7 @@ const ProfileScreen = () => {
           <ProfileRow 
             title="View My Profile" 
             iconName="eye" 
-            onPress={() => navigation.navigate('ViewMyProfileScreen')} 
+            onPress={() => navigation.navigate('ViewMyProfileScreen', { userId: undefined })} 
           />
         </View>
 
@@ -111,13 +105,13 @@ const ProfileScreen = () => {
             title="Connect Telegram" 
             iconName="send" 
             color="#0088CC" 
-            onPress={openTelegram} 
+            onPress={() => navigation.navigate('ConnectTelegram')} 
           />
           <ProfileRow 
             title="Chat with us" 
             iconName="message-circle" 
             color="#2ECC71" 
-            onPress={() => Linking.openURL('mailto:support@amara.com')} 
+            onPress={() => navigation.navigate('SupportScreen')} 
           />
         </View>
 
@@ -157,21 +151,22 @@ const ProfileScreen = () => {
 
         <Text style={styles.footerText}>AMARA - All Rights Reserved</Text>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
+    flexGrow: 1,
     paddingBottom: 120,
   },
   section: {
     marginTop: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#F0F0F0',

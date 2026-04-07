@@ -1,23 +1,32 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import AppContext from '../../../context/CreateGlobalStateContext';
 
-const YourBirthday = () => {
-  const { date, setDate } = useContext(AppContext);
+interface YourBirthdayProps {
+  value: string; // YYYY-MM-DD
+  onChange: (val: string) => void;
+}
+
+const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
   const [showPicker, setShowPicker] = useState(false);
 
-  const handleChange = (event, selectedDate) => {
-    const currentDate = selectedDate || date;
-    setShowPicker(Platform.OS === 'ios'); // iOS keeps modal open, Android closes
-    setDate(currentDate);
+  // Convert string (YYYY-MM-DD) to Date object safely
+  const dateObj = value ? new Date(value) : new Date();
+
+  const handleChange = (event: any, selectedDate: Date | undefined) => {
+    setShowPicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      const yr = selectedDate.getFullYear();
+      const mo = ('0' + (selectedDate.getMonth() + 1)).slice(-2);
+      const dy = ('0' + selectedDate.getDate()).slice(-2);
+      onChange(`${yr}-${mo}-${dy}`);
+    }
   };
 
-  const formatDate = (dateObj) => {
-    const day = ('0' + dateObj.getDate()).slice(-2);
-    const month = ('0' + (dateObj.getMonth() + 1)).slice(-2);
-    const year = dateObj.getFullYear();
-    return `${day}/${month}/${year}`;
+  const formatDate = (val: string) => {
+    if (!val) return 'Select date';
+    const [y, m, d] = val.split('-');
+    return `${d}/${m}/${y}`;
   };
 
   return (
@@ -26,12 +35,12 @@ const YourBirthday = () => {
       <Text style={styles.subtitle}>When were you born?</Text>
 
       <TouchableOpacity style={styles.inputBox} onPress={() => setShowPicker(true)}>
-        <Text style={styles.dateText}>{formatDate(date)}</Text>
+        <Text style={styles.dateText}>{formatDate(value)}</Text>
       </TouchableOpacity>
 
       {showPicker && (
         <DateTimePicker
-          value={date}
+          value={dateObj}
           mode="date"
           display="calendar"
           onChange={handleChange}

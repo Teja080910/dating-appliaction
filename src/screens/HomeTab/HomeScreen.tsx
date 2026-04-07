@@ -8,8 +8,8 @@ import UserList from '../../components/HomeTabComponents/UserList';
 import HomeHeader from '../../components/HomeTabComponents/HomeHeader';
 
 const HomeScreen = () => {
-  const { oppositeGender, setOppositeGender, filter, setFilter, viewMyProfile, setViewMyProfile } = useContext(AppContext);
-  // const [filter, setFilter] = useState<'online' | 'newest'>('online');
+  const { oppositeGender, setOppositeGender, filter, setFilter } = useContext(AppContext);
+  const [userLocation] = useState<{ latitude: number, longitude: number } | null>(null);
 
   useEffect(() => {
     const fetchGender = async () => {
@@ -24,15 +24,12 @@ const HomeScreen = () => {
       }
     };
     fetchGender();
-  }, []);
+  }, [setOppositeGender]);
 
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.setItem('entryHomeScreen', 'true');
-      console.log('entryHomeScreen', AsyncStorage.getItem('entryHomeScreen'));
-      console.log('View My Profile:', viewMyProfile);
       
-
       const onBackPress = () => {
         BackHandler.exitApp();
         return true;
@@ -49,7 +46,6 @@ const HomeScreen = () => {
 
   const handleMenuPress = () => {
     console.log('Menu pressed');
-    // navigation.navigate('Profile') if needed
   };
 
   return (
@@ -62,6 +58,8 @@ const HomeScreen = () => {
       {oppositeGender ? (
         <UserList
           filterByGender={oppositeGender}
+          mode={filter}
+          userLocation={userLocation}
         />
       ) : (
         <ActivityIndicator size="large" color="#FF1493" />
@@ -75,6 +73,6 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
 });

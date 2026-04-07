@@ -5,8 +5,10 @@ import AppContext from '../../context/CreateGlobalStateContext';
 const AvatarGroup = () => {
   const { oppositeGender } = useContext(AppContext);
 
+  // ✅ SAFE CHECK
   const isWoman = oppositeGender === 'straight_woman';
 
+  // ✅ SAFE IMAGE ARRAY
   const avatars = isWoman
     ? [
         require('../../assets/MessageTabImages/girl1.webp'),
@@ -21,29 +23,41 @@ const AvatarGroup = () => {
 
   return (
     <View style={styles.row}>
-      <Image source={avatars[0]} style={styles.avatar} />
+      {/* LEFT */}
+      <Image source={avatars?.[0]} style={styles.avatar} />
+
+      {/* CENTER WITH BADGE */}
       <View style={styles.avatarContainer}>
-        <Image source={avatars[1]} style={styles.avatar} />
-        <Image source={require('../../assets/MessageTabImages/envelope.png')} style={styles.badge} />
+        <Image source={avatars?.[1]} style={styles.avatar} />
+
+        {/* ✅ BADGE SAFE */}
+        <Image
+          source={require('../../assets/MessageTabImages/envelope.png')}
+          style={styles.badge}
+        />
       </View>
-      <Image source={avatars[2]} style={styles.avatar} />
+
+      {/* RIGHT */}
+      <Image source={avatars?.[2]} style={styles.avatar} />
     </View>
   );
 };
 
 export default AvatarGroup;
 
+// ================= STYLES =================
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
+    alignItems: 'center', // ✅ alignment fix
     marginVertical: 20,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
+    marginHorizontal: 5, // ❗ gap fix (React Native me gap support nahi hota)
   },
   avatarContainer: {
     position: 'relative',

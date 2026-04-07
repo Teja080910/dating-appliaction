@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet} from 'react-native';
 import Slider from '@react-native-community/slider';
 import AppContext from '../../context/CreateGlobalStateContext';
