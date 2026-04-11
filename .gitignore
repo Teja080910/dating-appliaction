@@ -81,3 +81,7 @@ yarn-error.log
 # Notes
 
 Notes
+# Expo
+.expo
+dist/
+web-build/

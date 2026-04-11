@@ -2,10 +2,36 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 
+const allowedFields = [
+  'name',
+  'displayName',
+  'email',
+  'bio',
+  'dob',
+  'age',
+  'gender',
+  'orientation',
+  'language',
+  'appearance',
+  'bodyType',
+  'height',
+  'englishLevel',
+  'ethnicity',
+  'lookingFor',
+  'smoke',
+  'drink',
+];
+
 const sanitizeProfileDto = (dto: Record<string, any>) =>
-  Object.fromEntries(
-    Object.entries(dto || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
-  );
+    Object.fromEntries(
+        Object.entries(dto || {}).filter(
+            ([key, value]) =>
+                allowedFields.includes(key) &&
+                value !== undefined &&
+                value !== null &&
+                value !== ''
+        )
+    );
 
 const createImageFormData = (key: string, photo: any) => {
   const formData = new FormData();
@@ -67,107 +93,137 @@ const normalizeCompletion = (payload: any) => {
   return Number.isFinite(nestedNumeric) ? nestedNumeric : 0;
 };
 
-const profileQueryKey = () => ['myProfile'];
-const completionQueryKey = () => ['profileCompletion'];
+const profileQueryKey = (uid?: any) => ['myProfile', uid];
+const completionQueryKey = (uid?: any) => ['profileCompletion', uid];
 
 export const useProfile = () => {
   const queryClient = useQueryClient();
   const resolveBackendUserId = async () => {
     const userId = await getUserId();
+    console.log('🆔 Stored UserId:', userId); // 🔥 ADD THIS
+
     if (!userId) {
       throw new Error('Unable to resolve backend userId from session.');
     }
-    return Number(userId);
+    return String(userId);
   };
 
   const resolveNumericUserId = async (candidate?: any) => {
-    if (candidate !== undefined && candidate !== null && String(candidate).trim() !== '') {
-      return Number(candidate);
+    let userId = candidate;
+
+    if (!userId || String(userId).trim() === '') {
+      userId = await resolveBackendUserId();
     }
 
-    return resolveBackendUserId();
+    // 🔥 CONVERT "MA1002" → 1002
+    const numericUserId = Number(String(userId).replace(/\D/g, ''));
+
+    if (!Number.isFinite(numericUserId)) {
+      throw new Error(`Invalid userId: ${userId}`);
+    }
+
+    return numericUserId; // ✅ return NUMBER, not string
   };
 
-  const invalidateProfile = async () => {
-    await queryClient.invalidateQueries({ queryKey: profileQueryKey() });
-    await queryClient.invalidateQueries({ queryKey: completionQueryKey() });
+  const invalidateProfile = async (uid?: any) => {
+    await queryClient.invalidateQueries({queryKey: profileQueryKey(uid)});
+    await queryClient.invalidateQueries({queryKey: completionQueryKey(uid)});
   };
 
-  const setupProfile = useMutation({
-    mutationFn: async ({ uid, dto, photo }: { uid?: any; dto: any; photo?: any }) => {
+  type SetupProfileInput = {
+    uid?: any;
+    dto: Record<string, any>;
+    photo?: any;
+  };
+
+  const setupProfile = useMutation<any, Error, SetupProfileInput>({
+    mutationFn: async ({uid, dto, photo}) => {
       const normalizedDto = sanitizeProfileDto(dto);
+      const resolvedUserId = uid
+        ? Number(String(uid).replace(/\D/g, ''))
+        : await resolveNumericUserId();
+
       const formData = new FormData();
-      const resolvedUserId = uid ? Number(uid) : await resolveBackendUserId();
+
+      Object.entries(normalizedDto).forEach(([key, value]) => {
+        formData.append(key, String(value));
+      });
 
       if (photo?.uri) {
         formData.append('photo', {
           uri: photo.uri,
-          name: photo.name || photo.fileName || `profile_${Date.now()}.jpg`,
+          name: photo.name || `profile_${Date.now()}.jpg`,
           type: photo.type || 'image/jpeg',
         } as any);
       }
 
-      const res = await apiClient.post(`/profile/${resolvedUserId}/setup`, formData, {
-        params: normalizedDto,
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await apiClient.post(
+        `/profile/${resolvedUserId}/setup`,
+        formData,
+        {headers: {'Content-Type': 'multipart/form-data'}},
+      );
 
       return res.data;
     },
-    onSuccess: async (_, variables) => {
-      await invalidateProfile();
-    },
   });
 
-  const useMyProfile = (uid: any) =>
+  const useMyProfile = (uid?: any) =>
     useQuery({
-      queryKey: profileQueryKey(),
+      queryKey: ['myProfile', uid],
       queryFn: async () => {
-        const resolvedUserId = uid ? Number(uid) : await resolveBackendUserId();
+        const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
         const res = await apiClient.get(`/profile/me/${resolvedUserId}`);
         return normalizeProfile(res.data);
       },
-      staleTime: 1000 * 60 * 5,
     });
 
   const useProfileCompletion = (uid: any) =>
     useQuery({
-      queryKey: completionQueryKey(),
+      queryKey: ['profileCompletion', uid],
       queryFn: async () => {
-        const resolvedUserId = uid ? Number(uid) : await resolveBackendUserId();
-        const res = await apiClient.get(`/profile/completion/${resolvedUserId}`);
+        const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
+        const res = await apiClient.get(
+          `/profile/completion/${resolvedUserId}`,
+        );
         return normalizeCompletion(res.data);
       },
     });
 
-  const updatePreferences = useMutation({
-    mutationFn: async (data: { userId?: any; lookingFor: string; smoke: string; drink: string }) => {
+  type UpdatePreferencesInput = {
+    userId?: any;
+    lookingFor: string;
+    smoke: string;
+    drink: string;
+  };
+
+  const updatePreferences = useMutation<any, Error, UpdatePreferencesInput>({
+    mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
+
       const payload = {
         userId: resolvedUserId,
         lookingFor: data.lookingFor,
         smoke: data.smoke,
         drink: data.drink,
       };
-      const res = await apiClient.put('/profile/update-preferences', payload, {
-        params: { userId: resolvedUserId },
-      });
+
+      const res = await apiClient.put('/profile/update-preferences', payload);
       return res.data;
-    },
-    onSuccess: async () => {
-      await invalidateProfile();
     },
   });
 
-  const updateDetails = useMutation({
-    mutationFn: async (data: {
-      userId?: any;
-      language: string;
-      bodyType: string;
-      appearance: string;
-      height: number;
-    }) => {
+  type UpdateDetailsInput = {
+    userId?: any;
+    language: string;
+    bodyType: string;
+    appearance: string;
+    height: number;
+  };
+
+  const updateDetails = useMutation<any, Error, UpdateDetailsInput>({
+    mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
+
       const payload = {
         userId: resolvedUserId,
         language: data.language,
@@ -175,96 +231,112 @@ export const useProfile = () => {
         appearance: data.appearance,
         height: data.height,
       };
-      const res = await apiClient.put('/profile/update-details', payload, {
-        params: { userId: resolvedUserId },
-      });
+
+      const res = await apiClient.put('/profile/update-details', payload);
       return res.data;
-    },
-    onSuccess: async () => {
-      await invalidateProfile();
     },
   });
 
-  const updateBasic = useMutation({
-    mutationFn: async (data: { userId?: any; displayName: string; bio: string; age: number }) => {
+  type UpdateBasicInput = {
+    userId?: any;
+    displayName: string;
+    bio: string;
+    age: number;
+  };
+
+  const updateBasic = useMutation<any, Error, UpdateBasicInput>({
+    mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
+
       const payload = {
         userId: resolvedUserId,
         displayName: data.displayName,
         bio: data.bio,
         age: data.age,
       };
-      const res = await apiClient.put('/profile/update-basic', payload, {
-        params: { userId: resolvedUserId },
-      });
+
+      const res = await apiClient.put('/profile/update-basic', payload);
       return res.data;
-    },
-    onSuccess: async () => {
-      await invalidateProfile();
     },
   });
 
-  const uploadImage = useMutation({
-    mutationFn: async ({ photo, uid }: { photo: any; uid?: any }) => {
+
+
+  type UploadImageInput = {
+    uid?: any;
+    photo: any;
+  };
+
+  const uploadImage = useMutation<any, Error, UploadImageInput>({
+    mutationFn: async ({photo, uid}) => {
       const formData = createImageFormData('image', photo);
       const resolvedUserId = await resolveNumericUserId(uid);
 
+      formData.append('userId', resolvedUserId);
+
       const res = await apiClient.post('/profile/upload-image', formData, {
-        params: { userId: resolvedUserId },
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {'Content-Type': 'multipart/form-data'},
       });
 
       return res.data;
     },
-    onSuccess: async () => {
-      await invalidateProfile();
-      await queryClient.invalidateQueries({ queryKey: ['userImages'] });
-    },
   });
 
-  const uploadSelfie = useMutation({
-    mutationFn: async ({ photo, uid }: { photo: any; uid?: any }) => {
+  type UploadSelfieInput = {
+    uid?: any;
+    photo: any;
+  };
+
+  const uploadSelfie = useMutation<any, Error, UploadSelfieInput>({
+    mutationFn: async ({photo, uid}) => {
       const formData = createImageFormData('selfie', photo);
       const resolvedUserId = await resolveNumericUserId(uid);
 
+      formData.append('userId', resolvedUserId);
+
       const res = await apiClient.post('/profile/selfie/upload', formData, {
-        params: { userId: resolvedUserId },
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {'Content-Type': 'multipart/form-data'},
       });
 
       return res.data;
     },
-    onSuccess: async () => {
-      await invalidateProfile();
-    },
   });
 
-  const verifySelfie = useMutation({
-    mutationFn: async (uid: any) => {
+  type VerifySelfieInput = {
+    uid?: any;
+  };
+
+  const verifySelfie = useMutation<any, Error, VerifySelfieInput>({
+    mutationFn: async ({uid}) => {
       const resolvedUserId = await resolveNumericUserId(uid);
-      // Swagger: PUT /profile/selfie/verify/{userId} — userId is a PATH param
-      const res = await apiClient.put(`/profile/selfie/verify/${resolvedUserId}`);
+
+      const res = await apiClient.put(
+        `/profile/selfie/verify/${resolvedUserId}`,
+      );
+
       return res.data;
     },
-    onSuccess: async () => {
-      await invalidateProfile();
+    onSuccess: async (_, variables) => {
+      await invalidateProfile(variables?.uid);
     },
   });
 
-  const genderOrientation = useMutation({
-    mutationFn: async (data: { userId?: any; gender: string; orientation: string }) => {
+  type GenderOrientationInput = {
+    userId?: any;
+    gender: string;
+    orientation: string;
+  };
+
+  const genderOrientation = useMutation<any, Error, GenderOrientationInput>({
+    mutationFn: async data => {
       const body = {
-        ...(data.userId ? { userId: Number(data.userId) } : {}),
+        ...(data.userId ? {userId: String(data.userId)} : {}),
         gender: data.gender,
         orientation: data.orientation,
       };
-      const res = await apiClient.post('/profile/gender-orientation', body, {
-        params: data.userId ? { userId: Number(data.userId) } : undefined,
-      });
+
+      const res = await apiClient.post('/profile/gender-orientation', body);
       return res.data;
-    },
-    onSuccess: async () => {
-      await invalidateProfile();
     },
   });
 
