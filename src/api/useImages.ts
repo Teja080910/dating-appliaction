@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient, { getAbsoluteUrl, toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 import { isResolvedApiUserId } from '../utils/sessionState';
@@ -113,17 +113,18 @@ export const mapImagesToSlots = (payload: unknown, slotCount = MAX_PROFILE_IMAGE
 export const useUserImages = (userId?: string) => {
   const resolveUserId = async (candidate?: string) => {
     let activeId = candidate || userId || (await getUserId());
-    
+
     if (!activeId || !isResolvedApiUserId(activeId)) {
       const repairedId = await repairStoredSessionIdentity();
       if (repairedId) activeId = repairedId;
     }
-    
+
     return activeId ? toApiUserId(activeId) : null;
   };
+  const queryClient = useQueryClient();
 
   const uploadImage = useMutation({
-    mutationFn: async ({ photo, uid }: { photo: any; uid?: string }) => {
+    mutationFn: async ({photo, uid}: {photo: any; uid?: string}) => {
       const normalizedUserId = await resolveUserId(uid);
 
       const formData = new FormData();
@@ -134,20 +135,38 @@ export const useUserImages = (userId?: string) => {
       } as any);
 
       const res = await apiClient.post('/profile/upload-image', formData, {
-        params: normalizedUserId ? { userId: normalizedUserId } : undefined,
-        headers: {
+        params: normalizedUserId ? {userId: normalizedUserId} : undefined,
+        /*headers: {
           'Content-Type': 'multipart/form-data',
-        },
+        },*/
       });
 
       return res.data;
     },
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: ['userImages', variables?.uid || userId],
+      });
+    },
   });
 
-  const getImages = useMutation({
+  /*const useGetImages = (uid?: string) =>
+    useQuery({
+      queryKey: ['userImages', uid],
+      enabled: !!uid,
+      queryFn: async () => {
+        const normalizedUserId = await resolveUserId(uid);
+        if (!normalizedUserId) throw new Error('UserId not resolved');
+
+        const res = await apiClient.get(`/profile/me/${normalizedUserId}`);
+        return normalizeUserImagesResponse(res.data);
+      },
+    });*/
+
+  /*const getImages = useMutation({
     mutationFn: async (id?: string) => {
       const normalizedUserId = await resolveUserId(id);
-      
+
       if (!normalizedUserId) {
         throw new Error('UserId not resolved');
       }
@@ -157,12 +176,20 @@ export const useUserImages = (userId?: string) => {
 
       return normalizeUserImagesResponse(payload);
     },
-  });
+  });*/
+  //const imagesQuery = useGetImages(userId);
+
+
 
   const deleteImage = useMutation({
     mutationFn: async (imageId: number) => {
       const res = await apiClient.delete(`/users/images/${imageId}`);
       return res.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['userImages', userId],
+      });
     },
   });
 
@@ -176,13 +203,38 @@ export const useUserImages = (userId?: string) => {
       const res = await apiClient.put(`/users/${normalizedUserId}/profile-photo/${imageId}`);
       return res.data;
     },
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: ['userImages', variables?.uid || userId],
+      });
+    },
+
+  });
+
+
+
+  const getSafeUserId = async (uid?: string) => {
+    const id = await resolveUserId(uid);
+    if (!id) throw new Error('UserId not resolved');
+    return id;
+  };
+
+  const imagesQuery = useQuery({
+    queryKey: ['userImages', userId],
+    enabled: !!userId || true, // allow fallback from session
+    queryFn: async () => {
+      const id = await getSafeUserId(userId);
+      const res = await apiClient.get(`/profile/me/${id}`);
+      return normalizeUserImagesResponse(res.data);
+    },
   });
 
   return {
     uploadImage,
-    getImages,
+    imagesQuery,
+    /*getImages*/
     deleteImage,
     setProfilePhoto,
-    getAllImages: getImages,
+    //getAllImages: getImages,
   };
 };

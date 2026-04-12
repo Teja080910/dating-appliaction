@@ -2,7 +2,7 @@ import axios from 'axios';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { APIURL } from '../environment/ApiConfig';
-import { clearAuthSession, getAuthToken, isResolvedApiUserId } from '../utils/sessionState';
+import { clearAuthSession, getAuthToken } from '../utils/sessionState';
 
 const BASE_URL = APIURL;
 
@@ -89,10 +89,10 @@ apiClient.interceptors.response.use(
     console.log('❌ API ERROR:', summary);
 
     if (status === 401 && !isPublicAuthRequest(url)) {
-      const isIdentityMismatch = 
-          errorMessage.includes('user not found') || 
+      const isIdentityMismatch =
+          errorMessage.includes('user not found') ||
           errorMessage.includes('invalid userid') ||
-          url.includes('/profile/me') || 
+          url.includes('/profile/me') ||
           url.includes('/profile/completion');
 
       if (!isIdentityMismatch) {
@@ -121,11 +121,18 @@ export const isApiHostedUrl = (url: string | null | undefined) => {
 export const toApiUserId = (value: unknown): number => {
   const strVal = String(value || '').trim();
 
-  if (isResolvedApiUserId(strVal)) {
-    return Number(strVal);
+  if (!strVal) {
+    throw new Error('UserId is empty');
   }
 
-  throw new Error(`Invalid or unresolved userId: ${strVal}`);
+  // ✅ Extract only numbers (MA1000 → 1000)
+  const numericPart = strVal.replace(/\D/g, '');
+
+  if (!numericPart) {
+    throw new Error(`Invalid userId format: ${strVal}`);
+  }
+
+  return Number(numericPart);
 };
 
 export default apiClient;

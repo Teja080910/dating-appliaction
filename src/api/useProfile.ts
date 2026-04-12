@@ -100,11 +100,11 @@ export const useProfile = () => {
   const queryClient = useQueryClient();
   const resolveBackendUserId = async () => {
     const userId = await getUserId();
-    console.log('🆔 Stored UserId:', userId); // 🔥 ADD THIS
 
-    if (!userId) {
-      throw new Error('Unable to resolve backend userId from session.');
+    if (!userId || String(userId).trim() === '') {
+      throw new Error('User not logged in or userId missing');
     }
+
     return String(userId);
   };
 
@@ -116,7 +116,13 @@ export const useProfile = () => {
     }
 
     // 🔥 CONVERT "MA1002" → 1002
-    const numericUserId = Number(String(userId).replace(/\D/g, ''));
+    const cleaned = String(userId).replace(/\D/g, '');
+
+    if (!cleaned) {
+      throw new Error(`Invalid userId format: ${userId}`);
+    }
+
+    const numericUserId = Number(cleaned);
 
     if (!Number.isFinite(numericUserId)) {
       throw new Error(`Invalid userId: ${userId}`);
@@ -139,9 +145,11 @@ export const useProfile = () => {
   const setupProfile = useMutation<any, Error, SetupProfileInput>({
     mutationFn: async ({uid, dto, photo}) => {
       const normalizedDto = sanitizeProfileDto(dto);
-      const resolvedUserId = uid
+      /*const resolvedUserId = uid
         ? Number(String(uid).replace(/\D/g, ''))
-        : await resolveNumericUserId();
+        : await resolveNumericUserId();*/
+      const resolvedUserId = await resolveNumericUserId(uid);
+      console.log('📡 API userId:', resolvedUserId);
 
       const formData = new FormData();
 
@@ -160,7 +168,6 @@ export const useProfile = () => {
       const res = await apiClient.post(
         `/profile/${resolvedUserId}/setup`,
         formData,
-        {headers: {'Content-Type': 'multipart/form-data'}},
       );
 
       return res.data;
@@ -169,7 +176,8 @@ export const useProfile = () => {
 
   const useMyProfile = (uid?: any) =>
     useQuery({
-      queryKey: ['myProfile', uid],
+      queryKey: profileQueryKey(uid),
+      enabled: !!uid, // 🔥 MUST ADD
       queryFn: async () => {
         const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
         const res = await apiClient.get(`/profile/me/${resolvedUserId}`);
@@ -179,7 +187,8 @@ export const useProfile = () => {
 
   const useProfileCompletion = (uid: any) =>
     useQuery({
-      queryKey: ['profileCompletion', uid],
+      queryKey: completionQueryKey(uid),
+      enabled: !!uid, // 🔥 MUST ADD
       queryFn: async () => {
         const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
         const res = await apiClient.get(
@@ -275,7 +284,7 @@ export const useProfile = () => {
       formData.append('userId', resolvedUserId);
 
       const res = await apiClient.post('/profile/upload-image', formData, {
-        headers: {'Content-Type': 'multipart/form-data'},
+        //headers: {'Content-Type': 'multipart/form-data'},
       });
 
       return res.data;
@@ -295,7 +304,7 @@ export const useProfile = () => {
       formData.append('userId', resolvedUserId);
 
       const res = await apiClient.post('/profile/selfie/upload', formData, {
-        headers: {'Content-Type': 'multipart/form-data'},
+        //headers: {'Content-Type': 'multipart/form-data'},
       });
 
       return res.data;
@@ -329,8 +338,10 @@ export const useProfile = () => {
 
   const genderOrientation = useMutation<any, Error, GenderOrientationInput>({
     mutationFn: async data => {
+      const resolvedUserId = await resolveNumericUserId(data.userId);
+
       const body = {
-        ...(data.userId ? {userId: String(data.userId)} : {}),
+        userId: resolvedUserId,
         gender: data.gender,
         orientation: data.orientation,
       };

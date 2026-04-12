@@ -120,6 +120,12 @@ export const useAuth = () => {
     return data;
   };
 
+  const extractNumericUserId = (rawUserId: any) => {
+    if (!rawUserId) return null;
+    const numeric = String(rawUserId).replace(/\D/g, '');
+    return numeric ? Number(numeric) : null;
+  };
+
   // 🔹 SEND OTP FOR REGISTRATION
   const sendRegisterOtp = useMutation({
     mutationFn: async (data: InitRegisterRequest) => {
@@ -147,16 +153,33 @@ export const useAuth = () => {
       const normalizedResponse = normalizeAuthResponse(res.data, res.headers);
       const persisted = await persistSessionIfAvailable(normalizedResponse);
 
+      // ✅ FIX: define here (global in function scope)
+      const cleanUserId = extractNumericUserId(persisted?.userId);
+
       if (persisted?.token) {
         await AsyncStorage.multiSet([
           ['userToken', persisted.token],
           ['userMobile', String(data?.mobile ?? '').trim()],
+          ['userId', String(cleanUserId ?? '')],
+          ['sessionId', String(persisted?.sessionId ?? '')],
+          ['username', String(persisted?.username ?? '')],
         ]);
+
+        if (__DEV__) {
+          console.log('✅ Stored session:', {
+            token: persisted.token,
+            rawUserId: persisted.userId,
+            cleanUserId: cleanUserId, // 🔥 important debug
+            sessionId: persisted.sessionId,
+            username: persisted.username,
+          });
+        }
       }
 
       return {
         ...persisted,
-        identityPending: !persisted?.userId,
+        userId: cleanUserId, // ✅ ALWAYS RETURN CLEAN ID
+        identityPending: !cleanUserId, // ✅ FIXED
       };
     },
   });
