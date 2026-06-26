@@ -1,6 +1,7 @@
-import { ScrollView, StyleSheet, View, Alert } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 
 import SearchSettingsHeader from '../../components/SearchSettingsComponents/SearchSettingHeader';
 import AgeRangeSlider from '../../components/SearchSettingsComponents/AgeRange';
@@ -19,8 +20,11 @@ import ShowMe from '../../components/SearchSettingsComponents/ShowMe';
 import SaveResetButtons from '../../components/SearchSettingsComponents/SaveResetButtons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
+import { useAlert } from '../../components/AlertModal';
 
 const SearchScreen = ({ navigation }: any) => {
+  const { alert, AlertComponent } = useAlert();
   const {
     setAgeRange,
     setDistanceRange,
@@ -35,49 +39,25 @@ const SearchScreen = ({ navigation }: any) => {
     setLocation,
   } = React.useContext(AppContext);
 
-  // 🔥 FILTER STATE
   const [, setFilters] = React.useState<any>({
-    minAge: 18,
-    maxAge: 40,
-    maxDistanceKm: 50,
-    worldwide: false,
-    bodyType: [],
-    appearance: [],
-    language: [],
-    englishLevel: [],
-    ethnicity: [],
-    lookingFor: [],
-    gender: [],
-    smoke: false,
-    drink: false,
-    page: 0,
-    size: 10,
+    minAge: 18, maxAge: 40, maxDistanceKm: 50, worldwide: false,
+    bodyType: [], appearance: [], language: [], englishLevel: [],
+    ethnicity: [], lookingFor: [], gender: [], smoke: false, drink: false,
+    page: 0, size: 10,
   });
 
   const handleSave = async () => {
-    Alert.alert('Filters Applied', 'Updated matches will refresh on the home screen.');
+    alert('Filters Applied', 'Updated matches will refresh on the home screen.');
     navigation.goBack();
   };
 
   const handleReset = () => {
     setFilters({
-      minAge: 18,
-      maxAge: 40,
-      maxDistanceKm: 50,
-      worldwide: false,
-      bodyType: [],
-      appearance: [],
-      language: [],
-      englishLevel: [],
-      ethnicity: [],
-      lookingFor: [],
-      gender: [],
-      smoke: false,
-      drink: false,
-      page: 0,
-      size: 10,
+      minAge: 18, maxAge: 40, maxDistanceKm: 50, worldwide: false,
+      bodyType: [], appearance: [], language: [], englishLevel: [],
+      ethnicity: [], lookingFor: [], gender: [], smoke: false, drink: false,
+      page: 0, size: 10,
     });
-
     setAgeRange([18, 40]);
     setDistanceRange(50);
     setBodyHeight([120, 200]);
@@ -92,27 +72,23 @@ const SearchScreen = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <SearchSettingsHeader onClose={() => navigation.goBack()} />
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          <AgeRangeSlider onChange={(min: number, max: number) =>
-            {
-              setAgeRange([min, max]);
-              setFilters((prev: any) => ({ ...prev, minAge: min, maxAge: max }));
-            }
-          } />
+          <AgeRangeSlider onChange={(min: number, max: number) => {
+            setAgeRange([min, max]);
+            setFilters((prev: any) => ({ ...prev, minAge: min, maxAge: max }));
+          }} />
 
-          <DistanceSlider onChange={(val: number) =>
-            {
-              setDistanceRange(val);
-              setFilters((prev: any) => ({ ...prev, maxDistanceKm: val }));
-            }
-          } />
+          <DistanceSlider onChange={(val: number) => {
+            setDistanceRange(val);
+            setFilters((prev: any) => ({ ...prev, maxDistanceKm: val }));
+          }} />
 
           <SearchWorldWide onToggle={(val: boolean) =>
             setFilters((prev: any) => ({ ...prev, worldwide: val }))
@@ -120,12 +96,10 @@ const SearchScreen = ({ navigation }: any) => {
 
           <Location />
 
-          <BodyHeight onChange={(min: number, max: number) =>
-            {
-              setBodyHeight([min, max]);
-              setFilters((prev: any) => ({ ...prev, minHeight: min, maxHeight: max }));
-            }
-          } />
+          <BodyHeight onChange={(min: number, max: number) => {
+            setBodyHeight([min, max]);
+            setFilters((prev: any) => ({ ...prev, minHeight: min, maxHeight: max }));
+          }} />
 
           <BodyType onChange={(val: string[]) =>
             setFilters((prev: any) => ({ ...prev, bodyType: val }))
@@ -135,44 +109,34 @@ const SearchScreen = ({ navigation }: any) => {
             setFilters((prev: any) => ({ ...prev, appearance: val }))
           } />
 
-          <Languages onChange={(val: string[]) =>
-            {
-              setSearchLanguages(val);
-              setFilters((prev: any) => ({ ...prev, language: val }));
-            }
-          } />
+          <Languages onChange={(val: string[]) => {
+            setSearchLanguages(val);
+            setFilters((prev: any) => ({ ...prev, language: val }));
+          }} />
 
-          <EnglishProficiency onChange={(val: string[]) =>
-            {
-              setEnglishProficiency(val);
-              setFilters((prev: any) => ({ ...prev, englishLevel: val }));
-            }
-          } />
+          <EnglishProficiency onChange={(val: string[]) => {
+            setEnglishProficiency(val);
+            setFilters((prev: any) => ({ ...prev, englishLevel: val }));
+          }} />
 
-          <Ethnicity onChange={(val: string[]) =>
-            {
-              setEthnicity(val);
-              setFilters((prev: any) => ({ ...prev, ethnicity: val }));
-            }
-          } />
+          <Ethnicity onChange={(val: string[]) => {
+            setEthnicity(val);
+            setFilters((prev: any) => ({ ...prev, ethnicity: val }));
+          }} />
 
           <Smoke onChange={(val: boolean) =>
             setFilters((prev: any) => ({ ...prev, smoke: val }))
           } />
 
-          <LookingFor onChange={(val: string[]) =>
-            {
-              setLookingFor(val);
-              setFilters((prev: any) => ({ ...prev, lookingFor: val }));
-            }
-          } />
+          <LookingFor onChange={(val: string[]) => {
+            setLookingFor(val);
+            setFilters((prev: any) => ({ ...prev, lookingFor: val }));
+          }} />
 
-          <ShowMe onChange={(val: string[]) =>
-            {
-              setShowMe((val?.[0] as 'straight_man' | 'straight_woman' | null) || null);
-              setFilters((prev: any) => ({ ...prev, gender: val }));
-            }
-          } />
+          <ShowMe onChange={(val: string[]) => {
+            setShowMe((val?.[0] as 'straight_man' | 'straight_woman' | null) || null);
+            setFilters((prev: any) => ({ ...prev, gender: val }));
+          }} />
         </View>
       </ScrollView>
 
@@ -184,12 +148,12 @@ const SearchScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,

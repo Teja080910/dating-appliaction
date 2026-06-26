@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Alert,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
@@ -20,6 +19,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { Colors } from '../../utils/colors';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../api/useAuth';
+import { useAlert } from '../../components/AlertModal';
 import { buildRegisterPayload, normalizeMobileNumber } from '../../utils/authPayload';
 
 const extractApiErrorMessage = (error: any, fallback: string) => {
@@ -56,6 +56,7 @@ const isInvalidOtpError = (error: any) => {
 };
 
 const OTPScreen = ({ navigation, route }: any) => {
+  const { alert, AlertComponent } = useAlert();
   const { phone, mobile, name, password, confirmPassword, sessionId } = route.params || {};
   const normalizedMobile = normalizeMobileNumber(mobile || phone);
   
@@ -131,11 +132,11 @@ const OTPScreen = ({ navigation, route }: any) => {
           }
 
           setTimer(30);
-          Alert.alert('Code Resent', 'A new verification code has been sent to your mobile.');
+          alert('Code Resent', 'A new verification code has been sent to your mobile.');
         },
         onError: (error: any) => {
           const rawError = extractApiErrorMessage(error, 'Could not resend OTP.');
-          Alert.alert('Resend Failed', String(rawError));
+          alert('Resend Failed', String(rawError));
         }
       }
     );
@@ -145,12 +146,12 @@ const OTPScreen = ({ navigation, route }: any) => {
     const trimmedOtp = otp.trim();
 
     if (trimmedOtp.length < 4) {
-      Alert.alert('Enter full OTP');
+      alert('Enter full OTP');
       return;
     }
 
     if (!registerSessionId) {
-      Alert.alert(
+      alert(
         'Session Expired',
         'Your verification session is missing. Please resend OTP and try again.',
       );
@@ -183,17 +184,17 @@ const OTPScreen = ({ navigation, route }: any) => {
       const msg = extractApiErrorMessage(error, "Verification failed");
 
       if (isRegisterSessionExpiredError(error)) {
-        Alert.alert("Session Expired", "Please resend OTP");
+        alert("Session Expired", "Please resend OTP");
       } else if (isInvalidOtpError(error)) {
-        Alert.alert("Invalid OTP", "Please enter correct OTP");
+        alert("Invalid OTP", "Please enter correct OTP");
       } else if (msg.toLowerCase().includes('duplicate entry') || msg.toLowerCase().includes('already exists')) {
-        Alert.alert(
+        alert(
           "Account Ready", 
           "Your account is already registered. Please proceed to the Login screen.",
           [{ text: "Go to Login", onPress: () => navigation.replace("Login") }]
         );
       } else {
-        Alert.alert("Error", msg);
+        alert("Error", msg);
       }
     } finally {
       setLoading(false);
@@ -203,7 +204,7 @@ const OTPScreen = ({ navigation, route }: any) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]} style={styles.gradient}>
+      <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.gradient}>
         <View style={styles.topGlow} />
         <View style={styles.bottomGlow} />
         <SafeAreaView style={styles.safeArea}>
@@ -277,6 +278,7 @@ const OTPScreen = ({ navigation, route }: any) => {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
+      {AlertComponent}
     </View>
   );
 };

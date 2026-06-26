@@ -1,24 +1,27 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import React, { useContext, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Header from '../../components/MoreInfoTabComponents/Header';
-import HeightSelector from '../../components/MoreInfoTabComponents/HeightSelector';
-import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
+import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
-import LanguagesSelector from '../../components/MoreInfoTabComponents/LanguagesSelector';
+import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
+import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
 import EnglishSkillSelector from '../../components/MoreInfoTabComponents/EnglishSkillSelector';
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
-import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
+import Header from '../../components/MoreInfoTabComponents/Header';
+import HeightSelector from '../../components/MoreInfoTabComponents/HeightSelector';
 import KidsCountSelector from '../../components/MoreInfoTabComponents/KidsCountSelector';
+import LanguagesSelector from '../../components/MoreInfoTabComponents/LanguagesSelector';
 import LookingForSelector from '../../components/MoreInfoTabComponents/LookingForSelector';
 import NetWorthSelector from '../../components/MoreInfoTabComponents/NetWorthSelector';
 import SaveButton from '../../components/MoreInfoTabComponents/SaveButton';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { useProfile } from '../../api/useProfile';
 import { getAuthSession } from '../../utils/session';
+import { Colors } from '../../theme';
+import { useAlert } from '../../components/AlertModal';
 
 const MoreInfoScreen = () => {
+  const { alert, AlertComponent } = useAlert();
   const tabBarHeight = useBottomTabBarHeight();
   const {
     height,
@@ -79,7 +82,7 @@ const MoreInfoScreen = () => {
     const hasUsableSessionToken = Boolean(authSession?.token);
 
     if (!hasUsableSessionToken) {
-      Alert.alert('Session error', 'Please log in again to continue.');
+      alert('Session error', 'Please log in again to continue.');
       return;
     }
 
@@ -98,18 +101,9 @@ const MoreInfoScreen = () => {
         drink: selectedDrinking || '',
       });
 
-      // Note: Backend does not currently support updating englishLevel and ethnicity via /update API.
-      // Calling setupProfile here without a photo triggers a 400/Multipart network crash.
-      // await setupProfile.mutateAsync({
-      //   dto: {
-      //     englishLevel: ['Beginner', 'Intermediate', 'Advanced', 'Native'][englishSkillLevel] || 'Beginner',
-      //     ethnicity: selectedEthinicity || '',
-      //   },
-      // });
-
-      Alert.alert('Saved', 'Your profile details have been updated.');
+      alert('Saved', 'Your profile details have been updated.');
     } catch (error: any) {
-      Alert.alert(
+      alert(
         'Save failed',
         error?.response?.data?.message || 'Could not save your profile details right now.',
       );
@@ -140,8 +134,9 @@ const MoreInfoScreen = () => {
         </View>
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: tabBarHeight + 8 }]}>
-        <SaveButton onPress={handleSave} loading={loading || profileQuery.isLoading} />
+        <SaveButton onPress={handleSave} loading={loading} />
       </View>
+      {AlertComponent}
     </SafeAreaView>
   );
 };
@@ -149,14 +144,14 @@ const MoreInfoScreen = () => {
 export default MoreInfoScreen;
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#fff' 
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
   },
-  scrollContent: { 
+  scrollContent: {
     flexGrow: 1,
     paddingBottom: 24,
   },
@@ -164,9 +159,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   footer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#F2F2F2',
+    borderTopColor: Colors.glassBorder,
     paddingTop: 12,
   },
 });

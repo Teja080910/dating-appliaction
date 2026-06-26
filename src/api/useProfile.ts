@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useRef } from 'react';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 
@@ -93,47 +94,94 @@ const normalizeCompletion = (payload: any) => {
   return Number.isFinite(nestedNumeric) ? nestedNumeric : 0;
 };
 
-const profileQueryKey = (uid?: any) => ['myProfile', uid];
-const completionQueryKey = (uid?: any) => ['profileCompletion', uid];
+const resolveBackendUserId = async () => {
+  const userId = await getUserId();
+  if (!userId || String(userId).trim() === '') {
+    throw new Error('User not logged in or userId missing');
+  }
+  return String(userId);
+};
+
+const resolveNumericUserId = async (candidate?: any) => {
+  let userId = candidate;
+  if (!userId || String(userId).trim() === '') {
+    userId = await resolveBackendUserId();
+  }
+  const cleaned = String(userId).replace(/\D/g, '');
+  if (!cleaned) {
+    throw new Error(`Invalid userId format: ${userId}`);
+  }
+  const numericUserId = Number(cleaned);
+  if (!Number.isFinite(numericUserId)) {
+    throw new Error(`Invalid userId: ${userId}`);
+  }
+  return numericUserId;
+};
+
+export const useMyProfile = (uid?: any) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    setLoading(true);
+    let cancelled = false;
+    const fetch = async () => {
+      try {
+        const resolvedUserId = String(uid);
+        const res = await apiClient.get(`/profile/me/${resolvedUserId}`);
+        if (!cancelled) {
+          setData(normalizeProfile(res.data));
+        }
+      } catch {
+        if (!cancelled) setData(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetch();
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  return { data, isLoading: loading };
+};
+
+export const useProfileCompletion = (uid: any) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!uid || fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    let cancelled = false;
+    const fetch = async () => {
+      try {
+        setLoading(true);
+        const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
+        const res = await apiClient.get(`/profile/completion/${resolvedUserId}`);
+        if (!cancelled) setData(normalizeCompletion(res.data));
+      } catch {
+        if (!cancelled) setData(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetch();
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  return { data, isLoading: loading };
+};
 
 export const useProfile = () => {
   const queryClient = useQueryClient();
-  const resolveBackendUserId = async () => {
-    const userId = await getUserId();
-
-    if (!userId || String(userId).trim() === '') {
-      throw new Error('User not logged in or userId missing');
-    }
-
-    return String(userId);
-  };
-
-  const resolveNumericUserId = async (candidate?: any) => {
-    let userId = candidate;
-
-    if (!userId || String(userId).trim() === '') {
-      userId = await resolveBackendUserId();
-    }
-
-    // 🔥 CONVERT "MA1002" → 1002
-    const cleaned = String(userId).replace(/\D/g, '');
-
-    if (!cleaned) {
-      throw new Error(`Invalid userId format: ${userId}`);
-    }
-
-    const numericUserId = Number(cleaned);
-
-    if (!Number.isFinite(numericUserId)) {
-      throw new Error(`Invalid userId: ${userId}`);
-    }
-
-    return numericUserId; // ✅ return NUMBER, not string
-  };
 
   const invalidateProfile = async (uid?: any) => {
-    await queryClient.invalidateQueries({queryKey: profileQueryKey(uid)});
-    await queryClient.invalidateQueries({queryKey: completionQueryKey(uid)});
+    await queryClient.invalidateQueries({queryKey: ['myProfile', uid]});
+    await queryClient.invalidateQueries({queryKey: ['profileCompletion', uid]});
   };
 
   type SetupProfileInput = {
@@ -145,9 +193,6 @@ export const useProfile = () => {
   const setupProfile = useMutation<any, Error, SetupProfileInput>({
     mutationFn: async ({uid, dto, photo}) => {
       const normalizedDto = sanitizeProfileDto(dto);
-      /*const resolvedUserId = uid
-        ? Number(String(uid).replace(/\D/g, ''))
-        : await resolveNumericUserId();*/
       const resolvedUserId = await resolveNumericUserId(uid);
       console.log('📡 API userId:', resolvedUserId);
 
@@ -173,30 +218,6 @@ export const useProfile = () => {
       return res.data;
     },
   });
-
-  const useMyProfile = (uid?: any) =>
-    useQuery({
-      queryKey: profileQueryKey(uid),
-      enabled: !!uid, // 🔥 MUST ADD
-      queryFn: async () => {
-        const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
-        const res = await apiClient.get(`/profile/me/${resolvedUserId}`);
-        return normalizeProfile(res.data);
-      },
-    });
-
-  const useProfileCompletion = (uid: any) =>
-    useQuery({
-      queryKey: completionQueryKey(uid),
-      enabled: !!uid, // 🔥 MUST ADD
-      queryFn: async () => {
-        const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
-        const res = await apiClient.get(
-          `/profile/completion/${resolvedUserId}`,
-        );
-        return normalizeCompletion(res.data);
-      },
-    });
 
   type UpdatePreferencesInput = {
     userId?: any;

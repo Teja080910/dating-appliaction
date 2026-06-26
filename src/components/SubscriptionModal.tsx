@@ -8,7 +8,6 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Image } from 'react-native';
+import { useAlert } from './AlertModal';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -311,6 +311,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   visible,
   onClose,
 }) => {
+  const { alert, AlertComponent } = useAlert();
   const { setIsSubscribed, displayName, name, email, phoneNumber } =
     useContext(AppContext);
   const { createOrder, verifyPayment, activateSubscription } = useSubscription();
@@ -336,7 +337,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setLoading(true);
 
       if (!selectedPlanId) {
-        Alert.alert('Error', 'Please select a plan.');
+        alert('Error', 'Please select a plan.');
         setLoading(false);
         return;
       }
@@ -417,12 +418,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       const backendMessage = error?.response?.data?.message || error?.description || error?.message || 'Something went wrong.';
 
       if (error?.code === 0 || error?.code === 2 || /cancelled/i.test(backendMessage) || /failed.*checkout/i.test(backendMessage)) {
-        Alert.alert('Cancelled', 'Payment cancelled');
+        alert('Cancelled', 'Payment cancelled');
         return;
       }
 
       if (backendMessage === 'User not found' || error?.response?.status === 404 || error?.response?.status === 401) {
-        Alert.alert(
+        alert(
           'Sync Needed',
           "We're having trouble confirming your account server-side. Please retry once your login session is active on the backend.",
           [
@@ -433,7 +434,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         return;
       }
 
-      Alert.alert('Payment Failed', backendMessage);
+      alert('Payment Failed', backendMessage);
     } finally {
       setLoading(false);
     }
@@ -547,6 +548,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           </ScrollView>
         </View>
       </View>
+      {AlertComponent}
     </Modal>
   );
 };

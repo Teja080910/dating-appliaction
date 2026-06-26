@@ -1,15 +1,16 @@
-import { StyleSheet, ScrollView, Alert } from 'react-native'
-import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { useNavigation } from '@react-navigation/native'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
+import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import ProfileSettingsHeader from '../../components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader'
-import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/DisplayName'
+import { useProfile } from '../../api/useProfile'
 import Description from '../../components/ProfileTabComponents/ProfileSettings/Description'
+import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/DisplayName'
+import ProfileSettingsHeader from '../../components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader'
 import YourBirthday from '../../components/ProfileTabComponents/ProfileSettings/YourBirthday'
 import AppContext from '../../context/CreateGlobalStateContext'
-import { Colors } from '../../utils/colors'
-import { useProfile } from '../../api/useProfile'
+import { Colors } from '../../theme'
 import { getAuthSession } from '../../utils/session'
+import { useAlert } from '../../components/AlertModal';
 
 const ProfileSettingsScreen = () => {
   const navigation = useNavigation<any>();
@@ -20,6 +21,7 @@ const ProfileSettingsScreen = () => {
   const [localDob, setLocalDob] = useState(date.toISOString().split('T')[0]);
   const { updateBasic, useMyProfile } = useProfile();
   const profileQuery = useMyProfile(undefined);
+  const { alert, AlertComponent } = useAlert();
 
   useEffect(() => {
     const profile = profileQuery.data;
@@ -55,7 +57,7 @@ const ProfileSettingsScreen = () => {
 
   const handleSave = () => {
     if (!localDisplayName.trim()) {
-      Alert.alert('Missing name', 'Display name is required.');
+      alert('Missing name', 'Display name is required.');
       return;
     }
 
@@ -70,7 +72,7 @@ const ProfileSettingsScreen = () => {
       setLoading(true);
       const authSession = await getAuthSession();
       if (!authSession?.token) {
-        Alert.alert('Session error', 'Please log in again.', [
+        alert('Session error', 'Please log in again.', [
           {
             text: 'OK',
             onPress: () => navigation.replace('Login'),
@@ -89,7 +91,7 @@ const ProfileSettingsScreen = () => {
         {
           onSuccess: () => {
             persistLocalState();
-            Alert.alert('Saved', 'Profile settings updated successfully.');
+            alert('Saved', 'Profile settings updated successfully.');
             navigation.goBack();
           },
           onError: async (error: any) => {
@@ -101,12 +103,12 @@ const ProfileSettingsScreen = () => {
                 String(error?.response?.data?.message || error?.message || '').toLowerCase().includes('user not found'))
             ) {
               persistLocalState();
-              Alert.alert('Saved locally', 'Profile changes are saved in the app and will sync automatically once your session finishes syncing.');
+              alert('Saved locally', 'Profile changes are saved in the app and will sync automatically once your session finishes syncing.');
               navigation.goBack();
               return;
             }
 
-            Alert.alert(
+            alert(
               'Update failed',
               error?.response?.data?.message || 'Could not save your profile settings.'
             );
@@ -133,6 +135,7 @@ const ProfileSettingsScreen = () => {
           onChange={setLocalDob}
         />
       </ScrollView>
+      {AlertComponent}
     </SafeAreaView>
   )
 }

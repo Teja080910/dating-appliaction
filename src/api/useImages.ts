@@ -163,7 +163,7 @@ export const useUserImages = (userId?: string) => {
       },
     });*/
 
-  /*const getImages = useMutation({
+  const getAllImages = useMutation({
     mutationFn: async (id?: string) => {
       const normalizedUserId = await resolveUserId(id);
 
@@ -176,8 +176,7 @@ export const useUserImages = (userId?: string) => {
 
       return normalizeUserImagesResponse(payload);
     },
-  });*/
-  //const imagesQuery = useGetImages(userId);
+  });
 
 
 
@@ -221,7 +220,7 @@ export const useUserImages = (userId?: string) => {
 
   const imagesQuery = useQuery({
     queryKey: ['userImages', userId],
-    enabled: !!userId || true, // allow fallback from session
+    enabled: false,
     queryFn: async () => {
       const id = await getSafeUserId(userId);
       const res = await apiClient.get(`/profile/me/${id}`);
@@ -232,9 +231,8 @@ export const useUserImages = (userId?: string) => {
   return {
     uploadImage,
     imagesQuery,
-    /*getImages*/
+    getAllImages,
     deleteImage,
     setProfilePhoto,
-    //getAllImages: getImages,
   };
 };

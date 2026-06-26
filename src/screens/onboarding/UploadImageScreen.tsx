@@ -5,12 +5,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  Alert,
   BackHandler,
   StatusBar,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,6 +18,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import UploadImage from '../../components/UploadImageComponents/UploadImage';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import Icon from 'react-native-vector-icons/Feather';
+import { Colors, Spacing, Shadows } from '../../theme';
+import { useAlert } from '../../components/AlertModal';
 
 const UploadPhotosScreen = ({ navigation }: any) => {
   const {
@@ -26,8 +28,8 @@ const UploadPhotosScreen = ({ navigation }: any) => {
   } = useContext(AppContext);
 
   const [showFaceAlert, setShowFaceAlert] = useState(false);
+  const { alert, AlertComponent } = useAlert();
 
-  // ✅ Handle back + save step
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.setItem('onboardingStep', 'UploadImage');
@@ -52,15 +54,13 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     }, [navigation])
   );
 
-  // ✅ Safe image count
   const uploadedImagesCount = images?.filter((img: any) => !!img)?.length || 0;
   const isNextEnabled = uploadedImagesCount >= 3;
   const remainingRequiredPhotos = Math.max(0, 3 - uploadedImagesCount);
 
-  // ✅ Next button logic
   const handleNext = () => {
     if (uploadedImagesCount < 3) {
-      Alert.alert(
+      alert(
         'Upload Required',
         'Please upload at least 3 photos before continuing.'
       );
@@ -69,241 +69,264 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     setShowFaceAlert(true);
   };
 
-  // ✅ Confirm dialog
   const handleConfirm = () => {
     setShowFaceAlert(false);
     navigation.navigate('SelfieVerification');
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBarFill} />
-        </View>
-
-        <View style={styles.heroCard}>
-          <View style={styles.countPill}>
-            <Text style={styles.countPillText}>{uploadedImagesCount}/5 uploaded</Text>
-          </View>
-
-          <Text style={styles.title}>
-            Nice to meet you, {name || 'there'}.
-          </Text>
-
-          <Text style={styles.subtitle}>
-            Add at least <Text style={styles.bold}>3 photos</Text>, including one clear face photo.
-          </Text>
-
-          <Text style={styles.helperText}>
-            {remainingRequiredPhotos > 0
-              ? `${remainingRequiredPhotos} more photo${remainingRequiredPhotos === 1 ? '' : 's'} needed to continue.`
-              : 'You are ready for the next step.'}
-          </Text>
-        </View>
-
-        <UploadImage />
-
-        <View style={styles.tipCard}>
-          <View style={styles.warningRow}>
-            <Icon name="info" size={14} color="#FF5A79" />
-            <Text style={styles.warning}>
-              Your first photo should be your main profile photo.
-            </Text>
-          </View>
-
-          <View style={styles.warningRow}>
-            <Icon name="shield" size={14} color="#FF5A79" />
-            <Text style={styles.warning}>
-              Avoid nudity, heavy filters, screenshots, text overlays, or group-only photos.
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            { backgroundColor: isNextEnabled ? '#FF5A79' : '#E8E8EC' }
-          ]}
-          disabled={!isNextEnabled}
-          onPress={handleNext}
-        >
-          <Text
-            style={[
-              styles.nextText,
-              { color: isNextEnabled ? '#fff' : '#8E8E93' }
-            ]}
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            Next
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBarFill} />
+            </View>
 
-      <ModalAddPhoto />
+            <View style={styles.heroCard}>
+              <View style={styles.countPill}>
+                <Text style={styles.countPillText}>{uploadedImagesCount}/5 uploaded</Text>
+              </View>
 
-      <Modal visible={showFaceAlert} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.alertBox}>
-            <Text style={styles.alertTitle}>One quick check</Text>
+              <Text style={styles.title}>
+                Nice to meet you, {name || 'there'}.
+              </Text>
 
-            <Text style={styles.alertMessage}>
-              Confirm that your main picture clearly shows your face.
-            </Text>
+              <Text style={styles.subtitle}>
+                Add at least <Text style={styles.bold}>3 photos</Text>, including one clear face photo.
+              </Text>
 
+              <Text style={styles.helperText}>
+                {remainingRequiredPhotos > 0
+                  ? `${remainingRequiredPhotos} more photo${remainingRequiredPhotos === 1 ? '' : 's'} needed to continue.`
+                  : 'You are ready for the next step.'}
+              </Text>
+            </View>
+
+            <UploadImage />
+
+            <View style={styles.tipCard}>
+              <View style={styles.warningRow}>
+                <Icon name="info" size={14} color={Colors.primary} />
+                <Text style={styles.warning}>
+                  Your first photo should be your main profile photo.
+                </Text>
+              </View>
+
+              <View style={styles.warningRow}>
+                <Icon name="shield" size={14} color={Colors.primary} />
+                <Text style={styles.warning}>
+                  Avoid nudity, heavy filters, screenshots, text overlays, or group-only photos.
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.bottomContainer}>
             <TouchableOpacity
-              style={styles.alertButton}
-              onPress={handleConfirm}
+              style={[styles.nextButton, !isNextEnabled && styles.nextButtonDisabled]}
+              disabled={!isNextEnabled}
+              onPress={handleNext}
             >
-              <Text style={styles.alertButtonText}>Continue</Text>
+              <LinearGradient
+                colors={isNextEnabled ? [Colors.primary, Colors.secondary] : [Colors.disabled, Colors.disabled]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.nextGradient}
+              >
+                <Text style={[styles.nextText, !isNextEnabled && styles.nextTextDisabled]}>
+                  Next
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+
+          <ModalAddPhoto />
+
+          <Modal visible={showFaceAlert} transparent animationType="fade">
+            <View style={styles.overlay}>
+              <View style={styles.alertBox}>
+                <Text style={styles.alertTitle}>One quick check</Text>
+
+                <Text style={styles.alertMessage}>
+                  Confirm that your main picture clearly shows your face.
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.alertButton}
+                  onPress={handleConfirm}
+                >
+                  <LinearGradient
+                    colors={[Colors.primary, Colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.alertGradient}
+                  >
+                    <Text style={styles.alertButtonText}>Continue</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        </SafeAreaView>
+        {AlertComponent}
+      </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF8FA',
-    paddingHorizontal: 20,
-  },
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+  safeArea: { flex: 1 },
   scrollContent: {
     paddingBottom: 24,
+    paddingHorizontal: Spacing.screenPaddingHorizontal,
   },
   progressBarContainer: {
     height: 5,
-    backgroundColor: '#F2D7DF',
-    marginTop: 10,
+    backgroundColor: Colors.surfaceLighter,
+    marginTop: Spacing.md,
     borderRadius: 10,
     overflow: 'hidden',
   },
   progressBarFill: {
     width: '80%',
     height: '100%',
-    backgroundColor: '#FF5A79',
+    backgroundColor: Colors.primary,
   },
   heroCard: {
-    marginTop: 18,
-    marginBottom: 18,
-    padding: 20,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.lg,
+    padding: Spacing.xl,
+    borderRadius: Spacing.radiusXxl,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#F5D7DF',
+    borderColor: Colors.glassBorder,
   },
   countPill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#FFF0F4',
-    marginBottom: 14,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Spacing.radiusFull,
+    backgroundColor: Colors.glass,
+    marginBottom: Spacing.md,
   },
   countPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#D63A61',
+    color: Colors.primaryLight,
   },
   title: {
     fontSize: 28,
     fontWeight: '800',
-    marginBottom: 8,
-    color: '#161218',
+    marginBottom: Spacing.sm,
+    color: Colors.text,
   },
   subtitle: {
     fontSize: 15,
-    color: '#5F5563',
+    color: Colors.textSecondary,
     lineHeight: 23,
   },
   bold: {
     fontWeight: '800',
-    color: '#FF5A79',
+    color: Colors.primary,
   },
   helperText: {
-    marginTop: 12,
+    marginTop: Spacing.md,
     fontSize: 13,
     lineHeight: 20,
-    color: '#8A7E86',
+    color: Colors.textMuted,
   },
   tipCard: {
-    marginTop: 6,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    marginTop: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#F4E8EC',
+    borderColor: Colors.glassBorder,
   },
   warningRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: 6,
+    marginTop: Spacing.sm,
   },
   warning: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#6B6268',
-    marginLeft: 10,
+    color: Colors.textSecondary,
+    marginLeft: Spacing.sm + 2,
     flex: 1,
   },
   bottomContainer: {
-    paddingTop: 8,
-    paddingBottom: 24,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.screenPaddingHorizontal,
   },
   nextButton: {
-    paddingVertical: 17,
-    borderRadius: 50,
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
+    ...Shadows.md,
+  },
+  nextButtonDisabled: {
+    opacity: 0.5,
+  },
+  nextGradient: {
+    paddingVertical: Spacing.lg,
     alignItems: 'center',
-    shadowColor: '#FF5A79',
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    justifyContent: 'center',
   },
   nextText: {
     fontWeight: '800',
     fontSize: 17,
+    color: Colors.white,
+  },
+  nextTextDisabled: {
+    color: Colors.disabledText,
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   alertBox: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: Colors.surface,
+    borderRadius: Spacing.radiusXxl,
+    padding: Spacing.xl,
     width: '85%',
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   alertTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#161218',
-    marginBottom: 10,
+    color: Colors.text,
+    marginBottom: Spacing.sm + 2,
   },
   alertMessage: {
     fontSize: 16,
     lineHeight: 23,
-    color: '#4D434B',
-    marginBottom: 25,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.xl,
   },
   alertButton: {
-    backgroundColor: '#FF5A79',
-    paddingVertical: 12,
-    borderRadius: 30,
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
+  },
+  alertGradient: {
+    paddingVertical: Spacing.md + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   alertButtonText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
   },
 });

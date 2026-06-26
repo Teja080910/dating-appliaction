@@ -1,13 +1,9 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
-const appearanceOptions = [
-  'Very attractive',
-  'Attractive',
-  'Average',
-  'Below Average',
-];
+const appearanceOptions = ['Very attractive', 'Attractive', 'Average', 'Below Average'];
 
 interface AppearanceProps {
   onChange?: (val: string[]) => void;
@@ -17,16 +13,11 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
   const { selectedOptions, setSelectedOptions } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
-    let nextOptions;
-    if (selectedOptions.includes(option)) {
-      nextOptions = selectedOptions.filter((item: string) => item !== option);
-    } else {
-      nextOptions = [...selectedOptions, option];
-    }
+    const nextOptions = selectedOptions.includes(option)
+      ? selectedOptions.filter((item: string) => item !== option)
+      : [...selectedOptions, option];
     setSelectedOptions(nextOptions);
-    if (onChange) {
-      onChange(nextOptions);
-    }
+    if (onChange) onChange(nextOptions);
   };
 
   return (
@@ -36,18 +27,10 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
         {appearanceOptions.map((option, index) => (
           <TouchableOpacity
             key={index}
-            style={[
-              styles.option,
-              selectedOptions.includes(option) && styles.optionSelected
-            ]}
+            style={[styles.option, selectedOptions.includes(option) && styles.optionSelected]}
             onPress={() => toggleOption(option)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                selectedOptions.includes(option) && styles.optionTextSelected
-              ]}
-            >
+            <Text style={[styles.optionText, selectedOptions.includes(option) && styles.optionTextSelected]}>
               {option}
             </Text>
           </TouchableOpacity>
@@ -59,38 +42,46 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    margin: 20,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 12,
-    color: '#222',
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
   optionsWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: Spacing.sm,
   },
   option: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1,
-    borderColor: '#ccc',
-    marginRight: 10,
-    marginBottom: 10,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
   optionSelected: {
-    backgroundColor: '#d33',
-    // borderColor: '#222',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    fontSize: 15,
-    color: '#222',
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   optionTextSelected: {
-    color: '#fff',
+    color: Colors.white,
+    fontWeight: '600',
   },
 });
 

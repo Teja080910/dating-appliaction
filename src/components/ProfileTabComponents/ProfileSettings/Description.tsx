@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { Colors, Spacing } from '../../../theme';
 
 const MAX_LENGTH = 500;
 
@@ -13,7 +14,7 @@ const DescriptionInput: React.FC<DescriptionProps> = ({ value, onChange }) => {
     <View style={styles.container}>
       <Text style={styles.title}>Your description</Text>
       <Text style={styles.subtitle}>
-        Write about yourself: What’s your profession?{'\n'}Which hobbies do you pursue?
+        Write about yourself: What's your profession?{'\n'}Which hobbies do you pursue?
       </Text>
 
       <TextInput
@@ -21,7 +22,7 @@ const DescriptionInput: React.FC<DescriptionProps> = ({ value, onChange }) => {
         value={value}
         onChangeText={onChange}
         placeholder="Write something..."
-        placeholderTextColor="#aaa"
+        placeholderTextColor={Colors.textMuted}
         multiline
         maxLength={MAX_LENGTH}
       />
@@ -33,32 +34,31 @@ const DescriptionInput: React.FC<DescriptionProps> = ({ value, onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    backgroundColor: '#fff',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.text,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 15,
-    color: '#888',
+    color: Colors.textSecondary,
     marginBottom: 16,
     lineHeight: 22,
   },
   input: {
-    backgroundColor: '#f2f2f2',
-    borderRadius: 8,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusMd,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
     fontWeight: '500',
-    color: '#000',
+    color: Colors.text,
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: Colors.glassBorder,
     textAlignVertical: 'top',
     minHeight: 100,
   },
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'right',
     fontSize: 14,
-    color: '#888',
+    color: Colors.textMuted,
     fontWeight: '500',
   },
 });

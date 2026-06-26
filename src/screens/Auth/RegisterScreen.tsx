@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -18,17 +18,17 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import AttractiveLogo from '../../components/AttractiveLogo';
 import { useAuth } from '../../api/useAuth';
-import { Colors } from '../../utils/colors';
+import { useAlert } from '../../components/AlertModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { buildRegisterPayload, normalizeMobileNumber } from '../../utils/authPayload';
+import { Colors, Spacing, Shadows, Typography } from '../../theme';
 
 const RegisterScreen = ({ navigation }: any) => {
+  const { alert, AlertComponent } = useAlert();
   const { name, setName, password, setPassword, phoneNumber, setPhoneNumber } = useContext(AppContext);
-
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const { sendRegisterOtp } = useAuth();
 
   useFocusEffect(
@@ -39,79 +39,61 @@ const RegisterScreen = ({ navigation }: any) => {
 
   const handleRegister = async () => {
     const normalizedMobile = normalizeMobileNumber(phoneNumber);
-
     if (!name.trim() || !normalizedMobile || !password.trim()) {
-      Alert.alert('Missing Info', 'Please fill all required fields.');
+      alert('Missing Info', 'Please fill all required fields.');
       return;
     }
-
     if (password !== confirmPassword) {
-      Alert.alert('Passwords Mismatch', 'Passwords do not match.');
+      alert('Passwords Mismatch', 'Passwords do not match.');
       return;
     }
-
     if (normalizedMobile.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid mobile number.');
+      alert('Invalid Number', 'Please enter a valid mobile number.');
       return;
     }
 
     setLoading(true);
     try {
       const res = await sendRegisterOtp.mutateAsync(
-        buildRegisterPayload({
-          name,
-          mobile: normalizedMobile,
-          password,
-          confirmPassword,
-          otp: '',
-        })
+        buildRegisterPayload({ name, mobile: normalizedMobile, password, confirmPassword, otp: '' })
       );
-
       setLoading(false);
-      console.log('OTP Sent Response:', res);
-      
       const payload = Array.isArray(res) ? (res[0] || {}) : (res || {});
       const sessionId = payload?.sessionId || payload?.data?.sessionId || res?.sessionId;
-
       if (!sessionId) {
-        Alert.alert(
-          'Registration Failed',
-          'Verification session could not be created. Please try sending OTP again.',
-        );
+        alert('Registration Failed', 'Verification session could not be created.');
         return;
       }
-
       await AsyncStorage.setItem('registerSessionId', String(sessionId).trim());
-
-      navigation.navigate('OTPScreen', { 
-        mobile: normalizedMobile,
-        name: name.trim(),
-        password: password.trim(),
-        confirmPassword: confirmPassword.trim(),
-        sessionId: sessionId || null,
+      navigation.navigate('OTPScreen', {
+        mobile: normalizedMobile, name: name.trim(), password: password.trim(),
+        confirmPassword: confirmPassword.trim(), sessionId: sessionId || null,
       });
     } catch (error: any) {
       setLoading(false);
       const rawError = error.response?.data?.message || error.response?.data || error.message;
-      Alert.alert('Registration Failed', typeof rawError === 'object' ? JSON.stringify(rawError) : String(rawError));
+      alert('Registration Failed', typeof rawError === 'object' ? JSON.stringify(rawError) : String(rawError));
     }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]} style={styles.gradient}>
-        <View style={styles.topGlow} />
-        <View style={styles.bottomGlow} />
-
+      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <View style={styles.content}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.topSection}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backFab}>
-                  <Icon name="chevron-left" size={28} color="#fff" />
+                  <Icon name="chevron-left" size={28} color={Colors.text} />
                 </TouchableOpacity>
-                <AttractiveLogo />
+                <View style={styles.logoGlow}>
+                  <AttractiveLogo size={48} />
+                </View>
                 <Text style={styles.branding}>AMARA</Text>
                 <Text style={styles.slogan}>The exclusive space for real chemistry.</Text>
               </View>
@@ -123,26 +105,22 @@ const RegisterScreen = ({ navigation }: any) => {
 
                 <View style={styles.inputGroup}>
                   <View style={styles.inputBox}>
-                    <View style={styles.inputIconWrap}>
-                      <Icon name="account-outline" size={20} color={Colors.primary} />
-                    </View>
+                    <Icon name="account-outline" size={20} color={Colors.primary} />
                     <TextInput
                       placeholder="Your Full Name"
                       style={styles.input}
-                      placeholderTextColor={Colors.placeholder}
+                      placeholderTextColor={Colors.textMuted}
                       value={name}
                       onChangeText={setName}
                     />
                   </View>
 
                   <View style={styles.inputBox}>
-                    <View style={styles.inputIconWrap}>
-                      <Icon name="phone-outline" size={20} color={Colors.primary} />
-                    </View>
+                    <Icon name="phone-outline" size={20} color={Colors.primary} />
                     <TextInput
                       placeholder="Mobile Number"
                       style={styles.input}
-                      placeholderTextColor={Colors.placeholder}
+                      placeholderTextColor={Colors.textMuted}
                       keyboardType="number-pad"
                       value={phoneNumber}
                       onChangeText={setPhoneNumber}
@@ -150,30 +128,26 @@ const RegisterScreen = ({ navigation }: any) => {
                   </View>
 
                   <View style={styles.inputBox}>
-                    <View style={styles.inputIconWrap}>
-                      <Icon name="lock-outline" size={20} color={Colors.primary} />
-                    </View>
+                    <Icon name="lock-outline" size={20} color={Colors.primary} />
                     <TextInput
                       placeholder="Enter Password"
                       style={styles.input}
-                      placeholderTextColor={Colors.placeholder}
+                      placeholderTextColor={Colors.textMuted}
                       secureTextEntry={!showPassword}
                       value={password}
                       onChangeText={setPassword}
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeToggle}>
-                      <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.placeholder} />
+                      <Icon name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textMuted} />
                     </TouchableOpacity>
                   </View>
 
                   <View style={styles.inputBox}>
-                    <View style={styles.inputIconWrap}>
-                      <Icon name="lock-check-outline" size={20} color={Colors.primary} />
-                    </View>
+                    <Icon name="lock-check-outline" size={20} color={Colors.primary} />
                     <TextInput
                       placeholder="Confirm Password"
                       style={styles.input}
-                      placeholderTextColor={Colors.placeholder}
+                      placeholderTextColor={Colors.textMuted}
                       secureTextEntry={!showPassword}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
@@ -181,8 +155,19 @@ const RegisterScreen = ({ navigation }: any) => {
                   </View>
                 </View>
 
-                <TouchableOpacity style={[styles.registerBtn, loading && styles.buttonDisabled]} onPress={handleRegister} disabled={loading}>
-                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.registerBtnText}>CREATE ACCOUNT</Text>}
+                <TouchableOpacity
+                  style={[styles.registerBtn, loading && styles.buttonDisabled]}
+                  onPress={handleRegister}
+                  disabled={loading}
+                >
+                  <LinearGradient
+                    colors={[Colors.primary, Colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.registerGradient}
+                  >
+                    {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.registerBtnText}>CREATE ACCOUNT</Text>}
+                  </LinearGradient>
                 </TouchableOpacity>
 
                 <View style={styles.footerRow}>
@@ -196,10 +181,11 @@ const RegisterScreen = ({ navigation }: any) => {
                   By proceeding, you agree to our <Text style={styles.boldNote}>Terms of Service</Text> and <Text style={styles.boldNote}>Privacy Policy</Text>.
                 </Text>
               </View>
-            </View>
+            </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
+      {AlertComponent}
     </View>
   );
 };
@@ -208,26 +194,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   gradient: { flex: 1 },
   safeArea: { flex: 1 },
-  topGlow: {
-    position: 'absolute',
-    top: -120,
-    left: -60,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(255, 202, 118, 0.14)',
-  },
-  bottomGlow: {
-    position: 'absolute',
-    bottom: -100,
-    right: -50,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(255, 99, 138, 0.12)',
-  },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 18 },
-  topSection: { alignItems: 'center', marginBottom: 16 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: Spacing.screenPaddingHorizontal, paddingVertical: Spacing.lg },
+  topSection: { alignItems: 'center', marginBottom: Spacing.xl },
   backFab: {
     position: 'absolute',
     top: 0,
@@ -235,72 +203,70 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.glass,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
-  branding: { fontSize: 28, fontWeight: '900', color: '#fff', marginTop: 10, letterSpacing: 4 },
-  slogan: { color: '#fff', opacity: 0.8, fontSize: 12, marginTop: 4, fontWeight: '600' },
+  logoGlow: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.glow,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  branding: { fontSize: 28, fontWeight: '900', color: Colors.text, marginTop: Spacing.sm, letterSpacing: 4 },
+  slogan: { color: Colors.textSecondary, fontSize: 12, marginTop: Spacing.xs, fontWeight: '500' },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 32,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    backgroundColor: Colors.surface,
+    borderRadius: Spacing.radiusXxl,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xl,
     width: '100%',
     alignSelf: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
+    borderColor: Colors.glassBorder,
+    ...Shadows.xl,
   },
-  eyebrow: { color: Colors.primary, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 8 },
-  cardTitle: { fontSize: 22, fontWeight: '900', color: Colors.textPrimary, marginBottom: 8 },
-  cardSubtitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 16, lineHeight: 19 },
-  inputGroup: { marginBottom: 14 },
+  eyebrow: { color: Colors.primary, fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: Spacing.sm },
+  cardTitle: { fontSize: 22, fontWeight: '900', color: Colors.text, marginBottom: Spacing.sm },
+  cardSubtitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: Spacing.lg, lineHeight: 19 },
+  inputGroup: { marginBottom: Spacing.lg },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.inputSurface,
-    borderRadius: 16,
-    marginBottom: 9,
-    paddingHorizontal: 16,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusMd,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     height: 52,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.glassBorder,
   },
-  inputIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#FFF0F3',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  input: { flex: 1, marginLeft: 12, color: Colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  eyeToggle: { padding: 10 },
+  input: { flex: 1, marginLeft: Spacing.md, color: Colors.text, fontSize: 15, fontWeight: '500' },
+  eyeToggle: { padding: Spacing.sm },
   registerBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
+    borderRadius: Spacing.radiusMd,
     height: 52,
+    overflow: 'hidden',
+    marginBottom: Spacing.lg,
+    ...Shadows.md,
+  },
+  registerGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
-    marginBottom: 14,
   },
   buttonDisabled: { opacity: 0.7 },
-  registerBtnText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 1 },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  registerBtnText: { color: Colors.white, fontWeight: '900', fontSize: 15, letterSpacing: 1 },
+  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.md },
   footerInfo: { color: Colors.textSecondary, fontSize: 13 },
-  loginLink: { color: Colors.primary, fontSize: 14, fontWeight: 'bold', marginLeft: 8 },
-  termNote: { fontSize: 10, color: Colors.placeholder, textAlign: 'center', lineHeight: 14 },
+  loginLink: { color: Colors.primary, fontSize: 14, fontWeight: 'bold', marginLeft: Spacing.sm },
+  termNote: { fontSize: 10, color: Colors.textMuted, textAlign: 'center', lineHeight: 14 },
   boldNote: { fontWeight: '700', color: Colors.textSecondary },
 });
 

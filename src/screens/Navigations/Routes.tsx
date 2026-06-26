@@ -27,6 +27,7 @@ import SupportScreen from '../ProfileTab/SupportScreen';
 import { SESSION_EXPIRED_EVENT } from '../../api/apiClient';
 import { resolveInitialRoute } from '../../utils/session';
 import SubscriptionModal from '../../components/SubscriptionModal';
+import { Colors } from '../../theme';
 
 
 const Stack = createNativeStackNavigator();
@@ -126,7 +127,7 @@ const styles = {
     flex: 1,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background,
   },
 };
 

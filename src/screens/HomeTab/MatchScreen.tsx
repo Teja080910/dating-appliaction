@@ -5,6 +5,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors, Spacing, Shadows, Typography } from '../../theme';
 
 const { width } = Dimensions.get('window');
 const avatarSize = Math.min(width * 0.34, 140);
@@ -13,8 +14,7 @@ const MatchScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { requireSubscription } = useSubscriptionGate();
-  
-  // Params should include matched user details
+
   const { matchedUser } = route.params as any || {
     matchedUser: {
       name: 'User',
@@ -22,44 +22,55 @@ const MatchScreen = () => {
     }
   };
 
-  // Add micro-animation effect here if using animated library
-
   return (
     <LinearGradient
-      colors={['#2ECC71', '#27AE60']}
+      colors={[Colors.primary, Colors.secondary, '#5B21B6']}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.content}>
+            <View style={styles.sparkleContainer}>
+              <Icon name="heart" size={24} color={Colors.white} style={styles.sparkleIcon} />
+            </View>
             <Text style={styles.title}>It's a Match!</Text>
             <Text style={styles.subtitle}>You and {matchedUser.name} liked each other</Text>
-            
+
             <View style={styles.avatarContainer}>
               <View style={[styles.avatarWrapper, styles.myAvatar]}>
-                <Image 
-                  source={{ uri: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=200&auto=format&fit=crop' }} 
-                  style={styles.avatar}
-                />
+                <LinearGradient
+                  colors={[Colors.primary, Colors.secondary]}
+                  style={styles.avatarBorder}
+                >
+                  <Image
+                    source={{ uri: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=200&auto=format&fit=crop' }}
+                    style={styles.avatar}
+                  />
+                </LinearGradient>
               </View>
               <View style={[styles.avatarWrapper, styles.theirAvatar]}>
-                <Image 
-                  source={{ uri: matchedUser.image }} 
-                  style={styles.avatar}
-                />
+                <LinearGradient
+                  colors={[Colors.primary, Colors.secondary]}
+                  style={styles.avatarBorder}
+                >
+                  <Image
+                    source={{ uri: matchedUser.image }}
+                    style={styles.avatar}
+                  />
+                </LinearGradient>
               </View>
             </View>
-            
+
             <View style={styles.buttonsContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => requireSubscription(() => navigation.goBack())}
               >
-                <Icon name="message-circle" size={20} color="#E94057" style={styles.icon} />
+                <Icon name="message-circle" size={20} color={Colors.primary} style={styles.icon} />
                 <Text style={styles.primaryButtonText}>Say Hello</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => navigation.goBack()}
               >
@@ -74,36 +85,39 @@ const MatchScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: '8%',
-    paddingVertical: 24,
+    paddingVertical: Spacing.xxl,
+  },
+  sparkleContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  sparkleIcon: {
+    opacity: 0.9,
   },
   title: {
     fontSize: 40,
     fontWeight: '800',
-    color: '#fff',
+    color: Colors.white,
     fontStyle: 'italic',
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
+    color: 'rgba(255,255,255,0.85)',
     marginBottom: 50,
     textAlign: 'center',
   },
@@ -119,14 +133,15 @@ const styles = StyleSheet.create({
     width: avatarSize,
     height: avatarSize,
     borderRadius: avatarSize / 2,
-    borderWidth: 4,
-    borderColor: '#fff',
     overflow: 'hidden',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 5 },
-    shadowRadius: 10,
+    ...Shadows.xl,
+  },
+  avatarBorder: {
+    flex: 1,
+    borderRadius: avatarSize / 2,
+    padding: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   myAvatar: {
     zIndex: 1,
@@ -139,40 +154,37 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
+    borderRadius: avatarSize / 2 - 3,
     resizeMode: 'cover',
   },
   buttonsContainer: {
     width: '100%',
     alignItems: 'center',
-    gap: 20,
+    gap: Spacing.lg,
   },
   primaryButton: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     width: '100%',
-    paddingVertical: 16,
-    borderRadius: 30,
+    paddingVertical: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 5,
+    ...Shadows.lg,
   },
   icon: {
-    marginRight: 10,
+    marginRight: Spacing.md,
   },
   primaryButtonText: {
-    color: '#2ECC71',
+    color: Colors.primary,
     fontSize: 18,
     fontWeight: '700',
   },
   secondaryButton: {
-    paddingVertical: 15,
+    paddingVertical: Spacing.lg,
   },
   secondaryButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '600',
   },

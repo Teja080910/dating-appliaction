@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const options = ['Yes', 'No', 'Sometimes'];
 
@@ -12,15 +13,11 @@ const Smoke: React.FC<SmokeProps> = ({ onChange }) => {
   const { smoke, setSmoke } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
-    let nextSmoke;
-    if (smoke.includes(option)) {
-      nextSmoke = smoke.filter((item: string) => item !== option);
-    } else {
-      nextSmoke = [...smoke, option];
-    }
+    const nextSmoke = smoke.includes(option)
+      ? smoke.filter((item: string) => item !== option)
+      : [...smoke, option];
     setSmoke(nextSmoke);
     if (onChange) {
-      // API expects boolean. We can treat 'Yes' or 'Sometimes' as true.
       onChange(nextSmoke.includes('Yes') || nextSmoke.includes('Sometimes'));
     }
   };
@@ -32,18 +29,10 @@ const Smoke: React.FC<SmokeProps> = ({ onChange }) => {
         {options.map((item, index) => (
           <TouchableOpacity
             key={index}
-            style={[
-              styles.option,
-              smoke.includes(item) && styles.optionSelected,
-            ]}
+            style={[styles.option, smoke.includes(item) && styles.optionSelected]}
             onPress={() => toggleOption(item)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                smoke.includes(item) && styles.optionTextSelected,
-              ]}
-            >
+            <Text style={[styles.optionText, smoke.includes(item) && styles.optionTextSelected]}>
               {item}
             </Text>
           </TouchableOpacity>
@@ -55,37 +44,46 @@ const Smoke: React.FC<SmokeProps> = ({ onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    margin: 20,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 12,
-    color: '#222',
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
   optionsWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10, // For RN 0.71+, else use margin
+    gap: Spacing.sm,
   },
   option: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1,
-    borderColor: '#ccc',
-    marginRight: 10,
-    marginBottom: 10,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
   optionSelected: {
-    backgroundColor: '#d33',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    fontSize: 15,
-    color: '#222',
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   optionTextSelected: {
-    color: '#fff',
+    color: Colors.white,
+    fontWeight: '600',
   },
 });
 

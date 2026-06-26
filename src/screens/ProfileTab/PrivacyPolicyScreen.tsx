@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Platfo
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors, Spacing } from '../../theme';
 
 const PrivacyPolicyScreen = () => {
   const navigation = useNavigation();
@@ -15,21 +16,20 @@ const PrivacyPolicyScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F8F8" />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
       
-      {/* Browser Bar Style */}
       <View style={styles.browserBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="x" size={24} color="#000" />
+          <Icon name="x" size={24} color={Colors.text} />
         </TouchableOpacity>
         
         <View style={styles.urlBar}>
-          <Icon name="lock" size={14} color="#2ECC71" />
+          <Icon name="lock" size={14} color={Colors.success} />
           <Text style={styles.urlText}>{url}</Text>
         </View>
         
         <TouchableOpacity style={styles.moreButton}>
-          <Icon name="more-horizontal" size={24} color="#000" />
+          <Icon name="more-horizontal" size={24} color={Colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -79,12 +79,11 @@ const PrivacyPolicyScreen = () => {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Browser Footer Simulation */}
       <View style={styles.browserFooter}>
-        <Icon name="chevron-left" size={24} color="#CCC" />
-        <Icon name="chevron-right" size={24} color="#CCC" />
-        <Icon name="share" size={24} color="#333" />
-        <Icon name="refresh-cw" size={22} color="#333" />
+        <Icon name="chevron-left" size={24} color={Colors.textMuted} />
+        <Icon name="chevron-right" size={24} color={Colors.textMuted} />
+        <Icon name="share" size={24} color={Colors.textSecondary} />
+        <Icon name="refresh-cw" size={22} color={Colors.textSecondary} />
       </View>
     </SafeAreaView>
   );
@@ -103,70 +102,70 @@ const Section = ({ title, children }: SectionProps) => (
 );
 
 const Bold = ({ children }: { children: React.ReactNode }) => (
-  <Text style={{ fontWeight: 'bold', color: '#000' }}>{children}</Text>
+  <Text style={{ fontWeight: 'bold', color: Colors.text }}>{children}</Text>
 );
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
   },
   browserBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    backgroundColor: '#F8F8F8',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    borderBottomColor: Colors.glassBorder,
   },
   urlBar: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EAEAEA',
+    backgroundColor: Colors.inputBackground,
     height: 36,
     borderRadius: 18,
-    marginHorizontal: 15,
+    marginHorizontal: Spacing.lg,
   },
   urlText: {
     fontSize: 14,
-    color: '#333',
+    color: Colors.textSecondary,
     marginLeft: 6,
     fontWeight: '500',
   },
   backButton: { width: 30 },
   moreButton: { width: 30 },
-  content: { padding: 25 },
+  content: { padding: Spacing.xl },
   logoTitle: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#FF5A79',
+    color: Colors.primary,
     letterSpacing: 3,
     marginBottom: 5,
   },
   pageTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: Colors.text,
     marginBottom: 10,
   },
   lastUpdated: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.textMuted,
     marginBottom: 30,
   },
-  section: { marginBottom: 25 },
+  section: { marginBottom: Spacing.xl },
   sectionHeader: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#000',
+    color: Colors.text,
     marginBottom: 12,
   },
   bodyText: {
     fontSize: 16,
-    color: '#444',
+    color: Colors.textSecondary,
     lineHeight: 24,
   },
   browserFooter: {
@@ -175,8 +174,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 60,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
-    backgroundColor: '#F8F8F8',
+    borderTopColor: Colors.glassBorder,
+    backgroundColor: Colors.surface,
     position: 'absolute',
     bottom: 0,
     left: 0,

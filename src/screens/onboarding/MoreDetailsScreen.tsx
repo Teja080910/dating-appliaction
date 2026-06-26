@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing, Shadows } from '../../theme';
 
 const MoreDetailsScreen = ({ navigation }: any) => {
   const {
@@ -54,7 +54,6 @@ const MoreDetailsScreen = ({ navigation }: any) => {
 
   const LANGUAGES = ['English', 'Hindi', 'Spanish', 'French', 'German', 'Chinese', 'Japanese'];
 
-  // ✅ Safe multi-select (Languages)
   const toggleLanguage = (lang: string) => {
     if (selectedLanguages?.includes(lang)) {
       setSelectedLanguages(selectedLanguages.filter((l) => l !== lang));
@@ -63,7 +62,6 @@ const MoreDetailsScreen = ({ navigation }: any) => {
     }
   };
 
-  // ✅ Safe multi-select (Looking For)
   const toggleLookingFor = (item: string) => {
     const current = Array.isArray(selectedLookingFor) ? selectedLookingFor : [];
     if (current.includes(item)) {
@@ -84,7 +82,7 @@ const MoreDetailsScreen = ({ navigation }: any) => {
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.chipContainer}>
         {options.map((opt) => {
-          const isSelected = isMulti 
+          const isSelected = isMulti
             ? Array.isArray(current) && current.includes(opt)
             : current === opt;
 
@@ -105,12 +103,12 @@ const MoreDetailsScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={['#FF5A79', '#FF8E53']} style={styles.gradient}>
+      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
         <SafeAreaView style={{ flex: 1 }}>
           
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Icon name="chevron-left" size={28} color="#fff" />
+              <Icon name="chevron-left" size={28} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerText}>Personal Details</Text>
             <View style={{ width: 40 }} />
@@ -120,16 +118,15 @@ const MoreDetailsScreen = ({ navigation }: any) => {
             <View style={styles.glassCard}>
               <Text style={styles.introText}>Let's refine your profile for better matches!</Text>
 
-              {/* Height Section */}
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Height (cm)</Text>
                 <View style={styles.heightContainer}>
                   <TouchableOpacity onPress={() => setHeight(Math.max(120, height - 1))} style={styles.stepBtn}>
-                    <Icon name="minus" size={20} color="#FF5A79" />
+                    <Icon name="minus" size={20} color={Colors.primary} />
                   </TouchableOpacity>
                   <Text style={styles.heightValue}>{height}</Text>
                   <TouchableOpacity onPress={() => setHeight(Math.min(220, height + 1))} style={styles.stepBtn}>
-                    <Icon name="plus" size={20} color="#FF5A79" />
+                    <Icon name="plus" size={20} color={Colors.primary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -154,8 +151,15 @@ const MoreDetailsScreen = ({ navigation }: any) => {
                 style={styles.nextButton}
                 onPress={() => navigation.navigate('AboutProfile')}
               >
-                <Text style={styles.nextButtonText}>NEXT STEP</Text>
-                <Icon name="arrow-right" size={20} color="#fff" />
+                <LinearGradient
+                  colors={[Colors.primary, Colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.nextGradient}
+                >
+                  <Text style={styles.nextButtonText}>NEXT STEP</Text>
+                  <Icon name="arrow-right" size={20} color={Colors.white} />
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -172,91 +176,83 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
   },
-  progressFill: {
-    width: '30%',
-    height: '100%',
-    backgroundColor: Colors.pink,
-  },
-  backButton: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    backgroundColor: 'rgba(255,255,255,0.2)', 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
-  headerText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  glassCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 30,
-    padding: 25,
-    marginTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 5,
-  },
-  introText: { color: '#555', fontSize: 14, textAlign: 'center', marginBottom: 25, lineHeight: 20 },
-  section: { marginBottom: 25 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#333', marginBottom: 15 },
-  chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  backButton: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: Colors.glass,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#EEE',
+    borderColor: Colors.glassBorder,
   },
-  progressBarFill: { width: '60%', height: '100%', backgroundColor: '#FF5A79' },
+  headerText: { color: Colors.text, fontSize: 18, fontWeight: 'bold' },
+  scrollContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl + 16 },
+  glassCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Spacing.radiusXxl,
+    padding: Spacing.xl,
+    marginTop: Spacing.sm + 2,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    ...Shadows.xl,
+  },
+  introText: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: Spacing.xl, lineHeight: 20 },
+  section: { marginBottom: Spacing.xl },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.textSecondary, marginBottom: Spacing.md },
+  chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  chip: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
+    backgroundColor: Colors.inputBackground,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    marginBottom: Spacing.sm,
+  },
   selectedChip: {
-    backgroundColor: '#FF5A79',
-    borderColor: '#FF5A79',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  chipText: { color: '#666', fontSize: 13, fontWeight: '600' },
-  selectedChipText: { color: '#fff' },
-  heightContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    backgroundColor: '#F8F9FA', 
-    borderRadius: 15, 
-    padding: 10 
-  },
-  heightValue: { fontSize: 24, fontWeight: '900', color: '#333', marginHorizontal: 30 },
-  stepBtn: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 22, 
-    backgroundColor: '#fff', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    elevation: 3, 
-    shadowColor: '#000', 
-    shadowOpacity: 0.1, 
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 }
-  },
-  nextButton: {
-    backgroundColor: '#FF5A79',
-    height: 60,
-    borderRadius: 30,
+  chipText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  selectedChipText: { color: Colors.white },
+  heightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
-    shadowColor: '#FF5A79',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusLg,
+    padding: Spacing.sm + 2,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
-  nextButtonText: { color: '#fff', fontWeight: '900', fontSize: 16, marginRight: 10, letterSpacing: 1 },
+  heightValue: { fontSize: 24, fontWeight: '900', color: Colors.text, marginHorizontal: Spacing.xl },
+  stepBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.glass,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+  },
+  nextButton: {
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
+    marginTop: Spacing.sm + 2,
+    ...Shadows.md,
+  },
+  nextGradient: {
+    height: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextButtonText: { color: Colors.white, fontWeight: '900', fontSize: 16, marginRight: Spacing.sm + 2, letterSpacing: 1 },
 });
 
 export default MoreDetailsScreen;

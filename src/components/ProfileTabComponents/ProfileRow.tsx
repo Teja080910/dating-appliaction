@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Colors, Spacing, Shadows } from '../../theme';
 
 interface ProfileRowProps {
   title: string;
@@ -13,23 +14,23 @@ interface ProfileRowProps {
   showChevron?: boolean;
 }
 
-const ProfileRow = ({ 
-  title, 
-  iconName, 
-  iconType = 'Feather', 
-  onPress, 
-  color = '#FF5A79',
-  showChevron = true 
+const ProfileRow = ({
+  title,
+  iconName,
+  iconType = 'Feather',
+  onPress,
+  color = Colors.primary,
+  showChevron = true,
 }: ProfileRowProps) => {
-
   const renderIcon = () => {
+    const iconProps = { size: 16, color: Colors.white };
     switch (iconType) {
       case 'FontAwesome5':
-        return <FontAwesome5 name={iconName} size={16} color="#fff" />;
+        return <FontAwesome5 name={iconName} {...iconProps} />;
       case 'MaterialCommunityIcons':
-        return <MaterialCommunityIcons name={iconName} size={18} color="#fff" />;
+        return <MaterialCommunityIcons name={iconName} size={18} color={Colors.white} />;
       default:
-        return <Icon name={iconName} size={18} color="#fff" />;
+        return <Icon name={iconName} {...iconProps} />;
     }
   };
 
@@ -39,7 +40,7 @@ const ProfileRow = ({
         {renderIcon()}
       </View>
       <Text style={styles.text}>{title}</Text>
-      {showChevron && <Icon name="chevron-right" size={18} color="#CCC" />}
+      {showChevron && <Icon name="chevron-right" size={18} color={Colors.textMuted} />}
     </TouchableOpacity>
   );
 };
@@ -48,24 +49,24 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: Colors.divider,
   },
   iconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: Spacing.radiusSm,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: Spacing.md,
   },
   text: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: Colors.text,
     fontWeight: '500',
   },
 });

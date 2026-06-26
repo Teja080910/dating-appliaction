@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const languages = [
   'English', 'Spanish', 'Portuguese', 'German',
@@ -11,19 +12,10 @@ const LanguagesSelector = () => {
   const { selectedLanguages, setSelectedLanguages } = useContext(AppContext);
 
   const toggleLanguage = (lang: string) => {
-    console.log('You clicked:', lang);
-    console.log('Before click, selectedLanguages:', selectedLanguages);
-
     if (selectedLanguages.includes(lang)) {
-      // If already selected, remove it
-      const updatedLanguages = selectedLanguages.filter((item: string) => item !== lang);
-      console.log('After removing:', updatedLanguages);
-      setSelectedLanguages(updatedLanguages);
+      setSelectedLanguages(selectedLanguages.filter((item: string) => item !== lang));
     } else {
-      // If not selected, add it 
-      const updatedLanguages = [...selectedLanguages, lang];
-      console.log('After adding:', updatedLanguages);
-      setSelectedLanguages(updatedLanguages);
+      setSelectedLanguages([...selectedLanguages, lang]);
     }
   };
 
@@ -34,18 +26,10 @@ const LanguagesSelector = () => {
         {languages.map((lang) => (
           <TouchableOpacity
             key={lang}
-            style={[
-              styles.option,
-              selectedLanguages.includes(lang) && styles.selectedOption
-            ]}
+            style={[styles.option, selectedLanguages.includes(lang) && styles.optionSelected]}
             onPress={() => toggleLanguage(lang)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                selectedLanguages.includes(lang) && styles.selectedOptionText
-              ]}
-            >
+            <Text style={[styles.optionText, selectedLanguages.includes(lang) && styles.optionTextSelected]}>
               {lang}
             </Text>
           </TouchableOpacity>
@@ -58,25 +42,46 @@ const LanguagesSelector = () => {
 export default LanguagesSelector;
 
 const styles = StyleSheet.create({
-  container: { marginVertical: 16, paddingHorizontal: 16 },
-  label: { fontSize: 16, marginBottom: 10 },
-  optionsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
-  option: {
+  container: {
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    margin: 6,
+    borderColor: Colors.glassBorder,
   },
-  selectedOption: {
-    backgroundColor: '#d33',
-    borderColor: '#d33',
+  label: {
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  option: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
+  },
+  optionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    color: '#333',
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
-  selectedOptionText: {
-    color: '#fff',
+  optionTextSelected: {
+    color: Colors.white,
+    fontWeight: '600',
   },
 });

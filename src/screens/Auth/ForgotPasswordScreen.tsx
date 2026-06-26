@@ -9,7 +9,6 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../api/useAuth';
+import { useAlert } from '../../components/AlertModal';
 import { normalizeMobileNumber } from '../../utils/authPayload';
 
 const extractApiErrorMessage = (error: any, fallback: string) => {
@@ -41,6 +41,7 @@ const formatForgotPasswordError = (error: any, fallback: string) => {
 };
 
 const ForgotPasswordScreen = ({ navigation }: any) => {
+  const { alert, AlertComponent } = useAlert();
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -69,7 +70,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     const normalizedMobile = normalizeMobileNumber(mobile);
 
     if (!normalizedMobile || normalizedMobile.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid mobile number associated with your account.');
+      alert('Invalid Number', 'Please enter a valid mobile number associated with your account.');
       return;
     }
 
@@ -81,11 +82,11 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
           setLoading(false);
           setStep(2);
           setTimer(30);
-          Alert.alert('Code Sent', 'We have sent a reset code to your mobile number.');
+          alert('Code Sent', 'We have sent a reset code to your mobile number.');
         },
         onError: (error: any) => {
           setLoading(false);
-          Alert.alert(
+          alert(
             'Recovery Unavailable',
             formatForgotPasswordError(
               error,
@@ -101,7 +102,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     const normalizedMobile = normalizeMobileNumber(mobile);
 
     if (!otp || !newPassword) {
-      Alert.alert('Missing Info', 'Please provide both the 4-digit code and your new password.');
+      alert('Missing Info', 'Please provide both the 4-digit code and your new password.');
       return;
     }
 
@@ -111,12 +112,12 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
       {
         onSuccess: () => {
           setLoading(false);
-          Alert.alert('Password Changed', 'Your password has been successfully reset. You can now login with your new password.');
+          alert('Password Changed', 'Your password has been successfully reset. You can now login with your new password.');
           navigation.navigate('Login');
         },
         onError: (error: any) => {
           setLoading(false);
-          Alert.alert(
+          alert(
             'Reset Failed',
             formatForgotPasswordError(
               error,
@@ -233,6 +234,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
+      {AlertComponent}
     </View>
   );
 };

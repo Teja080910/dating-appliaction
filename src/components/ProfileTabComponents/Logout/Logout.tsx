@@ -1,14 +1,17 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { clearAuthSession } from '../../../utils/session';
+import { useAlert } from '../../../components/AlertModal';
+import { Colors, Spacing } from '../../../theme';
 
 const Logout = () => {
   const navigation = useNavigation();
+  const { alert, AlertComponent } = useAlert();
 
   const handleLogout = async () => {
-    Alert.alert(
+    alert(
       "Logout",
       "Are you sure you want to logout?",
       [
@@ -39,44 +42,32 @@ const Logout = () => {
   };
 
   return (
+    <>
     <TouchableOpacity 
       style={styles.container} 
       activeOpacity={0.6}
       onPress={handleLogout}
     >
-      <View style={styles.row}>
-        <Ionicons name="log-out-outline" size={24} color="#FF5A79" style={styles.icon} />
-        <Text style={styles.text}>Log out</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#bbb" />
+      <Ionicons name="log-out-outline" size={24} color={Colors.error} />
+      <Text style={styles.text}>Log out</Text>
     </TouchableOpacity>
-  );
+      {AlertComponent}
+    </>);
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.lg,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  row: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  icon: {
-    marginRight: 12,
+    gap: Spacing.sm,
   },
   text: {
-    flexShrink: 1,
     fontSize: 16,
-    color: '#111',
-    fontWeight: '500',
+    color: Colors.error,
+    fontWeight: '600',
   },
 });
 

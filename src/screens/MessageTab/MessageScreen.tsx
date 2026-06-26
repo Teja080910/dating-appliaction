@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   TextInput,
   StatusBar,
-  Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import AvatarGroup from '../../components/MessageTabComponents/AvatarGroup';
 import InviteButton from '../../components/MessageTabComponents/InviteButton';
 import { getGender } from '../../utils/types/AsyncStorage';
@@ -21,30 +22,18 @@ import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { getUserId } from '../../utils/sessionHelper';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
-
-// Mock Messages Data
-// const MOCK_CHATS = [
-//     { id: '1', name: 'Alisha', lastMsg: 'I really like your profile!', time: '10:15 AM', unread: 2, image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format' },
-//     { id: '2', name: 'Sneha', lastMsg: 'Are you from Mumbai originally?', time: 'Yesterday', unread: 0, image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format' },
-//     { id: '3', name: 'Pooja', lastMsg: 'Sent you a heart!', time: 'Tue', unread: 1, image: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=500&auto=format' },
-// ];
-
-
-// const MOCK_RECEIVED = [
-//     { id: 'rec1', name: 'Kavita', age: 23, time: '2h ago', image: 'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&auto=format' },
-// ];
-
-
 import { useConnection } from '../../api/useConnection';
 import { getAbsoluteUrl } from '../../api/apiClient';
+import { Colors, Spacing, Shadows, Typography } from '../../theme';
+import { useAlert } from '../../components/AlertModal';
 
 export default function MessageScreen() {
+  const { alert, AlertComponent } = useAlert();
   const navigation = useNavigation<any>();
   const [userId, setUserId] = useState<string | null>(null);
   const [activeMainTab, setActiveMainTab] = useState<'Invitations' | 'Messages'>('Invitations');
   const [activeInviteTab, setActiveInviteTab] = useState<'Sent' | 'Received'>('Sent');
 
-  // Load userId from storage
   useEffect(() => {
     getUserId().then(setUserId);
   }, []);
@@ -56,16 +45,12 @@ export default function MessageScreen() {
     if (!value) return 'now';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return 'now';
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    });
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   const normalizeInvite = useCallback((request: any, mode: 'sent' | 'received') => {
     const targetUser = mode === 'sent' ? request?.receiver : request?.sender;
     const profile = targetUser?.profile;
-
     return {
       id: request?.id,
       requestId: request?.id,
@@ -86,14 +71,10 @@ export default function MessageScreen() {
     const targetUser = sender?.id === numericUserId ? receiver : sender;
     const profile = targetUser?.profile;
     const status = String(request?.status || 'CONNECTED').toUpperCase();
-
     return {
       id: String(request?.id || targetUser?.id || `${status}-${Date.now()}`),
       name: profile?.displayName || targetUser?.name || 'User',
-      lastMsg:
-        status === 'ACCEPTED'
-          ? 'You are connected. Start the conversation.'
-          : `Connection status: ${status}`,
+      lastMsg: status === 'ACCEPTED' ? 'You are connected. Start the conversation.' : `Connection status: ${status}`,
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       unread: 0,
       image: profile?.profileImageUrl ? getAbsoluteUrl(profile.profileImageUrl) : null,
@@ -126,211 +107,199 @@ export default function MessageScreen() {
     connection.cancel.mutate(Number(id), {
       onSuccess: () => {
         void connection.sentList.refetch();
-        Toast.show({
-          type: 'success',
-          text1: 'Invitation Recalled',
-          text2: 'The invitation has been cancelled.'
-        });
+        Toast.show({ type: 'success', text1: 'Invitation Recalled', text2: 'The invitation has been cancelled.' });
       },
-      onError: () => {
-        Alert.alert('Error', 'Failed to recall invitation.');
-      }
+      onError: () => { alert('Error', 'Failed to recall invitation.'); },
     });
   };
 
   const handleAccept = (item: any) => {
     connection.accept.mutate(Number(item.requestId || item.id), {
-        onSuccess: () => {
-            void connection.receivedList.refetch();
-            void connection.connectionList.refetch();
-            Toast.show({
-                type: 'success',
-                text1: 'Invitation Accepted!',
-                text2: `You can now chat with ${item.name || item.username || 'them'}.`
-            });
-        },
-        onError: () => {
-            Alert.alert('Error', 'Failed to accept invitation.');
-        }
+      onSuccess: () => {
+        void connection.receivedList.refetch();
+        void connection.connectionList.refetch();
+        Toast.show({ type: 'success', text1: 'Invitation Accepted!', text2: `You can now chat with ${item.name || item.username || 'them'}.` });
+      },
+      onError: () => { alert('Error', 'Failed to accept invitation.'); },
     });
   };
 
   useEffect(() => {
     const fetchGender = async () => {
       const gender = await getGender();
-      if (gender === 'straight_woman') {
-        setOppositeGender('straight_man');
-      } else if (gender === 'straight_man') {
-        setOppositeGender('straight_woman');
-      } else {
-        setOppositeGender('lgbtqia');
-      }
+      if (gender === 'straight_woman') setOppositeGender('straight_man');
+      else if (gender === 'straight_man') setOppositeGender('straight_woman');
+      else setOppositeGender('lgbtqia');
     };
-
     fetchGender();
   }, [setOppositeGender]);
 
   const isInvitesLoading = activeInviteTab === 'Sent' ? sentLoading : receivedLoading;
-
-  // Use mock data if list is empty for UI testing (Optional)
-  const displaySentInvites = sentInvites.length > 0 ? sentInvites : []; // Add mock data here if needed
+  const displaySentInvites = sentInvites.length > 0 ? sentInvites : [];
   const displayReceivedInvites = receivedInvites.length > 0 ? receivedInvites : [];
   const displayChats = connectionChats.length > 0 ? connectionChats : chats;
 
   const renderInviteItem = ({ item }: { item: any }) => (
     <View style={styles.listItem}>
-        <View style={styles.avatarBox}>
-            {item.image ? <Image source={{ uri: item.image }} style={styles.avatar} /> : <View style={styles.placeholderAvatar}><Icon name="account" size={30} color="#ccc" /></View>}
-            {item.online ? <View style={styles.onlineDot} /> : null}
+      <View style={styles.avatarBox}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.avatar} />
+        ) : (
+          <View style={styles.placeholderAvatar}>
+            <Icon name="account" size={28} color={Colors.textMuted} />
+          </View>
+        )}
+        {item.online && <View style={styles.onlineDot} />}
+      </View>
+      <View style={styles.itemContent}>
+        <View style={styles.itemHeader}>
+          <Text style={styles.itemName}>{item.age ? `${item.name}, ${item.age}` : item.name}</Text>
+          <Text style={styles.itemTime}>{item.time || 'now'}</Text>
         </View>
-        <View style={styles.itemContent}>
-            <View style={styles.itemHeader}>
-                <Text style={styles.itemName}>{item.age ? `${item.name}, ${item.age}` : item.name}</Text>
-                <Text style={styles.itemTime}>{item.time || 'now'}</Text>
-            </View>
-            <View style={styles.itemStatusRow}>
-                <Icon name="clock-check-outline" size={14} color="#FF5A79" />
-                <Text style={styles.itemStatusLabel}>{activeInviteTab === 'Sent' ? (item.status || 'PENDING') : 'Invited you'}</Text>
-            </View>
+        <View style={styles.itemStatusRow}>
+          <Icon name="clock-check-outline" size={14} color={Colors.secondary} />
+          <Text style={styles.itemStatusLabel}>{activeInviteTab === 'Sent' ? (item.status || 'PENDING') : 'Invited you'}</Text>
         </View>
-        <TouchableOpacity 
-            style={styles.actionPill} 
-            onPress={() => activeInviteTab === 'Sent' ? handleRecall(item.requestId || item.id) : handleAccept(item)}
+      </View>
+      <TouchableOpacity
+        style={styles.actionPill}
+        onPress={() => activeInviteTab === 'Sent' ? handleRecall(item.requestId || item.id) : handleAccept(item)}
+      >
+        <LinearGradient
+          colors={[Colors.primary, Colors.secondary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.actionGradient}
         >
-            <Text style={styles.actionPillText}>{activeInviteTab === 'Sent' ? 'Recall' : 'Accept'}</Text>
-        </TouchableOpacity>
-
-
+          <Text style={styles.actionPillText}>{activeInviteTab === 'Sent' ? 'Recall' : 'Accept'}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     </View>
   );
 
   const renderChatItem = ({ item }: { item: any }) => (
-      <TouchableOpacity 
-        style={styles.listItem} 
-        activeOpacity={0.7}
-        onPress={() =>
-          requireSubscription(() =>
-            navigation.navigate('ChatDetailScreen', { name: item.name, image: item.image })
-          )
-        }
-      >
-          <View style={styles.avatarBox}>
-              {item.image ? (
-                <Image source={{ uri: item.image }} style={styles.avatar} />
-              ) : (
-                <View style={styles.placeholderAvatar}>
-                  <Icon name="account" size={30} color="#ccc" />
-                </View>
-              )}
-              {item.online ? <View style={styles.onlineDot} /> : null}
+    <TouchableOpacity
+      style={styles.listItem}
+      activeOpacity={0.7}
+      onPress={() =>
+        requireSubscription(() =>
+          navigation.navigate('ChatDetailScreen', { name: item.name, image: item.image })
+        )
+      }
+    >
+      <View style={styles.avatarBox}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.avatar} />
+        ) : (
+          <View style={styles.placeholderAvatar}>
+            <Icon name="account" size={28} color={Colors.textMuted} />
           </View>
-          <View style={styles.itemContent}>
-              <View style={styles.itemHeader}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemTime}>{item.time}</Text>
-              </View>
-              <Text style={[styles.lastMsg, item.unread > 0 && styles.unreadMsg]} numberOfLines={1}>
-                  {item.lastMsg}
-              </Text>
-          </View>
-          {item.unread > 0 && (
-              <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadCount}>{item.unread}</Text>
-              </View>
-          )}
-      </TouchableOpacity>
+        )}
+        {item.online && <View style={styles.onlineDot} />}
+      </View>
+      <View style={styles.itemContent}>
+        <View style={styles.itemHeader}>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemTime}>{item.time}</Text>
+        </View>
+        <Text style={[styles.lastMsg, item.unread > 0 && styles.unreadMsg]} numberOfLines={1}>
+          {item.lastMsg}
+        </Text>
+      </View>
+      {item.unread > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadCount}>{item.unread}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Top Main Navigation */}
-      <View style={styles.mainNav}>
-          <TouchableOpacity 
-            style={[styles.navBtn, activeMainTab === 'Invitations' && styles.activeNavBtn]}
-            onPress={() => setActiveMainTab('Invitations')}
-          >
-              <Icon name="email-outline" size={26} color={activeMainTab === 'Invitations' ? '#FF5A79' : '#999'} />
-              <Text style={[styles.navText, activeMainTab === 'Invitations' && styles.activeNavText]}>Invitations</Text>
-              {activeMainTab === 'Invitations' && <View style={styles.navIndicator} />}
-          </TouchableOpacity>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
-          <TouchableOpacity 
-            style={[styles.navBtn, activeMainTab === 'Messages' && styles.activeNavBtn]}
-            onPress={() =>
-              requireSubscription(() => setActiveMainTab('Messages'))
-            }
-          >
-              <Icon name="chat-processing-outline" size={26} color={activeMainTab === 'Messages' ? '#FF5A79' : '#999'} />
-              <Text style={[styles.navText, activeMainTab === 'Messages' && styles.activeNavText]}>Messages</Text>
-              {activeMainTab === 'Messages' && <View style={styles.navIndicator} />}
-          </TouchableOpacity>
+      <View style={styles.mainNav}>
+        <TouchableOpacity
+          style={[styles.navBtn, activeMainTab === 'Invitations' && styles.activeNavBtn]}
+          onPress={() => setActiveMainTab('Invitations')}
+        >
+          <Icon name="email-outline" size={24} color={activeMainTab === 'Invitations' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.navText, activeMainTab === 'Invitations' && styles.activeNavText]}>Invitations</Text>
+          {activeMainTab === 'Invitations' && <View style={styles.navIndicator} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navBtn, activeMainTab === 'Messages' && styles.activeNavBtn]}
+          onPress={() => requireSubscription(() => setActiveMainTab('Messages'))}
+        >
+          <Icon name="chat-processing-outline" size={24} color={activeMainTab === 'Messages' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.navText, activeMainTab === 'Messages' && styles.activeNavText]}>Messages</Text>
+          {activeMainTab === 'Messages' && <View style={styles.navIndicator} />}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-          {activeMainTab === 'Invitations' ? (
-              <View style={{ flex: 1 }}>
-                  {/* Secondary Invitation Tabs */}
-                   <View style={styles.subTabs}>
-                       <TouchableOpacity onPress={() => setActiveInviteTab('Sent')} style={[styles.subTab, activeInviteTab === 'Sent' && styles.activeSubTab]}>
-                         <Text style={[styles.subTabText, activeInviteTab === 'Sent' && styles.activeSubTabText]}>Sent ({sentInvites?.length || 0})</Text>
-                       </TouchableOpacity>
-                       <TouchableOpacity onPress={() => setActiveInviteTab('Received')} style={[styles.subTab, activeInviteTab === 'Received' && styles.activeSubTab]}>
-                         <Text style={[styles.subTabText, activeInviteTab === 'Received' && styles.activeSubTabText]}>Received ({receivedInvites?.length || 0})</Text>
-                       </TouchableOpacity>
-                   </View>
- 
-                   {isInvitesLoading ? (
-                       <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color="#FF5A79" /></View>
-                   ) : (activeInviteTab === 'Sent' ? displaySentInvites?.length : displayReceivedInvites?.length) > 0 ? (
-                       <FlatList
-                         data={activeInviteTab === 'Sent' ? displaySentInvites : displayReceivedInvites}
-                         renderItem={renderInviteItem}
-                         keyExtractor={item => item.id?.toString() || Math.random().toString()}
-                         contentContainerStyle={styles.listContainer}
-                         showsVerticalScrollIndicator={false}
-                       />
-                   ) : (
-                       <View style={styles.emptyView}>
-                           <AvatarGroup />
-                           <Text style={styles.emptyTitle}>No invitations yet</Text>
-                           <Text style={styles.emptyDesc}>Invite people you like to start a conversation!</Text>
-                           <View style={{ width: '80%', marginTop: 20 }}><InviteButton /></View>
-                       </View>
-                   )}
-               </View>
-          ) : (
-              <View style={{ flex: 1 }}>
-                  {/* Search Bar for Messages */}
-                  <View style={styles.searchContainer}>
-                      <Icon name="magnify" size={22} color="#AAA" />
-                      <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor="#BBB" />
-                  </View>
+        {activeMainTab === 'Invitations' ? (
+          <View style={{ flex: 1 }}>
+            <View style={styles.subTabs}>
+              <TouchableOpacity onPress={() => setActiveInviteTab('Sent')} style={[styles.subTab, activeInviteTab === 'Sent' && styles.activeSubTab]}>
+                <Text style={[styles.subTabText, activeInviteTab === 'Sent' && styles.activeSubTabText]}>Sent ({sentInvites?.length || 0})</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveInviteTab('Received')} style={[styles.subTab, activeInviteTab === 'Received' && styles.activeSubTab]}>
+                <Text style={[styles.subTabText, activeInviteTab === 'Received' && styles.activeSubTabText]}>Received ({receivedInvites?.length || 0})</Text>
+              </TouchableOpacity>
+            </View>
 
-                  {messagesLoading ? (
-                    <View style={{ flex: 1, justifyContent: 'center' }}>
-                      <ActivityIndicator color="#FF5A79" />
-                    </View>
-                  ) : displayChats.length > 0 ? (
-                    <FlatList
-                      data={displayChats}
-                      renderItem={renderChatItem}
-                      keyExtractor={item => String(item.id)}
-                      contentContainerStyle={styles.listContainer}
-                      showsVerticalScrollIndicator={false}
-                    />
-                  ) : (
-                    <View style={styles.emptyView}>
-                      <AvatarGroup />
-                      <Text style={styles.emptyTitle}>No messages yet</Text>
-                      <Text style={styles.emptyDesc}>Accepted connections will appear here for quick access.</Text>
-                      <View style={{ width: '80%', marginTop: 20 }}><InviteButton /></View>
-                    </View>
-                  )}
+            {isInvitesLoading ? (
+              <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={Colors.primary} /></View>
+            ) : (activeInviteTab === 'Sent' ? displaySentInvites?.length : displayReceivedInvites?.length) > 0 ? (
+              <FlatList
+                data={activeInviteTab === 'Sent' ? displaySentInvites : displayReceivedInvites}
+                renderItem={renderInviteItem}
+                keyExtractor={item => item.id?.toString() || Math.random().toString()}
+                contentContainerStyle={styles.listContainer}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <View style={styles.emptyView}>
+                <AvatarGroup />
+                <Text style={styles.emptyTitle}>No invitations yet</Text>
+                <Text style={styles.emptyDesc}>Invite people you like to start a conversation!</Text>
+                <View style={{ width: '80%', marginTop: Spacing.xl }}><InviteButton /></View>
               </View>
-          )}
+            )}
+          </View>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <View style={styles.searchContainer}>
+              <Icon name="magnify" size={20} color={Colors.textMuted} />
+              <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor={Colors.textMuted} />
+            </View>
+
+            {messagesLoading ? (
+              <View style={{ flex: 1, justifyContent: 'center' }}>
+                <ActivityIndicator color={Colors.primary} />
+              </View>
+            ) : displayChats.length > 0 ? (
+              <FlatList
+                data={displayChats}
+                renderItem={renderChatItem}
+                keyExtractor={item => String(item.id)}
+                contentContainerStyle={styles.listContainer}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <View style={styles.emptyView}>
+                <AvatarGroup />
+                <Text style={styles.emptyTitle}>No messages yet</Text>
+                <Text style={styles.emptyDesc}>Accepted connections will appear here for quick access.</Text>
+                <View style={{ width: '80%', marginTop: Spacing.xl }}><InviteButton /></View>
+              </View>
+            )}
+          </View>
+        )}
       </View>
+      {AlertComponent}
     </SafeAreaView>
   );
 }
@@ -338,202 +307,215 @@ export default function MessageScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background,
   },
   mainNav: {
     flexDirection: 'row',
-    height: 75,
+    height: 64,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: Colors.divider,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.sm,
+    borderRadius: Spacing.radiusXl,
+    overflow: 'hidden',
   },
   navBtn: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 3,
-      position: 'relative',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 2,
+    position: 'relative',
   },
   navText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#999',
+    color: Colors.textMuted,
   },
   activeNavText: {
-    color: '#FF5A79',
+    color: Colors.text,
   },
   navIndicator: {
-      position: 'absolute',
-      bottom: 0,
-      width: '40%',
-      height: 3,
-      backgroundColor: '#FF5A79',
-      borderTopLeftRadius: 3,
-      borderTopRightRadius: 3,
+    position: 'absolute',
+    bottom: 0,
+    width: '50%',
+    height: 3,
+    backgroundColor: Colors.primary,
+    borderRadius: 3,
   },
   activeNavBtn: {},
   content: {
     flex: 1,
   },
   subTabs: {
-      flexDirection: 'row',
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      gap: 25,
-      marginBottom: 10,
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.screenPaddingHorizontal,
+    paddingTop: Spacing.lg,
+    gap: Spacing.xl,
+    marginBottom: Spacing.sm,
   },
   subTab: {
-      paddingBottom: 8,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   activeSubTab: {
-      borderBottomWidth: 2,
-      borderBottomColor: '#FF5A79',
+    borderBottomColor: Colors.primary,
   },
   subTabText: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: '#AAA',
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textMuted,
   },
   activeSubTabText: {
-      color: '#000',
-      fontWeight: '800',
+    color: Colors.text,
+    fontWeight: '800',
   },
   listContainer: {
-      paddingHorizontal: 20,
-      paddingTop: 10,
-      paddingBottom: 40,
+    paddingHorizontal: Spacing.screenPaddingHorizontal,
+    paddingTop: Spacing.sm,
+    paddingBottom: 40,
   },
   listItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: '#F9F9F9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
   avatarBox: {
-      position: 'relative',
+    position: 'relative',
   },
   avatar: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-      backgroundColor: '#f5f5f5',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.glassBorder,
   },
   placeholderAvatar: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-      backgroundColor: '#F9F9F9',
-      justifyContent: 'center',
-      alignItems: 'center',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.glassBorder,
   },
   onlineDot: {
-      position: 'absolute',
-      bottom: 2,
-      right: 2,
-      width: 14,
-      height: 14,
-      borderRadius: 7,
-      backgroundColor: '#2ECC71',
-      borderWidth: 2,
-      borderColor: '#fff',
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: Colors.online,
+    borderWidth: 2,
+    borderColor: Colors.background,
   },
   itemContent: {
-      flex: 1,
-      marginLeft: 15,
-      justifyContent: 'center',
+    flex: 1,
+    marginLeft: Spacing.md,
+    justifyContent: 'center',
   },
   itemHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 3,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 3,
   },
   itemName: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
   },
   itemTime: {
-      fontSize: 12,
-      color: '#AAA',
-      fontWeight: '600',
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '500',
   },
   itemStatusRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   itemStatusLabel: {
-      fontSize: 13,
-      color: '#FF5A79',
-      fontWeight: '700',
+    fontSize: 13,
+    color: Colors.secondary,
+    fontWeight: '600',
   },
   lastMsg: {
-      fontSize: 14,
-      color: '#888',
-      marginTop: 2,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   unreadMsg: {
-      color: '#000',
-      fontWeight: '800',
+    color: Colors.text,
+    fontWeight: '700',
   },
   unreadBadge: {
-      backgroundColor: '#FF5A79',
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      justifyContent: 'center',
-      alignItems: 'center',
+    backgroundColor: Colors.badge,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   unreadCount: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 11,
     fontWeight: 'bold',
   },
   actionPill: {
-      backgroundColor: '#F8F8F8',
-      paddingHorizontal: 15,
-      paddingVertical: 8,
-      borderRadius: 20,
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
+  },
+  actionGradient: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Spacing.radiusFull,
   },
   actionPillText: {
-      fontSize: 12,
-      color: '#000',
-      fontWeight: '800',
+    fontSize: 12,
+    color: Colors.white,
+    fontWeight: '800',
   },
   searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#F7F7F7',
-      margin: 20,
-      paddingHorizontal: 15,
-      borderRadius: 25,
-      height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.inputBackground,
+    margin: Spacing.screenPaddingHorizontal,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    height: 48,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   searchInput: {
-      flex: 1,
-      marginLeft: 10,
-      fontSize: 15,
-      color: '#000',
+    flex: 1,
+    marginLeft: Spacing.md,
+    fontSize: 15,
+    color: Colors.text,
   },
   emptyView: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingBottom: 60,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 60,
   },
   emptyTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: '#000',
-      marginTop: 20,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginTop: Spacing.xl,
   },
   emptyDesc: {
-      fontSize: 14,
-      color: '#999',
-      textAlign: 'center',
-      paddingHorizontal: 50,
-      marginTop: 8,
-  }
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 50,
+    marginTop: Spacing.sm,
+  },
 });

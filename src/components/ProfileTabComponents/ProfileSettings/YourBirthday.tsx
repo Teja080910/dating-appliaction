@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Colors, Spacing } from '../../../theme';
 
 interface YourBirthdayProps {
-  value: string; // YYYY-MM-DD
+  value: string;
   onChange: (val: string) => void;
 }
 
 const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
   const [showPicker, setShowPicker] = useState(false);
 
-  // Convert string (YYYY-MM-DD) to Date object safely
   const dateObj = value ? new Date(value) : new Date();
 
   const handleChange = (event: any, selectedDate: Date | undefined) => {
@@ -52,30 +52,29 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
-    padding: 20,
+    padding: Spacing.lg,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#000',
+    color: Colors.text,
   },
   subtitle: {
     fontSize: 15,
-    color: '#9e9e9e',
+    color: Colors.textSecondary,
     marginTop: 4,
     marginBottom: 12,
   },
   inputBox: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.inputBackground,
     padding: 14,
-    borderRadius: 8,
-    borderColor: '#e5e5e5',
+    borderRadius: Spacing.radiusMd,
+    borderColor: Colors.glassBorder,
     borderWidth: 1,
   },
   dateText: {
     fontSize: 16,
-    color: '#000',
+    color: Colors.text,
     fontWeight: '500',
   },
 });

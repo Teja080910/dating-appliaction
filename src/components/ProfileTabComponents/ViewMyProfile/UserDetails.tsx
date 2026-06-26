@@ -1,14 +1,15 @@
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import React, { useContext } from 'react';
-import AppContext from '../../../context/CreateGlobalStateContext';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import Feather from 'react-native-vector-icons/Feather';
+import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import Feather from 'react-native-vector-icons/Feather';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useConnection } from '../../../api/useConnection';
 import { useReport } from '../../../api/useReport';
-import { Colors } from '../../../utils/colors';
-import { repairStoredSessionIdentity, isResolvedApiUserId } from '../../../utils/session';
+import AppContext from '../../../context/CreateGlobalStateContext';
+import { Colors } from '../../../theme';
+import { isResolvedApiUserId, repairStoredSessionIdentity } from '../../../utils/session';
 import { getAuthToken } from '../../../utils/sessionHelper';
+import { useAlert } from '../../../components/AlertModal';
 
 interface UserDetailsProps {
   profile?: any;
@@ -50,6 +51,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
   const resolvedProfile = profile?.profile || profile;
   const connection = useConnection(currentUserId || undefined);
   const reportApi = useReport(currentUserId || undefined);
+  const { alert, AlertComponent } = useAlert();
 
   const normalizeTextValue = (value: unknown, fallback: string) => {
     if (Array.isArray(value)) {
@@ -246,7 +248,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
         return;
       }
 
-      Alert.alert(
+      alert(
           "Report Profile",
           "Are you sure you want to report or block this user?",
           [
@@ -376,6 +378,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
       )}
 
       <View style={{ height: 60 }} />
+      {AlertComponent}
     </View>
   );
 };
@@ -385,7 +388,7 @@ export default UserDetails;
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 25,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surface,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     marginTop: -40,
@@ -402,7 +405,7 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: isCompactDevice ? 24 : 28,
     fontWeight: '900',
-    color: '#000',
+    color: Colors.text,
   },
   verifiedIcon: {
     marginLeft: 12,
@@ -419,7 +422,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
       fontSize: isCompactDevice ? 13 : 14,
-      color: '#999',
+      color: Colors.textSecondary,
       fontWeight: '600',
   },
   section: {
@@ -428,12 +431,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: isCompactDevice ? 18 : 20,
     fontWeight: '900',
-    color: '#111',
+    color: Colors.text,
     marginBottom: 16,
   },
   bioText: {
       fontSize: isCompactDevice ? 15 : 16,
-      color: '#555',
+      color: Colors.textSecondary,
       lineHeight: 24,
       fontWeight: '500',
   },
@@ -448,7 +451,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   interestTag: {
-      backgroundColor: '#FFF2F4',
+      backgroundColor: Colors.glass,
       paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: 10,
@@ -467,7 +470,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: isCompactDevice ? 14 : 16,
     paddingVertical: isCompactDevice ? 9 : 10,
     marginBottom: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surface,
   },
   pillIcon: {
     marginRight: 8,
@@ -478,7 +481,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: isCompactDevice ? 14 : 15,
-    color: '#000',
+    color: Colors.text,
     fontWeight: '700',
   },
   actionSection: {
@@ -496,7 +499,7 @@ const styles = StyleSheet.create({
       gap: 10,
   },
   reportText: {
-      color: '#888',
+      color: Colors.textMuted,
       fontSize: 15,
       fontWeight: '600',
   },
@@ -515,7 +518,7 @@ const styles = StyleSheet.create({
       elevation: 6,
   },
   disabledBtn: {
-      backgroundColor: '#BDBDBD',
+      backgroundColor: Colors.textMuted,
       shadowOpacity: 0,
       elevation: 0,
   },

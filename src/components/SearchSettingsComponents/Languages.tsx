@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const languages = [
   'English', 'Spanish', 'Portuguese', 'German',
@@ -15,16 +16,11 @@ const Languages: React.FC<LanguagesProps> = ({ onChange }) => {
   const { searchLanguages, setSearchLanguages } = useContext(AppContext);
 
   const toggleLanguage = (lang: string) => {
-    let nextLanguages;
-    if (searchLanguages.includes(lang)) {
-      nextLanguages = searchLanguages.filter((item: string) => item !== lang);
-    } else {
-      nextLanguages = [...searchLanguages, lang];
-    }
+    const nextLanguages = searchLanguages.includes(lang)
+      ? searchLanguages.filter((item: string) => item !== lang)
+      : [...searchLanguages, lang];
     setSearchLanguages(nextLanguages);
-    if (onChange) {
-      onChange(nextLanguages);
-    }
+    if (onChange) onChange(nextLanguages);
   };
 
   return (
@@ -34,18 +30,10 @@ const Languages: React.FC<LanguagesProps> = ({ onChange }) => {
         {languages.map((lang) => (
           <TouchableOpacity
             key={lang}
-            style={[
-              styles.option,
-              searchLanguages.includes(lang) && styles.selectedOption
-            ]}
+            style={[styles.option, searchLanguages.includes(lang) && styles.selectedOption]}
             onPress={() => toggleLanguage(lang)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                searchLanguages.includes(lang) && styles.selectedOptionText
-              ]}
-            >
+            <Text style={[styles.optionText, searchLanguages.includes(lang) && styles.selectedOptionText]}>
               {lang}
             </Text>
           </TouchableOpacity>
@@ -58,36 +46,46 @@ const Languages: React.FC<LanguagesProps> = ({ onChange }) => {
 export default Languages;
 
 const styles = StyleSheet.create({
-  container: { 
-    marginVertical: 16, 
-    paddingHorizontal: 16 
+  container: {
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
-  label: { 
-    marginLeft:6,
-    fontSize: 16, 
-    marginBottom: 10,
-    fontWeight:"bold"
+  label: {
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
-  optionsContainer: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap' 
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
   option: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    margin: 6,
+    borderColor: Colors.glassBorder,
+    borderRadius: Spacing.radiusFull,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
   selectedOption: {
-    backgroundColor: '#d33',
-    borderColor: '#d33',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    color: '#333',
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
   },
   selectedOptionText: {
-    color: '#fff',
+    color: Colors.white,
+    fontWeight: '600',
   },
 });

@@ -1,7 +1,7 @@
-
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const appearances = ['Very attractive', 'Attractive', 'Average', 'Below Average'];
 
@@ -9,16 +9,9 @@ const AppearanceSelector = () => {
   const { selectedAppearance, setSelectedAppearance } = useContext(AppContext);
 
   const toggleAppearance = (appearance: string) => {
-    console.log('You clicked:', appearance);
-    console.log('Before click, selectedBodyType:', selectedAppearance);
     if (selectedAppearance === appearance) {
-      // Deselect if already selected
-      console.log('After removing: null');
       setSelectedAppearance(null);
-
     } else {
-      // Select this one
-      console.log('After adding:', appearance);
       setSelectedAppearance(appearance);
     }
   };
@@ -30,18 +23,10 @@ const AppearanceSelector = () => {
         {appearances.map((appearance) => (
           <TouchableOpacity
             key={appearance}
-            style={[
-              styles.option,
-              selectedAppearance === appearance && styles.selectedOption
-            ]}
+            style={[styles.option, selectedAppearance === appearance && styles.optionSelected]}
             onPress={() => toggleAppearance(appearance)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                selectedAppearance === appearance && styles.selectedOptionText
-              ]}
-            >
+            <Text style={[styles.optionText, selectedAppearance === appearance && styles.optionTextSelected]}>
               {appearance}
             </Text>
           </TouchableOpacity>
@@ -54,25 +39,46 @@ const AppearanceSelector = () => {
 export default AppearanceSelector;
 
 const styles = StyleSheet.create({
-  container: { marginVertical: 16, paddingHorizontal: 16 },
-  label: { fontSize: 16, marginBottom: 10 },
-  optionsContainer: { flexDirection: 'row', flexWrap: 'wrap' },
-  option: {
+  container: {
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    margin: 6,
+    borderColor: Colors.glassBorder,
   },
-  selectedOption: {
-    backgroundColor: '#d33',
-    borderColor: '#d33',
+  label: {
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  option: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
+  },
+  optionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    color: '#333',
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
-  selectedOptionText: {
-    color: '#fff',
+  optionTextSelected: {
+    color: Colors.white,
+    fontWeight: '600',
   },
 });

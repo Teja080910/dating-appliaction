@@ -1,43 +1,34 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { englishLevels } from '../../utils/types/englishLevels'; 
-
+import { englishLevels } from '../../utils/types/englishLevels';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-// const englishLevels = ['Bad', 'Medium', 'Good', 'Very Good'];
+import { Colors, Spacing } from '../../theme';
 
 const EnglishSkillSelector = () => {
   const { englishSkillLevel, setEnglishSkillLevel } = useContext(AppContext);
-
-  // Local state for smooth slider updates
   const [localValue, setLocalValue] = useState(englishSkillLevel);
 
-  // Keep local state in sync if context changes outside this component
   useEffect(() => {
     setLocalValue(englishSkillLevel);
   }, [englishSkillLevel]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.labelRow}>
-        {/* <FontAwesome5 name="comments" size={20} color="#d33" style={{ marginRight: 8 }} /> */}
-        <Text style={styles.label}>
-          How good is your English: <Text style={styles.levelText}>{englishLevels[localValue]}</Text>
-        </Text>
-      </View>
-
+      <Text style={styles.label}>
+        How good is your English: <Text style={styles.levelText}>{englishLevels[localValue]}</Text>
+      </Text>
       <Slider
         style={styles.slider}
         minimumValue={0}
         maximumValue={3}
         step={1}
-        minimumTrackTintColor="#d33"
-        maximumTrackTintColor="#ccc"
-        thumbTintColor="#d33"
+        minimumTrackTintColor={Colors.primary}
+        maximumTrackTintColor={Colors.surfaceLighter}
+        thumbTintColor={Colors.primary}
         value={localValue}
-        onValueChange={(value) => setLocalValue(value)} // just updates local state
-        onSlidingComplete={(value) => setEnglishSkillLevel(value)} // final update to context
+        onValueChange={(value) => setLocalValue(value)}
+        onSlidingComplete={(value) => setEnglishSkillLevel(value)}
       />
     </View>
   );
@@ -47,21 +38,23 @@ export default EnglishSkillSelector;
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
-    paddingHorizontal: 16,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontSize: 16,
-    flexShrink: 1,
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
   levelText: {
     fontWeight: 'bold',
-    color: '#333',
+    color: Colors.primary,
   },
   slider: {
     width: '100%',

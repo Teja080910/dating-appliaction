@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { Colors } from '../utils/colors';
+import { Colors } from '../theme';
 
 const AttractiveLogo = ({ size = 100 }: { size?: number }) => {
   const rimSize = size * 0.82;
@@ -20,7 +20,7 @@ const AttractiveLogo = ({ size = 100 }: { size?: number }) => {
         ]}
       />
       <LinearGradient
-        colors={['#FFD7BA', '#FF7F88', '#7B1038']}
+        colors={[Colors.primary, Colors.secondary]}
         start={{ x: 0.08, y: 0 }}
         end={{ x: 0.92, y: 1 }}
         style={[
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   },
   halo: {
     position: 'absolute',
-    backgroundColor: 'rgba(255, 104, 133, 0.24)',
+    backgroundColor: Colors.glow,
     transform: [{ scaleX: 1.05 }, { scaleY: 0.92 }],
   },
   gradient: {
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     elevation: 10,
-    shadowColor: '#7B1038',
+    shadowColor: Colors.primary,
     shadowOpacity: 0.42,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.24)',
-    backgroundColor: 'rgba(106, 15, 49, 0.26)',
+    backgroundColor: 'rgba(124, 58, 237, 0.26)',
   },
   markWrap: {
     justifyContent: 'center',

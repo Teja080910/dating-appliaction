@@ -6,7 +6,6 @@ import {
   StyleSheet,
   StatusBar,
   BackHandler,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DatePicker from 'react-native-date-picker';
@@ -14,10 +13,12 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAlert } from '../../components/AlertModal';
 
 const DOBScreen = ({ navigation }: any) => {
   const { date, setDate } = useContext(AppContext);
   const [open, setOpen] = useState(false);
+  const { alert, AlertComponent } = useAlert();
 
   // ✅ Safe default date
   const safeDate = date ? new Date(date) : new Date('2000-01-01');
@@ -40,7 +41,7 @@ const DOBScreen = ({ navigation }: any) => {
 
   const handleNext = () => {
     if (currentAge < 18) {
-      Alert.alert('Age Restriction', 'You must be at least 18 years old to use AMARA.');
+      alert('Age Restriction', 'You must be at least 18 years old to use AMARA.');
       return;
     }
     navigation.navigate('UploadImage');
@@ -109,6 +110,7 @@ const DOBScreen = ({ navigation }: any) => {
           <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
       </View>
+      {AlertComponent}
     </SafeAreaView>
   );
 };

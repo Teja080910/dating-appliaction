@@ -1,7 +1,8 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 interface AgeRangeSliderProps {
   onChange?: (min: number, max: number) => void;
@@ -13,15 +14,13 @@ const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
 
   const handleValuesChange = (values: number[]) => {
     setLocalAgeRange(values);
-    if (onChange) {
-      onChange(values[0], values[1]);
-    }
+    if (onChange) onChange(values[0], values[1]);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
-        <Text style={styles.bold}>Age Range:</Text> {localAgeRange[0]} - {localAgeRange[1]}{localAgeRange[1] === 55 ? '+' : ''}
+        Age Range: <Text style={styles.value}>{localAgeRange[0]} - {localAgeRange[1]}{localAgeRange[1] === 55 ? '+' : ''}</Text>
       </Text>
 
       <MultiSlider
@@ -31,9 +30,10 @@ const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
         min={18}
         max={55}
         step={1}
-        selectedStyle={{ backgroundColor: '#d33' }}
-        unselectedStyle={{ backgroundColor: '#eee' }}
+        selectedStyle={{ backgroundColor: Colors.primary }}
+        unselectedStyle={{ backgroundColor: Colors.surfaceLight }}
         markerStyle={styles.marker}
+        pressedMarkerStyle={styles.markerPressed}
         containerStyle={styles.sliderContainer}
         trackStyle={styles.track}
       />
@@ -43,43 +43,51 @@ const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: '#f2f2f2',
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontSize: 16,
-    marginBottom: 15,
-    color: '#333',
+    fontSize: 15,
+    marginBottom: Spacing.lg,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
-  bold: {
-    fontWeight: 'bold',
+  value: {
+    fontWeight: '700',
+    color: Colors.text,
   },
-  thumb: {
-    marginLeft: 13,
-    height: 24,
-    width: 24,
-    borderRadius: 12,
+  marker: {
+    height: 26,
+    width: 26,
+    borderRadius: 13,
     borderWidth: 3,
-    borderColor: '#e94e77',
-    backgroundColor: '#fff',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: { elevation: 4 },
+    }),
   },
-  thumbPressed: {
-    height: 28,
-    width: 28,
-  },
-   marker: {
-    height: 24,
-    width: 24,
-    borderRadius: 12,
-    borderWidth: 3,
-    borderColor: '#d33',
-    backgroundColor: '#fff',
+  markerPressed: {
+    height: 30,
+    width: 30,
+    borderRadius: 15,
   },
   sliderContainer: {
     marginLeft: 10,
     height: 40,
   },
-  track: { 
+  track: {
     height: 4,
     borderRadius: 2,
   },

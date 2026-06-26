@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckBox } from 'react-native-elements';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 interface SearchWorldWideProps {
   onToggle?: (val: boolean) => void;
@@ -17,41 +18,47 @@ const SearchWorldWide: React.FC<SearchWorldWideProps> = ({ onToggle }) => {
     }
     const newVal = !isChecked;
     setIsChecked(newVal);
-    if (onToggle) {
-      onToggle(newVal);
-    }
+    if (onToggle) onToggle(newVal);
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={handleToggle} activeOpacity={0.7}>
+      <TouchableOpacity onPress={handleToggle} activeOpacity={0.7} style={styles.checkRow}>
         <CheckBox
           checked={isChecked}
           onPress={handleToggle}
-          checkedColor="#e94e77"
+          checkedColor={Colors.primary}
           containerStyle={styles.checkboxContainer}
         />
+        <Text style={styles.label}>Search World Wide</Text>
       </TouchableOpacity>
-
-      <Text style={styles.label}>Search World Wide</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+  },
+  checkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
   },
   checkboxContainer: {
     padding: 0,
     margin: 0,
+    marginRight: Spacing.sm,
   },
   label: {
     fontSize: 16,
-    color: '#333',
-    marginLeft: 5,
+    color: Colors.text,
+    fontWeight: '500',
   },
 });
 

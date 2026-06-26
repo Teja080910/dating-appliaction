@@ -14,7 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
 import { isApiHostedUrl } from '../../api/apiClient';
 
@@ -81,33 +81,17 @@ const UserCard = ({
 
   useEffect(() => {
     let isMounted = true;
-
     getAuthToken()
-      .then((token) => {
-        if (isMounted) {
-          setAuthToken(token);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setAuthToken(null);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
+      .then((token) => { if (isMounted) setAuthToken(token); })
+      .catch(() => { if (isMounted) setAuthToken(null); });
+    return () => { isMounted = false; };
   }, []);
 
   const resolvedFallbackAsset = useMemo(() => {
-    if (fallbackAsset) {
-      return fallbackAsset;
-    }
-
+    if (fallbackAsset) return fallbackAsset;
     const seedValue = String(id || safeName)
       .split('')
       .reduce((total, char) => total + char.charCodeAt(0), 0);
-
     return FALLBACK_IMAGES[seedValue % FALLBACK_IMAGES.length];
   }, [fallbackAsset, id, safeName]);
 
@@ -123,18 +107,12 @@ const UserCard = ({
     setCardUserAge(safeAge);
     setViewMyProfile(false);
     setSelectedUserImage(safeImage);
-
     navigation.navigate('ViewMyProfileScreen', {
       userId: id,
       targetUserId: id,
       profileData: profileData || {
-        id,
-        targetUserId: id,
-        displayName: safeName,
-        age: safeAge,
-        currentCity: safeDistance,
-        online: isOnline,
-        isNew,
+        id, targetUserId: id, displayName: safeName, age: safeAge,
+        currentCity: safeDistance, online: isOnline, isNew,
         profileImageUrl: safeImage,
       },
       image: safeImage,
@@ -143,69 +121,55 @@ const UserCard = ({
   };
 
   return (
-    <Pressable onPress={handleUserCard}>
+    <Pressable onPress={handleUserCard} style={styles.cardOuter}>
       <View style={styles.card}>
-        {safeImage ? (
-          <Image
-            source={imageSource as ImageSourcePropType}
-            style={styles.image}
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <Image source={resolvedFallbackAsset} style={styles.image} />
-        )}
-
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.8)']}
-          style={styles.gradient}
+          colors={[Colors.gradientCard[0], Colors.gradientCard[1]]}
+          style={styles.cardBorder}
         >
-          <View style={styles.infoContainer}>
-            {/* NAME + AGE */}
-            <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={1}>
-                {safeName},{' '}
-                <Text style={styles.age}>{safeAge}</Text>
-              </Text>
-
-              {/* VERIFIED ICON (optional) */}
-              <Icon
-                name="check-circle"
-                size={14}
-                color="#fff"
-                style={styles.verifiedIcon}
+          <View style={styles.cardInner}>
+            {safeImage ? (
+              <Image
+                source={imageSource as ImageSourcePropType}
+                style={styles.image}
+                onError={() => setImageFailed(true)}
               />
-            </View>
+            ) : (
+              <Image source={resolvedFallbackAsset} style={styles.image} />
+            )}
 
-            {/* STATUS */}
-            <View style={styles.statusRow}>
-              {isOnline ? (
-                <View style={styles.onlineContainer}>
-                  <View style={styles.onlineDot} />
-                  <Text style={styles.statusText}>
-                    Recently online
+            <LinearGradient
+              colors={['transparent', 'rgba(15, 13, 26, 0.95)']}
+              style={styles.gradient}
+            >
+              <View style={styles.infoContainer}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {safeName}, <Text style={styles.age}>{safeAge}</Text>
                   </Text>
+                  <Icon name="check-circle" size={14} color={Colors.primaryLight} style={styles.verifiedIcon} />
                 </View>
-              ) : null}
 
-              {isNew ? (
-                <View style={styles.newContainer}>
-                  <Text style={styles.statusText}>New</Text>
+                <View style={styles.statusRow}>
+                  {isOnline && (
+                    <View style={styles.onlineContainer}>
+                      <View style={styles.onlineDot} />
+                      <Text style={styles.statusText}>Online</Text>
+                    </View>
+                  )}
+                  {isNew && (
+                    <View style={styles.newContainer}>
+                      <Text style={styles.statusText}>New</Text>
+                    </View>
+                  )}
                 </View>
-              ) : null}
-            </View>
 
-            {/* DISTANCE */}
-            <View style={styles.distanceRow}>
-              <Icon
-                name="navigation"
-                size={12}
-                color="#fff"
-                style={styles.navIcon}
-              />
-              <Text style={styles.distance}>
-                {safeDistance}
-              </Text>
-            </View>
+                <View style={styles.distanceRow}>
+                  <Icon name="navigation" size={11} color={Colors.textSecondary} style={styles.navIcon} />
+                  <Text style={styles.distance}>{safeDistance}</Text>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
         </LinearGradient>
       </View>
@@ -215,20 +179,27 @@ const UserCard = ({
 
 export default UserCard;
 
-// ================= STYLES =================
 const styles = StyleSheet.create({
+  cardOuter: {
+    marginBottom: Spacing.lg,
+    ...Shadows.card,
+  },
   card: {
     width: CARD_WIDTH,
-    height: 240,
-    borderRadius: 16,
-    backgroundColor: '#fff',
+    height: 250,
+    borderRadius: Spacing.radiusLg,
     overflow: 'hidden',
-    marginBottom: 15,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
+  },
+  cardBorder: {
+    flex: 1,
+    borderRadius: Spacing.radiusLg,
+    padding: 1,
+  },
+  cardInner: {
+    flex: 1,
+    borderRadius: Spacing.radiusLg - 1,
+    overflow: 'hidden',
+    backgroundColor: Colors.surface,
   },
   image: {
     width: '100%',
@@ -240,9 +211,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 100,
+    height: 120,
     justifyContent: 'flex-end',
-    padding: 12,
+    padding: Spacing.md,
   },
   infoContainer: {
     flexDirection: 'column',
@@ -253,13 +224,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   name: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: Colors.text,
+    fontSize: 17,
+    fontWeight: '700',
     flexShrink: 1,
   },
   age: {
-    fontWeight: 'normal',
+    fontWeight: '400',
+    color: Colors.textSecondary,
   },
   verifiedIcon: {
     marginLeft: 6,
@@ -268,46 +240,47 @@ const styles = StyleSheet.create({
   distanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 2,
   },
   navIcon: {
     marginRight: 4,
     transform: [{ rotate: '45deg' }],
   },
   distance: {
-    color: '#fff',
-    fontSize: 13,
+    color: Colors.textSecondary,
+    fontSize: 12,
     fontWeight: '500',
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     flexWrap: 'wrap',
   },
   onlineContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: Colors.glass,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: Spacing.radiusFull,
     marginRight: 6,
   },
   onlineDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.green,
+    backgroundColor: Colors.online,
     marginRight: 4,
   },
   newContainer: {
-    backgroundColor: Colors.pink,
+    backgroundColor: Colors.badge,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: Spacing.radiusFull,
   },
   statusText: {
-    color: '#fff',
+    color: Colors.text,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',

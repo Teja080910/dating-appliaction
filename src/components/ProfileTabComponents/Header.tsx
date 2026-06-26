@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Colors, Spacing, Shadows } from '../../theme';
 
 const Header = () => {
   const { isSubscribed } = useContext(AppContext);
@@ -12,14 +13,15 @@ const Header = () => {
       <Text style={styles.headerText}>AMARA</Text>
       {isSubscribed && (
         <View style={styles.premiumBadge}>
-            <LinearGradient 
-              colors={['#FFD700', '#FFA500']} 
-              style={styles.badgeGradient}
-              start={{x: 0, y: 0}} end={{x: 1, y: 0}}
-            >
-                <Icon name="crown" size={12} color="#000" style={{marginRight: 4}} />
-                <Text style={styles.badgeText}>AMARA PREMIUM</Text>
-            </LinearGradient>
+          <LinearGradient
+            colors={[Colors.primary, Colors.secondary]}
+            style={styles.badgeGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Icon name="crown" size={12} color={Colors.white} style={{ marginRight: 4 }} />
+            <Text style={styles.badgeText}>PREMIUM</Text>
+          </LinearGradient>
         </View>
       )}
     </View>
@@ -30,35 +32,35 @@ export default Header;
 
 const styles = StyleSheet.create({
   headerContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surface,
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: Colors.divider,
     flexDirection: 'row',
     justifyContent: 'center',
   },
   headerText: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#FF5A79', // Amara Theme color
+    color: Colors.text,
     letterSpacing: 2,
   },
   premiumBadge: {
-      marginLeft: 10,
-      borderRadius: 12,
-      overflow: 'hidden',
+    marginLeft: Spacing.sm,
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
   },
   badgeGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
   },
   badgeText: {
-      fontSize: 10,
-      fontWeight: '900',
-      color: '#000',
-      letterSpacing: 0.5,
-  }
+    fontSize: 10,
+    fontWeight: '900',
+    color: Colors.white,
+    letterSpacing: 0.5,
+  },
 });

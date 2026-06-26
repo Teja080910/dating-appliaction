@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { Colors, Spacing, Typography } from '../../../theme';
 
 interface DisplayNameProps {
   value: string;
@@ -15,6 +16,7 @@ const DisplayName: React.FC<DisplayNameProps> = ({ value, onChange }) => {
         style={styles.input}
         value={value}
         onChangeText={onChange}
+        placeholderTextColor={Colors.textMuted}
       />
     </View>
   );
@@ -22,31 +24,30 @@ const DisplayName: React.FC<DisplayNameProps> = ({ value, onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    backgroundColor: '#fff',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.text,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 15,
-    color: '#888',
+    color: Colors.textSecondary,
     marginBottom: 16,
   },
   input: {
-    backgroundColor: '#f2f2f2',
-    borderRadius: 8,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusMd,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
     fontWeight: '500',
-    color: '#000',
+    color: Colors.text,
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: Colors.glassBorder,
   },
 });
 

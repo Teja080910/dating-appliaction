@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const bodyTypes = ['Slim', 'Curvy', 'Athletic', 'Average', 'Overweight', 'Other'];
 
@@ -12,16 +13,11 @@ const BodyType: React.FC<BodyTypeProps> = ({ onChange }) => {
   const { selectBodyTypes, setSelectBodyTypes } = useContext(AppContext);
 
   const toggleSelection = (type: string) => {
-    let nextSelection;
-    if (selectBodyTypes.includes(type)) {
-      nextSelection = selectBodyTypes.filter((item: string) => item !== type);
-    } else {
-      nextSelection = [...selectBodyTypes, type];
-    }
+    const nextSelection = selectBodyTypes.includes(type)
+      ? selectBodyTypes.filter((item: string) => item !== type)
+      : [...selectBodyTypes, type];
     setSelectBodyTypes(nextSelection);
-    if (onChange) {
-      onChange(nextSelection);
-    }
+    if (onChange) onChange(nextSelection);
   };
 
   return (
@@ -31,16 +27,10 @@ const BodyType: React.FC<BodyTypeProps> = ({ onChange }) => {
         {bodyTypes.map((type, index) => (
           <TouchableOpacity
             key={index}
-            style={[
-              styles.option,
-              selectBodyTypes.includes(type) && styles.optionSelected
-            ]}
+            style={[styles.option, selectBodyTypes.includes(type) && styles.optionSelected]}
             onPress={() => toggleSelection(type)}
           >
-            <Text style={[
-              styles.optionText,
-              selectBodyTypes.includes(type) && styles.optionTextSelected
-            ]}>
+            <Text style={[styles.optionText, selectBodyTypes.includes(type) && styles.optionTextSelected]}>
               {type}
             </Text>
           </TouchableOpacity>
@@ -52,38 +42,46 @@ const BodyType: React.FC<BodyTypeProps> = ({ onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    margin: 20,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 12,
-    color: '#222',
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
   optionsWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: Spacing.sm,
   },
   option: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1,
-    borderColor: '#ccc',
-    marginRight: 10,
-    marginBottom: 10,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
   optionSelected: {
-    backgroundColor: '#d33',
-    // borderColor: '#222',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    fontSize: 15,
-    color: '#222',
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   optionTextSelected: {
-    color: '#fff',
+    color: Colors.white,
+    fontWeight: '600',
   },
 });
 

@@ -1,6 +1,7 @@
-import React, {useContext} from 'react';
-import {View, Text, StyleSheet, Pressable} from 'react-native';
+import React, { useContext } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const ETHNICITIES = [
   'Asian',
@@ -16,28 +17,23 @@ const ETHNICITIES = [
 ];
 
 const EthnicitySelector = () => {
-  // const [selectedEthinicity, setSelectedEthinicity] = useState<string | null>('Asian');
+  const { selectedEthinicity, setSelectedEthinicity } = useContext(AppContext);
 
-  const {selectedEthinicity, setSelectedEthinicity} = useContext(AppContext);
   const toggleSelect = (item: string) => {
     setSelectedEthinicity((prev: string | null) => (prev === item ? null : item));
   };
 
   return (
-    <View style={styles.section}>
-      {/* <Text style={styles.label}>🧬 Your ethnicity</Text> */}
+    <View style={styles.container}>
       <Text style={styles.label}>Your ethnicity</Text>
       <View style={styles.optionsContainer}>
         {ETHNICITIES.map(item => (
           <Pressable
             key={item}
-            style={[styles.option, selectedEthinicity === item && styles.selectedOption]}
-            onPress={() => toggleSelect(item)}>
-            <Text
-              style={[
-                styles.optionText,
-                selectedEthinicity === item && styles.selectedText,
-              ]}>
+            style={[styles.option, selectedEthinicity === item && styles.optionSelected]}
+            onPress={() => toggleSelect(item)}
+          >
+            <Text style={[styles.optionText, selectedEthinicity === item && styles.optionTextSelected]}>
               {item}
             </Text>
           </Pressable>
@@ -48,38 +44,47 @@ const EthnicitySelector = () => {
 };
 
 const styles = StyleSheet.create({
-  section: {
-    marginVertical: 20,
-    paddingHorizontal: 16,
+  container: {
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontSize: 16, 
-    fontWeight: '600', 
-    marginBottom: 12
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
   optionsContainer: {
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 10
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
   option: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 30,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: '#f9f9f9',
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
-  selectedOption: {
-    backgroundColor: '#d9534f',
-    borderColor: '#d9534f',
+  optionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    color: '#333',
+    color: Colors.textSecondary,
     fontSize: 14,
+    fontWeight: '500',
   },
-  selectedText: {
-    color: '#fff',
+  optionTextSelected: {
+    color: Colors.white,
+    fontWeight: '600',
   },
 });
 

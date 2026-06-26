@@ -8,15 +8,17 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
-  Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing, Shadows } from '../../theme';
 import { useProfile } from '../../api/useProfile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuthSession } from '../../utils/session';
+import { useAlert } from '../../components/AlertModal';
 
 const AboutProfileScreen = ({ navigation }: any) => {
   const {
@@ -33,6 +35,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
   const [identityPending, setIdentityPending] = useState(false);
   const { updateUser, uploadImage } = useProfile();
   const resolveAttemptsRef = useRef(0);
+  const { alert, AlertComponent } = useAlert();
 
   const continueToNextStep = async () => {
     setLoading(false);
@@ -131,7 +134,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
   const handleFinishOnboarding = async (retryCount = 0): Promise<void> => {
     if (retryCount > 2) {
       setLoading(false);
-      Alert.alert('Sync Error', 'We are having trouble syncing your account. Please try again or contact support.');
+      alert('Sync Error', 'We are having trouble syncing your account. Please try again or contact support.');
       return;
     }
 
@@ -182,7 +185,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
       
       if (!firstImage) {
         setLoading(false);
-        Alert.alert('Photo Required', 'Please go back and add your profile photo first.');
+        alert('Photo Required', 'Please go back and add your profile photo first.');
         return;
       }
 
@@ -194,15 +197,10 @@ const AboutProfileScreen = ({ navigation }: any) => {
           }
         : undefined;
 
-      // If we don't have a new photo to upload as part of the profile setup and no previous setup exist, it might fail.
-      // But we will send it anyway because they might just be updating a profile that already has an image.
       try {
         const res = await updateUser.mutateAsync({ 
           uid: '', 
           dto: profileData, 
-          // If profilePhoto is undefined (it's an HTTP URL), we can't send it via multipart.
-          // Wait, 'photo' is a required part in some cases.
-          // The backend might accept empty if we only send the DTO.
           photo: profilePhoto
         });
         
@@ -223,7 +221,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
 
         if (isSessionSyncError(error)) {
           setLoading(false);
-          Alert.alert(
+          alert(
             'Sync Required',
             'Your account is taking longer than usual to sync. Would you like to try again?',
             [
@@ -244,7 +242,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
       }
     } catch (error) {
        console.warn('Unexpected error:', error);
-       Alert.alert('Error', 'Something went wrong');
+       alert('Error', 'Something went wrong');
     } finally {
        setLoading(false);
     }
@@ -252,148 +250,163 @@ const AboutProfileScreen = ({ navigation }: any) => {
 
   if (isResolving) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.pink} />
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.progressBackground}>
+              <View style={styles.progressBar} />
+            </View>
 
-      <View style={styles.progressBackground}>
-        <View style={styles.progressBar} />
-      </View>
+            <Text style={styles.heading}>Wow, looking sharp!</Text>
 
-      <Text style={styles.heading}>Wow, looking sharp!</Text>
+            <Text style={styles.subtext}>
+              Now tell us something about yourself. You can write about your hobbies, values and visions in life.
+            </Text>
 
-      <Text style={styles.subtext}>
-        Now tell us something about yourself. You can write about your hobbies, values and visions in life.
-      </Text>
+            {identityPending ? (
+              <Text style={styles.pendingText}>
+                Your account is still syncing. You can continue now, and we will finish profile sync as soon as your numeric account ID is available.
+              </Text>
+            ) : null}
 
-      {identityPending ? (
-        <Text style={styles.pendingText}>
-          Your account is still syncing. You can continue now, and we will finish profile sync as soon as your numeric account ID is available.
-        </Text>
-      ) : null}
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.input}
+                placeholder="Your profile text"
+                placeholderTextColor={Colors.textMuted}
+                value={profileText}
+                onChangeText={setProfileText}
+                maxLength={500}
+                multiline
+              />
+            </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Your profile text"
-        placeholderTextColor="#888"
-        value={profileText}
-        onChangeText={setProfileText}
-        maxLength={500}
-        multiline
-      />
+            <Text style={styles.charCount}>{profileText?.length || 0} / 500</Text>
 
-      <Text style={styles.charCount}>{profileText?.length || 0} / 500</Text>
+            <Text style={styles.footerText}>
+              For more info, questions, feedback, and perhaps to say hello, kindly send an e-mail to hi@amara.app.
+            </Text>
 
-      <Text style={styles.footerText}>
-        For more info, questions, feedback, and perhaps to say hello, kindly send an e-mail to hi@amara.app.
-      </Text>
-
-      <TouchableOpacity
-        style={[
-          styles.nextButton,
-          { opacity: profileText?.trim() ? 1 : 0.5 }
-        ]}
-        disabled={!profileText?.trim() || loading}
-        onPress={() => handleFinishOnboarding(0)}
-      >
-        {loading ? (
-          <ActivityIndicator color={Colors.white} />
-        ) : (
-          <Text style={styles.nextButtonText}>Next</Text>
-        )}
-      </TouchableOpacity>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={[styles.nextButton, (!profileText?.trim() || loading) && { opacity: 0.5 }]}
+              disabled={!profileText?.trim() || loading}
+              onPress={() => handleFinishOnboarding(0)}
+            >
+              <LinearGradient
+                colors={[Colors.primary, Colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.nextGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator color={Colors.white} />
+                ) : (
+                  <Text style={styles.nextButtonText}>Next</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+        {AlertComponent}
+      </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 20 : 0,
-    backgroundColor: Colors.white,
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+  safeArea: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.screenPaddingHorizontal,
+    paddingTop: Platform.OS === 'android' ? Spacing.lg : 0,
     justifyContent: 'flex-start',
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.background,
   },
   progressBackground: {
     height: 4,
-    backgroundColor: Colors.lightGrey,
+    backgroundColor: Colors.surfaceLighter,
     borderRadius: 2,
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: Spacing.sm + 2,
+    marginBottom: Spacing.xl,
     overflow: 'hidden',
   },
   progressBar: {
     width: '90%',
     height: '100%',
-    backgroundColor: Colors.pink,
+    backgroundColor: Colors.primary,
   },
   heading: {
     fontSize: 24,
     fontWeight: '900',
     color: Colors.text,
-    marginBottom: 10,
+    marginBottom: Spacing.sm + 2,
   },
   subtext: {
     fontSize: 16,
     color: Colors.textSecondary,
     lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   pendingText: {
     fontSize: 14,
     lineHeight: 20,
-    color: Colors.pink,
-    marginBottom: 16,
+    color: Colors.primary,
+    marginBottom: Spacing.lg,
+  },
+  inputBox: {
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    borderRadius: Spacing.radiusLg,
+    backgroundColor: Colors.inputBackground,
+    paddingHorizontal: Spacing.lg,
   },
   input: {
     height: 180,
-    borderWidth: 1.2,
-    borderColor: Colors.pink,
-    borderRadius: 12,
-    padding: 15,
+    paddingTop: Spacing.lg,
     textAlignVertical: 'top',
     fontSize: 16,
     color: Colors.text,
-    backgroundColor: Colors.background,
   },
   charCount: {
     textAlign: 'right',
-    color: Colors.grey,
-    marginTop: 6,
-    marginBottom: 30,
+    color: Colors.textMuted,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xl,
     fontWeight: '600',
   },
   footerText: {
     fontSize: 13,
-    color: Colors.grey,
+    color: Colors.textMuted,
     textAlign: 'center',
-    marginBottom: 25,
+    marginBottom: Spacing.xl,
     lineHeight: 18,
   },
   nextButton: {
-    backgroundColor: Colors.pink,
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
+    marginBottom: Spacing.xl,
+    ...Shadows.md,
+  },
+  nextGradient: {
     height: 56,
-    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-    shadowColor: Colors.pink,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
   },
   nextButtonText: {
     color: Colors.white,

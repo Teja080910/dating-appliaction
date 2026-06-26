@@ -8,7 +8,6 @@ import {
   BackHandler,
   StatusBar,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,12 +19,14 @@ import { Colors } from '../../utils/colors';
 import { STORAGE_KEYS, markTermsAccepted } from '../../utils/sessionState';
 import { usePrivacy } from '../../api/usePrivacy';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { useAlert } from '../../components/AlertModal';
 
 const PrivacyScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const isTransitioningRef = useRef(false);
   const { acceptTerms } = usePrivacy();
   const { setInitialScreen } = useContext(AppContext);
+  const { alert, AlertComponent } = useAlert();
 
   const isSessionSyncError = (error: any) => {
     const status = Number(error?.response?.status);
@@ -125,16 +126,16 @@ const PrivacyScreen = ({ navigation }: any) => {
     } catch (error: any) {
       console.warn('[privacy] Accept terms error:', describeError(error));
       isTransitioningRef.current = false;
-      Alert.alert('Error', 'Unable to proceed. Please try again.');
+      alert('Error', 'Unable to proceed. Please try again.');
       setLoading(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.gradientStart} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={[Colors.gradientStart, Colors.gradientMiddle, Colors.gradientEnd]} style={styles.hero}>
+        <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.hero}>
           <View style={styles.progressBarWrapper}>
             <View style={styles.progress} />
           </View>
@@ -192,6 +193,7 @@ const PrivacyScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      {AlertComponent}
     </SafeAreaView>
   );
 };

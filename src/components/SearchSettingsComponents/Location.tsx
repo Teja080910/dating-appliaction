@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, SafeAreaView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, SafeAreaView, Platform, ActivityIndicator } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -7,8 +7,9 @@ import MapView, { Marker } from 'react-native-maps';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { getCurrentLocation } from '../../utils/geolocation';
 import { useLocation } from '../../api/useLocation';
+import { Colors, Spacing } from '../../theme';
+import { useAlert } from '../AlertModal';
 
-const THEME_COLOR = '#DB4260';
 const DEFAULT_REGION = {
   latitude: 26.8467,
   longitude: 80.9462,
@@ -37,6 +38,7 @@ const buildLocationLabel = (payload: any, latitude: number, longitude: number) =
 };
 
 const Location = () => {
+  const { alert, AlertComponent } = useAlert();
   const { location, setLocation, locationModalVisible, setLocationModalVisible, previousLocations, setPreviousLocations } = useContext(AppContext);
   const [isTypingLocation, setIsTypingLocation] = useState(false);
   const [isMapVisible, setIsMapVisible] = useState(false);
@@ -91,12 +93,11 @@ const Location = () => {
       setCustomLocation(nextLocationLabel);
       setLocation(nextLocationLabel);
     } catch (error: any) {
-      Alert.alert('Location Error', getLocationErrorMessage(error, 'Unable to get your current location.'));
+      alert('Location Error', getLocationErrorMessage(error, 'Unable to get your current location.'));
     } finally {
       setIsResolvingLocation(false);
     }
   };
-
 
   return (
     <View style={styles.container}>
@@ -106,7 +107,7 @@ const Location = () => {
         style={styles.dropdown}
         onPress={() => setLocationModalVisible(true)}>
         <Text style={styles.text}>{location || 'My current location'}</Text>
-        <MaterialIcons name="arrow-drop-down" size={22} color="#444" />
+        <MaterialIcons name="arrow-drop-down" size={22} color={Colors.textSecondary} />
       </TouchableOpacity>
 
       <Modal visible={locationModalVisible} animationType="slide" transparent={false}>
@@ -115,11 +116,11 @@ const Location = () => {
             // SCREEN 1: Change Location
             <View style={styles.fullScreen}>
               {/* Header */}
-              <View style={styles.headerRed}>
+              <View style={styles.header}>
                 <TouchableOpacity onPress={() => setLocationModalVisible(false)} style={styles.headerIcon}>
-                  <Ionicons name="close" size={28} color="#fff" />
+                  <Ionicons name="close" size={28} color={Colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitleWhite}>Change location</Text>
+                <Text style={styles.headerTitle}>Change location</Text>
                 <View style={{ width: 40 }} />
               </View>
 
@@ -127,13 +128,13 @@ const Location = () => {
               <View style={styles.bodyContent}>
                  <TouchableOpacity style={styles.currentLocationBox} activeOpacity={0.8} onPress={applyResolvedLocation}>
                     <View style={styles.rowLeft}>
-                      <FontAwesome5 name="map-marker-alt" size={20} color={THEME_COLOR} style={styles.pinIcon} />
+                      <FontAwesome5 name="map-marker-alt" size={20} color={Colors.primary} style={styles.pinIcon} />
                       <Text style={styles.currentLocationText} numberOfLines={2}>{location}</Text>
                     </View>
                     {isResolvingLocation ? (
-                      <ActivityIndicator color={THEME_COLOR} />
+                      <ActivityIndicator color={Colors.primary} />
                     ) : (
-                      <Ionicons name="locate" size={24} color={THEME_COLOR} />
+                      <Ionicons name="locate" size={24} color={Colors.primary} />
                     )}
                  </TouchableOpacity>
 
@@ -141,20 +142,20 @@ const Location = () => {
                 {previousLocations.map((prev: string, index: number) => (
                     <TouchableOpacity key={index} style={styles.historyItem} onPress={() => handleSelect(prev)}>
                         <View style={styles.rowLeft}>
-                          <Ionicons name="time-outline" size={20} color="#888" style={styles.pinIcon} />
+                          <Ionicons name="time-outline" size={20} color={Colors.textMuted} style={styles.pinIcon} />
                           <Text style={styles.historyText} numberOfLines={1}>{prev}</Text>
                         </View>
-                        <MaterialIcons name="chevron-right" size={22} color="#CCC" />
+                        <MaterialIcons name="chevron-right" size={22} color={Colors.textMuted} />
                     </TouchableOpacity>
                 ))}
 
               </View>
 
-              {/* Bottom Red Button */}
+              {/* Bottom Button */}
               <View style={styles.bottomContainer}>
-                <TouchableOpacity style={styles.redButtonLg} onPress={() => setIsTypingLocation(true)}>
-                  <FontAwesome5 name="map-marker-alt" size={18} color="#fff" style={styles.pinIconBtn} />
-                  <Text style={styles.redButtonLgText}>Add a new location</Text>
+                <TouchableOpacity style={styles.gradientButton} onPress={() => setIsTypingLocation(true)}>
+                  <FontAwesome5 name="map-marker-alt" size={18} color={Colors.white} style={styles.pinIconBtn} />
+                  <Text style={styles.gradientButtonText}>Add a new location</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -162,16 +163,16 @@ const Location = () => {
             // SCREEN 2: Search / Map View
             <View style={styles.fullScreen}>
               {/* Header Search */}
-              <View style={styles.headerWhiteSearch}>
+              <View style={styles.headerSearch}>
                  <TouchableOpacity onPress={() => { setIsTypingLocation(false); setIsMapVisible(false); setCustomLocation(''); }} style={styles.headerIcon}>
-                    <Ionicons name="close" size={28} color="#000" />
+                    <Ionicons name="close" size={28} color={Colors.text} />
                  </TouchableOpacity>
                  <View style={styles.searchBarContainer}>
-                    <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
+                    <Ionicons name="search" size={20} color={Colors.textMuted} style={styles.searchIcon} />
                     <TextInput 
                       style={styles.searchInput}
                       placeholder="Search for a location"
-                      placeholderTextColor="#888"
+                      placeholderTextColor={Colors.textMuted}
                       value={customLocation}
                       onChangeText={setCustomLocation}
                       autoFocus
@@ -185,24 +186,24 @@ const Location = () => {
                  <TouchableOpacity style={styles.headerIconRight} onPress={() => {
                    void applyResolvedLocation();
                  }}>
-                    <FontAwesome5 name="map-marker-alt" size={22} color="#444" />
+                    <FontAwesome5 name="map-marker-alt" size={22} color={Colors.primary} />
                  </TouchableOpacity>
               </View>
 
               {/* Map or Blank State */}
               {!isMapVisible ? (
                 <View style={styles.searchContentCenter}>
-                   <FontAwesome5 name="map-marker-alt" size={80} color="#888" style={{marginBottom: 20}} />
+                   <FontAwesome5 name="map-marker-alt" size={80} color={Colors.textMuted} style={{marginBottom: 20}} />
                    <Text style={styles.selectLocationTitle}>Select location</Text>
                    <Text style={styles.selectLocationDesc}>
                      Use the search bar above to find a location{'\n'}and view it on the map.
                    </Text>
                    
-                   <TouchableOpacity style={styles.useCurrentBtn} onPress={() => {
+                   <TouchableOpacity style={styles.gradientButton} onPress={() => {
                       void applyResolvedLocation();
                     }}>
-                     <FontAwesome5 name="map-marker-alt" size={16} color="#fff" style={styles.pinIconBtn} />
-                     <Text style={styles.useCurrentBtnText}>
+                     <FontAwesome5 name="map-marker-alt" size={16} color={Colors.white} style={styles.pinIconBtn} />
+                     <Text style={styles.gradientButtonText}>
                        {isResolvingLocation ? 'Getting current location...' : 'Use current location'}
                      </Text>
                    </TouchableOpacity>
@@ -220,17 +221,16 @@ const Location = () => {
                   {/* Floating Bottom Card */}
                   <View style={styles.floatingBottomBox}>
                     <View style={styles.addressRow}>
-                       <FontAwesome5 name="map-marker-alt" size={20} color={THEME_COLOR} style={{ marginRight: 12, marginTop: 3 }} />
+                       <FontAwesome5 name="map-marker-alt" size={20} color={Colors.primary} style={{ marginRight: 12, marginTop: 3 }} />
                     <Text style={styles.addressText} numberOfLines={3}>
                           {customLocation || `Current location (${formatCoordinateLabel(mapRegion.latitude, mapRegion.longitude)})`}
                     </Text>
 
-
                     </View>
-                    <TouchableOpacity style={styles.selectLocBtn} onPress={() => {
+                    <TouchableOpacity style={styles.gradientButton} onPress={() => {
                       handleSelect(customLocation || `Current location (${formatCoordinateLabel(mapRegion.latitude, mapRegion.longitude)})`);
                     }}>
-                      <Text style={styles.selectLocBtnText}>Select location</Text>
+                      <Text style={styles.gradientButtonText}>Select location</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -239,49 +239,68 @@ const Location = () => {
           )}
         </SafeAreaView>
       </Modal>
+      {AlertComponent}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 20,
-    marginHorizontal: 20,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontSize: 14,
-    color: '#777',
-    marginBottom: 8,
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
   dropdown: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: '#f2f2f2',
-    borderRadius: 8,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md + 2,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusLg,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   text: {
     fontSize: 16,
-    color: '#000',
+    color: Colors.text,
   },
   modalSafeArea: {
     flex: 1,
-    backgroundColor: THEME_COLOR,
+    backgroundColor: Colors.background,
   },
   fullScreen: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
   },
-  /* --- SCREEN 1 STYLES --- */
-  headerRed: {
-    backgroundColor: THEME_COLOR,
+  header: {
+    backgroundColor: Colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
+    paddingHorizontal: Spacing.lg,
     height: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.glassBorder,
+  },
+  headerSearch: {
+    backgroundColor: Colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    height: 65,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.glassBorder,
   },
   headerIcon: {
     padding: 5,
@@ -289,43 +308,45 @@ const styles = StyleSheet.create({
   headerIconRight: {
     padding: 10,
   },
-  headerTitleWhite: {
+  headerTitle: {
     fontSize: 18,
-    color: '#fff',
+    color: Colors.text,
     fontWeight: '600',
   },
   bodyContent: {
-    paddingHorizontal: 20,
-    paddingTop: 25,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
     flex: 1,
   },
   sectionLabel: {
     fontSize: 16,
-    color: '#888',
-    marginBottom: 10,
+    color: Colors.textMuted,
+    marginBottom: Spacing.md,
     fontWeight: '500',
   },
   currentLocationBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1.5,
-    borderColor: THEME_COLOR,
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 15,
-    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: Spacing.radiusLg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    marginBottom: Spacing.xl,
+    backgroundColor: Colors.inputBackground,
   },
   rowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   pinIcon: {
-    marginRight: 15,
+    marginRight: Spacing.md,
   },
   currentLocationText: {
     fontSize: 14,
-    color: '#000',
+    color: Colors.text,
     flex: 1,
     lineHeight: 20,
     fontWeight: '600',
@@ -334,60 +355,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15,
+    paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomColor: Colors.divider,
   },
   historyText: {
     fontSize: 15,
-    color: '#444',
+    color: Colors.textSecondary,
     flex: 1,
   },
-
   bottomContainer: {
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
+    padding: Spacing.xl,
+    paddingBottom: Platform.OS === 'ios' ? 30 : Spacing.xl,
   },
-  redButtonLg: {
-    backgroundColor: THEME_COLOR,
+  gradientButton: {
+    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 8,
+    paddingVertical: Spacing.lg,
+    borderRadius: Spacing.radiusLg,
   },
   pinIconBtn: {
-    marginRight: 10,
+    marginRight: Spacing.sm,
   },
-  redButtonLgText: {
-    color: '#fff',
+  gradientButtonText: {
+    color: Colors.white,
     fontSize: 16,
     fontWeight: '700',
-  },
-  /* --- SCREEN 2 STYLES --- */
-  headerWhiteSearch: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    height: 65,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   searchBarContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 10,
+    marginHorizontal: Spacing.sm,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusLg,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: Spacing.sm,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000',
-    padding: 10,
+    color: Colors.text,
+    padding: Spacing.sm + 2,
   },
   searchContentCenter: {
     flex: 1,
@@ -398,31 +413,16 @@ const styles = StyleSheet.create({
   selectLocationTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111',
-    marginBottom: 10,
+    color: Colors.text,
+    marginBottom: Spacing.sm + 2,
   },
   selectLocationDesc: {
     fontSize: 15,
-    color: '#888',
+    color: Colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 25,
+    marginBottom: Spacing.xl,
   },
-  useCurrentBtn: {
-    backgroundColor: THEME_COLOR,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 25,
-    borderRadius: 8,
-  },
-  useCurrentBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  /* --- MAP STYLES --- */
   map: {
     flex: 1,
   },
@@ -431,38 +431,28 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'ios' ? 40 : 20,
     left: 15,
     right: 15,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
+    backgroundColor: Colors.surface,
+    borderRadius: Spacing.radiusXl,
+    padding: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
   },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   addressText: {
     flex: 1,
     fontSize: 15,
-    color: '#222',
+    color: Colors.text,
     fontWeight: '600',
     lineHeight: 22,
-  },
-  selectLocBtn: {
-    backgroundColor: THEME_COLOR,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 10,
-  },
-  selectLocBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
 

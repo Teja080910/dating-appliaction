@@ -1,15 +1,36 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, StyleSheet, View, Platform, Dimensions } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import HomeScreen from '../HomeTab/HomeScreen';
 import MessageScreen from '../MessageTab/MessageScreen';
 import ProfileScreen from '../ProfileTab/ProfileScreen';
 import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing, Shadows } from '../../theme';
 
 const Tab = createBottomTabNavigator();
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 const isCompactDevice = windowWidth < 380 || windowHeight < 760;
+
+const TabIcon = ({ source, focused }: { source: any; focused: boolean }) => (
+  <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
+    {focused && (
+      <LinearGradient
+        colors={[Colors.primary, Colors.secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.activeGlow}
+      />
+    )}
+    <Image
+      source={source}
+      style={[
+        styles.icon,
+        { tintColor: focused ? Colors.white : Colors.textMuted },
+      ]}
+    />
+  </View>
+);
 
 const BottomTabs = () => {
   return (
@@ -18,6 +39,7 @@ const BottomTabs = () => {
         tabBarShowLabel: false,
         headerShown: false,
         tabBarStyle: styles.tabBar,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tab.Screen
@@ -25,12 +47,7 @@ const BottomTabs = () => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <View style={focused && styles.activeIconContainer}>
-                <Image
-                source={require('../../assets/HomeTabImages/HomeTab.png')}
-                style={[styles.icon, { tintColor: focused ? '#FF5A79' : '#999' }]}
-                />
-            </View>
+            <TabIcon source={require('../../assets/HomeTabImages/HomeTab.png')} focused={focused} />
           ),
         }}
       />
@@ -39,12 +56,7 @@ const BottomTabs = () => {
         component={MessageScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <View style={focused && styles.activeIconContainer}>
-                <Image
-                source={require('../../assets/MessageTabImages/MessageTab.png')}
-                style={[styles.icon, { tintColor: focused ? '#FF5A79' : '#999' }]}
-                />
-            </View>
+            <TabIcon source={require('../../assets/MessageTabImages/MessageTab.png')} focused={focused} />
           ),
         }}
       />
@@ -53,12 +65,7 @@ const BottomTabs = () => {
         component={MoreInfoScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <View style={focused && styles.activeIconContainer}>
-                <Image
-                source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')}
-                style={[styles.icon, { tintColor: focused ? '#FF5A79' : '#999' }]}
-                />
-            </View>
+            <TabIcon source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')} focused={focused} />
           ),
         }}
       />
@@ -67,12 +74,7 @@ const BottomTabs = () => {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <View style={focused && styles.activeIconContainer}>
-                <Image
-                source={require('../../assets/ProfileTabImages/ProfileTab.png')}
-                style={[styles.iconProfile, { tintColor: focused ? '#FF5A79' : '#999' }]}
-                />
-            </View>
+            <TabIcon source={require('../../assets/ProfileTabImages/ProfileTab.png')} focused={focused} />
           ),
         }}
       />
@@ -82,33 +84,40 @@ const BottomTabs = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: Platform.OS === 'ios' ? (isCompactDevice ? 80 : 85) : (isCompactDevice ? 64 : 70),
-    backgroundColor: Colors.surface,
+    height: Platform.OS === 'ios' ? (isCompactDevice ? 80 : 88) : (isCompactDevice ? 64 : 72),
+    backgroundColor: Colors.tabBarBackground,
     borderTopWidth: 0,
-    elevation: 20,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 1,
-    shadowRadius: 18,
-    paddingBottom: Platform.OS === 'ios' ? (isCompactDevice ? 20 : 25) : (isCompactDevice ? 8 : 10),
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    borderTopLeftRadius: Spacing.radiusXxl,
+    borderTopRightRadius: Spacing.radiusXxl,
     position: 'absolute',
+    paddingBottom: Platform.OS === 'ios' ? (isCompactDevice ? 20 : 28) : (isCompactDevice ? 8 : 12),
+    paddingTop: Spacing.sm,
+    ...Shadows.lg,
+  },
+  iconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  activeIconWrapper: {
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+  },
+  activeGlow: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    opacity: 0.2,
   },
   icon: {
-    width: isCompactDevice ? 24 : 26,
-    height: isCompactDevice ? 24 : 26,
+    width: isCompactDevice ? 22 : 24,
+    height: isCompactDevice ? 22 : 24,
+    zIndex: 1,
   },
-  iconProfile: {
-    width: isCompactDevice ? 28 : 32,
-    height: isCompactDevice ? 24 : 26,
-  },
-  activeIconContainer: {
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 20,
-      backgroundColor: Colors.lightPink,
-  }
 });
 
 export default BottomTabs;

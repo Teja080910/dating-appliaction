@@ -1,11 +1,12 @@
-import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-import Icon from 'react-native-vector-icons/Feather';
-import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
-import { RootParamList } from '../../../utils/types/navigation.types';
+import { StackNavigationProp } from '@react-navigation/stack';
+import React, { useContext } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import AppContext from '../../../context/CreateGlobalStateContext';
+import { Colors } from '../../../theme';
+import { RootParamList } from '../../../utils/types/navigation.types';
 
 const ViewMyProfile = () => {
   const navigation = useNavigation<StackNavigationProp<RootParamList>>();
@@ -27,6 +28,7 @@ const ViewMyProfile = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
@@ -34,9 +36,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
+    borderBottomColor: Colors.glassBorder
   },
   left: {
     flexDirection: 'row',
@@ -48,7 +50,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-    color: '#000',
+    color: Colors.text,
     fontWeight: '500'
   },
   chevron: {}

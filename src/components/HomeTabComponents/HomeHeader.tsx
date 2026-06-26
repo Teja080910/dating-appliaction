@@ -1,12 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import AttractiveLogo from '../AttractiveLogo';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing, Shadows, Typography } from '../../theme';
 
 interface Props {
   selectedFilter: 'online' | 'newest';
@@ -18,84 +20,89 @@ type HomeHeaderNavigationProp = StackNavigationProp<RootParamList, 'SearchSettin
 
 const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
   const navigation = useNavigation<HomeHeaderNavigationProp>();
+  const insets = useSafeAreaInsets();
 
   const handleSearchSettingsPress = () => {
     navigation.navigate('SearchSettings');
   };
 
   return (
-    <View style={styles.wrapper}>
-      
-      {/* 🔝 TOP BAR */}
+    <View style={[styles.wrapper, { paddingTop: insets.top + Spacing.md }]}>
       <View style={styles.topBar}>
         <View style={styles.logoContainer}>
-          <AttractiveLogo size={40} />
+          <AttractiveLogo size={36} />
           <View style={styles.logoTextWrap}>
             <Text style={styles.logoText}>AMARA</Text>
             <Text style={styles.logoSubtext}>Curated private matches</Text>
           </View>
         </View>
 
-        <TouchableOpacity 
-          onPress={handleSearchSettingsPress} 
+        <TouchableOpacity
+          onPress={handleSearchSettingsPress}
           style={styles.settingsButton}
           activeOpacity={0.7}
         >
-          <Icon name="sliders" size={22} color="#666" />
+          <LinearGradient
+            colors={[Colors.glass, Colors.glassLight]}
+            style={styles.settingsGradient}
+          >
+            <Icon name="sliders" size={20} color={Colors.textSecondary} />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
-      {/* 🎛 SEGMENT CONTROL */}
       <View style={styles.segmentedControl}>
-
-        {/* ONLINE */}
         <TouchableOpacity
           activeOpacity={0.8}
           style={[
             styles.toggleButton,
             selectedFilter === 'online' ? styles.activeButton : styles.inactiveButton,
-            styles.leftButton
           ]}
           onPress={() => onFilterChange('online')}
         >
-          <MaterialCommunityIcons 
-            name="access-point" 
-            size={18} 
-            color={selectedFilter === 'online' ? '#fff' : '#999'} 
-            style={styles.toggleIcon} 
-          />
-          <Text style={[
-            styles.toggleText,
-            selectedFilter === 'online' ? styles.activeText : styles.inactiveText,
-          ]}>
-            Online
-          </Text>
+          {selectedFilter === 'online' ? (
+            <LinearGradient
+              colors={[Colors.primary, Colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.activeGradient}
+            >
+              <MaterialCommunityIcons name="access-point" size={16} color={Colors.white} style={styles.toggleIcon} />
+              <Text style={styles.activeText}>Active now</Text>
+            </LinearGradient>
+          ) : (
+            <View style={styles.inactiveContent}>
+              <MaterialCommunityIcons name="access-point" size={16} color={Colors.textMuted} style={styles.toggleIcon} />
+              <Text style={styles.inactiveText}>Active now</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
-        {/* NEWEST */}
         <TouchableOpacity
           activeOpacity={0.8}
           style={[
             styles.toggleButton,
             selectedFilter === 'newest' ? styles.activeButton : styles.inactiveButton,
-            styles.rightButton
           ]}
           onPress={() => onFilterChange('newest')}
         >
-          <MaterialCommunityIcons 
-            name="fire" 
-            size={18} 
-            color={selectedFilter === 'newest' ? '#fff' : '#999'} 
-            style={styles.toggleIcon} 
-          />
-          <Text style={[
-            styles.toggleText,
-            selectedFilter === 'newest' ? styles.activeText : styles.inactiveText,
-          ]}>
-            Newest
-          </Text>
+          {selectedFilter === 'newest' ? (
+            <LinearGradient
+              colors={[Colors.primary, Colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.activeGradient}
+            >
+              <MaterialCommunityIcons name="fire" size={16} color={Colors.white} style={styles.toggleIcon} />
+              <Text style={styles.activeText}>Just joined</Text>
+            </LinearGradient>
+          ) : (
+            <View style={styles.inactiveContent}>
+              <MaterialCommunityIcons name="fire" size={16} color={Colors.textMuted} style={styles.toggleIcon} />
+              <Text style={styles.inactiveText}>Just joined</Text>
+            </View>
+          )}
         </TouchableOpacity>
-
       </View>
     </View>
   );
@@ -103,27 +110,24 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 18,
+    paddingHorizontal: Spacing.screenPaddingHorizontal,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
     backgroundColor: Colors.background,
   },
-
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: Spacing.lg,
   },
-
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   logoTextWrap: {
-    marginLeft: 10,
+    marginLeft: Spacing.md,
   },
-
   logoText: {
     fontSize: 22,
     fontWeight: '900',
@@ -136,77 +140,67 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-
   settingsButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    width: 44,
+    height: 44,
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
   },
-
+  settingsGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    borderRadius: Spacing.radiusFull,
+  },
   segmentedControl: {
     flexDirection: 'row',
-    height: 52,
-    borderRadius: 30,
-    overflow: 'hidden', // 🔥 smooth pill look
+    height: 48,
+    borderRadius: Spacing.radiusXl,
     backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.glassBorder,
+    padding: 3,
   },
-
   toggleButton: {
+    flex: 1,
+    borderRadius: Spacing.radiusLg,
+    overflow: 'hidden',
+  },
+  activeButton: {},
+  inactiveButton: {
+    backgroundColor: 'transparent',
+  },
+  activeGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Spacing.radiusLg,
+  },
+  inactiveContent: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  leftButton: {
-    borderTopLeftRadius: 30,
-    borderBottomLeftRadius: 30,
-  },
-
-  rightButton: {
-    borderTopRightRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-
-  activeButton: {
-    backgroundColor: Colors.primary,
-    ...Platform.select({
-      android: { elevation: 3 },
-      ios: {
-        shadowColor: Colors.primary,
-        shadowOpacity: 0.2,
-        shadowOffset: { width: 0, height: 3 },
-        shadowRadius: 4,
-      },
-    }),
-  },
-
-  inactiveButton: {
-    backgroundColor: 'transparent',
-  },
-
   toggleIcon: {
     marginRight: 6,
   },
-
   toggleText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
-
   activeText: {
-    color: '#fff',
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
-
   inactiveText: {
-    color: Colors.grey,
+    color: Colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

@@ -2,6 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { getGender } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 interface ShowMeProps {
   onChange?: (val: string[]) => void;
@@ -13,25 +14,20 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
   useEffect(() => {
     const fetchGender = async () => {
       try {
-        const gender = await getGender(); // 'male' or 'female'
+        const gender = await getGender();
         const initialShow = gender === 'straight_man' ? 'straight_woman' : 'straight_man';
         setShowMe(initialShow);
-        if (onChange) {
-          onChange([initialShow]);
-        }
+        if (onChange) onChange([initialShow]);
       } catch (error) {
         console.error('Error fetching gender:', error);
       }
     };
-
     fetchGender();
   }, [onChange, setShowMe]);
 
   const handleSelect = (val: 'straight_man' | 'straight_woman') => {
     setShowMe(val);
-    if (onChange) {
-      onChange([val]);
-    }
+    if (onChange) onChange([val]);
   };
 
   return (
@@ -39,35 +35,19 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
       <Text style={styles.label}>Show me:</Text>
       <View style={styles.buttonGroup}>
         <TouchableOpacity
-          style={[
-            styles.button,
-            showMe === 'straight_man' && styles.selectedButton,
-          ]}
+          style={[styles.button, showMe === 'straight_man' && styles.selectedButton]}
           onPress={() => handleSelect('straight_man')}
         >
-          <Text
-            style={[
-              styles.buttonText,
-              showMe === 'straight_man' && styles.selectedText,
-            ]}
-          >
+          <Text style={[styles.buttonText, showMe === 'straight_man' && styles.selectedText]}>
             Only men
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.button,
-            showMe === 'straight_woman' && styles.selectedButton,
-          ]}
+          style={[styles.button, showMe === 'straight_woman' && styles.selectedButton]}
           onPress={() => handleSelect('straight_woman')}
         >
-          <Text
-            style={[
-              styles.buttonText,
-              showMe === 'straight_woman' && styles.selectedText,
-            ]}
-          >
+          <Text style={[styles.buttonText, showMe === 'straight_woman' && styles.selectedText]}>
             Only women
           </Text>
         </TouchableOpacity>
@@ -78,48 +58,44 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    alignItems: 'flex-start',
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontSize: 16,
-    marginBottom: 10,
+    fontSize: 15,
+    marginBottom: Spacing.md,
     fontWeight: '600',
+    color: Colors.textSecondary,
   },
   buttonGroup: {
     flexDirection: 'row',
   },
   button: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 30,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1.5,
-    borderColor: '#ccc',
-    backgroundColor: '#fff',
-    marginRight: 10,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginRight: Spacing.md,
   },
   selectedButton: {
-    backgroundColor: '#e53945',
-    borderColor: '#e53945',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   buttonText: {
-    color: '#000',
-    fontSize: 15,
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   selectedText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: Colors.white,
   },
 });
 
 export default ShowMe;
-
-
-
-
-
-
-
-
-
-

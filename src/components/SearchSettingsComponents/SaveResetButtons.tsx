@@ -1,7 +1,9 @@
 import React, { useContext } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useNavigation } from '@react-navigation/native';
+import { Colors, Spacing, Shadows } from '../../theme';
 
 interface SaveResetButtonsProps {
   onSave?: () => void;
@@ -11,34 +13,19 @@ interface SaveResetButtonsProps {
 const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset }) => {
   const navigation = useNavigation();
   const {
-    setAgeRange,
-    setLocation,
-    setDistanceRange,
-    setBodyHeight,
-    setSearchLanguages,
-    setSelectedOptions,
-    setSelectBodyTypes,
-    setEnglishProficiency,
-    setEthnicity,
-    setLookingFor,
-    setShowMe,
-    setSmoke,
+    setAgeRange, setLocation, setDistanceRange, setBodyHeight,
+    setSearchLanguages, setSelectedOptions, setSelectBodyTypes,
+    setEnglishProficiency, setEthnicity, setLookingFor, setShowMe, setSmoke,
   } = useContext(AppContext);
 
   const handleSave = () => {
-    if (onSave) {
-      onSave();
-    } else {
-      console.log('Settings saved (context-only)');
-      navigation.goBack();
-    }
+    if (onSave) onSave();
+    else navigation.goBack();
   };
 
   const handleReset = () => {
-    if (onReset) {
-      onReset();
-    } else {
-      console.log('Settings reset');
+    if (onReset) onReset();
+    else {
       setAgeRange([18, 55]);
       setLocation('My current location');
       setDistanceRange(1100);
@@ -60,7 +47,14 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset }) 
         <Text style={styles.resetButtonText}>Reset</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save</Text>
+        <LinearGradient
+          colors={[Colors.primary, Colors.secondary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.saveGradient}
+        >
+          <Text style={styles.saveButtonText}>Save</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -70,37 +64,47 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 8, // adds space above nav bar
-    marginBottom: 10,  // moves the buttons up from bottom
-    backgroundColor: '#f2f2f2',
+    paddingHorizontal: Spacing.screenPaddingHorizontal,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
   },
   button: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 30,
-    marginHorizontal: 8,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusXl,
+    marginHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    height: 50,
   },
   resetButton: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.inputBackground,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: Colors.glassBorder,
   },
   saveButton: {
-    backgroundColor: '#FF5A79', // Amara Theme color
+    overflow: 'hidden',
+    ...Shadows.md,
+  },
+  saveGradient: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: Spacing.radiusXl,
   },
   resetButtonText: {
-    color: '#666',
+    color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },
   saveButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 

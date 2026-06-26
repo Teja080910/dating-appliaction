@@ -8,7 +8,7 @@ import { MAX_PROFILE_IMAGES } from '../api/useImages';
 const GlobalStateProvider = ({ children }: any) => {
 
   // ================= BASIC USER =================
-  const [initialScreen, setInitialScreen] = useState<string | null>('Login');
+  const [initialScreen, setInitialScreen] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');

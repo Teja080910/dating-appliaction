@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  FlatList, 
-  TouchableOpacity, 
-  TextInput, 
-  KeyboardAvoidingView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
   Platform,
-  StatusBar
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
+import { Colors, Spacing, Shadows, Typography } from '../../theme';
 
 const ChatDetailScreen = () => {
   const navigation = useNavigation();
@@ -33,15 +35,13 @@ const ChatDetailScreen = () => {
 
   const sendMessage = () => {
     if (inputText.trim() === '') return;
-
     requireSubscription(() => {
       const newMsg = {
         id: Date.now().toString(),
         text: inputText,
         sender: 'me',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-
       setMessages([...messages, newMsg]);
       setInputText('');
     });
@@ -49,40 +49,38 @@ const ChatDetailScreen = () => {
 
   const renderMessage = ({ item }: { item: any }) => (
     <View style={[styles.msgWrapper, item.sender === 'me' ? styles.myMsgWrapper : styles.otherMsgWrapper]}>
-        <View style={[styles.msgBubble, item.sender === 'me' ? styles.myBubble : styles.otherBubble]}>
-            <Text style={[styles.msgText, item.sender === 'me' && styles.myMsgText]}>{item.text}</Text>
-            <Text style={[styles.msgTime, item.sender === 'me' && styles.myMsgTime]}>{item.time}</Text>
-        </View>
+      <View style={[styles.msgBubble, item.sender === 'me' ? styles.myBubble : styles.otherBubble]}>
+        <Text style={[styles.msgText, item.sender === 'me' && styles.myMsgText]}>{item.text}</Text>
+        <Text style={[styles.msgTime, item.sender === 'me' && styles.myMsgTime]}>{item.time}</Text>
+      </View>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Custom Header */}
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+
       <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Icon name="chevron-left" size={28} color="#000" />
-          </TouchableOpacity>
-          
-          <View style={styles.headerProfile}>
-              <Image source={{ uri: image }} style={styles.headerAvatar} />
-              <View>
-                  <Text style={styles.headerName}>{name}</Text>
-                  <View style={styles.onlineStatus}>
-                      <View style={styles.onlineDot} />
-                      <Text style={styles.onlineText}>Online</Text>
-                  </View>
-              </View>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Icon name="chevron-left" size={28} color={Colors.text} />
+        </TouchableOpacity>
+
+        <View style={styles.headerProfile}>
+          <Image source={{ uri: image }} style={styles.headerAvatar} />
+          <View>
+            <Text style={styles.headerName}>{name}</Text>
+            <View style={styles.onlineStatus}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.onlineText}>Online</Text>
+            </View>
           </View>
-          
-          <TouchableOpacity style={styles.moreHeaderBtn}>
-              <Icon name="dots-vertical" size={24} color="#666" />
-          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.moreHeaderBtn}>
+          <Icon name="dots-vertical" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
-      {/* Chat Messages */}
       <FlatList
         data={messages}
         keyExtractor={(item) => item.id}
@@ -91,39 +89,43 @@ const ChatDetailScreen = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Input Area */}
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-          <View style={styles.inputContainer}>
-              <TouchableOpacity
-                style={styles.attachBtn}
-                onPress={() => {
-                  requireSubscription();
-                }}
-              >
-                  <Feather name="plus" size={24} color="#FF5A79" />
-              </TouchableOpacity>
-              
-              <View style={styles.inputWrapper}>
-                  <TextInput
-                    placeholder="Type a message..."
-                    style={styles.input}
-                    value={inputText}
-                    onChangeText={setInputText}
-                    multiline
-                    placeholderTextColor="#AAA"
-                  />
-              </View>
+        <View style={styles.inputContainer}>
+          <TouchableOpacity
+            style={styles.attachBtn}
+            onPress={() => { requireSubscription(); }}
+          >
+            <Feather name="plus" size={22} color={Colors.primary} />
+          </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.sendBtn, inputText.trim() === '' && styles.disabledSend]} 
-                onPress={sendMessage}
-              >
-                  <Icon name="send" size={20} color="#fff" />
-              </TouchableOpacity>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              placeholder="Type a message..."
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              placeholderTextColor={Colors.textMuted}
+            />
           </View>
+
+          <TouchableOpacity
+            style={[styles.sendBtn, inputText.trim() === '' && styles.disabledSend]}
+            onPress={sendMessage}
+          >
+            <LinearGradient
+              colors={inputText.trim() === '' ? [Colors.disabled, Colors.disabled] : [Colors.primary, Colors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.sendGradient}
+            >
+              <Icon name="send" size={18} color={Colors.white} />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -134,150 +136,159 @@ export default ChatDetailScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    backgroundColor: '#fff',
+    borderBottomColor: Colors.divider,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.sm,
+    borderRadius: Spacing.radiusXl,
   },
   backBtn: {
-      padding: 5,
+    padding: 4,
   },
   headerProfile: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginLeft: 10,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: Spacing.md,
   },
   headerAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      marginRight: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: Spacing.md,
+    borderWidth: 2,
+    borderColor: Colors.glassBorder,
   },
   headerName: {
-      fontSize: 18,
-      fontWeight: '800',
-      color: '#000',
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
   },
   onlineStatus: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   onlineDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: '#2ECC71',
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: Colors.online,
   },
   onlineText: {
-      fontSize: 12,
-      color: '#2ECC71',
-      fontWeight: '600',
+    fontSize: 12,
+    color: Colors.online,
+    fontWeight: '600',
   },
   moreHeaderBtn: {
-      padding: 5,
+    padding: 4,
   },
   chatArea: {
-      padding: 20,
-      paddingBottom: 30,
+    padding: Spacing.lg,
+    paddingBottom: 30,
   },
   msgWrapper: {
-      marginBottom: 20,
-      width: '100%',
+    marginBottom: Spacing.lg,
+    width: '100%',
   },
   myMsgWrapper: {
-      alignItems: 'flex-end',
+    alignItems: 'flex-end',
   },
   otherMsgWrapper: {
-      alignItems: 'flex-start',
+    alignItems: 'flex-start',
   },
   msgBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusLg,
     maxWidth: '80%',
-    position: 'relative',
   },
   myBubble: {
-    backgroundColor: '#FF5A79',
-    borderTopRightRadius: 4,
+    backgroundColor: Colors.primary,
+    borderBottomRightRadius: 4,
   },
   otherBubble: {
-    backgroundColor: '#F3F3F3',
-    borderTopLeftRadius: 4,
+    backgroundColor: Colors.surfaceLight,
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   msgText: {
-      fontSize: 15,
-      color: '#222',
-      lineHeight: 20,
-      fontWeight: '500',
+    fontSize: 15,
+    color: Colors.text,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   myMsgText: {
-      color: '#fff',
+    color: Colors.white,
   },
   msgTime: {
-      fontSize: 10,
-      color: '#AAA',
-      marginTop: 5,
-      textAlign: 'right',
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 4,
+    textAlign: 'right',
   },
   myMsgTime: {
-      color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.6)',
   },
   inputContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 10,
-      paddingBottom: Platform.OS === 'ios' ? 0 : 20,
-      borderTopWidth: 1,
-      borderTopColor: '#EEEEEE',
-      backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.xs : Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginBottom: Spacing.md,
+    borderRadius: Spacing.radiusXl,
   },
   attachBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: '#FFF2F4',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.inputBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   inputWrapper: {
-      flex: 1,
-      backgroundColor: '#F8F8F8',
-      borderRadius: 25,
-      paddingHorizontal: 15,
-      marginRight: 10,
-      maxHeight: 100,
+    flex: 1,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusLg,
+    paddingHorizontal: Spacing.lg,
+    marginRight: Spacing.md,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   input: {
-      fontSize: 15,
-      color: '#000',
-      paddingVertical: 10,
+    fontSize: 15,
+    color: Colors.text,
+    paddingVertical: Spacing.md,
   },
   sendBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: '#FF5A79',
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#FF5A79',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 5,
-      elevation: 5,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: 'hidden',
+  },
+  sendGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   disabledSend: {
-      backgroundColor: '#EBD0D4',
-      shadowOpacity: 0,
-      elevation: 0,
-  }
+    opacity: 0.5,
+  },
 });

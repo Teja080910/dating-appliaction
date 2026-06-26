@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const englishLevels = ['Bad', 'Medium', 'Good', 'Very good'];
 
@@ -12,16 +13,11 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
   const { englishProficiency, setEnglishProficiency } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
-    let nextProficiency;
-    if (englishProficiency.includes(option)) {
-      nextProficiency = englishProficiency.filter((item: string) => item !== option);
-    } else {
-      nextProficiency = [...englishProficiency, option];
-    }
+    const nextProficiency = englishProficiency.includes(option)
+      ? englishProficiency.filter((item: string) => item !== option)
+      : [...englishProficiency, option];
     setEnglishProficiency(nextProficiency);
-    if (onChange) {
-      onChange(nextProficiency);
-    }
+    if (onChange) onChange(nextProficiency);
   };
 
   return (
@@ -31,18 +27,10 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
         {englishLevels.map((level, index) => (
           <TouchableOpacity
             key={index}
-            style={[
-              styles.option,
-              englishProficiency.includes(level) && styles.optionSelected,
-            ]}
+            style={[styles.option, englishProficiency.includes(level) && styles.optionSelected]}
             onPress={() => toggleOption(level)}
           >
-            <Text
-              style={[
-                styles.optionText,
-                englishProficiency.includes(level) && styles.optionTextSelected,
-              ]}
-            >
+            <Text style={[styles.optionText, englishProficiency.includes(level) && styles.optionTextSelected]}>
               {level}
             </Text>
           </TouchableOpacity>
@@ -54,37 +42,46 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
 
 const styles = StyleSheet.create({
   container: {
-    margin: 20,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 12,
-    color: '#222',
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
   optionsWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10, // Requires React Native 0.71+
+    gap: Spacing.sm,
   },
   option: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1,
-    borderColor: '#ccc',
-    marginRight: 10,
-    marginBottom: 10,
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
   optionSelected: {
-    backgroundColor: '#d33',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    fontSize: 15,
-    color: '#222',
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   optionTextSelected: {
-    color: '#fff',
+    color: Colors.white,
+    fontWeight: '600',
   },
 });
 

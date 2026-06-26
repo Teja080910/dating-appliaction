@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const options = [
   'Hookup',
@@ -11,8 +12,6 @@ const options = [
 ];
 
 const LookingForSelector = () => {
-  // const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
-
   const { selectedLookingFor, setSelectedLookingFor } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
@@ -25,23 +24,15 @@ const LookingForSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Looking for</Text>
-      <View style={styles.optionContainer}>
+      <Text style={styles.label}>Looking for</Text>
+      <View style={styles.optionsContainer}>
         {options.map((item: string) => (
           <TouchableOpacity
             key={item}
             onPress={() => toggleOption(item)}
-            style={[
-              styles.option,
-              selectedLookingFor.includes(item) && styles.selectedOption,
-            ]}
+            style={[styles.option, selectedLookingFor.includes(item) && styles.optionSelected]}
           >
-            <Text
-              style={[
-                styles.optionText,
-                selectedLookingFor.includes(item) && styles.selectedText,
-              ]}
-            >
+            <Text style={[styles.optionText, selectedLookingFor.includes(item) && styles.optionTextSelected]}>
               {item}
             </Text>
           </TouchableOpacity>
@@ -55,38 +46,45 @@ export default LookingForSelector;
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
-  title: {
+  label: {
     fontWeight: '600',
-    fontSize: 16,
-    marginBottom: 12,
-    paddingHorizontal: 20, // align with screen edge
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
-  optionContainer: {
+  optionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    paddingHorizontal: 20, // align with screen edge
+    gap: Spacing.sm,
   },
   option: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 25,
-    borderColor: '#ccc',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1,
-    backgroundColor: '#f9f9f9',
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
-  selectedOption: {
-    backgroundColor: '#DE3C4B',
-    borderColor: '#DE3C4B',
+  optionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    color: '#333',
+    color: Colors.textSecondary,
     fontSize: 14,
-  },
-  selectedText: {
-    color: '#fff',
     fontWeight: '500',
+  },
+  optionTextSelected: {
+    color: Colors.white,
+    fontWeight: '600',
   },
 });

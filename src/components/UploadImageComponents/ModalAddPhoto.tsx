@@ -1,15 +1,17 @@
-import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import React, { useContext } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing } from '../../theme';
 import { requestPermissions } from '../../utils/types/permission';
 import { mapImagesToSlots, MAX_PROFILE_IMAGES, useUserImages } from '../../api/useImages';
 import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
 import { getUserId } from '../../utils/sessionHelper';
+import { useAlert } from '../AlertModal';
 
 const ModalAddPhoto = () => {
+  const { alert, AlertComponent } = useAlert();
   const {
     isModalVisible,
     setIsModalVisible,
@@ -59,7 +61,7 @@ const ModalAddPhoto = () => {
     const isReplacingExisting = Boolean(images?.[targetIndex]);
 
     if (!isReplacingExisting && uploadedImageCount >= MAX_PROFILE_IMAGES) {
-      Alert.alert(
+      alert(
         'Photo Limit Reached',
         'You already have 5 photos saved. Delete one photo before adding another.'
       );
@@ -69,7 +71,7 @@ const ModalAddPhoto = () => {
 
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      Alert.alert('Permission Required', 'Please allow camera or photo library access to continue.');
+      alert('Permission Required', 'Please allow camera or photo library access to continue.');
       return;
     }
 
@@ -81,7 +83,7 @@ const ModalAddPhoto = () => {
     const asset = pickerResult.assets?.[0];
     if (!asset?.uri) {
       if (pickerResult.errorMessage) {
-        Alert.alert('Image Error', pickerResult.errorMessage);
+        alert('Image Error', pickerResult.errorMessage);
       }
       setIsModalVisible(false);
       return;
@@ -124,14 +126,14 @@ const ModalAddPhoto = () => {
       setIsModalVisible(false);
 
       if (String(message).toLowerCase().includes('max 5 images allowed')) {
-        Alert.alert(
+        alert(
           'Photo Limit Reached',
           'You already have 5 photos saved on the server. Delete one photo before adding another.'
         );
         return;
       }
 
-      Alert.alert('Upload Failed', String(message));
+      alert('Upload Failed', String(message));
     }
   };
 
@@ -156,7 +158,7 @@ const ModalAddPhoto = () => {
                 onPickImage('gallery').catch(() => null);
               }}>
               <View style={[styles.iconBox, styles.galleryIconBox]}>
-                <Icon name="image-multiple" size={30} color="#2196f3" />
+                <Icon name="image-multiple" size={30} color={Colors.primary} />
               </View>
               <Text style={styles.optionText}>Gallery</Text>
             </TouchableOpacity>
@@ -167,7 +169,7 @@ const ModalAddPhoto = () => {
                 onPickImage('camera').catch(() => null);
               }}>
               <View style={[styles.iconBox, styles.cameraIconBox]}>
-                <Icon name="camera-plus" size={30} color={Colors.pink} />
+                <Icon name="camera-plus" size={30} color={Colors.secondary} />
               </View>
               <Text style={styles.optionText}>Camera</Text>
             </TouchableOpacity>
@@ -181,6 +183,7 @@ const ModalAddPhoto = () => {
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
+      {AlertComponent}
     </Modal>
   );
 };
@@ -190,45 +193,48 @@ export default ModalAddPhoto;
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: Colors.overlay,
     justifyContent: 'flex-end',
   },
   modalBox: {
-    backgroundColor: '#fff',
-    padding: 25,
-    borderTopRightRadius: 30,
-    borderTopLeftRadius: 30,
+    backgroundColor: Colors.surface,
+    padding: Spacing.xl,
+    borderTopRightRadius: Spacing.radiusXxl,
+    borderTopLeftRadius: Spacing.radiusXxl,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    borderBottomWidth: 0,
   },
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#ddd',
+    backgroundColor: Colors.textMuted,
     borderRadius: 2,
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#221A1F',
-    marginBottom: 8,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
   modalSubtitle: {
     fontSize: 14,
     lineHeight: 21,
-    color: '#7B7076',
+    color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 28,
+    marginBottom: Spacing.xl,
   },
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginBottom: 30,
+    marginBottom: Spacing.xl,
   },
   modalOption: {
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.sm + 2,
   },
   iconBox: {
     width: 70,
@@ -238,28 +244,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   galleryIconBox: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: Colors.glass,
   },
   cameraIconBox: {
-    backgroundColor: '#fce4ec',
+    backgroundColor: Colors.glass,
   },
   optionText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#5A5257',
+    color: Colors.textSecondary,
   },
   cancelButton: {
     width: '100%',
     height: 56,
-    borderRadius: 28,
-    backgroundColor: '#f5f5f5',
+    borderRadius: Spacing.radiusFull,
+    backgroundColor: Colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: Spacing.sm + 2,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   cancelText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#7B7076',
+    color: Colors.textSecondary,
   },
 });

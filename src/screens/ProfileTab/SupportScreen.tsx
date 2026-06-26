@@ -7,7 +7,6 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -18,12 +17,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useSupport } from '../../api/useSupport';
 import { Colors } from '../../utils/colors';
+import { useAlert } from '../../components/AlertModal';
 
 const SupportScreen = () => {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Technical');
 
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  const { alert, AlertComponent } = useAlert();
   const {
     createTicket,
     tickets,
@@ -41,7 +42,7 @@ const SupportScreen = () => {
 
   const handleSubmit = () => {
     if (!description.trim()) {
-      Alert.alert('Error', 'Please describe your issue.');
+      alert('Error', 'Please describe your issue.');
       return;
     }
 
@@ -52,11 +53,11 @@ const SupportScreen = () => {
       },
       {
         onSuccess: () => {
-          Alert.alert('Success', 'Your support ticket has been created.');
+          alert('Success', 'Your support ticket has been created.');
           setDescription('');
         },
         onError: (error: any) => {
-          Alert.alert(
+          alert(
             'Error',
             String(getSupportErrorMessage(error, 'Failed to create ticket. Please try again.')),
           );
@@ -66,17 +67,17 @@ const SupportScreen = () => {
   };
 
   const handleCloseTicket = (ticketId: number) => {
-    Alert.alert('Close Ticket', 'Mark this support ticket as closed?', [
+    alert('Close Ticket', 'Mark this support ticket as closed?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Close',
         onPress: () => {
           closeTicket.mutate(ticketId, {
             onSuccess: () => {
-              Alert.alert('Ticket Closed', 'The support ticket has been marked as closed.');
+              alert('Ticket Closed', 'The support ticket has been marked as closed.');
             },
             onError: (error: any) => {
-              Alert.alert(
+              alert(
                 'Close Failed',
                 String(getSupportErrorMessage(error, 'Unable to close this ticket right now.')),
               );
@@ -204,6 +205,7 @@ const SupportScreen = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {AlertComponent}
     </SafeAreaView>
   );
 };

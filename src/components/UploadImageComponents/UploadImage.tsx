@@ -1,4 +1,4 @@
-import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import React, { useCallback, useContext, useEffect, useState } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import Icon from 'react-native-vector-icons/Feather';
@@ -6,8 +6,11 @@ import { mapImagesToSlots, MAX_PROFILE_IMAGES, useUserImages } from '../../api/u
 import { getAuthSession } from '../../utils/session';
 import { isResolvedApiUserId } from '../../utils/sessionState';
 import { getUserId } from '../../utils/sessionHelper';
+import { Colors, Spacing } from '../../theme';
+import { useAlert } from '../AlertModal';
 
 const UploadImage = () => {
+  const { alert, AlertComponent } = useAlert();
   const {
     images,
     setImages,
@@ -56,7 +59,7 @@ const UploadImage = () => {
           error?.response?.data?.message ||
           error?.message ||
           'Unable to load your uploaded images.';
-        Alert.alert('Image Sync Failed', String(message));
+        alert('Image Sync Failed', String(message));
       },
     });
   }, [getAllImages, setImages, setProfileImage, setProfileImageUrl]);
@@ -85,7 +88,7 @@ const UploadImage = () => {
 
   const openImageOptions = (index: number) => {
     if (!images?.[index] && visibleImages.filter(Boolean).length >= MAX_PROFILE_IMAGES) {
-      Alert.alert(
+      alert(
         'Photo Limit Reached',
         'You already have 5 photos saved. Delete one photo before adding another.'
       );
@@ -106,7 +109,7 @@ const UploadImage = () => {
       return;
     }
 
-    Alert.alert('Remove Photo', 'Do you want to delete this photo from the server?', [
+    alert('Remove Photo', 'Do you want to delete this photo from the server?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -121,7 +124,7 @@ const UploadImage = () => {
                 error?.response?.data?.message ||
                 error?.message ||
                 'Failed to delete image from server.';
-              Alert.alert('Delete Failed', String(message));
+              alert('Delete Failed', String(message));
             },
           });
         },
@@ -153,13 +156,13 @@ const UploadImage = () => {
                   style={styles.deleteBadge}
                   onPress={() => removeImage(index)}
                 >
-                  <Icon name="x" size={12} color="#fff" />
+                  <Icon name="x" size={12} color={Colors.white} />
                 </TouchableOpacity>
               </>
             ) : (
               <View style={styles.iconContainer}>
                 <View style={styles.cameraIconWrapper}>
-                  <Icon name="camera" size={24} color="#FF5A79" />
+                  <Icon name="camera" size={24} color={Colors.primary} />
                   <View style={styles.plusBadge}>
                     <Text style={styles.plusText}>+</Text>
                   </View>
@@ -170,6 +173,7 @@ const UploadImage = () => {
           </TouchableOpacity>
         </View>
       ))}
+      {AlertComponent}
     </View>
   );
 };
@@ -181,44 +185,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    marginTop: 10,
+    marginTop: Spacing.sm + 2,
     marginHorizontal: -6,
   },
   imageWrapper: {
     width: '33.33%',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: Spacing.md,
     paddingHorizontal: 6,
   },
   slotHeader: {
     width: '100%',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   slotLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#7A7076',
+    color: Colors.textMuted,
     textAlign: 'left',
   },
   imageBox: {
     width: '100%',
     aspectRatio: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusLg,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F0E3E8',
+    borderColor: Colors.glassBorder,
     position: 'relative',
     overflow: 'visible',
   },
   mainIndicator: {
-    borderColor: '#FF5A79',
+    borderColor: Colors.primary,
     borderStyle: 'dashed',
-    backgroundColor: '#FFF5F6',
+    backgroundColor: Colors.glass,
   },
   mainActive: {
-    borderColor: '#FF5A79',
+    borderColor: Colors.primary,
     borderWidth: 2,
   },
   iconContainer: {
@@ -236,43 +240,43 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -10,
-    backgroundColor: '#FF5A79',
+    backgroundColor: Colors.primary,
     width: 16,
     height: 16,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: Colors.surface,
   },
   deleteBadge: {
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#333',
+    backgroundColor: Colors.black,
     width: 22,
     height: 22,
     borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: Colors.surface,
     zIndex: 10,
   },
   plusText: {
-    color: 'white',
+    color: Colors.white,
     fontSize: 10,
     fontWeight: 'bold',
   },
   addLabel: {
-    marginTop: 6,
+    marginTop: Spacing.sm,
     fontSize: 12,
     fontWeight: '700',
-    color: '#C64D6D',
+    color: Colors.primary,
   },
   image: {
     width: '100%',
     height: '100%',
-    borderRadius: 16,
+    borderRadius: Spacing.radiusMd,
   },
 });

@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 interface DistanceSliderProps {
   onChange?: (val: number) => void;
@@ -13,15 +14,13 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange }) => {
 
   const handleValueChange = (val: number) => {
     setLocalDistanceRange(val);
-    if (onChange) {
-      onChange(val);
-    }
+    if (onChange) onChange(val);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
-        <Text style={styles.bold}>Distance Range:</Text> {localDistanceRange} km
+        Distance Range: <Text style={styles.value}>{localDistanceRange} km</Text>
       </Text>
 
       <Slider
@@ -31,9 +30,9 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange }) => {
         step={5}
         value={localDistanceRange}
         onValueChange={handleValueChange}
-        minimumTrackTintColor="#d33"
-        maximumTrackTintColor="#bbb"
-        thumbTintColor="#d33" // This sets the fill color of the thumb
+        minimumTrackTintColor={Colors.primary}
+        maximumTrackTintColor={Colors.surfaceLight}
+        thumbTintColor={Colors.primary}
       />
     </View>
   );
@@ -41,22 +40,29 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-    backgroundColor: '#f2f2f2',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xxl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   label: {
-    fontSize: 16,
-    marginBottom: 20,
-    color: '#333',
+    fontSize: 15,
+    marginBottom: Spacing.lg,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
-  bold: {
-    fontWeight: 'bold',
+  value: {
+    fontWeight: '700',
+    color: Colors.text,
   },
   slider: {
     width: '100%',
     height: 40,
-    marginLeft: -10
+    marginLeft: -10,
   },
 });
 

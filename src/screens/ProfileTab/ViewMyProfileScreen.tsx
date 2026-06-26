@@ -1,27 +1,27 @@
+import { useNavigation, useRoute } from "@react-navigation/native";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  StyleSheet,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
   Image,
   ImageSourcePropType,
-  FlatList,
-  View,
-  Dimensions,
-  TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AppContext from "../../context/CreateGlobalStateContext";
-import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
 import Icon from "react-native-vector-icons/Feather";
-import { useNavigation, useRoute } from "@react-navigation/native";
-
-import { useProfile } from "../../api/useProfile";
+import { getAbsoluteUrl, isApiHostedUrl } from "../../api/apiClient";
 import { useConnection } from "../../api/useConnection";
 import { useUserImages } from "../../api/useImages";
-import { getAuthToken, getUserId } from "../../utils/sessionHelper";
-import { getAbsoluteUrl, isApiHostedUrl } from "../../api/apiClient";
+import { useMyProfile } from "../../api/useProfile";
+import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
+import AppContext from "../../context/CreateGlobalStateContext";
+import { Colors } from "../../theme";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
+import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 
 const { width: screenWidth } = Dimensions.get("window");
 const heroHeight = Math.min(Math.max(screenWidth * 1.15, 360), 520);
@@ -148,47 +148,29 @@ const ViewMyProfileScreen = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const resolveCurrentUser = async () => {
-      const directId = await getUserId();
-      if (directId && isMounted) {
+    const init = async () => {
+      const [directId, token] = await Promise.all([getUserId(), getAuthToken()]);
+      if (!isMounted) return;
+
+      if (directId) {
         setMyId(Number(directId));
-        return;
+      } else {
+        const repairedId = await repairStoredSessionIdentity();
+        if (repairedId && isResolvedApiUserId(repairedId) && isMounted) {
+          setMyId(Number(repairedId));
+        }
       }
 
-      const repairedId = await repairStoredSessionIdentity();
-      if (repairedId && isResolvedApiUserId(repairedId) && isMounted) {
-        setMyId(Number(repairedId));
-      }
+      setAuthToken(token);
     };
 
-    void resolveCurrentUser();
+    void init();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    getAuthToken()
-      .then((token) => {
-        if (isMounted) {
-          setAuthToken(token);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setAuthToken(null);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const { useMyProfile } = useProfile();
   const { getAllImages } = useUserImages();
   const { send: likeMutation } = useConnection(myId || undefined);
 
@@ -533,13 +515,13 @@ export default ViewMyProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: Colors.background,
   },
   loader: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: '#fff'
+    backgroundColor: Colors.background
   },
   sliderWrapper: {
     position: "relative",
@@ -556,7 +538,7 @@ const styles = StyleSheet.create({
   },
   emptyHero: {
     width: screenWidth,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: Colors.surface,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -586,8 +568,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-evenly",
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fff",
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.surface,
     position: 'absolute',
     bottom: 0,
     width: '100%'
@@ -597,10 +579,10 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: Colors.glassBorder,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: Colors.surface,
     elevation: 5,
     shadowColor: '#000',
     shadowOpacity: 0.1,

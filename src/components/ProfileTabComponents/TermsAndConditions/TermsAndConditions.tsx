@@ -1,17 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-// import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/Feather';
+import { Colors, Spacing } from '../../../theme';
 
 const TermsAndConditions = ({ onPress }: any) => {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.leftSection}>
-        <FontAwesome5 name="file-alt" size={18} color="#1f1f1f" style={styles.icon} />
+        <FontAwesome5 name="file-alt" size={18} color={Colors.text} style={styles.icon} />
         <Text style={styles.text}>Terms and Conditions</Text>
       </View>
-    <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
+    <Icon name="chevron-right" size={23} color={Colors.textMuted} style={styles.chevron} />
     </TouchableOpacity>
   );
 };
@@ -22,12 +22,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 14,
-    paddingHorizontal: 20,
-    backgroundColor: '#f2f2f2',
+    paddingHorizontal: Spacing.lg,
   },
   leftSection: {
     flex: 1,
-
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -36,9 +34,8 @@ const styles = StyleSheet.create({
   },
   text: {
     flexShrink: 1,
-
     fontSize: 16,
-    color: '#1f1f1f',
+    color: Colors.text,
   },
    chevron: {}
 });

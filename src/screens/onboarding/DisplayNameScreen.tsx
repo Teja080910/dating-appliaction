@@ -7,6 +7,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
+import { Colors, Spacing, Shadows } from '../../theme';
 
 const DisplayNameScreen = ({ navigation }: any) => {
   const { name, setName, displayName, setDisplayName } = useContext(AppContext);
@@ -40,63 +42,82 @@ const DisplayNameScreen = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome to AMARA!</Text>
-        <Text style={styles.subtitle}>Please choose a display name!</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.content}>
+            <Text style={styles.title}>Welcome to AMARA!</Text>
+            <Text style={styles.subtitle}>Please choose a display name!</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Enter name"
-          placeholderTextColor="#999"
-          value={currentName}
-          onChangeText={(text) => {
-            setDisplayName(text);
-            setName(text);
-          }}
-          autoFocus
-        />
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter name"
+                placeholderTextColor={Colors.textMuted}
+                value={currentName}
+                onChangeText={(text) => {
+                  setDisplayName(text);
+                  setName(text);
+                }}
+                autoFocus
+              />
+            </View>
 
-        <View style={styles.spacer} />
+            <View style={styles.spacer} />
 
-        <TouchableOpacity
-          style={[styles.btn, !currentName.trim() && { opacity: 0.5 }]}
-          disabled={!currentName.trim()}
-          onPress={handleDisplayName}
-        >
-          <Text style={styles.btnText}>Next</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={[styles.btn, !currentName.trim() && { opacity: 0.5 }]}
+              disabled={!currentName.trim()}
+              onPress={handleDisplayName}
+            >
+              <LinearGradient
+                colors={[Colors.primary, Colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.btnGradient}
+              >
+                <Text style={styles.btnText}>Next</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    </View>
   );
 };
 
 export default DisplayNameScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { flex: 1, padding: 25, justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: '900', color: '#000', marginBottom: 10 },
-  subtitle: { fontSize: 16, color: '#666', marginBottom: 30 },
-  input: { 
-    borderWidth: 1.5, 
-    borderColor: '#FF5A79', 
-    padding: 16, 
-    borderRadius: 15, 
-    fontSize: 16, 
-    color: '#000',
-    backgroundColor: '#FAFAFA'
+  container: { flex: 1 },
+  gradient: { flex: 1 },
+  safeArea: { flex: 1 },
+  content: { flex: 1, padding: Spacing.xl, justifyContent: 'center' },
+  title: { fontSize: 28, fontWeight: '900', color: Colors.text, marginBottom: Spacing.sm },
+  subtitle: { fontSize: 16, color: Colors.textSecondary, marginBottom: Spacing.xl },
+  inputBox: {
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    borderRadius: Spacing.radiusLg,
+    backgroundColor: Colors.inputBackground,
+    paddingHorizontal: Spacing.lg,
+  },
+  input: {
+    paddingVertical: Spacing.lg,
+    fontSize: 16,
+    color: Colors.text,
   },
   spacer: { flex: 1 },
-  btn: { 
-    backgroundColor: '#FF5A79', 
-    padding: 18, 
-    borderRadius: 30,
-    shadowColor: '#FF5A79',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5
+  btn: {
+    borderRadius: Spacing.radiusFull,
+    overflow: 'hidden',
+    ...Shadows.md,
   },
-  btnText: { color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: 18 }
+  btnGradient: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnText: { color: Colors.white, textAlign: 'center', fontWeight: 'bold', fontSize: 18 },
 });

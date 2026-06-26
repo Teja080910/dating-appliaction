@@ -43,6 +43,17 @@ const apiClient = axios.create({
   },
 });
 
+const pendingRequests = new Map<string, Promise<any>>();
+
+// Retry config for stale connections (app background → foreground)
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1000;
+
+const shouldRetry = (error: any) => {
+  // Network error with no response (stale connection after app switch)
+  return !error.response && error.message === 'Network Error' && error.config && !error.config._retryCount;
+};
+
 // ✅ REQUEST INTERCEPTOR
 apiClient.interceptors.request.use(
   async (config) => {
@@ -76,7 +87,21 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ RESPONSE INTERCEPTOR
+// ✅ DEDUPLICATE in-flight GET requests (prevents infinite loops)
+const originalGet = apiClient.get;
+apiClient.get = async function(url: string, config?: any) {
+  const key = `GET:${url}`;
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key)!;
+  }
+  const promise = originalGet.call(this, url, config).finally(() => {
+    pendingRequests.delete(key);
+  });
+  pendingRequests.set(key, promise);
+  return promise;
+};
+
+// ✅ RESPONSE INTERCEPTOR with retry for stale connections
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -84,6 +109,16 @@ apiClient.interceptors.response.use(
     const url = error.config?.url || '';
     const summary = summarizeApiError(error);
     const errorMessage = String(summary.details || '').toLowerCase();
+
+    // Retry on network errors (stale connection after app switch)
+    if (shouldRetry(error)) {
+      error.config._retryCount = (error.config._retryCount || 0) + 1;
+      if (error.config._retryCount <= MAX_RETRIES) {
+        console.log(`[API RETRY] Attempt ${error.config._retryCount}/${MAX_RETRIES} for ${url}`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return apiClient.request(error.config);
+      }
+    }
 
     console.log(`[API DEBUG] Request to ${url} failed: ${summary.message}`);
     console.log('❌ API ERROR:', summary);

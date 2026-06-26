@@ -1,21 +1,23 @@
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
-import React, { useCallback, useContext, useEffect, useState } from 'react';
-import AppContext from '../../context/CreateGlobalStateContext';
-import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
 import { mapImagesToSlots, useUserImages } from '../../api/useImages';
+import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors } from '../../theme';
 import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
+import PhotoVerifiedBadge from './PhotoVerifiedBadge';
+import { useAlert } from '../AlertModal';
 
 const AdditionalUploadSection = () => {
+  const { alert, AlertComponent } = useAlert();
   const {
     images,
     setProfileImage,
@@ -56,7 +58,7 @@ const AdditionalUploadSection = () => {
           error?.response?.data?.message ||
           error?.message ||
           'Unable to sync your images right now.';
-        Alert.alert('Error', String(message));
+              alert('Error', String(message));
       },
     });
   }, [getAllImages, setImages, setProfileImage, setProfileImageUrl]);
@@ -83,7 +85,7 @@ const AdditionalUploadSection = () => {
 
     if (currentImage && currentImage.trim() !== '') {
       // REMOVE CASE
-      Alert.alert('Remove Photo', 'Are you sure you want to remove this photo?', [
+      alert('Remove Photo', 'Are you sure you want to remove this photo?', [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
@@ -94,7 +96,7 @@ const AdditionalUploadSection = () => {
                 onSuccess: () => {
                   syncImagesFromServer(localUserId);
                 },
-                onError: () => Alert.alert('Error', 'Failed to delete image from server.'),
+                onError: () => alert('Error', 'Failed to delete image from server.'),
               });
             } else {
               const newImages = [...images];
@@ -133,7 +135,7 @@ const AdditionalUploadSection = () => {
                     uid: localUserId,
                     imageId: uploadedImageId,
                   });
-                } catch {}
+                } catch { }
               }
 
               syncImagesFromServer(localUserId);
@@ -143,7 +145,7 @@ const AdditionalUploadSection = () => {
                 error?.response?.data?.message ||
                 error?.message ||
                 'Failed to upload image to server.';
-              Alert.alert('Error', String(message));
+        alert('Error', String(message));
             },
           });
         }
@@ -190,6 +192,7 @@ const AdditionalUploadSection = () => {
       <View style={styles.badgeWrapper}>
         <PhotoVerifiedBadge />
       </View>
+      {AlertComponent}
     </View>
   );
 };
@@ -203,7 +206,7 @@ const styles = StyleSheet.create({
   textPhoto: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#a0a0a0',
+    color: Colors.textMuted,
     marginBottom: 10,
     padding: 12,
   },
@@ -217,16 +220,13 @@ const styles = StyleSheet.create({
     width: '30%',
     aspectRatio: 1,
     borderRadius: 12,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: Colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     margin: '1.5%',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   uploadedImage: {
     width: '100%',
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#e6e6e6',
+    backgroundColor: Colors.glass,
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -244,14 +244,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: '#E94057',
+    backgroundColor: Colors.primary,
     width: 18,
     height: 18,
     borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: Colors.surface,
   },
   badgeWrapper: {
     alignItems: 'center',

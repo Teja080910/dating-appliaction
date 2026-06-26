@@ -1,8 +1,9 @@
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
-import {Alert} from 'react-native';
 import {requestPermissions} from '../../utils/types/permission';
+import { useAlert } from '../AlertModal';
 
 export const handleImagePick = async (
+  alert: (title: string, message?: string, buttons?: any[]) => void,
   type: 'camera' | 'gallery',
   selectedIndex: number | null,
   images: (string | null)[],
@@ -13,7 +14,7 @@ export const handleImagePick = async (
 ) => {
   const hasPermission = await requestPermissions();
   if (!hasPermission) {
-    Alert.alert(
+    alert(
       'Permission denied',
       'You need to grant permission to use this feature.',
     );
@@ -43,11 +44,11 @@ export const handleImagePick = async (
         }
       }
     } else if (result.errorMessage) {
-      Alert.alert('Error', result.errorMessage);
+      alert('Error', result.errorMessage);
     }
   } catch (error) {
     console.error(error);
-    Alert.alert('Error', 'Something went wrong');
+    alert('Error', 'Something went wrong');
   } finally {
     setIsModalVisible(false);
   }

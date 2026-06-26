@@ -1,36 +1,28 @@
 import React, { useContext } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing } from '../../theme';
 
 const OPTIONS = ['0', '1', '2', '3+', "I don't want to say."];
 
 const KidsCountSelector = () => {
-  // const [selectedKidCount, setSelectedKidCount] = useState<string | null>('');
-
-  const {selectedKidCount, setSelectedKidCount} = useContext(AppContext);
+  const { selectedKidCount, setSelectedKidCount } = useContext(AppContext);
 
   const toggleSelect = (item: string) => {
     setSelectedKidCount((prev: string | null) => (prev === item ? null : item));
   };
 
   return (
-    <View style={styles.section}>
-      {/* <Text style={styles.label}>👶 How many kids:</Text> */}
+    <View style={styles.container}>
       <Text style={styles.label}>How many kids:</Text>
       <View style={styles.optionsContainer}>
         {OPTIONS.map(option => (
           <Pressable
             key={option}
             onPress={() => toggleSelect(option)}
-            style={[
-              styles.option,
-              selectedKidCount === option && styles.selectedOption
-            ]}
+            style={[styles.option, selectedKidCount === option && styles.optionSelected]}
           >
-            <Text style={[
-              styles.optionText,
-              selectedKidCount === option && styles.selectedText
-            ]}>
+            <Text style={[styles.optionText, selectedKidCount === option && styles.optionTextSelected]}>
               {option}
             </Text>
           </Pressable>
@@ -41,39 +33,48 @@ const KidsCountSelector = () => {
 };
 
 const styles = StyleSheet.create({
-  section: { 
-    marginVertical: 20, 
-    paddingHorizontal: 16 
+  container: {
+    padding: Spacing.xl,
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.screenPaddingHorizontal,
+    marginTop: Spacing.lg,
+    borderRadius: Spacing.radiusXl,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
-  label: { 
-    fontSize: 16, 
-    fontWeight: '600', 
-    marginBottom: 12 
+  label: {
+    fontWeight: '600',
+    fontSize: 15,
+    marginBottom: Spacing.md,
+    color: Colors.textSecondary,
   },
-  optionsContainer: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 10 
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
   option: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusFull,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 25,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    backgroundColor: '#f9f9f9',
+    borderColor: Colors.glassBorder,
+    backgroundColor: Colors.inputBackground,
+    marginBottom: Spacing.sm,
   },
-  selectedOption: {
-    backgroundColor: '#d9534f',
-    borderColor: '#d9534f',
+  optionSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   optionText: {
-    color: '#333',
+    color: Colors.textSecondary,
     fontSize: 14,
+    fontWeight: '500',
   },
-  selectedText: {
-    color: '#fff',
-  }
+  optionTextSelected: {
+    color: Colors.white,
+    fontWeight: '600',
+  },
 });
 
 export default KidsCountSelector;
