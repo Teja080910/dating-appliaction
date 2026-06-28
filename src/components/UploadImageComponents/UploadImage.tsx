@@ -1,13 +1,15 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import Icon from 'react-native-vector-icons/Feather';
 import { mapImagesToSlots, MAX_PROFILE_IMAGES, useUserImages } from '../../api/useImages';
 import { getAuthSession } from '../../utils/session';
 import { isResolvedApiUserId } from '../../utils/sessionState';
+import { getAuthToken } from '../../utils/sessionHelper';
 import { getUserId } from '../../utils/sessionHelper';
 import { Colors, Spacing } from '../../theme';
 import { useAlert } from '../AlertModal';
+import { isApiHostedUrl } from '../../api/apiClient';
 
 const UploadImage = () => {
   const { alert, AlertComponent } = useAlert();
@@ -25,6 +27,9 @@ const UploadImage = () => {
   const { getAllImages, deleteImage } = useUserImages();
   const [localUserId, setLocalUserId] = useState<string | null>(null);
   const [imageMap, setImageMap] = useState<Record<number, number>>({});
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [tokenReady, setTokenReady] = useState(false);
+  const [loadingImages, setLoadingImages] = useState(true);
   const visibleImages = Array.from({ length: MAX_PROFILE_IMAGES }, (_, index) => images?.[index] || null);
 
   const resolveActiveUserId = useCallback(async () => {
@@ -64,13 +69,14 @@ const UploadImage = () => {
     });
   }, [getAllImages, setImages, setProfileImage, setProfileImageUrl]);
 
-  const hasSynced = React.useRef(false);
-
   useEffect(() => {
-    if (hasSynced.current) return;
-    hasSynced.current = true;
-
     const init = async () => {
+      const token = await getAuthToken();
+      if (token) {
+        setAuthToken(token);
+        setTokenReady(true);
+      }
+
       const uid = await resolveActiveUserId();
       if (uid) {
         const userId = String(uid);
@@ -85,6 +91,21 @@ const UploadImage = () => {
 
     init().catch(() => null);
   }, []);
+
+  useEffect(() => {
+    if (!authToken || !localUserId) return;
+    syncImagesFromServer(localUserId);
+  }, [authToken]);
+
+  useEffect(() => {
+    if (!images || images.every(i => !i)) {
+      setLoadingImages(false);
+      return;
+    }
+    if (!authToken) return;
+    const timer = setTimeout(() => setLoadingImages(false), 800);
+    return () => clearTimeout(timer);
+  }, [images, authToken]);
 
   const openImageOptions = (index: number) => {
     if (!images?.[index] && visibleImages.filter(Boolean).length >= MAX_PROFILE_IMAGES) {
@@ -151,7 +172,21 @@ const UploadImage = () => {
             onPress={() => openImageOptions(index)}>
             {img ? (
               <>
-                <Image source={{ uri: img }} style={styles.image} />
+                <Image
+                  key={`img-${index}-${tokenReady}`}
+                  source={
+                    authToken && isApiHostedUrl(img)
+                      ? { uri: `${img}${img.includes('?') ? '&' : '?'}_t=${Date.now()}`, headers: { Authorization: `Bearer ${authToken}` } }
+                      : { uri: img }
+                  }
+                  style={styles.image}
+                  resizeMode="cover"
+                />
+                {loadingImages && (
+                  <View style={styles.imageLoader}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  </View>
+                )}
                 <TouchableOpacity
                   style={styles.deleteBadge}
                   onPress={() => removeImage(index)}
@@ -277,6 +312,13 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+    borderRadius: Spacing.radiusMd,
+  },
+  imageLoader: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: Spacing.radiusMd,
   },
 });

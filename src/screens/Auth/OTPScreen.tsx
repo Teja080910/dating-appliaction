@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing, Shadows } from '../../theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../api/useAuth';
 import { useAlert } from '../../components/AlertModal';
@@ -204,9 +204,7 @@ const OTPScreen = ({ navigation, route }: any) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.gradient}>
-        <View style={styles.topGlow} />
-        <View style={styles.bottomGlow} />
+      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -216,7 +214,7 @@ const OTPScreen = ({ navigation, route }: any) => {
                     style={styles.backFab} 
                      onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login')}
                   >
-                    <Icon name="chevron-left" size={28} color="#fff" />
+                    <Icon name="chevron-left" size={28} color={Colors.text} />
                   </TouchableOpacity>
                   <Text style={styles.headerTitle}>Verification</Text>
                 </View>
@@ -229,7 +227,7 @@ const OTPScreen = ({ navigation, route }: any) => {
                   <Text style={styles.eyebrow}>Secure Entry</Text>
                   <Text style={styles.cardTitle}>Verify Mobile</Text>
                   <Text style={styles.cardSubtitle}>
-                    Enter the code sent to <Text style={{fontWeight: '700', color: '#333'}}>{normalizedMobile}</Text>
+                    Enter the code sent to <Text style={{fontWeight: '700', color: Colors.text}}>{normalizedMobile}</Text>
                   </Text>
 
                   <View style={styles.otpBox}>
@@ -238,8 +236,8 @@ const OTPScreen = ({ navigation, route }: any) => {
                     </View>
                     <TextInput
                       placeholder="Enter Code"
-                      style={[styles.input, { letterSpacing: 5 }]}
-                      placeholderTextColor={Colors.placeholder}
+                      style={styles.input}
+                      placeholderTextColor={Colors.textMuted}
                       keyboardType="number-pad"
                       maxLength={6}
                       value={otp}
@@ -252,22 +250,29 @@ const OTPScreen = ({ navigation, route }: any) => {
                     onPress={handleVerify}
                     disabled={loading}
                   >
-                    {loading ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.verifyBtnText}>VERIFY NOW</Text>
-                    )}
+                    <LinearGradient
+                      colors={[Colors.primary, Colors.secondary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.verifyGradient}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color={Colors.white} />
+                      ) : (
+                        <Text style={styles.verifyBtnText}>VERIFY NOW</Text>
+                      )}
+                    </LinearGradient>
                   </TouchableOpacity>
 
                   <View style={styles.securityNote}>
-                    <Icon name="lock-check-outline" size={16} color={Colors.deepRose} />
+                    <Icon name="lock-check-outline" size={16} color={Colors.primary} />
                     <Text style={styles.securityNoteText}>We use OTP verification to keep the member space safer and more intentional.</Text>
                   </View>
 
                   <View style={styles.resendContainer}>
                     <Text style={styles.resendInfo}>Didn't receive code?</Text>
                     <TouchableOpacity onPress={handleResend} disabled={timer > 0}>
-                      <Text style={[styles.resendLink, timer > 0 && {color: '#ccc', textDecorationLine: 'none'}]}>
+                      <Text style={[styles.resendLink, timer > 0 && {color: Colors.textMuted, textDecorationLine: 'none'}]}>
                         {timer > 0 ? `Resend in ${timer}s` : 'Resend Code'}
                       </Text>
                     </TouchableOpacity>
@@ -287,103 +292,80 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   gradient: { flex: 1 },
   safeArea: { flex: 1 },
-  topGlow: {
-    position: 'absolute',
-    top: -70,
-    left: -40,
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: 'rgba(255, 202, 118, 0.16)',
-  },
-  bottomGlow: {
-    position: 'absolute',
-    bottom: 40,
-    right: -50,
-    width: 230,
-    height: 230,
-    borderRadius: 115,
-    backgroundColor: 'rgba(255, 99, 138, 0.14)',
-  },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 36, paddingBottom: 36 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xxxl, paddingBottom: Spacing.xl },
   content: { flex: 1, justifyContent: 'center' },
-  topSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 32 },
+  topSection: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xxl },
   backFab: {
     width: 45, height: 45, borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.glass,
     justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '900', color: '#fff', marginRight: 45 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '900', color: Colors.text, marginRight: 45 },
   card: {
-    backgroundColor: 'rgba(255,250,248,0.95)',
-    borderRadius: 32,
-    padding: 28,
+    backgroundColor: Colors.surface,
+    borderRadius: Spacing.radiusXxl,
+    padding: Spacing.xl,
     width: '100%',
     alignSelf: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.34)',
-    shadowColor: '#333',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    elevation: 8,
+    borderColor: Colors.glassBorder,
+    ...Shadows.xl,
   },
   iconCircle: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#FFF0F3',
+    backgroundColor: Colors.glass,
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.lg,
   },
   eyebrow: { color: Colors.primary, fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6 },
-  cardTitle: { fontSize: 26, fontWeight: '900', color: Colors.textPrimary, marginBottom: 10 },
-  cardSubtitle: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', marginBottom: 24, lineHeight: 21 },
+  cardTitle: { fontSize: 26, fontWeight: '900', color: Colors.text, marginBottom: 10 },
+  cardSubtitle: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.xl, lineHeight: 21 },
   otpBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.inputSurface,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    marginBottom: 18,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Spacing.radiusMd,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
     height: 60,
     width: '100%',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.glassBorder,
   },
   inputIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFF0F3',
+    backgroundColor: Colors.glass,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  input: { flex: 1, color: Colors.textPrimary, fontSize: 20, fontWeight: '900', textAlign: 'center' },
+  input: { flex: 1, color: Colors.text, fontSize: 20, fontWeight: '900', textAlign: 'center', letterSpacing: 5 },
   verifyBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 18,
+    borderRadius: Spacing.radiusMd,
     height: 58,
     width: '100%',
+    overflow: 'hidden',
+    ...Shadows.md,
+  },
+  verifyGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.34,
-    shadowRadius: 16,
-    elevation: 7,
   },
-  verifyBtnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 1.1 },
+  verifyBtnText: { color: Colors.white, fontWeight: '900', fontSize: 16, letterSpacing: 1.1 },
   securityNote: {
-    marginTop: 14,
+    marginTop: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 16,
-    backgroundColor: '#FFF1EA',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: Spacing.radiusMd,
+    backgroundColor: Colors.glass,
   },
-  securityNoteText: { flex: 1, marginLeft: 8, color: Colors.deepRose, fontSize: 12, fontWeight: '700', lineHeight: 18 },
-  resendContainer: { marginTop: 25, alignItems: 'center' },
+  securityNoteText: { flex: 1, marginLeft: 8, color: Colors.textSecondary, fontSize: 12, fontWeight: '700', lineHeight: 18 },
+  resendContainer: { marginTop: Spacing.xl, alignItems: 'center' },
   resendInfo: { color: Colors.textSecondary, fontSize: 13, marginBottom: 5 },
   resendLink: { color: Colors.primary, fontSize: 14, fontWeight: 'bold', textDecorationLine: 'underline' },
 });

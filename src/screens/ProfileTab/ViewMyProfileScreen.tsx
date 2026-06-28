@@ -268,14 +268,6 @@ const ViewMyProfileScreen = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#FF5A79" />
-      </View>
-    );
-  }
-
   const ownAge = useMemo(() => {
     const safeDate = date ? new Date(date) : null;
     if (!safeDate || Number.isNaN(safeDate.getTime())) {
@@ -420,6 +412,14 @@ const ViewMyProfileScreen = () => {
     verifiedSelfie,
     contextImages,
   ]);
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#FF5A79" />
+      </View>
+    );
+  }
 
   const profileImages = dedupeImageUris([
     mergedProfile?.images,

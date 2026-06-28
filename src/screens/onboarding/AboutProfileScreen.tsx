@@ -1,5 +1,11 @@
-import React, { useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, {
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
+import {useFocusEffect} from '@react-navigation/native';
 import {
   View,
   Text,
@@ -10,32 +16,43 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing, Shadows } from '../../theme';
-import { useProfile } from '../../api/useProfile';
+import {Colors, Spacing, Shadows} from '../../theme';
+import {useProfile} from '../../api/useProfile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuthSession } from '../../utils/session';
-import { useAlert } from '../../components/AlertModal';
+import {getAuthSession} from '../../utils/session';
+import {useAlert} from '../../components/AlertModal';
 
-const AboutProfileScreen = ({ navigation }: any) => {
+const AboutProfileScreen = ({navigation}: any) => {
   const {
-    profileText, setProfileText,
-    name, displayName, date, height,
-    selectedLanguages, selectedEthinicity,
-    selectedSmoking, selectedDrinking, selectedLookingFor,
-    images, selected,
-    selectedAppearance, selectedBodyType, englishSkillLevel
+    profileText,
+    setProfileText,
+    name,
+    displayName,
+    date,
+    height,
+    selectedLanguages,
+    selectedEthinicity,
+    selectedSmoking,
+    selectedDrinking,
+    selectedLookingFor,
+    images,
+    selected,
+    selectedAppearance,
+    selectedBodyType,
+    englishSkillLevel,
   } = useContext(AppContext);
 
   const [loading, setLoading] = useState(false);
   const [isResolving, setIsResolving] = useState(true);
   const [identityPending, setIdentityPending] = useState(false);
-  const { updateUser, uploadImage } = useProfile();
+  const {updateUser, uploadImage} = useProfile();
   const resolveAttemptsRef = useRef(0);
-  const { alert, AlertComponent } = useAlert();
+  const {alert, AlertComponent} = useAlert();
 
   const continueToNextStep = async () => {
     setLoading(false);
@@ -46,13 +63,13 @@ const AboutProfileScreen = ({ navigation }: any) => {
   const resolveGenderOrientation = (selection?: string | null) => {
     switch (selection) {
       case 'straight_woman':
-        return { gender: 'woman', orientation: 'straight' };
+        return {gender: 'woman', orientation: 'straight'};
       case 'straight_man':
-        return { gender: 'man', orientation: 'straight' };
+        return {gender: 'man', orientation: 'straight'};
       case 'lgbtqia':
-        return { gender: 'lgbtqia', orientation: 'lgbtqia' };
+        return {gender: 'lgbtqia', orientation: 'lgbtqia'};
       default:
-        return { gender: 'woman', orientation: 'straight' };
+        return {gender: 'woman', orientation: 'straight'};
     }
   };
 
@@ -66,7 +83,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
   const normalizeJoinedValues = (value: unknown, fallback: string) => {
     if (Array.isArray(value)) {
       const joined = value
-        .map((item) => String(item || '').trim())
+        .map(item => String(item || '').trim())
         .filter(Boolean)
         .join(', ');
       return joined || fallback;
@@ -79,14 +96,28 @@ const AboutProfileScreen = ({ navigation }: any) => {
 
   const shouldAllowLocalFallback = (error: any) => {
     const statusCode = Number(error?.response?.status);
-    const message = String(error?.response?.data?.message || error?.message || '').toLowerCase();
-    return (message.includes('network error') || message.includes('timeout') || statusCode >= 500);
+    const message = String(
+      error?.response?.data?.message || error?.message || '',
+    ).toLowerCase();
+    return (
+      message.includes('network error') ||
+      message.includes('timeout') ||
+      statusCode >= 500
+    );
   };
 
   const isSessionSyncError = (error: any) => {
     const statusCode = Number(error?.response?.status);
-    const message = String(error?.response?.data?.message || error?.message || '').toLowerCase();
-    return (statusCode === 401 || statusCode === 403 || message.includes('user not found') || message.includes('profile not found') || message.includes('invalid userid'));
+    const message = String(
+      error?.response?.data?.message || error?.message || '',
+    ).toLowerCase();
+    return (
+      statusCode === 401 ||
+      statusCode === 403 ||
+      message.includes('user not found') ||
+      message.includes('profile not found') ||
+      message.includes('invalid userid')
+    );
   };
 
   useFocusEffect(
@@ -134,7 +165,10 @@ const AboutProfileScreen = ({ navigation }: any) => {
   const handleFinishOnboarding = async (retryCount = 0): Promise<void> => {
     if (retryCount > 2) {
       setLoading(false);
-      alert('Sync Error', 'We are having trouble syncing your account. Please try again or contact support.');
+      alert(
+        'Sync Error',
+        'We are having trouble syncing your account. Please try again or contact support.',
+      );
       return;
     }
 
@@ -154,13 +188,17 @@ const AboutProfileScreen = ({ navigation }: any) => {
       const today = new Date();
       let calculatedAge = today.getFullYear() - safeDate.getFullYear();
       const monthGap = today.getMonth() - safeDate.getMonth();
-      if (monthGap < 0 || (monthGap === 0 && today.getDate() < safeDate.getDate())) {
+      if (
+        monthGap < 0 ||
+        (monthGap === 0 && today.getDate() < safeDate.getDate())
+      ) {
         calculatedAge -= 1;
       }
 
-      const { gender, orientation } = resolveGenderOrientation(selected);
+      const {gender, orientation} = resolveGenderOrientation(selected);
       const uploadableImages = (Array.isArray(images) ? images : []).filter(
-        (image): image is string => Boolean(image) && !String(image).startsWith('http'),
+        (image): image is string =>
+          Boolean(image) && !String(image).startsWith('http'),
       );
 
       const profileData = {
@@ -168,24 +206,37 @@ const AboutProfileScreen = ({ navigation }: any) => {
         gender,
         orientation,
         age: calculatedAge,
-        bio: normalizeTextValue(profileText, 'Hello, I am excited to meet new people here.'),
+        bio: normalizeTextValue(
+          profileText,
+          'Hello, I am excited to meet new people here.',
+        ),
         dob: safeDate.toISOString().split('T')[0],
         language: normalizeJoinedValues(selectedLanguages, 'English'),
         appearance: normalizeTextValue(selectedAppearance, 'Attractive'),
         bodyType: normalizeTextValue(selectedBodyType, 'Slim'),
         height: Number(height) || 165,
-        englishLevel: ['Beginner', 'Intermediate', 'Advanced', 'Native'][englishSkillLevel || 0] || 'Beginner',
+        englishLevel:
+          ['Beginner', 'Intermediate', 'Advanced', 'Native'][
+            englishSkillLevel || 0
+          ] || 'Beginner',
         ethnicity: normalizeTextValue(selectedEthinicity, 'Indian'),
         lookingFor: normalizeJoinedValues(selectedLookingFor, 'Relationship'),
         smoke: normalizeTextValue(selectedSmoking, 'No'),
-        drink: normalizeTextValue(selectedDrinking, 'No')
+        drink: normalizeTextValue(selectedDrinking, 'No'),
       };
 
-      const firstImage = uploadableImages[0] || (Array.isArray(images) && typeof images[0] === 'string' ? images[0] : null);
-      
+      const firstImage =
+        uploadableImages[0] ||
+        (Array.isArray(images) && typeof images[0] === 'string'
+          ? images[0]
+          : null);
+
       if (!firstImage) {
         setLoading(false);
-        alert('Photo Required', 'Please go back and add your profile photo first.');
+        alert(
+          'Photo Required',
+          'Please go back and add your profile photo first.',
+        );
         return;
       }
 
@@ -193,31 +244,36 @@ const AboutProfileScreen = ({ navigation }: any) => {
         ? {
             uri: firstImage,
             type: 'image/jpeg',
-            name: 'profile.jpg'
+            name: 'profile.jpg',
           }
         : undefined;
 
       try {
-        const res = await updateUser.mutateAsync({ 
-          uid: '', 
-          dto: profileData, 
-          photo: profilePhoto
+        const res = await updateUser.mutateAsync({
+          uid: '',
+          dto: profileData,
+          photo: profilePhoto,
         });
-        
+
         console.log('[AboutProfile] Profile setup success:', res);
 
         const remainingImages = uploadableImages.slice(firstImage ? 1 : 0);
         if (remainingImages.length > 0) {
-           await Promise.allSettled(remainingImages.map((uri, i) => 
-             uploadImage.mutateAsync({
-               photo: { uri, name: `gallery_${i + 1}.jpg`, type: 'image/jpeg' }
-             })
-           ));
+          await Promise.allSettled(
+            remainingImages.map((uri, i) =>
+              uploadImage.mutateAsync({
+                photo: {uri, name: `gallery_${i + 1}.jpg`, type: 'image/jpeg'},
+              }),
+            ),
+          );
         }
 
         await continueToNextStep();
       } catch (error: any) {
-        console.warn('[AboutProfile] Submission Error:', error?.response?.data || error.message);
+        console.warn(
+          '[AboutProfile] Submission Error:',
+          error?.response?.data || error.message,
+        );
 
         if (isSessionSyncError(error)) {
           setLoading(false);
@@ -225,26 +281,33 @@ const AboutProfileScreen = ({ navigation }: any) => {
             'Sync Required',
             'Your account is taking longer than usual to sync. Would you like to try again?',
             [
-              { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) },
-              { text: 'Retry Now', onPress: () => handleFinishOnboarding(retryCount + 1) },
-              { text: 'Skip & Finish', onPress: () => continueToNextStep() }
-            ]
+              {
+                text: 'Cancel',
+                style: 'cancel',
+                onPress: () => setLoading(false),
+              },
+              {
+                text: 'Retry Now',
+                onPress: () => handleFinishOnboarding(retryCount + 1),
+              },
+              {text: 'Skip & Finish', onPress: () => continueToNextStep()},
+            ],
           );
           return;
         }
 
         if (shouldAllowLocalFallback(error)) {
-           await continueToNextStep();
-           return;
+          await continueToNextStep();
+          return;
         }
 
         throw error;
       }
     } catch (error) {
-       console.warn('Unexpected error:', error);
-       alert('Error', 'Something went wrong');
+      console.warn('Unexpected error:', error);
+      alert('Error', 'Something went wrong');
     } finally {
-       setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -258,63 +321,82 @@ const AboutProfileScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
+      <StatusBar
+        barStyle="light-content"
+        translucent
+        backgroundColor="transparent"
+      />
+      <LinearGradient
+        colors={[Colors.background, Colors.surface]}
+        style={styles.gradient}>
         <SafeAreaView style={styles.safeArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <View style={styles.progressBackground}>
-              <View style={styles.progressBar} />
-            </View>
+          <KeyboardAvoidingView
+            style={{flex: 1}}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled">
+              <View style={styles.progressBackground}>
+                <View style={styles.progressBar} />
+              </View>
 
-            <Text style={styles.heading}>Wow, looking sharp!</Text>
+              <Text style={styles.heading}>Wow, looking sharp!</Text>
 
-            <Text style={styles.subtext}>
-              Now tell us something about yourself. You can write about your hobbies, values and visions in life.
-            </Text>
-
-            {identityPending ? (
-              <Text style={styles.pendingText}>
-                Your account is still syncing. You can continue now, and we will finish profile sync as soon as your numeric account ID is available.
+              <Text style={styles.subtext}>
+                Now tell us something about yourself. You can write about your
+                hobbies, values and visions in life.
               </Text>
-            ) : null}
 
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                placeholder="Your profile text"
-                placeholderTextColor={Colors.textMuted}
-                value={profileText}
-                onChangeText={setProfileText}
-                maxLength={500}
-                multiline
-              />
-            </View>
+              {identityPending ? (
+                <Text style={styles.pendingText}>
+                  Your account is still syncing. You can continue now, and we
+                  will finish profile sync as soon as your numeric account ID is
+                  available.
+                </Text>
+              ) : null}
 
-            <Text style={styles.charCount}>{profileText?.length || 0} / 500</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Your profile text"
+                  placeholderTextColor={Colors.textMuted}
+                  value={profileText}
+                  onChangeText={setProfileText}
+                  maxLength={500}
+                  multiline
+                />
+              </View>
 
-            <Text style={styles.footerText}>
-              For more info, questions, feedback, and perhaps to say hello, kindly send an e-mail to hi@amara.app.
-            </Text>
+              <Text style={styles.charCount}>
+                {profileText?.length || 0} / 500
+              </Text>
 
-            <TouchableOpacity
-              style={[styles.nextButton, (!profileText?.trim() || loading) && { opacity: 0.5 }]}
-              disabled={!profileText?.trim() || loading}
-              onPress={() => handleFinishOnboarding(0)}
-            >
-              <LinearGradient
-                colors={[Colors.primary, Colors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.nextGradient}
-              >
-                {loading ? (
-                  <ActivityIndicator color={Colors.white} />
-                ) : (
-                  <Text style={styles.nextButtonText}>Next</Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </ScrollView>
+              <Text style={styles.footerText}>
+                For more info, questions, feedback, and perhaps to say hello,
+                kindly send an e-mail to hi@amara.app.
+              </Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.nextButton,
+                  (!profileText?.trim() || loading) && {opacity: 0.5},
+                ]}
+                disabled={!profileText?.trim() || loading}
+                onPress={() => handleFinishOnboarding(0)}>
+                <LinearGradient
+                  colors={[Colors.primary, Colors.secondary]}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.nextGradient}>
+                  {loading ? (
+                    <ActivityIndicator color={Colors.white} />
+                  ) : (
+                    <Text style={styles.nextButtonText}>Next</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
         {AlertComponent}
       </LinearGradient>
@@ -323,9 +405,9 @@ const AboutProfileScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  gradient: { flex: 1 },
-  safeArea: { flex: 1 },
+  container: {flex: 1},
+  gradient: {flex: 1},
+  safeArea: {flex: 1},
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: Spacing.screenPaddingHorizontal,
