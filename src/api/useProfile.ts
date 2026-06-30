@@ -130,7 +130,7 @@ export const useMyProfile = (uid?: any) => {
     const fetch = async () => {
       try {
         const resolvedUserId = String(uid);
-        const res = await apiClient.get(`/profile/me/${resolvedUserId}`);
+        const res = await apiClient.post(`/profile/me`, null, { params: { userId: resolvedUserId } });
         if (!cancelled) {
           setData(normalizeProfile(res.data));
         }
@@ -161,7 +161,7 @@ export const useProfileCompletion = (uid: any) => {
       try {
         setLoading(true);
         const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
-        const res = await apiClient.get(`/profile/completion/${resolvedUserId}`);
+        const res = await apiClient.post(`/profile/completion`, null, { params: { userId: resolvedUserId } });
         if (!cancelled) setData(normalizeCompletion(res.data));
       } catch {
         if (!cancelled) setData(null);

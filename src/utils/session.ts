@@ -160,7 +160,7 @@ const probeProfileById = async (userId: number, token: string) => {
     },
   };
 
-  const response = await axios.get(`${APIURL}/profile/me/${userId}`, requestConfig);
+  const response = await axios.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId } });
   return response?.data;
 };
 
@@ -420,10 +420,11 @@ const syncStoredSessionState = async (session: {
       },
     };
 
+    const uid = session.userId;
     const [privacyResult, completionResult, profileResult] = await Promise.allSettled([
-      axios.get(`${APIURL}/privacy/status`, requestConfig),
-      axios.get(`${APIURL}/profile/completion`, requestConfig),
-      axios.get(`${APIURL}/profile/me`, requestConfig),
+      axios.get(`${APIURL}/privacy/status`, { ...requestConfig, params: { userId: uid } }),
+      axios.post(`${APIURL}/profile/completion`, null, { ...requestConfig, params: { userId: uid } }),
+      axios.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId: uid } }),
     ]);
 
     if (privacyResult.status === 'fulfilled' && privacyResult.value?.data === true) {

@@ -19,7 +19,7 @@ export const useAppData = (userId?: string) => {
     queryKey: ['myProfile', userId ?? 'resolved'],
     queryFn: async () => {
       const resolvedUserId = await resolveBackendUserId();
-      const res = await apiClient.get(`/profile/me/${resolvedUserId}`);
+      const res = await apiClient.post(`/profile/me`, null, { params: { userId: resolvedUserId } });
       return res.data;
     },
     staleTime: 1000 * 60 * 5, // 5 min

@@ -158,7 +158,7 @@ export const useUserImages = (userId?: string) => {
         const normalizedUserId = await resolveUserId(uid);
         if (!normalizedUserId) throw new Error('UserId not resolved');
 
-        const res = await apiClient.get(`/profile/me/${normalizedUserId}`);
+        const res = await apiClient.post(`/profile/me`, null, { params: { userId: normalizedUserId } });
         return normalizeUserImagesResponse(res.data);
       },
     });*/
@@ -171,7 +171,7 @@ export const useUserImages = (userId?: string) => {
         throw new Error('UserId not resolved');
       }
 
-      const res = await apiClient.get(`/profile/me/${normalizedUserId}`);
+      const res = await apiClient.post(`/profile/me`, null, { params: { userId: normalizedUserId } });
       const payload = res.data;
 
       return normalizeUserImagesResponse(payload);
@@ -223,7 +223,7 @@ export const useUserImages = (userId?: string) => {
     enabled: false,
     queryFn: async () => {
       const id = await getSafeUserId(userId);
-      const res = await apiClient.get(`/profile/me/${id}`);
+      const res = await apiClient.post(`/profile/me`, null, { params: { userId: id } });
       return normalizeUserImagesResponse(res.data);
     },
   });
