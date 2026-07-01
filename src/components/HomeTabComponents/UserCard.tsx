@@ -1,62 +1,58 @@
-import React, {useContext, useEffect} from 'react';
+import React, { useContext } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   Dimensions,
-  TouchableOpacity,
-  Button,
   Pressable,
 } from 'react-native';
+import AuthImage from '../AuthImage';
 import AppContext from '../../context/CreateGlobalStateContext';
-import {useNavigation} from '@react-navigation/native';
-import {StackNavigationProp} from '@react-navigation/stack';
-import {RootParamList} from '../../utils/types/navigation.types';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootParamList } from '../../utils/types/navigation.types';
+import { User } from '../../api/types';
 
 interface UserCardProps {
   name: string;
   age: number;
   image: string;
   distance: string;
+  userId: number;
+  userUserId?: string;
+  userData?: User;
 }
 
 const CARD_WIDTH = (Dimensions.get('window').width - 45) / 2;
 
-const UserCard = ({name, age, image, distance}: UserCardProps) => {
-  const navigation =
-    useNavigation<StackNavigationProp<RootParamList, 'ViewMyProfileScreen'>>();
+const UserCard = ({ name, age, image, distance, userId, userUserId, userData }: UserCardProps) => {
+  const navigation = useNavigation<StackNavigationProp<RootParamList>>();
   const {
-    viewMyProfile,
     setViewMyProfile,
     setSelectedUserImage,
-    cardUserName,
     setCardUserName,
-    cardUserAge,
     setCardUserAge,
   } = useContext(AppContext);
-  // useEffect(() => {
-  //   console.log('View My Profile:', viewMyProfile);
-
-  // },[viewMyProfile])
-    
-
 
   const handleUserCard = () => {
-    console.log('User details:', name, age, image, distance);
-
     setCardUserName(name);
     setCardUserAge(age);
-
     setViewMyProfile(false);
     setSelectedUserImage(image);
-    navigation.navigate('ViewMyProfileScreen');
+    navigation.navigate('ViewMyProfileScreen', { userId, userUserId, userData });
   };
+
   return (
     <Pressable onPress={handleUserCard}>
       <View style={styles.card}>
         <View style={styles.imageContainer}>
-          <Image source={{uri: image}} style={styles.image} />
+          {image ? (
+            <AuthImage uri={image} style={styles.image} />
+          ) : (
+            <View style={[styles.image, styles.placeholder]}>
+              <Text style={styles.placeholderText}>{name?.charAt(0) || '?'}</Text>
+            </View>
+          )}
           <View style={styles.overlayText}>
             <Text style={styles.name}>
               {name}, {age}
@@ -79,36 +75,33 @@ const styles = StyleSheet.create({
     marginHorizontal: 7.5,
     shadowColor: '#000',
     shadowOpacity: 0.1,
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 3,
   },
-  imageContainer: {
-    position: 'relative',
-  },
+  imageContainer: { position: 'relative' },
   image: {
     width: '100%',
     height: 170,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
+  placeholder: {
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: { fontSize: 40, color: '#999' },
   overlayText: {
     position: 'absolute',
     bottom: 10,
     left: 10,
-    backgroundColor: 'trasparent',
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  name: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  distance: {
-    color: 'white',
-  },
+  name: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  distance: { color: 'white' },
 });
 
 export default UserCard;

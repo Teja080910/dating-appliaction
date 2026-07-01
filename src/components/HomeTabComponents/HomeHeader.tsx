@@ -1,27 +1,26 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons'; // Correct for CLI
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 interface Props {
   selectedFilter: 'online' | 'newest';
   onFilterChange: (filter: 'online' | 'newest') => void;
-  // Adjust type as needed
+  searchQuery: string;
+  onSearchChange: (text: string) => void;
 }
 
 type HomeHeaderNavigationProp = StackNavigationProp<RootParamList, 'SearchSettings'>;
 
-
-const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
+const HomeHeader = ({ selectedFilter, onFilterChange, searchQuery, onSearchChange }: Props) => {
   const navigation = useNavigation<HomeHeaderNavigationProp>();
   const handleSearchSettingsPress = () => {
      navigation.navigate('SearchSettings');
   }
   return (
     <View style={styles.wrapper}>
-      {/* Top bar */}
       <View style={styles.topBar}>
         <Text style={styles.logo}>Dating</Text>
         <TouchableOpacity onPress={handleSearchSettingsPress}>
@@ -29,7 +28,23 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
         </TouchableOpacity>
       </View>
 
-      {/* Toggle buttons */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name..."
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={onSearchChange}
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => onSearchChange('')}>
+            <Ionicons name="close-circle" size={20} color="#999" />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <View style={styles.toggleWrapper}>
         <TouchableOpacity
           style={[
@@ -87,6 +102,17 @@ const styles = StyleSheet.create({
     color: '#e94e77',
     fontFamily: 'sans-serif-medium',
   },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f1f1',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    marginTop: 10,
+    height: 40,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 15, color: '#333', padding: 0 },
   toggleWrapper: {
     flexDirection: 'row',
     justifyContent: 'center',

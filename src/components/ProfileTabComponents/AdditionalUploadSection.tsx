@@ -1,20 +1,32 @@
-
 import {
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
+import AuthImage from '../AuthImage';
 import AppContext from '../../context/CreateGlobalStateContext';
 import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { profileApi } from '../../api/profileApi';
+import { AuthStorage } from '../../api/authStorage';
+import { APIURL } from '../../environment/ApiConfig';
+
+const resolveImageUri = (img: string) => {
+  if (!img) return '';
+  if (img.startsWith('http://') || img.startsWith('https://')) return img;
+  if (img.startsWith('/')) return `${APIURL}${img}`;
+  return `${APIURL}/${img}`;
+};
 
 const AdditionalUploadSection = () => {
   const {
     images,
+    imageIds,
+    setImageIds,
     profileImage,
     setProfileImage,
     setSelectedIndex,
@@ -22,14 +34,15 @@ const AdditionalUploadSection = () => {
     setImages,
   } = useContext(AppContext);
 
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+
   const onPressImage = async (index: number) => {
     const currentImage = images[index];
+    const currentImageId = imageIds?.[index];
 
-    // Count how many images are non-empty
-    const totalImages = images.filter(img => img && img.trim() !== '').length;
+    const totalImages = images.filter((img: string | null) => !!img).length;
 
     if (currentImage && currentImage.trim() !== '') {
-      // REMOVE CASE
       if (totalImages === 1) {
         Alert.alert(
           'Hold on!',
@@ -42,6 +55,15 @@ const AdditionalUploadSection = () => {
       newImages[index] = null;
       setImages(newImages);
 
+      if (currentImageId) {
+        try {
+          await profileApi.deleteImage(currentImageId);
+        } catch {}
+      }
+      const newImageIds = [...(imageIds || [])];
+      newImageIds[index] = null;
+      setImageIds(newImageIds);
+
       if (profileImage === currentImage) {
         setProfileImage(null);
       }
@@ -49,18 +71,58 @@ const AdditionalUploadSection = () => {
       setSelectedIndex(null);
       setIsModalVisible(false);
     } else {
-      // UPLOAD CASE
       const result = await launchImageLibrary({ mediaType: 'photo' });
 
       if (result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
+        const asset = result.assets[0];
+        const uri = asset.uri;
         if (uri) {
+          setUploadingIndex(index);
           const updatedImages = [...images];
           updatedImages[index] = uri;
           setImages(updatedImages);
 
           if (!profileImage) {
             setProfileImage(uri);
+          }
+
+          try {
+            const userIdStr = await AuthStorage.getUserIdStr();
+            if (userIdStr) {
+              await profileApi.uploadImage(userIdStr, {
+                uri,
+                type: asset.type || 'image/jpeg',
+                fileName: asset.fileName || 'photo.jpg',
+              });
+
+              const allImages = await profileApi.getAllImages(userIdStr);
+              const imageList = allImages?.data || allImages?.images || allImages;
+              if (Array.isArray(imageList) && imageList.length > 0) {
+                const newImageIds = [...(imageIds || [])];
+                const lastImg = imageList[imageList.length - 1];
+                newImageIds[index] = lastImg.id;
+                setImageIds(newImageIds);
+
+                const backendUrl = resolveImageUri(lastImg.imageUrl || '');
+                if (backendUrl) {
+                  updatedImages[index] = backendUrl;
+                  setImages([...updatedImages]);
+                  if (totalImages === 0) {
+                    setProfileImage(backendUrl);
+                  }
+                }
+
+                try {
+                  await profileApi.setProfilePhoto(userIdStr, lastImg.id);
+                } catch {}
+              }
+            }
+          } catch (e: any) {
+            Alert.alert('Upload failed', e?.response?.data?.message || e?.message || 'Please try again');
+            updatedImages[index] = null;
+            setImages([...updatedImages]);
+          } finally {
+            setUploadingIndex(null);
           }
         }
       }
@@ -81,9 +143,13 @@ const AdditionalUploadSection = () => {
             <TouchableOpacity
               key={i}
               style={styles.imageBox}
-              onPress={() => onPressImage(i)}>
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
+              onPress={() => onPressImage(i)}
+              disabled={uploadingIndex !== null}
+            >
+              {uploadingIndex === i ? (
+                <ActivityIndicator size="large" color="#D94B58" />
+              ) : imageUri ? (
+                <AuthImage uri={imageUri} style={styles.uploadedImage} />
               ) : (
                 <View style={styles.iconContainer}>
                   <Text style={styles.cameraIcon}>📷</Text>

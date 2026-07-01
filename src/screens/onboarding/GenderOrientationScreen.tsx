@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,107 +8,104 @@ import {
   SafeAreaView,
   StatusBar,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome5'; // for gender icons
-import AppContext from '../../context/CreateGlobalStateContext';
-import { saveGender } from '../../utils/types/AsyncStorage';
+import Icon from 'react-native-vector-icons/FontAwesome5';
+import { profileApi } from '../../api/profileApi';
+import { AuthStorage } from '../../api/authStorage';
+
+const genders = [
+  { label: 'Male', value: 'male', icon: 'mars' },
+  { label: 'Female', value: 'female', icon: 'venus' },
+  { label: 'Other', value: 'other', icon: 'transgender-alt' },
+];
 
 const GenderOrientationScreen = ({ navigation }: any) => {
-  // const [selected, setSelected] = useState<string | null>(null);
-
-  const {selected, setSelected} = useContext(AppContext);
+  const [selectedGender, setSelectedGender] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        navigation.replace('Privacy'); // Go back to the previous screen
-        return true; // Prevent default behavior
-      }
+        navigation.replace('Privacy');
+        return true;
+      };
       const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => backHandler.remove(); // Cleanup the event listener on unmount
-    },[navigation]),
-  )
+      return () => backHandler.remove();
+    }, [navigation]),
+  );
 
-  const options = [
-    { label: "I'm a straight woman", icon: 'venus', value: 'straight_woman' },
-    { label: "I'm a straight man", icon: 'mars', value: 'straight_man' },
-    { label: "I’m LGBTQIA+", icon: 'bars', value: 'lgbtqia' },
-  ];
-
-  const handleNext = () => {
-    if (selected) {
-      navigation.navigate('DisplayName'); // replace with actual screen
-    }
+  const handleNext = async () => {
+    if (!selectedGender) return;
+    setLoading(true);
+    try {
+      const userIdStr = await AuthStorage.getUserIdStr();
+      if (userIdStr) {
+        try {
+          await profileApi.saveGenderOrientation({
+            userId: userIdStr,
+            gender: selectedGender,
+            orientation: selectedGender === 'male' ? 'straight_man' : selectedGender === 'female' ? 'straight_woman' : 'lgbtqia',
+          });
+        } catch {}
+      }
+    } catch {}
+    setLoading(false);
+    navigation.navigate('DisplayName');
   };
 
- 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
-      {/* Progress Bar */}
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBarFill} />
       </View>
 
-      <Text style={styles.title}>What's your gender and orientation?</Text>
+      <Text style={styles.title}>What's your gender?</Text>
 
-      {/* Option Buttons */}
-      <View style={styles.optionsContainer}>
-        {options.map((option) => (
+      <View style={styles.genderRow}>
+        {genders.map((g) => (
           <TouchableOpacity
-            key={option.value}
+            key={g.value}
             style={[
-              styles.optionButton,
-              selected === option.value && styles.selectedOption,
+              styles.genderBtn,
+              selectedGender === g.value && styles.selectedOption,
             ]}
-            onPress={() => {
-              setSelected(option.value)
-              saveGender(option.value); 
-              console.log('saveGender', option.value);
-                  
-            } }
-          >
+            onPress={() => setSelectedGender(g.value)}>
             <Icon
-              name={option.icon}
+              name={g.icon}
               size={24}
-              color={selected === option.value ? '#E94057' : '#555'}
-              style={{ marginBottom: 8 }}
+              color={selectedGender === g.value ? '#E94057' : '#555'}
             />
-            <Text style={styles.optionText}>{option.label}</Text>
+            <Text
+              style={[
+                styles.optionText,
+                selectedGender === g.value && styles.selectedOptionText,
+              ]}>
+              {g.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Bottom Info and Next Button */}
       <View style={styles.bottomContainer}>
-        <View style={styles.infoContainer}>
-          <Icon name="info-circle" size={16} color="#999" />
-          <Text style={styles.infoText}>
-            Men have total privacy at Dating. Only people you invite can see your profile.
-          </Text>
-        </View>
-
         <TouchableOpacity
-          style={[styles.nextButton, !selected && styles.disabledButton]}
+          style={[styles.nextButton, (!selectedGender || loading) && styles.disabledButton]}
           onPress={handleNext}
-          disabled={!selected}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
+          disabled={!selectedGender || loading}>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.nextButtonText}>Next</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
-  );   
+  );
 };
 
-export default GenderOrientationScreen;
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 24,
-  },
+  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 },
   progressBarContainer: {
     height: 5,
     backgroundColor: '#e0e0e0',
@@ -128,12 +125,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#333',
   },
-  optionsContainer: {
-    marginTop: 30,
+  genderRow: {
+    marginTop: 24,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  optionButton: {
+  genderBtn: {
     width: '30%',
     padding: 16,
     borderRadius: 12,
@@ -142,43 +139,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
-  selectedOption: {
-    borderColor: '#E94057',
-    backgroundColor: '#fff0f3',
-  },
-  optionText: {
-    textAlign: 'center',
-    fontSize: 13,
-    color: '#555',
-  },
-  bottomContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 30,
-  },
-  infoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  infoText: {
-    fontSize: 12,
-    color: '#999',
-    marginLeft: 8,
-    flex: 1,
-  },
+  selectedOption: { borderColor: '#E94057', backgroundColor: '#fff0f3' },
+  optionText: { textAlign: 'center', fontSize: 13, color: '#555', marginTop: 6 },
+  selectedOptionText: { color: '#E94057', fontWeight: '600' },
+  bottomContainer: { flex: 1, justifyContent: 'flex-end', paddingBottom: 30 },
   nextButton: {
     backgroundColor: '#E94057',
     paddingVertical: 14,
     borderRadius: 24,
     alignItems: 'center',
   },
-  disabledButton: {
-    backgroundColor: '#ddd',
-  },
-  nextButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
+  disabledButton: { backgroundColor: '#ddd' },
+  nextButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });
+
+export default GenderOrientationScreen;

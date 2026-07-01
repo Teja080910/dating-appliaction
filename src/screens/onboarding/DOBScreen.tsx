@@ -1,5 +1,3 @@
-
-
 import React, { useCallback, useContext, useState } from 'react';
 import {
   View,
@@ -9,53 +7,66 @@ import {
   SafeAreaView,
   StatusBar,
   BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { profileApi } from '../../api/profileApi';
+import { AuthStorage } from '../../api/authStorage';
 
 const DOBScreen = ({ navigation }: any) => {
   const { date, setDate } = useContext(AppContext);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleNext = () => {
-    navigation.navigate('UploadImage'); // Replace with your next screen
+  const handleNext = async () => {
+    setSaving(true);
+    try {
+      const userIdStr = await AuthStorage.getUserIdStr();
+      if (userIdStr) {
+        const dobStr = date.toISOString().split('T')[0];
+        const age = new Date().getFullYear() - date.getFullYear();
+        try {
+          await profileApi.updateBasic({
+            userId: userIdStr,
+            age,
+          });
+        } catch {}
+      }
+    } catch {}
+    setSaving(false);
+    navigation.navigate('UploadImage');
   };
 
   useFocusEffect(
-    useCallback( () => {
-    
+    useCallback(() => {
       const onBackPress = () => {
-        navigation.replace('DisplayName')
+        navigation.replace('DisplayName');
         return true;
-      }
-      const backHandler = 
-        BackHandler.addEventListener('hardwareBackPress', onBackPress)
-        return () => backHandler.remove();
-    },[navigation])
-  )
+      };
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [navigation]),
+  );
 
-  const formattedDate = date.toLocaleDateString('en-GB'); // format like "11/04/2025"
+  const formattedDate = date.toLocaleDateString('en-GB');
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Progress Bar */}
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBarFill} />
       </View>
 
-      {/* Title */}
       <Text style={styles.title}>When are you born?</Text>
 
-      {/* Touchable Date Display */}
       <TouchableOpacity style={styles.dateDisplay} onPress={() => setOpen(true)}>
         <Text style={styles.dateText}>{formattedDate}</Text>
       </TouchableOpacity>
 
-      {/* Date Picker Modal */}
       <DatePicker
         modal
         open={open}
@@ -68,7 +79,6 @@ const DOBScreen = ({ navigation }: any) => {
         onCancel={() => setOpen(false)}
       />
 
-      {/* Bottom Info */}
       <View style={styles.bottomContainer}>
         <View style={styles.infoContainer}>
           <Icon name="info-circle" size={14} color="#999" style={{ marginTop: 2 }} />
@@ -78,22 +88,23 @@ const DOBScreen = ({ navigation }: any) => {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>Next</Text>
+        <TouchableOpacity
+          style={[styles.nextButton, saving && { opacity: 0.7 }]}
+          onPress={handleNext}
+          disabled={saving}>
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.nextButtonText}>Next</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 };
 
-export default DOBScreen;
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 24,
-  },
+  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 },
   progressBarContainer: {
     height: 5,
     backgroundColor: '#eee',
@@ -123,34 +134,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dateText: {
-    fontSize: 16,
-    color: '#000',
-  },
-  bottomContainer: {
-    marginTop: 'auto',
-    paddingBottom: 30,
-  },
+  dateText: { fontSize: 16, color: '#000' },
+  bottomContainer: { marginTop: 'auto', paddingBottom: 30 },
   infoContainer: {
     flexDirection: 'row',
     gap: 10,
     alignItems: 'flex-start',
     marginBottom: 20,
   },
-  infoText: {
-    fontSize: 12,
-    color: '#999',
-    flex: 1,
-  },
+  infoText: { fontSize: 12, color: '#999', flex: 1 },
   nextButton: {
     backgroundColor: '#E94057',
     paddingVertical: 16,
     borderRadius: 999,
     alignItems: 'center',
   },
-  nextButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
+  nextButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 });
+
+export default DOBScreen;

@@ -11,18 +11,11 @@ const LanguagesSelector = () => {
   const { selectedLanguages, setSelectedLanguages } = useContext(AppContext);
 
   const toggleLanguage = (lang: string) => {
-    console.log('You clicked:', lang);
-    console.log('Before click, selectedLanguages:', selectedLanguages);
-
     if (selectedLanguages.includes(lang)) {
-      // If already selected, remove it
       const updatedLanguages = selectedLanguages.filter( item => item !== lang);
-      console.log('After removing:', updatedLanguages);
       setSelectedLanguages(updatedLanguages);
     } else {
-      // If not selected, add it 
       const updatedLanguages = [...selectedLanguages, lang];
-      console.log('After adding:', updatedLanguages);
       setSelectedLanguages(updatedLanguages);
     }
   };

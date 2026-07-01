@@ -9,16 +9,9 @@ const BodyTypeSelector = () => {
   const { selectedBodyType, setSelectedBodyType } = useContext(AppContext);
 
   const toggleBodyType = (type: string) => {
-    console.log('You clicked:', type);
-    console.log('Before click, selectedBodyType:', selectedBodyType);
-
     if (selectedBodyType === type) {
-      // If already selected, deselect
-      console.log('After removing: null');
       setSelectedBodyType(null);
     } else {
-      // Otherwise, select this one
-      console.log('After adding:', type);
       setSelectedBodyType(type);
     }
   };

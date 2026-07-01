@@ -3,7 +3,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Feather from 'react-native-vector-icons/Feather';
-import Icon from 'react-native-vector-icons/Feather';
 
 const ChangeLocation = ({ onPress }: any) => {
   return (
@@ -13,7 +12,7 @@ const ChangeLocation = ({ onPress }: any) => {
         <Text style={styles.text}>Change location</Text>
       </View>
       {/* <Feather name="chevron-right" size={20} color="#c4c4c4" /> */}
-      <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
+      <Feather name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
     </TouchableOpacity>
   );
 };

@@ -4,10 +4,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 const AllRightsReserved = () => {
+  const currentYear = new Date().getFullYear();
   return (
     <View style={styles.container}>
       <Text style={styles.brand}>Dating</Text>
-      <Text style={styles.footerText}>2025 © Glambu app. All rights reserved.{'\n'}v. 4.2.2</Text>
+      <Text style={styles.footerText}>{currentYear} © Glambu app. All rights reserved.{'\n'}v. 4.2.2</Text>
     </View>
   );
 };

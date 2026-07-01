@@ -1,9 +1,3 @@
 module.exports = {
-  dependencies: {
-    expo: {
-      platforms: {
-        android: null,
-      },
-    },
-  },
+  assets: ['./node_modules/react-native-vector-icons/Fonts'],
 };
