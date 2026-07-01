@@ -136,7 +136,7 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
       data={users}
       numColumns={2}
       key={2}
-      keyExtractor={(item) => `${item.id}-${item.userId}`}
+      keyExtractor={(item, index) => `${item.id || index}-${item.userId || index}`}
       columnWrapperStyle={styles.row}
       renderItem={({ item }) => (
         <UserCard

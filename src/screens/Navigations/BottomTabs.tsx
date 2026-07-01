@@ -51,7 +51,9 @@ const BottomTabs = () => {
       try {
         const userData = await AuthStorage.getUser();
         const gender = userData?.gender || '';
-        setIsFemale(gender === 'Female');
+        console.log(gender === 'female')
+
+        setIsFemale(gender === 'female');
       } catch {}
       setLoaded(true);
     };
