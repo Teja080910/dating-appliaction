@@ -13,14 +13,7 @@ import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
-import { APIURL } from '../../environment/ApiConfig';
-
-const resolveImageUri = (img: string) => {
-  if (!img) return '';
-  if (img.startsWith('http://') || img.startsWith('https://')) return img;
-  if (img.startsWith('/')) return `${APIURL}${img}`;
-  return `${APIURL}/${img}`;
-};
+import { resolveImageUri, parseImageList } from '../../utils/imageUtils';
 
 const AdditionalUploadSection = () => {
   const {
@@ -95,9 +88,9 @@ const AdditionalUploadSection = () => {
                 fileName: asset.fileName || 'photo.jpg',
               });
 
-              const allImages = await profileApi.getAllImages(userIdStr);
-              const imageList = allImages?.data || allImages?.images || allImages;
-              if (Array.isArray(imageList) && imageList.length > 0) {
+              const allImagesResp = await profileApi.getAllImages(userIdStr);
+              const imageList = parseImageList(allImagesResp);
+              if (imageList.length > 0) {
                 const newImageIds = [...(imageIds || [])];
                 const lastImg = imageList[imageList.length - 1];
                 newImageIds[index] = lastImg.id;

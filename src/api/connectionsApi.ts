@@ -27,7 +27,7 @@ export const connectionsApi = {
   },
 
   getSentRequests: async (
-    userId: number,
+    userId: string,
   ): Promise<ConnectionRequest[]> => {
     const response = await apiClient.get('/connections/sent', {
       params: { userId },
@@ -36,7 +36,7 @@ export const connectionsApi = {
   },
 
   getReceivedRequests: async (
-    userId: number,
+    userId: string,
   ): Promise<ConnectionRequest[]> => {
     const response = await apiClient.get('/connections/received', {
       params: { userId },
@@ -44,14 +44,14 @@ export const connectionsApi = {
     return response.data;
   },
 
-  getConnections: async (userId: number): Promise<ConnectionRequest[]> => {
+  getConnections: async (userId: string): Promise<ConnectionRequest[]> => {
     const response = await apiClient.get('/connections/list', {
       params: { userId },
     });
     return response.data;
   },
 
-  getConnectionStatus: async (user1: number, user2: number) => {
+  getConnectionStatus: async (user1: string, user2: string) => {
     const response = await apiClient.get('/connections/status', {
       params: { user1, user2 },
     });

@@ -3,16 +3,19 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Image,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { connectionsApi } from '../../api/connectionsApi';
 import { profileApi } from '../../api/profileApi';
+import AuthImage from '../../components/AuthImage';
+import { resolveImageUri } from '../../utils/imageUtils';
 import { AuthStorage } from '../../api/authStorage';
 import { ConnectionRequest } from '../../api/types';
 
@@ -21,7 +24,7 @@ export default function InvitationsScreen() {
   const [requests, setRequests] = useState<ConnectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userIdNum, setUserIdNum] = useState<number | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
   const [userGender, setUserGender] = useState<string | null>(null);
 
   const fetchGenderAndRequests = useCallback(async () => {
@@ -55,28 +58,43 @@ export default function InvitationsScreen() {
     }
 
     try {
-      const id = await AuthStorage.getUserId();
-      setUserIdNum(id);
+      const userData = await AuthStorage.getUser();
+      const id = userData?.userId || (await AuthStorage.getUserIdStr());
+      setMyUserId(id);
       if (id) {
         const all: ConnectionRequest[] = [];
         try {
           const received = await connectionsApi.getReceivedRequests(id);
-          all.push(...(received || []));
-        } catch {}
+          const receivedData = Array.isArray(received) ? received : received?.data || received?.content || received?.requests || [];
+          all.push(...receivedData);
+        } catch (e) {
+          console.error('getReceivedRequests failed:', e);
+        }
         try {
           const sent = await connectionsApi.getSentRequests(id);
-          all.push(...(sent || []));
-        } catch {}
-        all.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-        setRequests(all);
+          const sentData = Array.isArray(sent) ? sent : sent?.data || sent?.content || sent?.requests || [];
+          all.push(...sentData);
+        } catch (e) {
+          console.error('getSentRequests failed:', e);
+        }
+        const seen = new Set<number>();
+        const unique = all.filter(item => {
+          const key = item.id;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setRequests(unique);
       }
     } catch (err) {}
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    fetchGenderAndRequests().finally(() => setLoading(false));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchGenderAndRequests().finally(() => setLoading(false));
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -84,10 +102,10 @@ export default function InvitationsScreen() {
     setRefreshing(false);
   };
 
-  const handleAccept = async (requestId: number) => {
+  const handleAccept = async (requestId: string) => {
     try {
-      if (!userIdNum) return;
-      await connectionsApi.acceptRequest({ requestId, userId: userIdNum });
+      if (!myUserId) return;
+      await connectionsApi.acceptRequest({ requestId, userId: myUserId });
       Alert.alert('Accepted', 'You have accepted the request');
       onRefresh();
     } catch (err: any) {
@@ -95,10 +113,10 @@ export default function InvitationsScreen() {
     }
   };
 
-  const handleDecline = async (requestId: number) => {
+  const handleDecline = async (requestId: string) => {
     try {
-      if (!userIdNum) return;
-      await connectionsApi.declineRequest({ requestId, userId: userIdNum });
+      if (!myUserId) return;
+      await connectionsApi.declineRequest({ requestId, userId: myUserId });
       Alert.alert('Declined', 'Request has been declined');
       onRefresh();
     } catch (err: any) {
@@ -106,10 +124,10 @@ export default function InvitationsScreen() {
     }
   };
 
-  const handleCancel = async (requestId: number) => {
+  const handleCancel = async (requestId: string) => {
     try {
-      if (!userIdNum) return;
-      await connectionsApi.cancelRequest({ requestId, userId: userIdNum });
+      if (!myUserId) return;
+      await connectionsApi.cancelRequest({ requestId, userId: myUserId });
       Alert.alert('Cancelled', 'Request has been cancelled');
       onRefresh();
     } catch (err: any) {
@@ -117,19 +135,21 @@ export default function InvitationsScreen() {
     }
   };
 
-
+  const isFemale = userGender === 'female';
+  const isMale = userGender === 'male';
 
   const renderRequestItem = ({ item }: { item: ConnectionRequest }) => {
-    const isReceived = item.receiver?.id === userIdNum;
+    const isReceived = item.receiver?.userId === myUserId || item.receiver?.id === Number(myUserId);
     const otherUser = isReceived ? item.sender : item.receiver;
-    const otherName = otherUser?.name || otherUser?.profile?.displayName || 'Unknown';
+    const otherName = otherUser?.name || otherUser?.profile?.displayName || otherUser?.profile?.name || otherUser?.userId || 'Unknown';
     const otherImage = otherUser?.profile?.profileImageUrl || '';
+    const statusText = item.status || 'PENDING';
 
     return (
       <View style={styles.requestCard}>
         <View style={styles.requestRow}>
           {otherImage ? (
-            <Image source={{ uri: otherImage }} style={styles.avatar} />
+            <AuthImage uri={resolveImageUri(otherImage)} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.avatarPlaceholder]}>
               <Text style={styles.avatarText}>{otherName.charAt(0)}</Text>
@@ -137,28 +157,28 @@ export default function InvitationsScreen() {
           )}
           <View style={styles.requestInfo}>
             <Text style={styles.requestName}>{otherName}</Text>
-            <Text style={styles.requestStatus}>Status: {item.status}</Text>
+            <Text style={styles.requestStatus}>Status: {statusText}</Text>
           </View>
         </View>
         <View style={styles.actionRow}>
-          {isReceived && item.status === 'PENDING' && (
+          {isFemale && isReceived && item.status === 'PENDING' && (
             <>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.acceptBtn]}
-                onPress={() => handleAccept(item.id)}>
+                onPress={() => handleAccept(String(item.id))}>
                 <Text style={styles.actionBtnText}>Accept</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.declineBtn]}
-                onPress={() => handleDecline(item.id)}>
+                onPress={() => handleDecline(String(item.id))}>
                 <Text style={styles.actionBtnText}>Decline</Text>
               </TouchableOpacity>
             </>
           )}
-          {!isReceived && item.status === 'PENDING' && (
+          {isMale && !isReceived && item.status === 'PENDING' && (
             <TouchableOpacity
               style={[styles.actionBtn, styles.cancelBtn]}
-              onPress={() => handleCancel(item.id)}>
+              onPress={() => handleCancel(String(item.id))}>
               <Text style={styles.actionBtnText}>Cancel</Text>
             </TouchableOpacity>
           )}

@@ -22,29 +22,23 @@ import AllRightsReserved from '../../components/ProfileTabComponents/AllRightsRe
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
 import { APIURL } from '../../environment/ApiConfig';
+import { resolveImageUri, parseImageList } from '../../utils/imageUtils';
 
 const ProfileScreen = () => {
   const {
     name, email, profileText, profileImage, images,
     height, setHeight, setTempHeight,
     selectedAppearance, selectedBodyType, selectedLanguages, englishSkillLevel,
-    selectedEthinicity, selectedSmoking, selectedKidCount, selectedLookingFor, selectedNetWorth,
+    selectedEthinicity, selectedSmoking, selectedLookingFor,
     setName, setProfileText, setImages, setProfileImage, setDate,
     setSelectedAppearance, setSelectedBodyType, setSelectedSmoking, setEnglishSkillLevel,
-    setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedKidCount,
+    setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor,
   } = useContext(AppContext);
 
   const [loading, setLoading] = useState(true);
   const [ownMobile, setOwnMobile] = useState('');
   const [ownTelegram, setOwnTelegram] = useState('');
   const [ownEmail, setOwnEmail] = useState('');
-
-  const resolveImageUri = (img: string) => {
-    if (!img) return '';
-    if (img.startsWith('http://') || img.startsWith('https://')) return img;
-    if (img.startsWith('/')) return `${APIURL}${img}`;
-    return `${APIURL}/${img}`;
-  };
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
@@ -77,13 +71,17 @@ const ProfileScreen = () => {
       if (data.lookingFor) {
         setSelectedLookingFor(data.lookingFor.split(',').map((s: string) => s.trim()).filter(Boolean));
       }
+      if (data.dob) {
+        const parsed = new Date(data.dob);
+        if (!isNaN(parsed.getTime())) setDate(parsed);
+      }
 
       try {
         const allImages = await profileApi.getAllImages(userIdStr);
-        const imageList = allImages?.data || allImages?.images || allImages;
-        if (Array.isArray(imageList)) {
+        const imageList = parseImageList(allImages);
+        if (imageList.length > 0) {
           const urls = imageList.map((img: any) => resolveImageUri(img.imageUrl || img.url || img));
-          if (urls.length > 0) setImages(urls);
+          setImages(urls);
         }
       } catch {}
 
@@ -146,7 +144,6 @@ const ProfileScreen = () => {
               </Text>
             ) : null}
             {selectedSmoking ? <Text style={styles.detailChip}>Smoke: {selectedSmoking}</Text> : null}
-            {selectedKidCount ? <Text style={styles.detailChip}>Kids: {selectedKidCount}</Text> : null}
             {selectedLookingFor?.length > 0 ? <Text style={styles.detailChip}>Looking for: {selectedLookingFor.join(', ')}</Text> : null}
           </View>
 

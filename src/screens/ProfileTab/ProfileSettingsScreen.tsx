@@ -17,12 +17,17 @@ const ProfileSettingsScreen = () => {
       try {
         const userIdStr = await AuthStorage.getUserIdStr();
         if (!userIdStr) return;
-        const data = await profileApi.getMyProfile(userIdStr);
+        const userData = await profileApi.getMyUser(userIdStr);
+        const data = userData?.profile || {};
         if (data.displayName) setName(data.displayName);
         if (data.name) setName(data.name);
         if (data.bio) setProfileText(data.bio);
         if (data.lookingFor) {
           setSelectedLookingFor(data.lookingFor.split(',').map((s: string) => s.trim()).filter(Boolean));
+        }
+        if (data.dob) {
+          const parsed = new Date(data.dob);
+          if (!isNaN(parsed.getTime())) setDate(parsed);
         }
       } catch {}
       setLoading(false);

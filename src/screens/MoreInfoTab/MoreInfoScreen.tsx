@@ -2,6 +2,7 @@ import React, { useContext, useCallback, useState } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Header from '../../components/MoreInfoTabComponents/Header';
+import AgeSelector from '../../components/MoreInfoTabComponents/AgeSelector';
 import HeightSelector from '../../components/MoreInfoTabComponents/HeightSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
@@ -9,9 +10,8 @@ import LanguagesSelector from '../../components/MoreInfoTabComponents/LanguagesS
 import EnglishSkillSelector from '../../components/MoreInfoTabComponents/EnglishSkillSelector';
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
 import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
-import KidsCountSelector from '../../components/MoreInfoTabComponents/KidsCountSelector';
+import DoYouDrinkSelector from '../../components/MoreInfoTabComponents/DoYouDrinkSelector';
 import LookingForSelector from '../../components/MoreInfoTabComponents/LookingForSelector';
-import NetWorthSelector from '../../components/MoreInfoTabComponents/NetWorthSelector';
 import SaveButton from '../../components/MoreInfoTabComponents/SaveButton';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
@@ -28,7 +28,8 @@ const MoreInfoScreen = () => {
     setSelectedSmoking,
     setTempHeight,
     setSelectedLanguages,
-    setSelectedLookingFor, setSelectedNetWorth, setSelectedKidCount,
+    setSelectedLookingFor,
+    setDate,
   } = useContext(AppContext);
 
   const [loading, setLoading] = useState(true);
@@ -54,6 +55,10 @@ const MoreInfoScreen = () => {
       if (data.lookingFor) {
         setSelectedLookingFor(data.lookingFor.split(',').map(s => s.trim()).filter(Boolean));
       }
+      if (data.dob) {
+        const parsed = new Date(data.dob);
+        if (!isNaN(parsed.getTime())) setDate(parsed);
+      }
     } catch {}
     setLoading(false);
   }, []);
@@ -76,6 +81,7 @@ const MoreInfoScreen = () => {
     <View style={styles.container}>
       <Header />
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <AgeSelector />
         <HeightSelector />
         <BodyTypeSelector />
         <AppearanceSelector />
@@ -83,9 +89,8 @@ const MoreInfoScreen = () => {
         <EnglishSkillSelector />
         <EthnicitySelector />
         <DoYouSmokeSelector />
-        <KidsCountSelector />
+        <DoYouDrinkSelector />
         <LookingForSelector />
-        <NetWorthSelector />
       </ScrollView>
       <SaveButton />
     </View>

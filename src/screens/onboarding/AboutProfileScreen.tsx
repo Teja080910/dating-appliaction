@@ -24,8 +24,7 @@ const AboutProfileScreen = ({ navigation }: any) => {
       const userIdStr = await AuthStorage.getUserIdStr();
       if (userIdStr) {
         try {
-          await profileApi.updateBasic({
-            userId: userIdStr,
+          await profileApi.saveAllProfile(userIdStr, {
             bio: profileText,
           });
         } catch {}

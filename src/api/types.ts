@@ -12,13 +12,13 @@ export interface LoginRequest {
 }
 
 export interface SendRequestDTO {
-  senderId: number;
-  receiverId: number;
+  senderId: string;
+  receiverId: string;
 }
 
 export interface ActionRequestDTO {
-  requestId: number;
-  userId: number;
+  requestId: string;
+  userId: string;
 }
 
 export interface GenderOrientationRequest {
@@ -62,6 +62,8 @@ export interface UpdateDetailsDTO {
   bodyType?: string;
   appearance?: string;
   height?: number;
+  ethnicity?: string;
+  englishLevel?: string;
 }
 
 export interface UpdatePreferencesDTO {
@@ -193,6 +195,9 @@ export interface ProfileResponse {
   profileImageUrl?: string;
   images?: string[];
   gender?: string;
+  orientation?: string;
+  age?: number;
+  dob?: string;
 }
 
 export interface UserSearchResponse {

@@ -4,17 +4,20 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
 
+const englishLevels = ['Bad', 'Medium', 'Good', 'Very Good'];
+
 const SaveButton = () => {
   const {
     selectedAppearance,
     selectedBodyType,
     selectedSmoking,
+    selectedDrink,
     englishSkillLevel,
     selectedEthinicity,
     tempHeight,
-    selectedKidCount,
     selectedLanguages,
     selectedLookingFor,
+    date,
   } = useContext(AppContext);
 
   const [saving, setSaving] = useState(false);
@@ -25,18 +28,30 @@ const SaveButton = () => {
       const userIdStr = await AuthStorage.getUserIdStr();
       if (!userIdStr) return;
 
+      const dobStr = date ? date.toISOString().split('T')[0] : undefined;
+      const age = date ? new Date().getFullYear() - date.getFullYear() : undefined;
+
+      await profileApi.updateBasic({
+        userId: userIdStr,
+        age,
+      });
+
       await profileApi.updateDetails({
         userId: userIdStr,
         language: selectedLanguages?.join(',') || '',
         bodyType: selectedBodyType || '',
         appearance: selectedAppearance || '',
         height: tempHeight || 165,
+        ethnicity: selectedEthinicity || '',
+        englishLevel: englishLevels[englishSkillLevel] || '',
       });
 
-      const preferences: any = { userId: userIdStr };
-      if (selectedLookingFor?.length) preferences.lookingFor = selectedLookingFor.join(',');
-      if (selectedSmoking) preferences.smoke = selectedSmoking;
-      await profileApi.updatePreferences(preferences);
+      await profileApi.updatePreferences({
+        userId: userIdStr,
+        lookingFor: selectedLookingFor?.join(',') || '',
+        smoke: selectedSmoking || '',
+        drink: selectedDrink || '',
+      });
 
       Alert.alert('Success', 'Profile updated successfully');
     } catch (err: any) {

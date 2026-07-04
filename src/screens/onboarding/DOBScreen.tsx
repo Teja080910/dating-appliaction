@@ -29,8 +29,8 @@ const DOBScreen = ({ navigation }: any) => {
         const dobStr = date.toISOString().split('T')[0];
         const age = new Date().getFullYear() - date.getFullYear();
         try {
-          await profileApi.updateBasic({
-            userId: userIdStr,
+          await profileApi.saveAllProfile(userIdStr, {
+            dob: dobStr,
             age,
           });
         } catch {}

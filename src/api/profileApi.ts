@@ -98,7 +98,9 @@ export const profileApi = {
   },
 
   getHomeUsers: async (userId: string): Promise<HomeResponse> => {
-    const response = await apiClient.get(`/home/${userId}`);
+    const response = await apiClient.get('/home/allusers', {
+      params: { userId },
+    });
     return response.data;
   },
 
@@ -109,6 +111,13 @@ export const profileApi = {
 
   deleteImage: async (imageId: number) => {
     const response = await apiClient.delete(`/users/images/${imageId}`);
+    return response.data;
+  },
+
+  saveAllProfile: async (userId: string, dto: ProfileRequestDTO) => {
+    const response = await apiClient.post(`/profile/${userId}/setup`, null, {
+      params: { dto: JSON.stringify(dto) },
+    });
     return response.data;
   },
 };

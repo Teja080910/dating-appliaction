@@ -13,37 +13,7 @@ const HomeScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const fetchGender = async () => {
-      try {
-        const userIdStr = await AuthStorage.getUserIdStr();
-        if (userIdStr) {
-          const profile = await profileApi.getMyProfile(userIdStr);
-          const gender = profile?.gender || '';
-          if (gender === 'female') {
-            setOppositeGender('male');
-          } else if (gender === 'male') {
-            setOppositeGender('female');
-          } else {
-            setOppositeGender('other');
-          }
-        }
-      } catch {
-        try {
-          const userData = await AuthStorage.getUser();
-          const gender = userData?.gender || '';
-          if (gender === 'female') {
-            setOppositeGender('male');
-          } else if (gender === 'male') {
-            setOppositeGender('female');
-          } else {
-            setOppositeGender('other');
-          }
-        } catch {
-          setOppositeGender('other');
-        }
-      }
-    };
-    fetchGender();
+    setOppositeGender('female');
   }, []);
 
   useFocusEffect(

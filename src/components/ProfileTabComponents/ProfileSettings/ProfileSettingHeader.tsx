@@ -18,12 +18,13 @@ const ProfileSettingsHeader = () => {
     try {
       const userIdStr = await AuthStorage.getUserIdStr();
       if (userIdStr) {
+        const dobStr = date ? date.toISOString().split('T')[0] : undefined;
         const age = date ? new Date().getFullYear() - date.getFullYear() : undefined;
-        await profileApi.updateBasic({
-          userId: userIdStr,
+        await profileApi.saveAllProfile(userIdStr, {
           name: name || undefined,
           displayName: name || undefined,
           bio: profileText || undefined,
+          dob: dobStr,
           age,
         });
         Alert.alert('Success', 'Profile updated');

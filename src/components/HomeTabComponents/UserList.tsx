@@ -12,7 +12,6 @@ import { profileApi } from '../../api/profileApi';
 import { userApi } from '../../api/userApi';
 import { AuthStorage } from '../../api/authStorage';
 import { User, UserProfile } from '../../api/types';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface HomeUserListProps {
   filterByGender: string | null;
@@ -25,76 +24,76 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const normalizeUser = (item: any): User => {
+  const toUser = (item: any): User | null => {
+    if (!item) return null;
+    const rawId = item.id ?? item.userId ?? 0;
+    const numericId = typeof rawId === 'number' ? rawId : Number(String(rawId).replace(/\D/g, '')) || 0;
     if (item.id !== undefined && (item.profile || item.name)) {
-      return item as User;
+      return { ...item, id: numericId } as User;
     }
     return {
-      id: item.id || item.userId || 0,
-      name: item.name || item.displayName || '',
+      id: numericId,
       userId: item.userId || '',
-      profile: item as UserProfile,
+      name: item.name || item.displayName || '',
+      profile: {
+        id: numericId,
+        displayName: item.name || item.displayName || '',
+        name: item.name || item.displayName || '',
+        bio: item.bio || '',
+        age: item.age || undefined,
+        currentCity: item.currentCity || item.city || '',
+        profileImageUrl: item.profileImageUrl || '',
+        language: item.language || '',
+        height: item.height || undefined,
+        bodyType: item.bodyType || '',
+        appearance: item.appearance || '',
+        ethnicity: item.ethnicity || '',
+        englishLevel: item.englishLevel || '',
+        smoke: item.smoke || '',
+        drink: item.drink || '',
+        lookingFor: item.lookingFor || '',
+        gender: item.gender || '',
+        orientation: item.orientation || '',
+      } as UserProfile,
     } as User;
+  };
+
+  const extractUsers = (data: any): any[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    if (data.content && Array.isArray(data.content)) return data.content;
+    if (data.users && Array.isArray(data.users)) return data.users;
+    if (data.results && Array.isArray(data.results)) return data.results;
+    return [];
   };
 
   const fetchUsers = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
     try {
-      const userIdStr = await AuthStorage.getUserIdStr();
-      if (!userIdStr) return;
+      const userData = await AuthStorage.getUser();
+      const uid = userData?.userId || (await AuthStorage.getUserIdStr());
+      if (!uid) {
+        setError('User not logged in');
+        setLoading(false);
+        return;
+      }
 
       let usersData: any[] = [];
 
-      if (searchQuery.trim().length > 0) {
-        const results = await userApi.searchUsers({
-          name: searchQuery.trim(),
-          gender: filterByGender === 'female' ? 'female' : filterByGender === 'male' ? 'male' : undefined,
-        });
-        usersData = results || [];
-      } else {
-        let homeSucceeded = false;
-
-        try {
-          const homeData = await profileApi.getHomeUsers(userIdStr);
-          const homeUsers = homeData?.data || homeData as any;
-          if (Array.isArray(homeUsers)) {
-            usersData = homeUsers;
-            homeSucceeded = true;
-          }
-        } catch {}
-
-        if (!homeSucceeded && usersData.length === 0) {
-          const genderFilter =
-            filterByGender === 'straight_woman' || filterByGender === 'female'
-              ? ['female']
-              : filterByGender === 'straight_man' || filterByGender === 'male'
-              ? ['male']
-              : undefined;
-
-          let savedFilters: any = {};
-          try {
-            const filters = await AsyncStorage.getItem('searchFilters');
-            if (filters) savedFilters = JSON.parse(filters);
-          } catch {}
-
-          const response = await userApi.filterUsers({
-            userId: userIdStr,
-            gender: genderFilter,
-            minAge: savedFilters?.ageRange?.[0],
-            maxAge: savedFilters?.ageRange?.[1],
-            maxDistanceKm: savedFilters?.distanceRange,
-            minHeight: savedFilters?.bodyHeight?.[0],
-            maxHeight: savedFilters?.bodyHeight?.[1],
-            page: 0,
-            size: 50,
-          });
-          usersData = response.content || [];
-        }
+      try {
+        const homeData = await profileApi.getHomeUsers(uid);
+        usersData = extractUsers(homeData);
+      } catch (homeErr) {
+        console.error('getHomeUsers failed:', homeErr);
       }
 
-      setUsers(usersData.map(normalizeUser));
+      const mapped = usersData.map(toUser).filter(Boolean) as User[];
+      setUsers(mapped);
     } catch (err: any) {
+      const msg = err?.message || err?.toString() || 'unknown error';
+      console.error('fetchUsers outer catch:', msg);
       setError('Failed to load users. Pull down to retry.');
     } finally {
       setLoading(false);
@@ -131,7 +130,9 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
 
   if (users.length === 0) {
     return <Text style={styles.empty}>No users found</Text>;
-  } return (
+  }
+
+  return (
     <FlatList
       data={users}
       numColumns={2}
@@ -143,7 +144,8 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
           name={item.name || item.profile?.displayName || 'Unknown'}
           age={item.profile?.age || 0}
           image={item.profile?.profileImageUrl || ''}
-          distance={item.profile?.currentCity || 'Unknown'}
+          city={item.profile?.currentCity || ''}
+          bio={item.profile?.bio || ''}
           userId={item.id}
           userUserId={item.userId}
           userData={item}

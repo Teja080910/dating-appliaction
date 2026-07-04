@@ -25,17 +25,17 @@ const UserDetails = ({ connectionAccepted, profileData }: UserDetailsProps) => {
   const fetchContactInfo = async () => {
     if (!profileData?.id) return;
     try {
-      const myId = await AuthStorage.getUserId();
+      const myId = await AuthStorage.getUserIdStr();
       if (!myId) return;
       const connections = await connectionsApi.getConnections(myId);
-      const profileUserId = profileData.id;
+      const profileUserId = String(profileData.id);
       const matched = connections.find(
         (c: ConnectionRequest) =>
-          (c.sender?.id === myId && c.receiver?.id === profileUserId) ||
-          (c.sender?.id === profileUserId && c.receiver?.id === myId)
+          (c.sender?.userId === myId && c.receiver?.userId === profileUserId) ||
+          (c.sender?.userId === profileUserId && c.receiver?.userId === myId)
       );
       if (matched && matched.status === 'ACCEPTED') {
-        const otherUser = matched.sender?.id === profileUserId ? matched.sender : matched.receiver;
+        const otherUser = matched.sender?.userId === profileUserId ? matched.sender : matched.receiver;
         setContactInfo({
           mobile: otherUser?.mobile || profileData.email || '',
           telegram: otherUser?.telegramUsername || '',

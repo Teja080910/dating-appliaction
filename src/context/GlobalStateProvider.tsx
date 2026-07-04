@@ -25,9 +25,8 @@ const GlobalStateProvider = ({ children }: any) => {
   const [englishSkillLevel, setEnglishSkillLevel] = useState(0);
   const [selectedEthinicity, setSelectedEthinicity] = useState<string | null>('');
   const [selectedSmoking, setSelectedSmoking] = useState<string | null>('');
-  const [selectedKidCount, setSelectedKidCount] = useState<string | null>('');
+  const [selectedDrink, setSelectedDrink] = useState<string | null>('');
   const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
-  const [selectedNetWorth, setSelectedNetWorth] = useState<string | null>(null);
 
   const [profilePreferences, setProfilePreferences] = useState({
     appearance: null,
@@ -36,7 +35,6 @@ const GlobalStateProvider = ({ children }: any) => {
     englishSkill: null,
     ethnicity: null,
     height: null,
-    kidCount: null,
     languages: [],
     lookingFor: null,
   });
@@ -107,9 +105,8 @@ const GlobalStateProvider = ({ children }: any) => {
       englishSkillLevel, setEnglishSkillLevel,
       selectedEthinicity, setSelectedEthinicity,
       selectedSmoking, setSelectedSmoking,
-      selectedKidCount, setSelectedKidCount,
+      selectedDrink, setSelectedDrink,
       selectedLookingFor, setSelectedLookingFor,
-      selectedNetWorth, setSelectedNetWorth,
       profilePreferences, setProfilePreferences,
       profileImage, setProfileImage,
       profileText, setProfileText,
