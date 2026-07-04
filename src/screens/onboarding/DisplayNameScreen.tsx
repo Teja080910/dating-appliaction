@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useContext } from 'react';
 import {
   View,
   Text,
@@ -13,75 +13,39 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DisplayNameScreen = ({ navigation }: any) => {
-  // const [name, setName] = useState('');
+  const { name, setName } = useContext(AppContext);
 
-  const {name, setName, login} = useContext(AppContext)
-
-  // Handle Android back press to go to Privacy screen
-    // useFocusEffect(
-    //   useCallback(() => {
-    //     const onBackPress = () => {
-
-    //       AsyncStorage.getItem('isLoggedIn').then((isLoggedIn) => {
-    //         console.log('displayScreenlogin', isLoggedIn);
-          
-    //       isLoggedIn === 'true' ? navigation.replace('Privacy') :  navigation.replace('GenderOrientation');
-        
-    //       return true;
-    //     });
-
-    //     const backHandler = BackHandler.addEventListener(
-    //       'hardwareBackPress',
-    //       onBackPress
-    //     );
-
-    //     return () => backHandler.remove();
-    //   }, [navigation])
-    // );
-
-    useFocusEffect(
-      useCallback(() => {
-        const onBackPress = () => {
-          AsyncStorage.getItem('isLoggedIn').then((isLoggedIn) => {
-            console.log('displayScreenlogin', isLoggedIn);
-    
-            if (isLoggedIn === 'true') {
-              navigation.replace('Privacy');
-            } else {
-              navigation.replace('GenderOrientation');
-            }
-          });
-    
-          return true; // Prevent default behavior
-        };
-    
-        const backHandler = BackHandler.addEventListener(
-          'hardwareBackPress',
-          onBackPress
-        );
-    
-        return () => backHandler.remove();
-      }, [navigation])
-    );
-    
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        AsyncStorage.getItem('isLoggedIn').then((isLoggedIn) => {
+          if (isLoggedIn === 'true') {
+            navigation.replace('Privacy');
+          } else {
+            navigation.replace('GenderOrientation');
+          }
+        });
+        return true;
+      };
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [navigation])
+  );
 
   const handleDisplayName = async () => {
-
-    const isLoggedIn = await AsyncStorage.getItem('isLoggedIn')
-    
-    isLoggedIn === 'true' ? navigation.replace('UploadImage') : navigation.replace('DOB')
-  }
-
+    const isLoggedIn = await AsyncStorage.getItem('isLoggedIn');
+    isLoggedIn === 'true'
+      ? navigation.replace('UploadImage')
+      : navigation.replace('DOB');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Progress bar */}
       <View style={styles.progressBarContainer}>
         <View style={styles.progressFill} />
         <View style={styles.progressRemaining} />
       </View>
 
-      {/* Content wrapper */}
       <View style={styles.content}>
         <Text style={styles.title}>Welcome to Dating!</Text>
         <Text style={styles.subtitle}>Please choose a display name!</Text>
@@ -99,7 +63,6 @@ const DisplayNameScreen = ({ navigation }: any) => {
         </Text>
       </View>
 
-      {/* Footer with info and button */}
       <View style={styles.footer}>
         <View style={styles.infoRow}>
           <Text style={styles.infoIcon}>ℹ️</Text>
@@ -114,14 +77,12 @@ const DisplayNameScreen = ({ navigation }: any) => {
             name.trim() ? styles.nextButtonActive : {},
           ]}
           disabled={!name.trim()}
-          onPress={handleDisplayName}
-        >
+          onPress={handleDisplayName}>
           <Text
             style={[
               styles.nextButtonText,
               name.trim() ? styles.nextButtonTextActive : {},
-            ]}
-          >
+            ]}>
             Next
           </Text>
         </TouchableOpacity>

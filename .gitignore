@@ -78,6 +78,17 @@ yarn-error.log
 
 
 
+# Expo
+.expo/
+
+# IDE
+.vscode/
+
+# Bundle artifacts
+test-assets/
+test-bundle.js
+bundle-errors.txt
+
 # Notes
 
 Notes

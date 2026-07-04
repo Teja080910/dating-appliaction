@@ -1,13 +1,54 @@
-import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import React, { useContext } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AppContext from '../../context/CreateGlobalStateContext';
 
 const SaveResetButtons = () => {
-  const onSave = () => {
-    console.log('Settings saved');
+  const {
+    ageRange,
+    distanceRange,
+    bodyHeight,
+    selectBodyTypes,
+    selectedOptions,
+    searchLanguages,
+    englishProficiency,
+    ethnicity,
+    lookingFor,
+    showMe,
+    smoke,
+    isChecked,
+  } = useContext(AppContext);
+
+  const onSave = async () => {
+    try {
+      const filterSettings = {
+        ageRange,
+        distanceRange,
+        bodyHeight,
+        selectBodyTypes,
+        selectedOptions,
+        searchLanguages,
+        englishProficiency,
+        ethnicity,
+        lookingFor,
+        showMe,
+        smoke,
+        isChecked,
+      };
+      await AsyncStorage.setItem('searchFilters', JSON.stringify(filterSettings));
+      Alert.alert('Saved', 'Search settings saved');
+    } catch {
+      Alert.alert('Error', 'Failed to save settings');
+    }
   };
 
-  const onReset = () => {
-    console.log('Settings reset');
+  const onReset = async () => {
+    try {
+      await AsyncStorage.removeItem('searchFilters');
+      Alert.alert('Reset', 'Search settings reset to default');
+    } catch {
+      Alert.alert('Error', 'Failed to reset settings');
+    }
   };
 
   return (
@@ -28,8 +69,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 8, // adds space above nav bar
-    marginBottom: 10,  // moves the buttons up from bottom
+    paddingBottom: 8,
+    marginBottom: 10,
     backgroundColor: '#f2f2f2',
   },
   button: {

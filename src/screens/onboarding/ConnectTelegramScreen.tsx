@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,47 +6,71 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  Image
+  Image,
+  ActivityIndicator,
+  Alert,
+  TextInput,
 } from 'react-native';
-// import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthStorage } from '../../api/authStorage';
+import apiClient from '../../api/apiClient';
 
-const ConnectTelegramScreen = ({navigation}: any) => {
-  // const navigation = useNavigation();
+const ConnectTelegramScreen = ({ navigation }: any) => {
+  const [connecting, setConnecting] = useState(false);
+  const [telegramUsername, setTelegramUsername] = useState('');
 
-  const handleSkip = () => {
-    navigation.navigate('BottomTabs'); // Replace with your actual screen
+  const completeOnboarding = async () => {
+    await AsyncStorage.setItem('entryHomeScreen', 'true');
+    navigation.replace('BottomTabs');
+  };
+
+  const handleSkip = async () => {
+    await completeOnboarding();
   };
 
   const handleBack = () => {
     navigation.goBack();
   };
 
-  const handleConnectTelegram = () => {
-    // Add logic to connect to Telegram API or redirect
-    console.log('Connect Telegram button pressed');
+  const handleConnectTelegram = async () => {
+    if (!telegramUsername.trim()) {
+      Alert.alert('Error', 'Please enter your Telegram username');
+      return;
+    }
+    setConnecting(true);
+    try {
+      const userId = await AuthStorage.getUserId();
+      if (userId) {
+        const cleanUsername = telegramUsername.trim().replace('@', '');
+        await apiClient.post('/telegram/connect', null, {
+          params: { userId, username: cleanUsername },
+        });
+        Alert.alert('Success', 'Telegram connected successfully!');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to connect Telegram');
+    }
+    setConnecting(false);
+    await completeOnboarding();
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Progress bar */}
       <View style={styles.progressBackground}>
         <View style={styles.progressBar} />
       </View>
 
-      {/* Top controls */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={handleBack}>
           <Text style={styles.closeIcon}>✕</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
           <Text style={styles.skipBtnText}>Skip</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Center Content */}
       <View style={styles.card}>
         <Image
           source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg' }}
@@ -71,8 +95,24 @@ const ConnectTelegramScreen = ({navigation}: any) => {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.connectBtn} onPress={handleConnectTelegram}>
-          <Text style={styles.connectBtnText}>Connect Telegram</Text>
+        <TextInput
+          style={styles.telegramInput}
+          placeholder="Enter your Telegram username (e.g. @username)"
+          placeholderTextColor="#999"
+          value={telegramUsername}
+          onChangeText={setTelegramUsername}
+          autoCapitalize="none"
+        />
+
+        <TouchableOpacity
+          style={[styles.connectBtn, connecting && { opacity: 0.7 }]}
+          onPress={handleConnectTelegram}
+          disabled={connecting}>
+          {connecting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.connectBtnText}>Connect Telegram</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.footerText}>
@@ -80,7 +120,6 @@ const ConnectTelegramScreen = ({navigation}: any) => {
         </Text>
       </View>
 
-      {/* Bottom Skip Button */}
       <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
         <Text style={styles.skipBtnText}>Skip</Text>
       </TouchableOpacity>
@@ -89,10 +128,7 @@ const ConnectTelegramScreen = ({navigation}: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   progressBackground: {
     height: 4,
     backgroundColor: '#ccc',
@@ -101,30 +137,20 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     overflow: 'hidden',
   },
-  progressBar: {
-    height: 4,
-    width: '95%',
-    backgroundColor: '#c34e59',
-  },
+  progressBar: { height: 4, width: '95%', backgroundColor: '#c34e59' },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
   },
-  closeIcon: {
-    fontSize: 26,
-    color: '#c34e59',
-  },
+  closeIcon: { fontSize: 26, color: '#c34e59' },
   skipBtn: {
     backgroundColor: '#aaa',
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 10,
   },
-  skipBtnText: {
-    color: '#fff',
-    fontSize: 16,
-  },
+  skipBtnText: { color: '#fff', fontSize: 16 },
   card: {
     padding: 25,
     marginHorizontal: 20,
@@ -157,14 +183,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 10,
   },
-  bullet: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  bulletText: {
-    flex: 1,
+  bullet: { fontSize: 18, marginRight: 8 },
+  bulletText: { flex: 1, fontSize: 15, color: '#333' },
+  telegramInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     fontSize: 15,
-    color: '#333',
+    color: '#000',
+    marginVertical: 10,
   },
   connectBtn: {
     backgroundColor: '#229ED9',
@@ -173,11 +202,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
-  connectBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  connectBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   footerText: {
     fontSize: 13,
     textAlign: 'center',

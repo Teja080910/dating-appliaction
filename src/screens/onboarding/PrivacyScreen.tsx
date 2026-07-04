@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,44 +6,52 @@ import {
   StyleSheet,
   BackHandler,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
-import AppContext from '../../context/CreateGlobalStateContext';
+import { profileApi } from '../../api/profileApi';
+import { authApi } from '../../api/authApi';
+import { AuthStorage } from '../../api/authStorage';
 
 const PrivacyScreen = ({ navigation }: any) => {
-  const { login } = useContext(AppContext);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
-      () => true // Disable back button
+      () => true,
     );
-    // console.log("backHandler", backHandler);
-    
-    
     return () => backHandler.remove();
   }, []);
 
   const handleAccept = async () => {
-    const isLoggedIn = await AsyncStorage.getItem('isLoggedIn')
-    await AsyncStorage.setItem('acceptedTerms', 'true');
-    await AsyncStorage.setItem('GenderOrientation', 'true'); 
-    // const isLoggedIn = await AsyncStorage.getItem('isLoggedIn');
-    console.log('acceptedTerms',await AsyncStorage.getItem('acceptedTerms'));
-    console.log('GenderOrientation',await AsyncStorage.getItem('GenderOrientation'));
-    
-    console.log('isLoggedIn', isLoggedIn);
-    
-    isLoggedIn === 'true' ? navigation.replace('DisplayName') : navigation.replace('GenderOrientation'); // Change this to your main screen
-    // navigation.replace('GenderOrientation'); // Change this to your main screen
-  };
+    setLoading(true);
+    try {
+      const userId = await AuthStorage.getUserId();
+      if (userId) {
+        try {
+          await profileApi.acceptTerms(userId);
+          await authApi.activateAccount(userId);
+        } catch {}
+      }
+      await AsyncStorage.setItem('acceptedTerms', 'true');
+      await AsyncStorage.setItem('GenderOrientation', 'true');
 
-  // console.log("handleAccept", handleAccept);
-  
+      navigation.replace('GenderOrientation');
+    } catch {
+      // Even if API fails, allow navigation
+      await AsyncStorage.setItem('acceptedTerms', 'true');
+      await AsyncStorage.setItem('GenderOrientation', 'true');
+
+      navigation.replace('GenderOrientation');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Progress bar */}
       <View style={styles.progressBarWrapper}>
         <View style={styles.progress} />
       </View>
@@ -59,15 +67,13 @@ const PrivacyScreen = ({ navigation }: any) => {
 
       <TouchableOpacity
         style={styles.linkBtn}
-        onPress={() => Linking.openURL('https://example.com/eula')}
-      >
+        onPress={() => Linking.openURL('https://example.com/eula')}>
         <Text style={styles.linkText}>📄 End user license agreement</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.linkBtn}
-        onPress={() => Linking.openURL('https://example.com/privacy')}
-      >
+        onPress={() => Linking.openURL('https://example.com/privacy')}>
         <Text style={styles.linkText}>📄 Privacy Policy</Text>
       </TouchableOpacity>
 
@@ -75,14 +81,19 @@ const PrivacyScreen = ({ navigation }: any) => {
         We store your primary account information such as location, the personal information you specified and usage data only for the purpose of improving our app development and suggesting our users the best possible matching partners.
       </Text>
 
-      <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept}>
-        <Text style={styles.acceptBtnText}>Accept terms of use</Text>
+      <TouchableOpacity
+        style={[styles.acceptBtn, loading && { opacity: 0.7 }]}
+        onPress={handleAccept}
+        disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.acceptBtnText}>Accept terms of use</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
 };
-
-export default PrivacyScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -151,3 +162,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+export default PrivacyScreen;

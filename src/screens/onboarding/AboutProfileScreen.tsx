@@ -7,34 +7,45 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  Platform
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { profileApi } from '../../api/profileApi';
+import { AuthStorage } from '../../api/authStorage';
 
 const AboutProfileScreen = ({ navigation }: any) => {
+  const { profileText, setProfileText } = useContext(AppContext);
+  const [saving, setSaving] = useState(false);
 
-  const {profileText, setProfileText} = useContext(AppContext);
-  // const [profileText, setProfileText] = useState('');
+  const handleNext = async () => {
+    setSaving(true);
+    try {
+      const userIdStr = await AuthStorage.getUserIdStr();
+      if (userIdStr) {
+        try {
+          await profileApi.saveAllProfile(userIdStr, {
+            bio: profileText,
+          });
+        } catch {}
+      }
+    } catch {}
+    setSaving(false);
+    navigation.navigate('ConnectTelegram');
+  };
 
-  // console.log('Profile Text:', profileText);
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Progress Bar */}
       <View style={styles.progressBackground}>
         <View style={styles.progressBar} />
       </View>
 
-      {/* Heading */}
       <Text style={styles.heading}>Wow, looking sharp!</Text>
-      
-      {/* Subtext */}
       <Text style={styles.subtext}>
         Now tell us something about yourself. You can write about your hobbies, values and visions in life.
       </Text>
 
-      {/* Input box */}
       <TextInput
         style={styles.input}
         placeholder="Your profile text"
@@ -44,33 +55,26 @@ const AboutProfileScreen = ({ navigation }: any) => {
         maxLength={500}
         multiline
       />
-      
-      {/* Character Count */}
+
       <Text style={styles.charCount}>{profileText.length} / 500</Text>
 
-      {/* Footer Info */}
       <Text style={styles.footerText}>
         For more info, questions, feedback, and perhaps to say hello, kindly send an e-mail to hi@dating.com. We will respond within 24 hours :-)
       </Text>
 
-      {/* Next Button */}
       <TouchableOpacity
-        style={[
-          styles.nextButton,
-          { opacity: profileText.trim() ? 1 : 0.5 }
-        ]}
-        disabled={!profileText.trim()}
-        onPress={() => {
-           navigation.navigate('ConnectTelegram')
-        }}
-      >
-        <Text style={styles.nextButtonText}>Next</Text>
+        style={[styles.nextButton, { opacity: profileText.trim() && !saving ? 1 : 0.5 }]}
+        disabled={!profileText.trim() || saving}
+        onPress={handleNext}>
+        {saving ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.nextButtonText}>Next</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
 };
-
-export default AboutProfileScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -88,22 +92,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     overflow: 'hidden',
   },
-  progressBar: {
-    width: '85%',
-    height: '100%',
-    backgroundColor: '#c34e59',
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 10,
-  },
-  subtext: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 20,
-  },
+  progressBar: { width: '85%', height: '100%', backgroundColor: '#c34e59' },
+  heading: { fontSize: 24, fontWeight: 'bold', color: '#000', marginBottom: 10 },
+  subtext: { fontSize: 16, color: '#555', marginBottom: 20 },
   input: {
     height: 180,
     borderWidth: 1,
@@ -113,14 +104,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     fontSize: 16,
     color: '#000',
-    // borderColor: '#e5e5e5'
   },
-  charCount: {
-    textAlign: 'right',
-    color: '#888',
-    marginTop: 4,
-    marginBottom: 30,
-  },
+  charCount: { textAlign: 'right', color: '#888', marginTop: 4, marginBottom: 30 },
   footerText: {
     fontSize: 13,
     color: '#999',
@@ -134,11 +119,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  nextButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
 
-
+export default AboutProfileScreen;

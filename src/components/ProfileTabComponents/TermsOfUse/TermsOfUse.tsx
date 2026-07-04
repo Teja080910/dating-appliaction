@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-// import Feather from 'react-native-vector-icons/Feather';
-import Icon from 'react-native-vector-icons/Feather';
+import Feather from 'react-native-vector-icons/Feather';
 
 const TermsOfUse = ({ onPress }: any) => {
   return (
@@ -11,7 +10,7 @@ const TermsOfUse = ({ onPress }: any) => {
         <FontAwesome5 name="file-alt" size={18} color="#1f1f1f" style={styles.icon} />
         <Text style={styles.text}>Terms of use</Text>
       </View>
-    <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
+    <Feather name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
     </TouchableOpacity>
   );
 };

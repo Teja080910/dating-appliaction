@@ -1,8 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
-// import Feather from 'react-native-vector-icons/Feather';
-import Icon from 'react-native-vector-icons/Feather';
+import Feather from 'react-native-vector-icons/Feather';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
 import { RootParamList } from '../../../utils/types/navigation.types';
@@ -22,7 +21,7 @@ const ViewMyProfile = () => {
         <Text style={styles.text}>View my profile</Text>
       </View>
       {/* <Feather name="chevron-right" size={20} color="#c4c4c4" /> */}
-      <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
+      <Feather name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
     </TouchableOpacity>
   );
 };

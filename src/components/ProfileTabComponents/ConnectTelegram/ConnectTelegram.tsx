@@ -3,7 +3,6 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Feather from 'react-native-vector-icons/Feather';
-import Icon from 'react-native-vector-icons/Feather';
 
 const ConnectTelegram = ({ onPress }: any) => {
   return (
@@ -12,7 +11,7 @@ const ConnectTelegram = ({ onPress }: any) => {
         <FontAwesome name="send" size={20} style={styles.icon} />
         <Text style={styles.text}>Connect Your Telegram</Text>
       </View>
-      <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
+      <Feather name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
     </TouchableOpacity>
   );
 };

@@ -9,16 +9,9 @@ const AppearanceSelector = () => {
   const { selectedAppearance, setSelectedAppearance } = useContext(AppContext);
 
   const toggleAppearance = (appearance: string) => {
-    console.log('You clicked:', appearance);
-    console.log('Before click, selectedBodyType:', selectedAppearance);
     if (selectedAppearance === appearance) {
-      // Deselect if already selected
-      console.log('After removing: null');
       setSelectedAppearance(null);
-
     } else {
-      // Select this one
-      console.log('After adding:', appearance);
       setSelectedAppearance(appearance);
     }
   };

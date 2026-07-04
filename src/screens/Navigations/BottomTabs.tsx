@@ -31,17 +31,37 @@
 
 
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image } from 'react-native';
 import HomeScreen from '../HomeTab/HomeScreen';
 import MessageScreen from '../MessageTab/MessageScreen';
 import ProfileScreen from '../ProfileTab/ProfileScreen';
 import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
+import { AuthStorage } from '../../api/authStorage';
 
 const Tab = createBottomTabNavigator();
 
 const BottomTabs = () => {
+  const [isFemale, setIsFemale] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const checkGender = async () => {
+      try {
+        const userData = await AuthStorage.getUser();
+        const gender = userData?.gender || '';
+        console.log(gender === 'female')
+
+        setIsFemale(gender === 'female');
+      } catch {}
+      setLoaded(true);
+    };
+    checkGender();
+  }, []);
+
+  if (!loaded) return null;
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -55,18 +75,20 @@ const BottomTabs = () => {
         },
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/HomeTabImages/HomeTab.png')} // replace with your actual icon path
-              style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
-            />
-          ),
-        }}
-      />
+      {!isFemale && (
+        <Tab.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <Image
+                source={require('../../assets/HomeTabImages/HomeTab.png')}
+                style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
+              />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="Message"
         component={MessageScreen}

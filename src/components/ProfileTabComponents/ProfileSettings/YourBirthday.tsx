@@ -1,19 +1,13 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import DatePicker from 'react-native-date-picker';
 import AppContext from '../../../context/CreateGlobalStateContext';
 
 const YourBirthday = () => {
   const { date, setDate } = useContext(AppContext);
-  const [showPicker, setShowPicker] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  const handleChange = (event, selectedDate) => {
-    const currentDate = selectedDate || date;
-    setShowPicker(Platform.OS === 'ios'); // iOS keeps modal open, Android closes
-    setDate(currentDate);
-  };
-
-  const formatDate = (dateObj) => {
+  const formatDate = (dateObj: Date) => {
     const day = ('0' + dateObj.getDate()).slice(-2);
     const month = ('0' + (dateObj.getMonth() + 1)).slice(-2);
     const year = dateObj.getFullYear();
@@ -25,21 +19,28 @@ const YourBirthday = () => {
       <Text style={styles.title}>Your birthday</Text>
       <Text style={styles.subtitle}>When were you born?</Text>
 
-      <TouchableOpacity style={styles.inputBox} onPress={() => setShowPicker(true)}>
+      <TouchableOpacity style={styles.inputBox} onPress={() => setOpen(true)}>
         <Text style={styles.dateText}>{formatDate(date)}</Text>
       </TouchableOpacity>
 
-      {showPicker && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="calendar"
-          onChange={handleChange}
-        />
-      )}
+      <DatePicker
+        modal
+        open={open}
+        date={date}
+        mode="date"
+        onConfirm={(selectedDate) => {
+          setOpen(false);
+          setDate(selectedDate);
+        }}
+        onCancel={() => {
+          setOpen(false);
+        }}
+      />
     </View>
   );
 };
+
+export default YourBirthday;
 
 const styles = StyleSheet.create({
   container: {
@@ -70,5 +71,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-
-export default YourBirthday;
