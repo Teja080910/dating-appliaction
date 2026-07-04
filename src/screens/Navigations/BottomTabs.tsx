@@ -65,13 +65,23 @@ const BottomTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarShowLabel: false, // Hides the "Home", "Message" text
+        tabBarShowLabel: false,
         headerShown: false,
         tabBarStyle: {
-          height: 60,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
+          height: 65,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
           position: 'absolute',
+          backgroundColor: '#fff',
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowOffset: { width: 0, height: -4 },
+          shadowRadius: 12,
+          elevation: 8,
+          borderTopWidth: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 8,
         },
       }}
     >
@@ -83,7 +93,7 @@ const BottomTabs = () => {
             tabBarIcon: ({ focused }) => (
               <Image
                 source={require('../../assets/HomeTabImages/HomeTab.png')}
-                style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
+                style={{ width: 26, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
               />
             ),
           }}
@@ -95,8 +105,8 @@ const BottomTabs = () => {
         options={{
           tabBarIcon: ({ focused }) => (
             <Image
-              source={require('../../assets/MessageTabImages/MessageTab.png')} // replace with your actual icon path
-              style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
+              source={require('../../assets/MessageTabImages/MessageTab.png')}
+              style={{ width: 26, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
             />
           ),
         }}
@@ -107,8 +117,8 @@ const BottomTabs = () => {
         options={{
           tabBarIcon: ({ focused }) => (
             <Image
-              source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')} // replace with your actual icon path
-              style={{ width: 24, height: 24, tintColor: focused ? '#000' : '#ccc' }}
+              source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')}
+              style={{ width: 26, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
             />
           ),
         }}
@@ -119,8 +129,8 @@ const BottomTabs = () => {
         options={{
           tabBarIcon: ({ focused }) => (
             <Image
-              source={require('../../assets/ProfileTabImages/ProfileTab.png')} // replace with your actual icon path
-              style={{ width: 30, height: 24, tintColor: focused ? '#000' : '#ccc' }}
+              source={require('../../assets/ProfileTabImages/ProfileTab.png')}
+              style={{ width: 30, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
             />
           ),
         }}

@@ -36,7 +36,7 @@ const SaveResetButtons = () => {
         isChecked,
       };
       await AsyncStorage.setItem('searchFilters', JSON.stringify(filterSettings));
-      Alert.alert('Saved', 'Search settings saved');
+      Alert.alert('Saved', 'Search settings saved. They will be applied on the home page.');
     } catch {
       Alert.alert('Error', 'Failed to save settings');
     }
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    backgroundColor: '#d33',
+    backgroundColor: '#E94057',
     paddingVertical: 14,
     borderRadius: 14,
     marginHorizontal: 5,

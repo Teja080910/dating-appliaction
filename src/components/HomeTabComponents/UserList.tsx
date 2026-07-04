@@ -7,11 +7,12 @@ import {
   Text,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserCard from './UserCard';
 import { profileApi } from '../../api/profileApi';
 import { userApi } from '../../api/userApi';
 import { AuthStorage } from '../../api/authStorage';
-import { User, UserProfile } from '../../api/types';
+import { User, UserProfile, UserFilterRequest } from '../../api/types';
 
 interface HomeUserListProps {
   filterByGender: string | null;
@@ -28,32 +29,47 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
     if (!item) return null;
     const rawId = item.id ?? item.userId ?? 0;
     const numericId = typeof rawId === 'number' ? rawId : Number(String(rawId).replace(/\D/g, '')) || 0;
-    if (item.id !== undefined && (item.profile || item.name)) {
-      return { ...item, id: numericId } as User;
-    }
+    const profileImageUrl = item.profileImageUrl || item.profile?.profileImageUrl || '';
+    const name = item.name || item.displayName || item.profile?.displayName || item.profile?.name || '';
+    const age = item.age || item.profile?.age || undefined;
+    const bio = item.bio || item.profile?.bio || '';
+    const city = item.currentCity || item.city || item.profile?.currentCity || '';
+    const language = item.language || item.profile?.language || '';
+    const height = item.height || item.profile?.height || undefined;
+    const bodyType = item.bodyType || item.profile?.bodyType || '';
+    const appearance = item.appearance || item.profile?.appearance || '';
+    const ethnicity = item.ethnicity || item.profile?.ethnicity || '';
+    const englishLevel = item.englishLevel || item.profile?.englishLevel || '';
+    const smoke = item.smoke || item.profile?.smoke || '';
+    const drink = item.drink || item.profile?.drink || '';
+    const lookingFor = item.lookingFor || item.profile?.lookingFor || '';
+    const gender = item.gender || item.profile?.gender || '';
+    const orientation = item.orientation || item.profile?.orientation || '';
+    const userId = item.userId || '';
+
     return {
       id: numericId,
-      userId: item.userId || '',
-      name: item.name || item.displayName || '',
+      userId,
+      name,
       profile: {
         id: numericId,
-        displayName: item.name || item.displayName || '',
-        name: item.name || item.displayName || '',
-        bio: item.bio || '',
-        age: item.age || undefined,
-        currentCity: item.currentCity || item.city || '',
-        profileImageUrl: item.profileImageUrl || '',
-        language: item.language || '',
-        height: item.height || undefined,
-        bodyType: item.bodyType || '',
-        appearance: item.appearance || '',
-        ethnicity: item.ethnicity || '',
-        englishLevel: item.englishLevel || '',
-        smoke: item.smoke || '',
-        drink: item.drink || '',
-        lookingFor: item.lookingFor || '',
-        gender: item.gender || '',
-        orientation: item.orientation || '',
+        displayName: name,
+        name,
+        bio,
+        age,
+        currentCity: city,
+        profileImageUrl,
+        language,
+        height,
+        bodyType,
+        appearance,
+        ethnicity,
+        englishLevel,
+        smoke,
+        drink,
+        lookingFor,
+        gender,
+        orientation,
       } as UserProfile,
     } as User;
   };
@@ -82,11 +98,53 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
 
       let usersData: any[] = [];
 
+      const filterParams: UserFilterRequest = {
+        userId: uid,
+        gender: ['female'],
+        page: 0,
+        size: 50,
+      };
+
+      if (searchQuery.trim()) {
+        filterParams.search = searchQuery.trim();
+      }
+
       try {
-        const homeData = await profileApi.getHomeUsers(uid);
-        usersData = extractUsers(homeData);
-      } catch (homeErr) {
-        console.error('getHomeUsers failed:', homeErr);
+        const savedFilters = await AsyncStorage.getItem('searchFilters');
+        if (savedFilters) {
+          const parsed = JSON.parse(savedFilters);
+          if (parsed.ageRange) {
+            filterParams.minAge = parsed.ageRange[0];
+            filterParams.maxAge = parsed.ageRange[1];
+          }
+          if (parsed.distanceRange && parsed.distanceRange < 1100) {
+            filterParams.maxDistanceKm = parsed.distanceRange;
+          }
+          if (parsed.isChecked) filterParams.worldwide = true;
+          if (parsed.bodyHeight) {
+            filterParams.minHeight = parsed.bodyHeight[0];
+            filterParams.maxHeight = parsed.bodyHeight[1];
+          }
+          if (parsed.selectBodyTypes?.length) filterParams.bodyType = parsed.selectBodyTypes;
+          if (parsed.selectedOptions?.length) filterParams.appearance = parsed.selectedOptions;
+          if (parsed.searchLanguages?.length) filterParams.language = parsed.searchLanguages;
+          if (parsed.englishProficiency?.length) filterParams.englishLevel = parsed.englishProficiency;
+          if (parsed.ethnicity?.length) filterParams.ethnicity = parsed.ethnicity;
+          if (parsed.lookingFor?.length) filterParams.lookingFor = parsed.lookingFor;
+          if (parsed.smoke?.length) {
+            filterParams.smoke = parsed.smoke.includes('No') ? false : true;
+          }
+        }
+      } catch {}
+
+      try {
+        const response = await userApi.filterUsers(filterParams);
+        usersData = extractUsers(response);
+      } catch {
+        try {
+          const homeData = await profileApi.getHomeUsers(uid);
+          usersData = extractUsers(homeData);
+        } catch {}
       }
 
       const mapped = usersData.map(toUser).filter(Boolean) as User[];

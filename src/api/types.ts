@@ -11,6 +11,20 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface LoginResponse {
+  token?: string;
+  userId?: string;
+  ID?: number;
+  username?: string;
+  name?: string;
+  mobile?: string;
+  gender?: string;
+  profileImageUrl?: string;
+  sessionId?: string;
+  success?: boolean;
+  message?: string;
+}
+
 export interface SendRequestDTO {
   senderId: string;
   receiverId: string;
@@ -153,8 +167,16 @@ export interface User {
   role?: string;
   isDeleted?: boolean;
   telegramUsername?: string;
+  instagramUsername?: string;
   profile?: UserProfile;
   images?: UserImage[];
+  payments?: Payment[];
+  locations?: UserLocation[];
+  termsAcceptance?: TermsAcceptance[];
+  supports?: Support[];
+  sentRequests?: ConnectionRequest[];
+  receivedRequests?: ConnectionRequest[];
+  notifications?: Notification[];
 }
 
 export interface UserImage {
@@ -167,6 +189,18 @@ export interface UserImage {
   profile?: boolean;
 }
 
+export interface UserLocation {
+  id: number;
+  user?: User;
+  city?: string;
+  state?: string;
+  country?: string;
+  lat?: number;
+  lng?: number;
+  current?: boolean;
+  createdAt?: string;
+}
+
 export interface ConnectionRequest {
   id: number;
   sender?: User;
@@ -174,6 +208,42 @@ export interface ConnectionRequest {
   status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface Notification {
+  id: number;
+  user?: User;
+  message?: string;
+  readStatus?: boolean;
+  createdAt?: string;
+}
+
+export interface Payment {
+  id: number;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  plan?: string;
+  amount?: number;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  user?: User;
+}
+
+export interface Support {
+  id: number;
+  user?: User;
+  subject?: string;
+  message?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+export interface TermsAcceptance {
+  id: number;
+  user?: User;
+  acceptedAt?: string;
 }
 
 export interface ProfileResponse {
@@ -218,6 +288,39 @@ export interface PageUser {
   number: number;
   numberOfElements: number;
   empty: boolean;
+  pageable?: PageableObject;
+  sort?: SortObject[];
+}
+
+export interface PageUserProfile {
+  totalPages: number;
+  totalElements: number;
+  first: boolean;
+  last: boolean;
+  size: number;
+  content: UserProfile[];
+  number: number;
+  numberOfElements: number;
+  empty: boolean;
+  pageable?: PageableObject;
+  sort?: SortObject[];
+}
+
+export interface PageableObject {
+  paged?: boolean;
+  pageNumber?: number;
+  pageSize?: number;
+  offset?: number;
+  sort?: SortObject[];
+  unpaged?: boolean;
+}
+
+export interface SortObject {
+  direction?: string;
+  nullHandling?: string;
+  ascending?: boolean;
+  property?: string;
+  ignoreCase?: boolean;
 }
 
 export interface LocationRequest {
@@ -235,16 +338,76 @@ export interface HomeResponse {
   status: boolean;
 }
 
-export interface LoginResponse {
-  token?: string;
-  userId?: string;
-  ID?: number;
-  username?: string;
-  name?: string;
-  mobile?: string;
-  gender?: string;
-  profileImageUrl?: string;
-  sessionId?: string;
-  success?: boolean;
+export interface SupportRequestDTO {
+  userId: number;
+  subject: string;
+  message: string;
+}
+
+export interface ReportRequestDTO {
+  byUserId: number;
+  targetUserId: number;
+  reason: string;
   message?: string;
+}
+
+export interface ResolveReportDTO {
+  status: string;
+}
+
+export interface UserReportResponse {
+  id: number;
+  reportedUserId?: number;
+  reportedById?: number;
+  reason?: string;
+  message?: string;
+  createdAt?: string;
+}
+
+export interface SendOtpRequest {
+  mobile: string;
+}
+
+export interface ResetPasswordRequest {
+  mobile: string;
+  otp: string;
+  newPassword: string;
+}
+
+export interface MsgSendOtp {
+  mobile: string;
+  otp?: string;
+}
+
+export interface MsgVerifyOtp {
+  userId: number;
+  mobile: string;
+  otp: string;
+}
+
+export interface Subscriber {
+  id: number;
+  userId?: string;
+  price?: number;
+  contactView?: number;
+  type?: string;
+  duration?: number;
+  startDate?: string;
+  endDate?: string;
+  startTime?: LocalTime;
+  endTime?: LocalTime;
+  eventType?: string;
+  subscriptionId?: string;
+  cuponCode?: string;
+  remainsDays?: number;
+  description?: string;
+  planType?: string;
+  status?: string;
+}
+
+export interface LocalTime {
+  hour?: number;
+  minute?: number;
+  second?: number;
+  nano?: number;
 }

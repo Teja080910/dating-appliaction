@@ -25,37 +25,35 @@ const SaveButton = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const userIdStr = await AuthStorage.getUserIdStr();
-      if (!userIdStr) return;
+      const userData = await AuthStorage.getUser();
+      const userId = userData?.userId;
+      if (!userId) {
+        Alert.alert('Error', 'Session expired. Please login again.');
+        return;
+      }
 
       const dobStr = date ? date.toISOString().split('T')[0] : undefined;
       const age = date ? new Date().getFullYear() - date.getFullYear() : undefined;
 
-      await profileApi.updateBasic({
-        userId: userIdStr,
-        age,
-      });
+      const dto: any = {};
+      if (age) dto.age = age;
+      if (dobStr) dto.dob = dobStr;
+      if (selectedLanguages?.length) dto.language = selectedLanguages.join(',');
+      if (selectedAppearance) dto.appearance = selectedAppearance;
+      if (selectedBodyType) dto.bodyType = selectedBodyType;
+      if (tempHeight) dto.height = tempHeight;
+      if (englishLevels[englishSkillLevel]) dto.englishLevel = englishLevels[englishSkillLevel];
+      if (selectedEthinicity) dto.ethnicity = selectedEthinicity;
+      if (selectedLookingFor?.length) dto.lookingFor = selectedLookingFor.join(',');
+      if (selectedSmoking) dto.smoke = selectedSmoking;
+      if (selectedDrink) dto.drink = selectedDrink;
 
-      await profileApi.updateDetails({
-        userId: userIdStr,
-        language: selectedLanguages?.join(',') || '',
-        bodyType: selectedBodyType || '',
-        appearance: selectedAppearance || '',
-        height: tempHeight || 165,
-        ethnicity: selectedEthinicity || '',
-        englishLevel: englishLevels[englishSkillLevel] || '',
-      });
-
-      await profileApi.updatePreferences({
-        userId: userIdStr,
-        lookingFor: selectedLookingFor?.join(',') || '',
-        smoke: selectedSmoking || '',
-        drink: selectedDrink || '',
-      });
+      await profileApi.saveAllProfile(userId, dto);
 
       Alert.alert('Success', 'Profile updated successfully');
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to save profile');
+      const msg = err?.response?.data?.message || err?.message || 'Failed to save profile';
+      Alert.alert('Error', msg);
     } finally {
       setSaving(false);
     }

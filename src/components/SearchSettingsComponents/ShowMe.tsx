@@ -1,28 +1,20 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { getGender } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { AuthStorage } from '../../api/authStorage';
 
 const ShowMe = () => {
-//  const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
-
-const {showMe, setShowMe} = useContext(AppContext)
-
+  const {showMe, setShowMe} = useContext(AppContext)
 
   useEffect(() => {
     const fetchGender = async () => {
       try {
-        const gender = await getGender(); // 'male' or 'female'
-        console.log('gender:', gender);
-
-        // if male, show "Only women"; if female, show "Only men"
-        setShowMe(gender === 'straight_man' ? 'straight_woman' : 'straight_man');
-      } catch (error) {
-        console.error('Error fetching gender:', error);
-      }
+        const userData = await AuthStorage.getUser();
+        const gender = userData?.gender || '';
+        setShowMe(gender === 'male' ? 'straight_woman' : 'straight_man');
+      } catch {}
     };
-
-    fetchGender();
+    if (!showMe) fetchGender();
   }, []);
 
   return (
@@ -30,35 +22,18 @@ const {showMe, setShowMe} = useContext(AppContext)
       <Text style={styles.label}>Show me:</Text>
       <View style={styles.buttonGroup}>
         <TouchableOpacity
-          style={[
-            styles.button,
-            showMe === 'straight_man' && styles.selectedButton,
-          ]}
+          style={[styles.button, showMe === 'straight_man' && styles.selectedButton]}
           onPress={() => setShowMe('straight_man')}
         >
-          <Text
-            style={[
-              styles.buttonText,
-              showMe === 'straight_man' && styles.selectedText,
-            ]}
-          >
+          <Text style={[styles.buttonText, showMe === 'straight_man' && styles.selectedText]}>
             Only men
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity
-          style={[
-            styles.button,
-            showMe === 'straight_woman' && styles.selectedButton,
-          ]}
+          style={[styles.button, showMe === 'straight_woman' && styles.selectedButton]}
           onPress={() => setShowMe('straight_woman')}
         >
-          <Text
-            style={[
-              styles.buttonText,
-              showMe === 'straight_woman' && styles.selectedText,
-            ]}
-          >
+          <Text style={[styles.buttonText, showMe === 'straight_woman' && styles.selectedText]}>
             Only women
           </Text>
         </TouchableOpacity>

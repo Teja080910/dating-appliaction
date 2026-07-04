@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import apiClient from '../../api/apiClient';
+import { authApi } from '../../api/authApi';
 
 const ForgotPasswordScreen = ({ navigation }: any) => {
   const [mobile, setMobile] = useState('');
@@ -27,7 +27,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     }
     setLoading(true);
     try {
-      await apiClient.post('/forgot-password/send-otp', { mobile });
+      await authApi.sendForgotOtp({ mobile });
       Alert.alert('Success', 'OTP sent to your mobile');
       setStep('otp');
     } catch (err: any) {
@@ -44,11 +44,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     }
     setLoading(true);
     try {
-      await apiClient.post('/forgot-password/reset', {
-        mobile,
-        otp,
-        newPassword,
-      });
+      await authApi.resetPassword({ mobile, otp, newPassword });
       Alert.alert('Success', 'Password reset successfully');
       navigation.navigate('Login');
     } catch (err: any) {

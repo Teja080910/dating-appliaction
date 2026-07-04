@@ -15,10 +15,11 @@ const ProfileSettingsScreen = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const userIdStr = await AuthStorage.getUserIdStr();
-        if (!userIdStr) return;
-        const userData = await profileApi.getMyUser(userIdStr);
-        const data = userData?.profile || {};
+        const userData = await AuthStorage.getUser();
+        const uid = userData?.userId;
+        if (!uid) return;
+        const userResp = await profileApi.getMyUser(uid);
+        const data = userResp?.profile || {};
         if (data.displayName) setName(data.displayName);
         if (data.name) setName(data.name);
         if (data.bio) setProfileText(data.bio);

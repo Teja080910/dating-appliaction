@@ -1,28 +1,24 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 
 const BodyHeight = () => {
-  // const [bodyHeight, setBodyHeight] = useState([120, 200]);
-
   const { bodyHeight, setBodyHeight } = useContext(AppContext);
-
-  const [localBodyHeight, setLocalBodyHeight] = useState(bodyHeight);
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
         <Text style={styles.labelBold}>Body height: </Text>
-        {localBodyHeight[0]} cm - {localBodyHeight[1]} cm
+        {bodyHeight[0]} cm - {bodyHeight[1]} cm
       </Text>
 
       <MultiSlider
-        values={localBodyHeight}
+        values={bodyHeight}
         sliderLength={330}
         min={120}
         max={200}
-        onValuesChange={setLocalBodyHeight}
+        onValuesChange={setBodyHeight}
         step={1}
         selectedStyle={{ backgroundColor: '#d33' }}
         unselectedStyle={{ backgroundColor: '#eee' }}

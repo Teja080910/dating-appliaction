@@ -16,11 +16,12 @@ const ProfileSettingsHeader = () => {
 
   const onSave = async () => {
     try {
-      const userIdStr = await AuthStorage.getUserIdStr();
-      if (userIdStr) {
+      const userData = await AuthStorage.getUser();
+      const userId = userData?.userId;
+      if (userId) {
         const dobStr = date ? date.toISOString().split('T')[0] : undefined;
         const age = date ? new Date().getFullYear() - date.getFullYear() : undefined;
-        await profileApi.saveAllProfile(userIdStr, {
+        await profileApi.saveAllProfile(userId, {
           name: name || undefined,
           displayName: name || undefined,
           bio: profileText || undefined,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import apiClient from '../../../api/apiClient';
+import { accountApi } from '../../../api/accountApi';
 import { AuthStorage } from '../../../api/authStorage';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,7 +23,7 @@ const DeleteMyProfile = () => {
             try {
               const userIdNum = await AuthStorage.getUserId();
               if (userIdNum) {
-                await apiClient.delete('/account/delete', { params: { userId: userIdNum } });
+                await accountApi.hardDelete(userIdNum);
               }
               await AuthStorage.clear();
               navigation.reset({

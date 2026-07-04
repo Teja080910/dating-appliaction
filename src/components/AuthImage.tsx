@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Image, ImageProps } from 'react-native';
 import { AuthStorage } from '../api/authStorage';
 import { resolveImageUri } from '../utils/imageUtils';
@@ -9,8 +9,12 @@ interface AuthImageProps extends Omit<ImageProps, 'source'> {
 
 const AuthImage = ({ uri, style, ...props }: AuthImageProps) => {
   const [source, setSource] = useState<{ uri: string; headers?: Record<string, string> }>({ uri: '' });
+  const lastUriRef = useRef('');
 
   useEffect(() => {
+    if (uri === lastUriRef.current) return;
+    lastUriRef.current = uri;
+
     const resolved = resolveImageUri(uri);
     if (!resolved) {
       setSource({ uri: '' });

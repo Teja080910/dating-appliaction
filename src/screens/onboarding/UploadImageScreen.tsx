@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,13 +14,35 @@ import UploadImage from '../../components/UploadImageComponents/UploadImage';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
+import { APIURL } from '../../environment/ApiConfig';
+import { resolveImageUri, parseImageList } from '../../utils/imageUtils';
 
 const UploadPhotosScreen = ({ navigation }: any) => {
-  const { images, name } = useContext(AppContext);
+  const { images, setImages, setImageIds, name } = useContext(AppContext);
   const [uploading, setUploading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
+      const fetchExisting = async () => {
+        try {
+          const userData = await AuthStorage.getUser();
+          const uid = userData?.userId;
+          if (uid) {
+            const allImages = await profileApi.getAllImages(uid);
+            const imageList = parseImageList(allImages);
+            if (imageList.length > 0) {
+              const urls = imageList.map((img: any) => resolveImageUri(img.imageUrl || img.url || img));
+              const ids = imageList.map((img: any) => img.id);
+              const padded = [...urls, ...Array(6 - urls.length).fill(null)].slice(0, 6);
+              const paddedIds = [...ids, ...Array(6 - ids.length).fill(null)].slice(0, 6);
+              setImages(padded);
+              setImageIds(paddedIds);
+            }
+          }
+        } catch {}
+      };
+      fetchExisting();
+
       const onBackPress = () => {
         AsyncStorage.getItem('isLoggedIn').then((isLoggedIn) => {
           if (isLoggedIn === 'true') {
@@ -41,12 +63,13 @@ const UploadPhotosScreen = ({ navigation }: any) => {
   const handleNext = async () => {
     setUploading(true);
     try {
-      const userIdStr = await AuthStorage.getUserIdStr();
-      if (userIdStr) {
+      const userData = await AuthStorage.getUser();
+      const uid = userData?.userId;
+      if (uid) {
         for (const img of images) {
-          if (img) {
+          if (img && !img.includes(APIURL)) {
             try {
-              await profileApi.uploadImage(userIdStr, {
+              await profileApi.uploadImage(uid, {
                 uri: img,
                 type: 'image/jpeg',
                 fileName: 'photo.jpg',
@@ -55,20 +78,20 @@ const UploadPhotosScreen = ({ navigation }: any) => {
           }
         }
 
-        const allImages = await profileApi.getAllImages(userIdStr);
+        const allImages = await profileApi.getAllImages(uid);
         const imgList = allImages?.data || allImages?.images || allImages;
         if (Array.isArray(imgList) && imgList.length > 0) {
           const imgId = imgList[imgList.length - 1].id;
           if (imgId) {
             try {
-              await profileApi.setProfilePhoto(userIdStr, imgId);
+              await profileApi.setProfilePhoto(uid, imgId);
             } catch {}
           }
         }
       }
     } catch {}
     setUploading(false);
-    navigation.navigate('AboutProfile');
+    navigation.navigate('BasicDetails');
   };
 
   return (

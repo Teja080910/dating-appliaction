@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthStorage } from '../../api/authStorage';
-import apiClient from '../../api/apiClient';
+import { telegramApi } from '../../api/telegramApi';
 
 const ConnectTelegramScreen = ({ navigation }: any) => {
   const [connecting, setConnecting] = useState(false);
@@ -42,9 +42,7 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
       const userId = await AuthStorage.getUserId();
       if (userId) {
         const cleanUsername = telegramUsername.trim().replace('@', '');
-        await apiClient.post('/telegram/connect', null, {
-          params: { userId, username: cleanUsername },
-        });
+        await telegramApi.connect(userId, cleanUsername);
         Alert.alert('Success', 'Telegram connected successfully!');
       }
     } catch (err: any) {

@@ -26,6 +26,7 @@ const MoreInfoScreen = () => {
     setEnglishSkillLevel,
     setSelectedEthinicity,
     setSelectedSmoking,
+    setSelectedDrink,
     setTempHeight,
     setSelectedLanguages,
     setSelectedLookingFor,
@@ -37,9 +38,22 @@ const MoreInfoScreen = () => {
   const fetchAndPrefill = useCallback(async () => {
     setLoading(true);
     try {
-      const userIdStr = await AuthStorage.getUserIdStr();
-      if (!userIdStr) return;
-      const data = await profileApi.getMyProfile(userIdStr);
+      const userData = await AuthStorage.getUser();
+      const uidNum = userData?.ID || (await AuthStorage.getUserId());
+      const uidStr = userData?.userId || (await AuthStorage.getUserIdStr());
+      const ids = [uidStr, uidNum ? String(uidNum) : null].filter(Boolean);
+      let data: any = {};
+      for (const id of ids) {
+        try {
+          data = await profileApi.getMyProfile(id!);
+          break;
+        } catch {
+          continue;
+        }
+      }
+      if (!data || !data.id) {
+        data = userData?.profile || {};
+      }
       if (data.appearance) setSelectedAppearance(data.appearance);
       if (data.bodyType) setSelectedBodyType(data.bodyType);
       if (data.englishLevel) {
@@ -48,6 +62,7 @@ const MoreInfoScreen = () => {
       }
       if (data.ethnicity) setSelectedEthinicity(data.ethnicity);
       if (data.smoke) setSelectedSmoking(data.smoke);
+      if (data.drink) setSelectedDrink(data.drink);
       if (data.height) setTempHeight(data.height);
       if (data.language) {
         setSelectedLanguages(data.language.split(',').map(s => s.trim()).filter(Boolean));

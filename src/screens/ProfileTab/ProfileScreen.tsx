@@ -1,4 +1,4 @@
-import { useContext, useCallback, useState } from 'react';
+import { useContext, useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import {
@@ -9,7 +9,6 @@ import Header from '../../components/ProfileTabComponents/Header';
 import AdditionalUploadSection from '../../components/ProfileTabComponents/AdditionalUploadSection';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import ProfileSetting from '../../components/ProfileTabComponents/ProfileSettings/ProfileSetting';
-import ViewMyProfile from '../../components/ProfileTabComponents/ViewMyProfile/ViewMyProfile';
 import ChangeLocation from '../../components/ProfileTabComponents/ChangeLocation.tsx/ChangeLocation';
 import ConnectTelegram from '../../components/ProfileTabComponents/ConnectTelegram/ConnectTelegram';
 import ChatWithUs from '../../components/ProfileTabComponents/ChatWithUs/ChatWithUs';
@@ -17,16 +16,17 @@ import Privacy from '../../components/ProfileTabComponents/Privacy/Privacy';
 import TermsAndConditions from '../../components/ProfileTabComponents/TermsAndConditions/TermsAndConditions';
 import TermsOfUse from '../../components/ProfileTabComponents/TermsOfUse/TermsOfUse';
 import Logout from '../../components/ProfileTabComponents/Logout/Logout';
+import ChangePassword from '../../components/ProfileTabComponents/ChangePassword/ChangePassword';
 import DeleteMyProfile from '../../components/ProfileTabComponents/DeleteMyProfile/DeleteMyProfile';
 import AllRightsReserved from '../../components/ProfileTabComponents/AllRightsReserved';
 import { profileApi } from '../../api/profileApi';
+import { onlineStatusApi } from '../../api/onlineStatusApi';
 import { AuthStorage } from '../../api/authStorage';
-import { APIURL } from '../../environment/ApiConfig';
 import { resolveImageUri, parseImageList } from '../../utils/imageUtils';
 
 const ProfileScreen = () => {
   const {
-    name, email, profileText, profileImage, images,
+    name, profileText, profileImage, images,
     height, setHeight, setTempHeight,
     selectedAppearance, selectedBodyType, selectedLanguages, englishSkillLevel,
     selectedEthinicity, selectedSmoking, selectedLookingFor,
@@ -40,22 +40,34 @@ const ProfileScreen = () => {
   const [ownTelegram, setOwnTelegram] = useState('');
   const [ownEmail, setOwnEmail] = useState('');
 
+  useEffect(() => {
+    let cancelled = false;
+    const setOnline = async () => {
+      const uid = await AuthStorage.getUserIdStr();
+      if (uid && !cancelled) {
+        try { await onlineStatusApi.setOnline(uid); } catch {}
+      }
+    };
+    setOnline();
+    return () => { cancelled = true; };
+  }, []);
+
   const fetchProfile = useCallback(async () => {
     setLoading(true);
     try {
-      const userIdStr = await AuthStorage.getUserIdStr();
-      if (!userIdStr) { setLoading(false); return; }
+      const userData = await AuthStorage.getUser();
+      const uid = userData?.userId || (await AuthStorage.getUserIdStr());
+      if (!uid) { setLoading(false); return; }
 
       let data: any = null;
       try {
-        data = await profileApi.getMyProfile(userIdStr);
+        data = await profileApi.getMyProfile(uid);
       } catch {
-        const userCached = await AuthStorage.getUser();
-        data = userCached || {};
+        data = userData?.profile || userData || {};
       }
 
-      if (data.displayName || data.name) setName(data.displayName || data.name || '');
-      if (data.bio) setProfileText(data.bio);
+      setName(data.displayName || data.name || '');
+      setProfileText(data.bio || '');
       if (data.profileImageUrl) setProfileImage(resolveImageUri(data.profileImageUrl));
       if (data.height) { setHeight(data.height); setTempHeight(data.height); }
       if (data.appearance) setSelectedAppearance(data.appearance);
@@ -77,7 +89,7 @@ const ProfileScreen = () => {
       }
 
       try {
-        const allImages = await profileApi.getAllImages(userIdStr);
+        const allImages = await profileApi.getAllImages(uid);
         const imageList = parseImageList(allImages);
         if (imageList.length > 0) {
           const urls = imageList.map((img: any) => resolveImageUri(img.imageUrl || img.url || img));
@@ -85,9 +97,8 @@ const ProfileScreen = () => {
         }
       } catch {}
 
-      const userCached = await AuthStorage.getUser();
-      setOwnMobile(userCached?.mobile || '');
-      setOwnTelegram(userCached?.telegramUsername || '');
+      setOwnMobile(userData?.mobile || '');
+      setOwnTelegram(userData?.telegramUsername || '');
       setOwnEmail(data?.email || '');
     } catch (e: any) {
       console.warn('fetchProfile failed:', e?.message);
@@ -173,14 +184,14 @@ const ProfileScreen = () => {
         <AdditionalUploadSection />
         <ModalAddPhoto />
         <ProfileSetting />
-        {/* <ViewMyProfile /> */}
-        <ChangeLocation onPress={() => Linking.openSettings()} />
-        <ConnectTelegram onPress={() => Linking.openURL('https://t.me/DatingAppBot')} />
+        <ChangeLocation />
+        <ConnectTelegram />
         <ChatWithUs onPress={() => Linking.openURL('mailto:hi@dating.com')} />
         <Privacy onPress={() => Linking.openURL('https://example.com/privacy')} />
         <TermsAndConditions onPress={() => Linking.openURL('https://example.com/terms')} />
         <TermsOfUse onPress={() => Linking.openURL('https://example.com/eula')} />
         <Logout />
+        <ChangePassword />
         <DeleteMyProfile />
         <AllRightsReserved />
       </ScrollView>
@@ -190,58 +201,68 @@ const ProfileScreen = () => {
 
 const styles = StyleSheet.create({
   summarySection: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 14,
   },
   profilePic: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginRight: 14,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 16,
+    borderWidth: 3,
+    borderColor: '#E94057',
   },
   profilePicPlaceholder: {
-    backgroundColor: '#d9534f',
+    backgroundColor: '#E94057',
     justifyContent: 'center',
     alignItems: 'center',
   },
   profilePicPlaceholderText: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
   },
   profileNameSection: { flex: 1 },
-  userName: { fontSize: 22, fontWeight: 'bold', color: '#000' },
-  userBio: { fontSize: 14, color: '#555', marginBottom: 10, lineHeight: 20 },
+  userName: { fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
+  userBio: { fontSize: 14, color: '#666', marginBottom: 14, lineHeight: 20, paddingRight: 10 },
   detailsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 14,
   },
   detailChip: {
     backgroundColor: '#f0f0f0',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    fontSize: 12,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    fontSize: 13,
     color: '#333',
+    fontWeight: '500',
     overflow: 'hidden',
   },
   contactSection: {
-    backgroundColor: '#f9f2f4',
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
   },
-  contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  contactIcon: { fontSize: 16, marginRight: 8 },
-  contactText: { fontSize: 14, color: '#333' },
+  contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  contactIcon: { fontSize: 18, marginRight: 12 },
+  contactText: { fontSize: 15, color: '#333' },
 });
 
 export default ProfileScreen;

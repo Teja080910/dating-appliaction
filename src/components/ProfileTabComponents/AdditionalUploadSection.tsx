@@ -29,6 +29,27 @@ const AdditionalUploadSection = () => {
 
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
+  const refreshImages = async () => {
+    const userData = await AuthStorage.getUser();
+    const uid = userData?.userId;
+    if (uid) {
+      try {
+        const allImagesResp = await profileApi.getAllImages(uid);
+        const imageList = parseImageList(allImagesResp);
+        if (imageList.length > 0) {
+          const urls = imageList.map((img: any) => resolveImageUri(img.imageUrl || img.url || img));
+          const ids = imageList.map((img: any) => img.id);
+          setImages(urls);
+          setImageIds(ids);
+          const profileImg = imageList.find((img: any) => img.profile);
+          if (profileImg) {
+            setProfileImage(resolveImageUri(profileImg.imageUrl));
+          }
+        }
+      } catch {}
+    }
+  };
+
   const onPressImage = async (index: number) => {
     const currentImage = images[index];
     const currentImageId = imageIds?.[index];
@@ -44,25 +65,30 @@ const AdditionalUploadSection = () => {
         return;
       }
 
-      const newImages = [...images];
-      newImages[index] = null;
-      setImages(newImages);
-
-      if (currentImageId) {
-        try {
-          await profileApi.deleteImage(currentImageId);
-        } catch {}
-      }
-      const newImageIds = [...(imageIds || [])];
-      newImageIds[index] = null;
-      setImageIds(newImageIds);
-
-      if (profileImage === currentImage) {
-        setProfileImage(null);
-      }
-
-      setSelectedIndex(null);
-      setIsModalVisible(false);
+      Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (currentImageId) {
+              try {
+                await profileApi.deleteImage(currentImageId);
+              } catch {}
+            }
+            const newImages = [...images];
+            newImages[index] = null;
+            setImages(newImages);
+            const newImageIds = [...(imageIds || [])];
+            newImageIds[index] = null;
+            setImageIds(newImageIds);
+            if (profileImage === currentImage) {
+              setProfileImage(null);
+            }
+            await refreshImages();
+          },
+        },
+      ]);
     } else {
       const result = await launchImageLibrary({ mediaType: 'photo' });
 
@@ -71,56 +97,34 @@ const AdditionalUploadSection = () => {
         const uri = asset.uri;
         if (uri) {
           setUploadingIndex(index);
-          const updatedImages = [...images];
-          updatedImages[index] = uri;
-          setImages(updatedImages);
-
-          if (!profileImage) {
-            setProfileImage(uri);
-          }
-
           try {
-            const userIdStr = await AuthStorage.getUserIdStr();
-            if (userIdStr) {
-              await profileApi.uploadImage(userIdStr, {
+            const userData = await AuthStorage.getUser();
+            const uid = userData?.userId;
+            if (uid) {
+              await profileApi.uploadImage(uid, {
                 uri,
                 type: asset.type || 'image/jpeg',
                 fileName: asset.fileName || 'photo.jpg',
               });
-
-              const allImagesResp = await profileApi.getAllImages(userIdStr);
-              const imageList = parseImageList(allImagesResp);
-              if (imageList.length > 0) {
-                const newImageIds = [...(imageIds || [])];
-                const lastImg = imageList[imageList.length - 1];
-                newImageIds[index] = lastImg.id;
-                setImageIds(newImageIds);
-
-                const backendUrl = resolveImageUri(lastImg.imageUrl || '');
-                if (backendUrl) {
-                  updatedImages[index] = backendUrl;
-                  setImages([...updatedImages]);
-                  if (totalImages === 0) {
-                    setProfileImage(backendUrl);
-                  }
+              await refreshImages();
+              if (totalImages === 0) {
+                const allImagesResp = await profileApi.getAllImages(uid);
+                const imageList = parseImageList(allImagesResp);
+                if (imageList.length > 0) {
+                  const lastImg = imageList[imageList.length - 1];
+                  try {
+                    await profileApi.setProfilePhoto(uid, lastImg.id);
+                  } catch {}
                 }
-
-                try {
-                  await profileApi.setProfilePhoto(userIdStr, lastImg.id);
-                } catch {}
               }
             }
           } catch (e: any) {
             Alert.alert('Upload failed', e?.response?.data?.message || e?.message || 'Please try again');
-            updatedImages[index] = null;
-            setImages([...updatedImages]);
           } finally {
             setUploadingIndex(null);
           }
         }
       }
-
-      setIsModalVisible(false);
     }
   };
 
@@ -165,55 +169,60 @@ export default AdditionalUploadSection;
 
 const styles = StyleSheet.create({
   textPhoto: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#a0a0a0',
-    marginBottom: 10,
-    padding: 12,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 14,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    letterSpacing: 0.5,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    paddingHorizontal: 14,
     gap: 10,
-    paddingHorizontal: 10,
   },
   imageBox: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    backgroundColor: '#f2f2f2',
+    width: 108,
+    height: 108,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
-    margin: 5,
     overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#e8e8e8',
+    borderStyle: 'dashed',
   },
   uploadedImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 16,
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
   },
   cameraIcon: {
     fontSize: 28,
-    color: '#333',
+    color: '#999',
   },
   plusBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#d63d4c',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -4,
+    right: -4,
+    backgroundColor: '#E94057',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#E94057',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
   plusText: {
     color: 'white',

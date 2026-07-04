@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OtpVerificationScreen = ({ navigation, route }: any) => {
   const { sessionId, mobile } = route.params || {};
-  const [otp, setOtp] = useState('1234');
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleVerify = async () => {

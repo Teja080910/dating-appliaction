@@ -17,23 +17,15 @@ export const profileApi = {
     return response.data;
   },
 
-  setupProfile: async (
-    userId: string,
-    dto: ProfileRequestDTO,
-    photo?: any,
-  ) => {
+  setupProfile: async (userId: string, dto: ProfileRequestDTO, photo?: any) => {
     const formData = new FormData();
     if (photo) {
       formData.append('photo', photo);
     }
-    const response = await apiClient.post(
-      `/profile/${userId}/setup`,
-      formData,
-      {
-        params: { dto: JSON.stringify(dto) },
-        headers: { 'Content-Type': 'multipart/form-data' },
-      },
-    );
+    const response = await apiClient.post(`/profile/${userId}/setup`, formData, {
+      params: { dto: JSON.stringify(dto) },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 
@@ -86,9 +78,7 @@ export const profileApi = {
   },
 
   setProfilePhoto: async (userId: string, imageId: number) => {
-    const response = await apiClient.put(
-      `/users/${userId}/profile-photo/${imageId}`,
-    );
+    const response = await apiClient.put(`/users/${userId}/profile-photo/${imageId}`);
     return response.data;
   },
 

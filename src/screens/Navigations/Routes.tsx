@@ -18,6 +18,8 @@ import SearchScreen from '../SearchSettings/SearchScreen';
 import ProfileSettingsScreen from '../ProfileTab/ProfileSettingsScreen';
 import ViewMyProfileScreen from '../ProfileTab/ViewMyProfileScreen';
 import OtpVerificationScreen from '../Auth/OtpVerificationScreen';
+import BasicDetailsScreen from '../onboarding/BasicDetailsScreen';
+import OnboardingMoreInfoScreen from '../onboarding/OnboardingMoreInfoScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -57,10 +59,12 @@ const Routes = () => {
         <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="Privacy" component={PrivacyScreen} />
-        <Stack.Screen name="DisplayName" component={DisplayNameScreen} />
         <Stack.Screen name="GenderOrientation" component={GenderOrientationScreen} />
+        <Stack.Screen name="DisplayName" component={DisplayNameScreen} />
         <Stack.Screen name="DOB" component={DOBScreen} />
         <Stack.Screen name="UploadImage" component={UploadImageScreen} />
+        <Stack.Screen name="BasicDetails" component={BasicDetailsScreen} />
+        <Stack.Screen name="OnboardingMoreInfo" component={OnboardingMoreInfoScreen} />
         <Stack.Screen name="BottomTabs" component={BottomTabs} />
         <Stack.Screen name="AboutProfile" component={AboutProfileScreen} />
         <Stack.Screen name="ConnectTelegram" component={ConnectTelegramScreen} />
