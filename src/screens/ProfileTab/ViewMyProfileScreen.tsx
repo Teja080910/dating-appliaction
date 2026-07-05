@@ -20,6 +20,8 @@ import { profileApi } from "../../api/profileApi";
 import { AuthStorage } from "../../api/authStorage";
 import { ProfileResponse, User, ConnectionRequest } from "../../api/types";
 import { resolveImageUri } from "../../utils/imageUtils";
+import ReportUserModal from "../../components/ReportUserComponents/ReportUserModal";
+import { colors, radius } from "../../constants/theme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -33,6 +35,8 @@ const ViewMyProfileScreen = ({ route }: any) => {
   const [contactInfo, setContactInfo] = useState<{ mobile?: string; telegram?: string; email?: string; instagram?: string }>({});
   const [fetchedProfile, setFetchedProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [contactInfoError, setContactInfoError] = useState(false);
 
   const userData = route?.params?.userData as User | undefined;
   const paramUserUserId = route?.params?.userUserId as string | undefined;
@@ -108,8 +112,15 @@ const ViewMyProfileScreen = ({ route }: any) => {
   };
 
   const fetchContactInfo = async () => {
+    setContactInfoError(false);
     try {
       if (!myUserId || !targetUserId) return;
+      // NOTE: /connections/list is known to fail (malformed JSON) whenever
+      // the backend's circular User<->Profile serialization bug is
+      // triggered — i.e. whenever a real accepted connection exists, which
+      // is exactly the case this function needs to handle. Do not swallow
+      // this error silently; surface it so the UI doesn't get stuck showing
+      // "Loading contact info..." forever.
       const connections = await connectionsApi.getConnections(myUserId);
       const matched = connections.find(
         (c: ConnectionRequest) =>
@@ -125,7 +136,9 @@ const ViewMyProfileScreen = ({ route }: any) => {
           email: userData?.profile?.email || '',
         });
       }
-    } catch {}
+    } catch {
+      setContactInfoError(true);
+    }
   };
 
   const handlePhone = () => {
@@ -160,7 +173,19 @@ const ViewMyProfileScreen = ({ route }: any) => {
     ? resolveImageUri(fetchedProfile?.profileImageUrl || userData?.profile?.profileImageUrl)
     : "";
 
-  const profileData: ProfileResponse = {
+  // gender/orientation/age/lookingFor are display-only extras sourced from
+  // route params (another user's card data) — never returned by
+  // /profile/me, so they're kept out of the shared ProfileResponse type and
+  // merged in locally here instead. They'll simply be blank (and hidden by
+  // the conditional rendering below) when unavailable, which is expected —
+  // there's currently no backend endpoint that reliably supplies another
+  // user's gender/orientation.
+  const profileData: ProfileResponse & {
+    gender?: string;
+    orientation?: string;
+    age?: number;
+    lookingFor?: string;
+  } = {
     id: fetchedProfile?.id || userData?.id || 0,
     name: fetchedProfile?.name || userData?.name || userData?.profile?.displayName || "",
     displayName: fetchedProfile?.displayName || userData?.profile?.displayName || userData?.name || "",
@@ -239,7 +264,7 @@ const ViewMyProfileScreen = ({ route }: any) => {
             {displayImages.length > 1 && (
               <View style={styles.dotsContainer}>
                 {displayImages.map((_: any, i: number) => (
-                  <View key={i} style={[styles.dot, { backgroundColor: i === activeIndex ? "#D94B58" : "#ccc" }]} />
+                  <View key={i} style={[styles.dot, { backgroundColor: i === activeIndex ? colors.primary : colors.inkFaint }]} />
                 ))}
               </View>
             )}
@@ -384,7 +409,11 @@ const ViewMyProfileScreen = ({ route }: any) => {
                 </TouchableOpacity>
               ) : null}
               {!contactInfo.mobile && !contactInfo.telegram && !contactInfo.email && !contactInfo.instagram ? (
-                <Text style={styles.noContactText}>Loading contact info...</Text>
+                <Text style={styles.noContactText}>
+                  {contactInfoError
+                    ? "Couldn't load contact info due to a server issue. Please try again later."
+                    : 'Loading contact info...'}
+                </Text>
               ) : null}
             </View>
           </View>
@@ -405,7 +434,23 @@ const ViewMyProfileScreen = ({ route }: any) => {
             </TouchableOpacity>
           </View>
         )}
+
+        {!isOwnProfile && (
+          <View style={styles.reportLinkContainer}>
+            <TouchableOpacity onPress={() => setReportModalVisible(true)}>
+              <Text style={styles.reportLinkText}>Report this user</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
+
+      {!isOwnProfile && (
+        <ReportUserModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          targetUserId={targetUserId}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -470,10 +515,12 @@ const styles = StyleSheet.create({
   },
   tagText: { fontSize: 13, color: "#333" },
   sendRequestContainer: { paddingHorizontal: 20, marginTop: 24 },
+  reportLinkContainer: { paddingHorizontal: 20, marginTop: 16, alignItems: 'center' },
+  reportLinkText: { color: '#999', fontSize: 13, textDecorationLine: 'underline' },
   sendRequestBtn: {
-    backgroundColor: "#D94B58",
+    backgroundColor: colors.primary,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: "center",
   },
   sendRequestText: { color: "#fff", fontWeight: "600", fontSize: 16 },

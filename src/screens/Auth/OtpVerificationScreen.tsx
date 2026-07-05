@@ -14,6 +14,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { authApi } from '../../api/authApi';
 import { AuthStorage } from '../../api/authStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors, radius } from '../../constants/theme';
 
 const OtpVerificationScreen = ({ navigation, route }: any) => {
   const { sessionId, mobile } = route.params || {};
@@ -61,8 +62,8 @@ const OtpVerificationScreen = ({ navigation, route }: any) => {
   };
 
   return (
-    <LinearGradient colors={['#d13964', '#d94868']} style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#d13964" />
+    <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.gradientStart} />
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Dating</Text>
         <Text style={styles.subtitle}>Verify your mobile number</Text>
@@ -85,7 +86,7 @@ const OtpVerificationScreen = ({ navigation, route }: any) => {
           onPress={handleVerify}
           disabled={loading}>
           {loading ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color={colors.primary} />
           ) : (
             <Text style={styles.verifyText}>VERIFY OTP</Text>
           )}
@@ -113,25 +114,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 38,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.surface,
     marginBottom: 30,
   },
   subtitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.surface,
     marginBottom: 10,
   },
   hint: {
     fontSize: 14,
-    color: '#fff',
+    color: colors.surface,
     marginBottom: 25,
     textAlign: 'center',
     opacity: 0.9,
   },
   inputContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 50,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 15,
@@ -141,26 +142,26 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#000',
+    color: colors.ink,
     fontSize: 18,
     textAlign: 'center',
     letterSpacing: 8,
     width: '100%',
   },
   verifyButton: {
-    backgroundColor: '#fff',
-    borderRadius: 50,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     paddingVertical: 15,
     paddingHorizontal: 20,
     width: '100%',
     alignItems: 'center',
     marginBottom: 15,
   },
-  verifyText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  verifyText: { color: colors.primary, fontWeight: 'bold', fontSize: 16 },
   resendButton: {
     paddingVertical: 10,
   },
-  resendText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  resendText: { color: colors.surface, fontSize: 14, fontWeight: 'bold' },
 });
 
 export default OtpVerificationScreen;

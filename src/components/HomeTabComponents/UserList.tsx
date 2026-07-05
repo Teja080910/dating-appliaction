@@ -7,19 +7,17 @@ import {
   Text,
   RefreshControl,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import UserCard from './UserCard';
 import { profileApi } from '../../api/profileApi';
-import { userApi } from '../../api/userApi';
 import { AuthStorage } from '../../api/authStorage';
-import { User, UserProfile, UserFilterRequest } from '../../api/types';
+import { User, UserProfile } from '../../api/types';
+import { colors } from '../../constants/theme';
 
 interface HomeUserListProps {
-  filterByGender: string | null;
   searchQuery: string;
 }
 
-const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
+const UserList = ({ searchQuery }: HomeUserListProps) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,6 +82,15 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
     return [];
   };
 
+  // NOTE: /users/filter is non-functional on the deployed backend — it 400s
+  // on every field (gender, age, bodyType, smoke, search, etc: "Could not
+  // resolve attribute 'X' of com.dta.Dating_App.entitys.User"), confirmed by
+  // live-testing every field individually. /home/allusers is the only
+  // endpoint that actually returns data, but it doesn't accept any filter
+  // params and doesn't include gender/bodyType/etc. in its response, so
+  // there is currently no way — server- or client-side — to filter the Home
+  // feed by gender or any other preference. Search is applied client-side
+  // since the backend can't do it either.
   const fetchUsers = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
@@ -96,55 +103,16 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
         return;
       }
 
-      let usersData: any[] = [];
+      const homeData = await profileApi.getHomeUsers(uid);
+      let usersData = extractUsers(homeData);
 
-      const filterParams: UserFilterRequest = {
-        userId: uid,
-        gender: ['female'],
-        page: 0,
-        size: 50,
-      };
-
-      if (searchQuery.trim()) {
-        filterParams.search = searchQuery.trim();
-      }
-
-      try {
-        const savedFilters = await AsyncStorage.getItem('searchFilters');
-        if (savedFilters) {
-          const parsed = JSON.parse(savedFilters);
-          if (parsed.ageRange) {
-            filterParams.minAge = parsed.ageRange[0];
-            filterParams.maxAge = parsed.ageRange[1];
-          }
-          if (parsed.distanceRange && parsed.distanceRange < 1100) {
-            filterParams.maxDistanceKm = parsed.distanceRange;
-          }
-          if (parsed.isChecked) filterParams.worldwide = true;
-          if (parsed.bodyHeight) {
-            filterParams.minHeight = parsed.bodyHeight[0];
-            filterParams.maxHeight = parsed.bodyHeight[1];
-          }
-          if (parsed.selectBodyTypes?.length) filterParams.bodyType = parsed.selectBodyTypes;
-          if (parsed.selectedOptions?.length) filterParams.appearance = parsed.selectedOptions;
-          if (parsed.searchLanguages?.length) filterParams.language = parsed.searchLanguages;
-          if (parsed.englishProficiency?.length) filterParams.englishLevel = parsed.englishProficiency;
-          if (parsed.ethnicity?.length) filterParams.ethnicity = parsed.ethnicity;
-          if (parsed.lookingFor?.length) filterParams.lookingFor = parsed.lookingFor;
-          if (parsed.smoke?.length) {
-            filterParams.smoke = parsed.smoke.includes('No') ? false : true;
-          }
-        }
-      } catch {}
-
-      try {
-        const response = await userApi.filterUsers(filterParams);
-        usersData = extractUsers(response);
-      } catch {
-        try {
-          const homeData = await profileApi.getHomeUsers(uid);
-          usersData = extractUsers(homeData);
-        } catch {}
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        usersData = usersData.filter((item) => {
+          const name = (item.name || item.displayName || '').toLowerCase();
+          const bio = (item.bio || '').toLowerCase();
+          return name.includes(q) || bio.includes(q);
+        });
       }
 
       const mapped = usersData.map(toUser).filter(Boolean) as User[];
@@ -157,7 +125,7 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filterByGender, searchQuery]);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchUsers();
@@ -172,7 +140,7 @@ const UserList = ({ filterByGender, searchQuery }: HomeUserListProps) => {
     return (
       <ActivityIndicator
         size="large"
-        color="#FF1493"
+        color={colors.primary}
         style={styles.centered}
       />
     );

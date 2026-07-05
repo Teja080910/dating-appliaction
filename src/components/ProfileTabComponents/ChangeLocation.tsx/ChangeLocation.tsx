@@ -4,6 +4,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Feather from 'react-native-vector-icons/Feather';
 import { locationApi } from '../../../api/locationApi';
 import { AuthStorage } from '../../../api/authStorage';
+import { colors, radius, shadow } from '../../../constants/theme';
 
 const ChangeLocation = () => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -77,7 +78,7 @@ const ChangeLocation = () => {
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.saveBtn, loading && { opacity: 0.7 }]} onPress={handleSave} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save</Text>}
+                {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.saveBtnText}>Save</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -99,18 +100,18 @@ const styles = StyleSheet.create({
   left: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   icon: { marginRight: 12, color: '#2f2f2f' },
   text: { fontSize: 16, color: '#000', flex: 1 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '85%' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#000', marginBottom: 20, textAlign: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 24, width: '85%', ...shadow.card },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: colors.ink, marginBottom: 20, textAlign: 'center' },
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16,
-    fontSize: 15, color: '#000', marginBottom: 12,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 16,
+    fontSize: 15, color: colors.ink, marginBottom: 12,
   },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  cancelBtnText: { color: '#666', fontWeight: '600' },
-  saveBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#D94B58', alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '600' },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  cancelBtnText: { color: colors.inkMuted, fontWeight: '600' },
+  saveBtn: { flex: 1, paddingVertical: 12, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center' },
+  saveBtnText: { color: colors.surface, fontWeight: '600' },
 });
 
 export default ChangeLocation;

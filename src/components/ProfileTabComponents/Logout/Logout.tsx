@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootParamList } from '../../../utils/types/navigation.types';
 import { AuthStorage } from '../../../api/authStorage';
+import { onlineStatusApi } from '../../../api/onlineStatusApi';
 
 const Logout = () => {
   const navigation = useNavigation<StackNavigationProp<RootParamList>>();
@@ -16,6 +17,10 @@ const Logout = () => {
         text: 'Logout',
         style: 'destructive',
         onPress: async () => {
+          const userId = await AuthStorage.getUserIdStr();
+          if (userId) {
+            try { await onlineStatusApi.setOffline(userId); } catch {}
+          }
           await AuthStorage.clear();
           navigation.reset({
             index: 0,

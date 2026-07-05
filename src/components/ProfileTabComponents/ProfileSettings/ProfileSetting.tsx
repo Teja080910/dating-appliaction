@@ -7,17 +7,24 @@ import { RootParamList } from '../../../utils/types/navigation.types';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 const ProfileSetting = () => {
-  const navigation = useNavigation<StackNavigationProp<RootParamList,'ProfileSettingsScreen'>>();
-  const handlePress = () => {
-    navigation.navigate('ProfileSettingsScreen'); // replace with your actual screen name
-  };
+  const navigation = useNavigation<StackNavigationProp<RootParamList>>();
 
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>PROFILE</Text>
-      <TouchableOpacity style={styles.itemRow} onPress={handlePress}>
+      <TouchableOpacity style={styles.itemRow} onPress={() => navigation.navigate('ProfileSettingsScreen')}>
         <Icon name="cog" solid size={20} color="#1c1c1e" style={styles.icon} />
         <Text style={styles.itemText}>Profile settings</Text>
+        <Icon name="chevron-right" size={16} color="#c4c4c4" style={styles.chevron} />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.itemRow} onPress={() => navigation.navigate('Notifications')}>
+        <Icon name="bell" solid size={20} color="#1c1c1e" style={styles.icon} />
+        <Text style={styles.itemText}>Notifications</Text>
+        <Icon name="chevron-right" size={16} color="#c4c4c4" style={styles.chevron} />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.itemRow} onPress={() => navigation.navigate('PrivacyStatus')}>
+        <Icon name="shield-alt" solid size={20} color="#1c1c1e" style={styles.icon} />
+        <Text style={styles.itemText}>Privacy status</Text>
         <Icon name="chevron-right" size={16} color="#c4c4c4" style={styles.chevron} />
       </TouchableOpacity>
     </View>

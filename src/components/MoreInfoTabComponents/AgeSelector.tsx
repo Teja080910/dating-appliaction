@@ -2,12 +2,13 @@ import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { calculateAge } from '../../utils/dateUtils';
 
 const AgeSelector = () => {
   const { date, setDate } = useContext(AppContext);
   const [open, setOpen] = useState(false);
 
-  const age = date ? new Date().getFullYear() - date.getFullYear() : 0;
+  const age = date ? calculateAge(date) : 0;
   const formattedDate = date ? date.toLocaleDateString('en-GB') : '';
 
   return (

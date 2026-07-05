@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
+import LinearGradient from 'react-native-linear-gradient';
 import { profileApi } from '../../api/profileApi';
 import { authApi } from '../../api/authApi';
 import { AuthStorage } from '../../api/authStorage';
+import { colors, radius, typography } from '../../constants/theme';
 
 const PrivacyScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
@@ -33,14 +35,20 @@ const PrivacyScreen = ({ navigation }: any) => {
         try {
           await profileApi.acceptTerms(userId);
           await authApi.activateAccount(userId);
-        } catch {}
+        } catch (err) {
+          // Intentionally don't block onboarding on this failure, but log
+          // it — otherwise client/server acceptance state can silently
+          // diverge with no trace.
+          console.warn('PrivacyScreen: acceptTerms/activateAccount failed', err);
+        }
       }
       await AsyncStorage.setItem('acceptedTerms', 'true');
       await AsyncStorage.setItem('GenderOrientation', 'true');
 
       navigation.replace('GenderOrientation');
-    } catch {
+    } catch (err) {
       // Even if API fails, allow navigation
+      console.warn('PrivacyScreen: handleAccept failed', err);
       await AsyncStorage.setItem('acceptedTerms', 'true');
       await AsyncStorage.setItem('GenderOrientation', 'true');
 
@@ -53,13 +61,13 @@ const PrivacyScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <View style={styles.progressBarWrapper}>
-        <View style={styles.progress} />
+        <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.progress} />
       </View>
 
       <Text style={styles.header}>We care about your privacy.</Text>
 
       <View style={styles.checkRow}>
-        <Icon name="check-circle" size={24} color="#e14c61" />
+        <Icon name="check-circle" size={24} color={colors.primary} />
         <Text style={styles.agreeText}>
           By clicking "Accept terms of use" you accept our terms of use and privacy policy.
         </Text>
@@ -82,14 +90,17 @@ const PrivacyScreen = ({ navigation }: any) => {
       </Text>
 
       <TouchableOpacity
-        style={[styles.acceptBtn, loading && { opacity: 0.7 }]}
         onPress={handleAccept}
-        disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.acceptBtnText}>Accept terms of use</Text>
-        )}
+        disabled={loading}
+        activeOpacity={0.9}
+        style={loading && { opacity: 0.7 }}>
+        <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.acceptBtn}>
+          {loading ? (
+            <ActivityIndicator color={colors.surface} />
+          ) : (
+            <Text style={styles.acceptBtnText}>Accept terms of use</Text>
+          )}
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -98,27 +109,26 @@ const PrivacyScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 25,
     justifyContent: 'center',
   },
   progressBarWrapper: {
     height: 5,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 5,
+    backgroundColor: colors.border,
+    borderRadius: radius.pill,
     overflow: 'hidden',
     marginBottom: 25,
   },
   progress: {
     height: 5,
     width: '10%',
-    backgroundColor: '#e14c61',
+    borderRadius: radius.pill,
   },
   header: {
-    fontSize: 26,
-    fontWeight: 'bold',
+    ...typography.title,
     marginBottom: 25,
-    color: '#000',
+    color: colors.ink,
   },
   checkRow: {
     flexDirection: 'row',
@@ -128,36 +138,36 @@ const styles = StyleSheet.create({
   },
   agreeText: {
     flex: 1,
-    color: '#333',
+    color: colors.inkMuted,
     fontSize: 14,
   },
   linkBtn: {
     borderWidth: 1,
-    borderColor: '#000',
+    borderColor: colors.border,
     paddingVertical: 14,
     paddingHorizontal: 18,
-    borderRadius: 30,
+    borderRadius: radius.pill,
     marginVertical: 8,
   },
   linkText: {
     fontWeight: 'bold',
     fontSize: 14,
     textAlign: 'center',
+    color: colors.ink,
   },
   footer: {
     marginTop: 25,
     fontSize: 13,
-    color: '#444',
+    color: colors.inkMuted,
   },
   acceptBtn: {
-    backgroundColor: '#e14c61',
-    borderRadius: 30,
+    borderRadius: radius.pill,
     paddingVertical: 14,
     marginTop: 30,
     alignItems: 'center',
   },
   acceptBtnText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: 'bold',
     fontSize: 16,
   },

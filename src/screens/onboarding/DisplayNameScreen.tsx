@@ -1,4 +1,4 @@
-import React, { useCallback, useContext } from 'react';
+import React, { useCallback, useContext, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,28 @@ import {
   BackHandler,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthStorage } from '../../api/authStorage';
+import { profileApi } from '../../api/profileApi';
+import OnboardingProgressBar from '../../components/onboarding/OnboardingProgressBar';
+import { colors, radius, typography } from '../../constants/theme';
 
 const DisplayNameScreen = ({ navigation }: any) => {
-  const { name, setName } = useContext(AppContext);
+  const { name, setName, profileCompletion, setProfileCompletion } = useContext(AppContext);
+
+  useEffect(() => {
+    const fetchCompletion = async () => {
+      const uid = await AuthStorage.getUserIdStr();
+      if (!uid) return;
+      try {
+        const pct = await profileApi.getProfileCompletion(uid);
+        if (typeof pct === 'number') setProfileCompletion(pct);
+      } catch {}
+    };
+    fetchCompletion();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,10 +58,7 @@ const DisplayNameScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressFill} />
-        <View style={styles.progressRemaining} />
-      </View>
+      <OnboardingProgressBar percent={profileCompletion} />
 
       <View style={styles.content}>
         <Text style={styles.title}>Welcome to Dating!</Text>
@@ -53,7 +67,7 @@ const DisplayNameScreen = ({ navigation }: any) => {
         <TextInput
           style={styles.input}
           placeholder="Write your nickname here"
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.inkFaint}
           value={name}
           onChangeText={setName}
         />
@@ -71,21 +85,17 @@ const DisplayNameScreen = ({ navigation }: any) => {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            name.trim() ? styles.nextButtonActive : {},
-          ]}
-          disabled={!name.trim()}
-          onPress={handleDisplayName}>
-          <Text
-            style={[
-              styles.nextButtonText,
-              name.trim() ? styles.nextButtonTextActive : {},
-            ]}>
-            Next
-          </Text>
-        </TouchableOpacity>
+        {name.trim() ? (
+          <TouchableOpacity onPress={handleDisplayName} activeOpacity={0.9}>
+            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.nextButton}>
+              <Text style={[styles.nextButtonText, styles.nextButtonTextActive]}>Next</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.nextButton} disabled>
+            <Text style={styles.nextButtonText}>Next</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -94,52 +104,35 @@ const DisplayNameScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 24,
-  },
-  progressBarContainer: {
-    flexDirection: 'row',
-    height: 4,
-    backgroundColor: '#ccc',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  progressFill: {
-    width: '40%',
-    backgroundColor: '#ee486b',
-  },
-  progressRemaining: {
-    flex: 1,
-    backgroundColor: '#ccc',
   },
   content: {
     flex: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...typography.heading,
     marginBottom: 8,
-    color: '#000',
+    color: colors.ink,
   },
   subtitle: {
     fontSize: 18,
     fontWeight: '500',
     marginBottom: 30,
-    color: '#000',
+    color: colors.inkMuted,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#000',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: '#000',
+    color: colors.ink,
+    backgroundColor: colors.surfaceAlt,
   },
   helperText: {
-    color: '#888',
+    color: colors.inkFaint,
     marginTop: 6,
     fontSize: 14,
   },
@@ -153,29 +146,26 @@ const styles = StyleSheet.create({
   },
   infoIcon: {
     fontSize: 16,
-    color: '#aaa',
+    color: colors.inkFaint,
     marginRight: 6,
   },
   infoText: {
-    color: '#aaa',
+    color: colors.inkFaint,
     fontSize: 14,
   },
   nextButton: {
-    backgroundColor: '#e0e0e0',
-    borderRadius: 50,
+    backgroundColor: colors.border,
+    borderRadius: radius.pill,
     paddingVertical: 15,
     alignItems: 'center',
   },
-  nextButtonActive: {
-    backgroundColor: '#ee486b',
-  },
   nextButtonText: {
-    color: '#888',
+    color: colors.inkFaint,
     fontWeight: '600',
     fontSize: 16,
   },
   nextButtonTextActive: {
-    color: '#fff',
+    color: colors.surface,
   },
 });
 

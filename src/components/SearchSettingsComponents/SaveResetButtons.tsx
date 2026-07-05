@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { colors, radius } from '../../constants/theme';
 
 const SaveResetButtons = () => {
   const {
@@ -71,18 +72,18 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 8,
     marginBottom: 10,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: colors.surfaceAlt,
   },
   button: {
     flex: 1,
-    backgroundColor: '#E94057',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: radius.md,
     marginHorizontal: 5,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   BackHandler,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -62,6 +63,7 @@ const UploadPhotosScreen = ({ navigation }: any) => {
 
   const handleNext = async () => {
     setUploading(true);
+    let failedCount = 0;
     try {
       const userData = await AuthStorage.getUser();
       const uid = userData?.userId;
@@ -74,7 +76,9 @@ const UploadPhotosScreen = ({ navigation }: any) => {
                 type: 'image/jpeg',
                 fileName: 'photo.jpg',
               });
-            } catch {}
+            } catch {
+              failedCount += 1;
+            }
           }
         }
 
@@ -91,7 +95,15 @@ const UploadPhotosScreen = ({ navigation }: any) => {
       }
     } catch {}
     setUploading(false);
-    navigation.navigate('BasicDetails');
+    if (failedCount > 0) {
+      Alert.alert(
+        'Some photos failed to upload',
+        `${failedCount} photo${failedCount > 1 ? 's' : ''} couldn't be uploaded. You can add more later from your profile.`,
+        [{ text: 'Continue', onPress: () => navigation.navigate('BasicDetails') }],
+      );
+    } else {
+      navigation.navigate('BasicDetails');
+    }
   };
 
   return (

@@ -1,8 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const options = ['Yes', 'No', 'Sometimes'];
+import { SMOKE_DRINK_OPTIONS as options } from '../../constants/profileOptions';
 
 const Smoke = () => {
   // const [smoke, setSmoke] = useState<string[]>([]);

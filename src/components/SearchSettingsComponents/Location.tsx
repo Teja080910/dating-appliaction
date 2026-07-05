@@ -1,7 +1,6 @@
 import React, {useContext, useState} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, Modal} from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import App from '../../../App';
 import AppContext from '../../context/CreateGlobalStateContext';
 
 const Location = () => {

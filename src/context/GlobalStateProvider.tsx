@@ -10,11 +10,9 @@ const GlobalStateProvider = ({ children }: any) => {
   const [password, setPassword] = useState('');
   const [images, setImages] = useState<(string | null)[]>([null, null, null, null, null, null]);
   const [imageIds, setImageIds] = useState<(number | null)[]>([null, null, null, null, null, null]);
-  const [filter, setFilter] = useState<'online' | 'newest'>('online');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [login, setLogin] = useState(false);
-  const [oppositeGender, setOppositeGender] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [username, setUsername] = useState('');
   const [selectedAppearance, setSelectedAppearance] = useState<string | null>(null);
@@ -27,6 +25,15 @@ const GlobalStateProvider = ({ children }: any) => {
   const [selectedSmoking, setSelectedSmoking] = useState<string | null>('');
   const [selectedDrink, setSelectedDrink] = useState<string | null>('');
   const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
+
+  // The user's own gender/orientation, captured during onboarding and used
+  // by later screens (Profile, Profile Settings, etc.) instead of relying on
+  // /profile/me, which never returns these fields (confirmed against the
+  // live backend).
+  const [gender, setGender] = useState<string | null>(null);
+  const [orientation, setOrientation] = useState<string | null>(null);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [verifiedSelfie, setVerifiedSelfie] = useState(false);
 
   const [profilePreferences, setProfilePreferences] = useState({
     appearance: null,
@@ -58,6 +65,7 @@ const GlobalStateProvider = ({ children }: any) => {
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
   const [smoke, setSmoke] = useState<string[]>([]);
+  const [drink, setDrink] = useState<string[]>([]);
 
   const [searchPreferences, setSearchPreferences] = useState({
     agesBetween: [],
@@ -90,11 +98,9 @@ const GlobalStateProvider = ({ children }: any) => {
       password, setPassword,
       images, setImages,
       imageIds, setImageIds,
-      filter, setFilter,
       isModalVisible, setIsModalVisible,
       selectedIndex, setSelectedIndex,
       login, setLogin,
-      oppositeGender, setOppositeGender,
       phoneNumber, setPhoneNumber,
       username, setUsername,
       selectedAppearance, setSelectedAppearance,
@@ -107,6 +113,10 @@ const GlobalStateProvider = ({ children }: any) => {
       selectedSmoking, setSelectedSmoking,
       selectedDrink, setSelectedDrink,
       selectedLookingFor, setSelectedLookingFor,
+      gender, setGender,
+      orientation, setOrientation,
+      profileCompletion, setProfileCompletion,
+      verifiedSelfie, setVerifiedSelfie,
       profilePreferences, setProfilePreferences,
       profileImage, setProfileImage,
       profileText, setProfileText,
@@ -124,6 +134,7 @@ const GlobalStateProvider = ({ children }: any) => {
       lookingFor, setLookingFor,
       showMe, setShowMe,
       smoke, setSmoke,
+      drink, setDrink,
       viewMyProfile, setViewMyProfile,
       selectedUserImage, setSelectedUserImage,
       cardUserName, setCardUserName,

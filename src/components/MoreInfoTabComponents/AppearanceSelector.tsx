@@ -2,8 +2,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const appearances = ['Very attractive', 'Attractive', 'Average', 'Below Average'];
+import { APPEARANCE_OPTIONS as appearances } from '../../constants/profileOptions';
 
 const AppearanceSelector = () => {
   const { selectedAppearance, setSelectedAppearance } = useContext(AppContext);

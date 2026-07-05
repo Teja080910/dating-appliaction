@@ -1,8 +1,8 @@
 import React, { useContext } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const OPTIONS = ['Yes', 'No', 'Sometimes'];
+import { SMOKE_DRINK_OPTIONS as OPTIONS } from '../../constants/profileOptions';
+import { colors, radius } from '../../constants/theme';
 
 const DoYouDrinkSelector = () => {
   const { selectedDrink, setSelectedDrink } = useContext(AppContext);
@@ -53,22 +53,22 @@ const styles = StyleSheet.create({
   },
   option: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 25,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingVertical: 8,
     paddingHorizontal: 20,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.surfaceAlt,
   },
   selectedOption: {
-    backgroundColor: '#d9534f',
-    borderColor: '#d9534f',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   optionText: {
-    color: '#333',
+    color: colors.ink,
     fontSize: 14,
   },
   selectedText: {
-    color: '#fff',
+    color: colors.surface,
   }
 });
 

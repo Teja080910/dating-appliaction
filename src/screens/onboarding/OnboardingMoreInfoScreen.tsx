@@ -8,18 +8,23 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  BODY_TYPES,
+  APPEARANCE_OPTIONS as APPEARANCES,
+  LOOKING_FOR_OPTIONS as LOOKING_FOR,
+  SMOKE_DRINK_OPTIONS as SMOKING_OPTIONS,
+  SMOKE_DRINK_OPTIONS as DRINK_OPTIONS,
+  LANGUAGES,
+  ENGLISH_LEVELS as englishLevels,
+} from '../../constants/profileOptions';
+import OnboardingProgressBar from '../../components/onboarding/OnboardingProgressBar';
+import LinearGradient from 'react-native-linear-gradient';
+import { colors, radius, typography } from '../../constants/theme';
 
-const englishLevels = ['Bad', 'Medium', 'Good', 'Very Good'];
 const ETHNICITIES = [
   'Asian', 'Black / African Descent', 'Latin / Hispanic', 'East Indian',
   'Middle Eastern', 'Mixed', 'Native American', 'Pacific Islander', 'White / Caucasian', 'Other',
 ];
-const BODY_TYPES = ['Slim', 'Athletic', 'Average', 'Curvy', 'Muscular', 'Plus size'];
-const APPEARANCES = ['Very attractive', 'Attractive', 'Average', 'Below average'];
-const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Russian', 'Chinese', 'Japanese', 'Arabic', 'Hindi', 'Other'];
-const SMOKING_OPTIONS = ['No', 'Sometimes', 'Yes', 'Socially'];
-const DRINK_OPTIONS = ['No', 'Sometimes', 'Yes', 'Socially'];
-const LOOKING_FOR = ['Casual dating', 'Serious relationship', 'Friendship', 'Marriage', 'Open to explore'];
 
 const OnboardingMoreInfoScreen = ({ navigation }: any) => {
   const {
@@ -32,12 +37,15 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
     tempHeight, setTempHeight,
     selectedLanguages, setSelectedLanguages,
     selectedLookingFor, setSelectedLookingFor,
+    profileCompletion, setProfileCompletion,
   } = useContext(AppContext);
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // /profile/me never returns lookingFor (confirmed against the live
+    // backend) — selectedLookingFor is carried entirely via shared context.
     const prefill = async () => {
       try {
         const userData = await AuthStorage.getUser();
@@ -57,9 +65,8 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
           if (data.language) {
             setSelectedLanguages(data.language.split(',').map((s: string) => s.trim()).filter(Boolean));
           }
-          if (data.lookingFor) {
-            setSelectedLookingFor(data.lookingFor.split(',').map((s: string) => s.trim()).filter(Boolean));
-          }
+          const pct = await profileApi.getProfileCompletion(uid);
+          if (typeof pct === 'number') setProfileCompletion(pct);
         }
       } catch {}
       setLoading(false);
@@ -93,7 +100,7 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
           drink: selectedDrink || undefined,
         });
       }
-      await AsyncStorage.setItem('entryHomeScreen', 'true');
+      await AsyncStorage.setItem(AuthStorage.KEYS.ENTRY_HOME_SCREEN, 'true');
       navigation.replace('BottomTabs');
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message || 'Failed to save');
@@ -105,18 +112,16 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#E94057" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressFill} />
-        </View>
+        <OnboardingProgressBar percent={profileCompletion} />
 
         <Text style={styles.title}>More About You</Text>
         <Text style={styles.subtitle}>Help us find the best matches</Text>
@@ -128,9 +133,9 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
           minimumValue={120}
           maximumValue={220}
           step={1}
-          minimumTrackTintColor="#E94057"
-          maximumTrackTintColor="#ddd"
-          thumbTintColor="#E94057"
+          minimumTrackTintColor={colors.primary}
+          maximumTrackTintColor={colors.border}
+          thumbTintColor={colors.primary}
           value={tempHeight}
           onValueChange={setTempHeight}
         />
@@ -184,9 +189,9 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
           minimumValue={0}
           maximumValue={3}
           step={1}
-          minimumTrackTintColor="#E94057"
-          maximumTrackTintColor="#ddd"
-          thumbTintColor="#E94057"
+          minimumTrackTintColor={colors.primary}
+          maximumTrackTintColor={colors.border}
+          thumbTintColor={colors.primary}
           value={englishSkillLevel}
           onSlidingComplete={setEnglishSkillLevel}
         />
@@ -248,15 +253,18 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
         </View>
 
         <TouchableOpacity
-          style={[styles.nextButton, saving && { opacity: 0.7 }]}
           onPress={handleSave}
           disabled={saving}
+          activeOpacity={0.9}
+          style={saving && { opacity: 0.7 }}
         >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.nextButtonText}>Complete Profile</Text>
-          )}
+          <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.nextButton}>
+            {saving ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <Text style={styles.nextButtonText}>Complete Profile</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -264,28 +272,24 @@ const OnboardingMoreInfoScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: colors.surface },
   scrollContent: { padding: 24, paddingBottom: 60 },
-  progressBarContainer: {
-    height: 4, backgroundColor: '#e0e0e0', borderRadius: 2, overflow: 'hidden', marginBottom: 24,
-  },
-  progressFill: { width: '75%', height: '100%', backgroundColor: '#E94057' },
-  title: { fontSize: 26, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
-  subtitle: { fontSize: 16, color: '#888', marginBottom: 24 },
-  label: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 10, marginTop: 20 },
+  title: { ...typography.title, color: colors.ink, marginBottom: 6 },
+  subtitle: { fontSize: 16, color: colors.inkMuted, marginBottom: 24 },
+  label: { fontSize: 15, fontWeight: '600', color: colors.ink, marginBottom: 10, marginTop: 20 },
   slider: { width: '100%', height: 40, marginBottom: 4 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1,
-    borderColor: '#ddd', backgroundColor: '#fafafa',
+    paddingVertical: 8, paddingHorizontal: 16, borderRadius: radius.pill, borderWidth: 1,
+    borderColor: colors.border, backgroundColor: colors.surfaceAlt,
   },
-  chipSelected: { backgroundColor: '#E94057', borderColor: '#E94057' },
-  chipText: { fontSize: 14, color: '#666' },
-  chipTextSelected: { color: '#fff', fontWeight: '600' },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 14, color: colors.inkMuted },
+  chipTextSelected: { color: colors.surface, fontWeight: '600' },
   nextButton: {
-    backgroundColor: '#E94057', paddingVertical: 16, borderRadius: 30, alignItems: 'center', marginTop: 32,
+    paddingVertical: 16, borderRadius: radius.pill, alignItems: 'center', marginTop: 32,
   },
-  nextButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  nextButtonText: { color: colors.surface, fontWeight: '700', fontSize: 16 },
 });
 
 export default OnboardingMoreInfoScreen;

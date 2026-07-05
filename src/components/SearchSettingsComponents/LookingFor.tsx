@@ -1,14 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const options = [
-  'Hookup',
-  'Casual dating',
-  'Relationship',
-  'Marriage',
-  'Online relationship',
-];
+import { LOOKING_FOR_OPTIONS as options } from '../../constants/profileOptions';
 
 const LookingFor = () => {
   // const [lookingFor, setLookingFor] = useState<string[]>([]);

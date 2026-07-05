@@ -8,13 +8,6 @@ export const accountApi = {
     return response.data;
   },
 
-  activate: async (userId: number) => {
-    const response = await apiClient.put('/account/activate', null, {
-      params: { userId },
-    });
-    return response.data;
-  },
-
   hardDelete: async (userId: number) => {
     const response = await apiClient.delete('/account/delete', {
       params: { userId },

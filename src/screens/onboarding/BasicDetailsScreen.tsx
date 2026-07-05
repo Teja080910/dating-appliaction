@@ -4,9 +4,14 @@ import {
   StatusBar, Platform, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
+import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
+import { mapGenderToDefaultOrientation } from '../../utils/genderMapping';
+import { calculateAge } from '../../utils/dateUtils';
+import OnboardingProgressBar from '../../components/onboarding/OnboardingProgressBar';
+import { colors, radius, typography } from '../../constants/theme';
 
 const genders = [
   { label: 'Male', value: 'male' },
@@ -17,16 +22,21 @@ const genders = [
 const BasicDetailsScreen = ({ navigation }: any) => {
   const {
     name, setName, profileText, setProfileText, date, setDate,
+    gender, setGender, setOrientation,
+    profileCompletion, setProfileCompletion,
   } = useContext(AppContext);
 
   const [displayName, setDisplayName] = useState(name || '');
   const [bio, setBio] = useState(profileText || '');
-  const [selectedGender, setSelectedGender] = useState<string | null>(null);
+  const [selectedGender, setSelectedGender] = useState<string | null>(gender || null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // /profile/me never returns gender/dob (confirmed against the live
+    // backend) — only bio/displayName come from here; gender/dob are
+    // already in shared context from earlier onboarding screens.
     const prefill = async () => {
       try {
         const userData = await AuthStorage.getUser();
@@ -34,13 +44,12 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         if (uid) {
           const data = await profileApi.getMyProfile(uid);
           if (data.displayName) setDisplayName(data.displayName);
-          if (data.name) setDisplayName(data.name);
+          else if (data.name) setDisplayName(data.name);
           if (data.bio) setBio(data.bio);
-          if (data.gender) setSelectedGender(data.gender);
-          if (data.dob) {
-            const parsed = new Date(data.dob);
-            if (!isNaN(parsed.getTime())) setDate(parsed);
-          }
+        }
+        if (uid) {
+          const pct = await profileApi.getProfileCompletion(uid);
+          if (typeof pct === 'number') setProfileCompletion(pct);
         }
       } catch {}
       setLoading(false);
@@ -59,20 +68,23 @@ const BasicDetailsScreen = ({ navigation }: any) => {
       const uid = userData?.userId;
       if (uid) {
         const dobStr = date ? date.toISOString().split('T')[0] : undefined;
-        const age = date ? new Date().getFullYear() - date.getFullYear() : undefined;
+        const age = date ? calculateAge(date) : undefined;
+        const orientation = mapGenderToDefaultOrientation(selectedGender);
 
         await profileApi.saveAllProfile(uid, {
           name: displayName.trim(),
           displayName: displayName.trim(),
           bio: bio.trim() || undefined,
           gender: selectedGender || undefined,
-          orientation: selectedGender === 'male' ? 'straight_man' : selectedGender === 'female' ? 'straight_woman' : 'lgbtqia',
+          orientation,
           dob: dobStr,
           age,
         });
 
         setName(displayName.trim());
         setProfileText(bio.trim());
+        setGender(selectedGender);
+        setOrientation(orientation);
       }
       navigation.navigate('OnboardingMoreInfo');
     } catch (err: any) {
@@ -85,7 +97,7 @@ const BasicDetailsScreen = ({ navigation }: any) => {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#E94057" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -94,11 +106,9 @@ const BasicDetailsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressFill} />
-        </View>
+        <OnboardingProgressBar percent={profileCompletion} />
 
         <Text style={styles.title}>Basic Details</Text>
         <Text style={styles.subtitle}>Tell us about yourself</Text>
@@ -107,7 +117,7 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         <TextInput
           style={styles.input}
           placeholder="Your display name"
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.inkFaint}
           value={displayName}
           onChangeText={setDisplayName}
         />
@@ -116,7 +126,7 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         <TextInput
           style={[styles.input, styles.bioInput]}
           placeholder="Write something about yourself..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.inkFaint}
           value={bio}
           onChangeText={setBio}
           multiline
@@ -154,15 +164,18 @@ const BasicDetailsScreen = ({ navigation }: any) => {
         />
 
         <TouchableOpacity
-          style={[styles.nextButton, saving && { opacity: 0.7 }]}
           onPress={handleSave}
           disabled={saving}
+          activeOpacity={0.9}
+          style={[saving && { opacity: 0.7 }]}
         >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.nextButtonText}>Next</Text>
-          )}
+          <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.nextButton}>
+            {saving ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <Text style={styles.nextButtonText}>Next</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -170,38 +183,34 @@ const BasicDetailsScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: colors.surface },
   scrollContent: { padding: 24, paddingBottom: 40 },
-  progressBarContainer: {
-    height: 4, backgroundColor: '#e0e0e0', borderRadius: 2, overflow: 'hidden', marginBottom: 24,
-  },
-  progressFill: { width: '50%', height: '100%', backgroundColor: '#E94057' },
-  title: { fontSize: 26, fontWeight: '700', color: '#1a1a1a', marginBottom: 6 },
-  subtitle: { fontSize: 16, color: '#888', marginBottom: 24 },
-  label: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 8, marginTop: 16 },
+  title: { ...typography.title, color: colors.ink, marginBottom: 6 },
+  subtitle: { fontSize: 16, color: colors.inkMuted, marginBottom: 24 },
+  label: { fontSize: 15, fontWeight: '600', color: colors.ink, marginBottom: 8, marginTop: 16 },
   input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 16,
-    fontSize: 16, color: '#000', backgroundColor: '#fafafa',
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 16,
+    fontSize: 16, color: colors.ink, backgroundColor: colors.surfaceAlt,
   },
   bioInput: { minHeight: 100, textAlignVertical: 'top' },
-  charCount: { textAlign: 'right', color: '#999', fontSize: 13, marginTop: 4 },
+  charCount: { textAlign: 'right', color: colors.inkFaint, fontSize: 13, marginTop: 4 },
   genderRow: { flexDirection: 'row', gap: 12 },
   genderBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: '#ddd',
-    alignItems: 'center', backgroundColor: '#fafafa',
+    flex: 1, paddingVertical: 14, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', backgroundColor: colors.surfaceAlt,
   },
-  genderSelected: { borderColor: '#E94057', backgroundColor: '#fff0f3' },
-  genderText: { fontSize: 15, color: '#666', fontWeight: '500' },
-  genderTextSelected: { color: '#E94057', fontWeight: '700' },
+  genderSelected: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  genderText: { fontSize: 15, color: colors.inkMuted, fontWeight: '500' },
+  genderTextSelected: { color: colors.primary, fontWeight: '700' },
   dateDisplay: {
-    paddingVertical: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: '#ddd',
-    borderRadius: 12, alignItems: 'center', backgroundColor: '#fafafa',
+    paddingVertical: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.md, alignItems: 'center', backgroundColor: colors.surfaceAlt,
   },
-  dateText: { fontSize: 16, color: '#000' },
+  dateText: { fontSize: 16, color: colors.ink },
   nextButton: {
-    backgroundColor: '#E94057', paddingVertical: 16, borderRadius: 30, alignItems: 'center', marginTop: 32,
+    paddingVertical: 16, borderRadius: radius.pill, alignItems: 'center', marginTop: 32,
   },
-  nextButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  nextButtonText: { color: colors.surface, fontWeight: '700', fontSize: 16 },
 });
 
 export default BasicDetailsScreen;

@@ -17,6 +17,7 @@ import { authApi } from '../../api/authApi';
 import { AuthStorage } from '../../api/authStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation } from '@tanstack/react-query';
+import { colors, radius } from '../../constants/theme';
 
 const RegisterScreen = ({ navigation }: any) => {
   const { name, setName, password, setPassword, email, setEmail } = useContext(AppContext);
@@ -85,7 +86,7 @@ const RegisterScreen = ({ navigation }: any) => {
   };
 
   return (
-    <LinearGradient colors={['#ee486b', '#e14c61']} style={styles.container}>
+    <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled">
@@ -96,7 +97,7 @@ const RegisterScreen = ({ navigation }: any) => {
         <Text style={styles.registerText}>Register Now</Text>
 
         <View style={styles.inputWrapper}>
-          <Icon name="account-outline" size={20} color="#e14c61" style={styles.icon} />
+          <Icon name="account-outline" size={20} color={colors.primary} style={styles.icon} />
           <TextInput
             placeholder="Enter your name"
             placeholderTextColor="#666"
@@ -107,7 +108,7 @@ const RegisterScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.inputWrapper}>
-          <Icon name="phone-outline" size={20} color="#e14c61" style={styles.icon} />
+          <Icon name="phone-outline" size={20} color={colors.primary} style={styles.icon} />
           <TextInput
             placeholder="Enter your mobile number"
             placeholderTextColor="#666"
@@ -119,7 +120,7 @@ const RegisterScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.inputWrapper}>
-          <Icon name="lock-outline" size={20} color="#e14c61" style={styles.icon} />
+          <Icon name="lock-outline" size={20} color={colors.primary} style={styles.icon} />
           <TextInput
             placeholder="Enter your password"
             placeholderTextColor="#666"
@@ -131,7 +132,7 @@ const RegisterScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.inputWrapper}>
-          <Icon name="lock-check-outline" size={20} color="#e14c61" style={styles.icon} />
+          <Icon name="lock-check-outline" size={20} color={colors.primary} style={styles.icon} />
           <TextInput
             placeholder="Confirm your password"
             placeholderTextColor="#666"
@@ -147,7 +148,7 @@ const RegisterScreen = ({ navigation }: any) => {
           onPress={handleRegister}
           disabled={mutation.isPending}>
           {mutation.isPending ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color={colors.primary} />
           ) : (
             <Text style={styles.registerBtnText}>REGISTER</Text>
           )}
@@ -191,12 +192,12 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.surface,
     marginTop: 5,
     fontFamily: 'sans-serif-medium',
   },
   registerText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
@@ -204,8 +205,8 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 30,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     paddingHorizontal: 20,
     alignItems: 'center',
     marginBottom: 15,
@@ -214,10 +215,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   icon: { marginRight: 10 },
-  input: { flex: 1, color: '#000', fontSize: 15 },
+  input: { flex: 1, color: colors.ink, fontSize: 15 },
   registerBtn: {
-    backgroundColor: '#fff',
-    borderRadius: 30,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     width: '100%',
     height: 55,
     justifyContent: 'center',
@@ -225,19 +226,19 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     elevation: 2,
   },
-  registerBtnText: { color: '#000', fontWeight: 'bold', fontSize: 15 },
+  registerBtnText: { color: colors.primary, fontWeight: 'bold', fontSize: 15 },
   loginBtn: {
-    borderColor: '#fff',
+    borderColor: colors.surface,
     borderWidth: 1,
-    borderRadius: 30,
+    borderRadius: radius.pill,
     width: '100%',
     height: 55,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loginBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  loginBtnText: { color: colors.surface, fontWeight: 'bold', fontSize: 15 },
   footerText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 12,
     textAlign: 'center',
     paddingHorizontal: 20,

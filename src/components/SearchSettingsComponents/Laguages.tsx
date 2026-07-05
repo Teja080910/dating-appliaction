@@ -1,28 +1,17 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const languages = [
-  'English', 'Spanish', 'Portuguese', 'German',
-  'Romanian', 'Russian', 'French', 'Chinese', 'Japanese',
-];
+import { LANGUAGES as languages } from '../../constants/profileOptions';
 
 const Languages = () => {
   const { searchLanguages, setSearchLanguages } = useContext(AppContext);
 
   const toggleLanguage = (lang: string) => {
-    console.log('You clicked:', lang);
-    console.log('Before click, selectedLanguages:', searchLanguages);
-
     if (searchLanguages.includes(lang)) {
-      // If already selected, remove it
-      const updatedLanguages = searchLanguages.filter( (item: string) => item !== lang);
-      console.log('After removing:', updatedLanguages);
+      const updatedLanguages = searchLanguages.filter((item: string) => item !== lang);
       setSearchLanguages(updatedLanguages);
     } else {
-      // If not selected, add it 
       const updatedLanguages = [...searchLanguages, lang];
-      console.log('After adding:', updatedLanguages);
       setSearchLanguages(updatedLanguages);
     }
   };

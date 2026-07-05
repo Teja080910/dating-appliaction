@@ -2,8 +2,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const bodyTypes = ['Slim', 'Muscular', 'Athletic', 'Average', 'Overweight', 'Other'];
+import { BODY_TYPES as bodyTypes } from '../../constants/profileOptions';
 
 const BodyTypeSelector = () => {
   const { selectedBodyType, setSelectedBodyType } = useContext(AppContext);

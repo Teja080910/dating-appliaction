@@ -1,8 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const englishLevels = ['Bad', 'Medium', 'Good', 'Very good'];
+import { ENGLISH_LEVELS as englishLevels } from '../../constants/profileOptions';
 
 const EnglishProficiency = () => {
   // const [englishProficiency, setEnglishProficiency] = useState<string[]>([]);

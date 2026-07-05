@@ -3,8 +3,9 @@ import React, { useContext, useState } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
-
-const englishLevels = ['Bad', 'Medium', 'Good', 'Very Good'];
+import { calculateAge } from '../../utils/dateUtils';
+import { ENGLISH_LEVELS as englishLevels } from '../../constants/profileOptions';
+import { colors, radius, shadow } from '../../constants/theme';
 
 const SaveButton = () => {
   const {
@@ -33,7 +34,7 @@ const SaveButton = () => {
       }
 
       const dobStr = date ? date.toISOString().split('T')[0] : undefined;
-      const age = date ? new Date().getFullYear() - date.getFullYear() : undefined;
+      const age = date ? calculateAge(date) : undefined;
 
       const dto: any = {};
       if (age) dto.age = age;
@@ -66,7 +67,7 @@ const SaveButton = () => {
         onPress={handleSave}
         disabled={saving}>
         {saving ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.surface} />
         ) : (
           <Text style={styles.saveButtonText}>Save</Text>
         )}
@@ -81,13 +82,14 @@ const styles = StyleSheet.create({
     bottom: 80,
     left: 20,
     right: 20,
-    backgroundColor: '#D9534F',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 10,
+    borderRadius: radius.md,
     alignItems: 'center',
+    ...shadow.card,
   },
   saveButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 18,
     fontWeight: 'bold',
   },

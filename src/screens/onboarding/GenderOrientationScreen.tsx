@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,16 @@ import {
   StatusBar,
   BackHandler,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import LinearGradient from 'react-native-linear-gradient';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
+import AppContext from '../../context/CreateGlobalStateContext';
+import { mapGenderToDefaultOrientation } from '../../utils/genderMapping';
+import OnboardingProgressBar from '../../components/onboarding/OnboardingProgressBar';
+import { colors, radius, typography } from '../../constants/theme';
 
 const genders = [
   { label: 'Male', value: 'male', icon: 'mars' },
@@ -21,8 +27,21 @@ const genders = [
 ];
 
 const GenderOrientationScreen = ({ navigation }: any) => {
+  const { setGender, setOrientation, profileCompletion, setProfileCompletion } = useContext(AppContext);
   const [selectedGender, setSelectedGender] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCompletion = async () => {
+      const uid = await AuthStorage.getUserIdStr();
+      if (!uid) return;
+      try {
+        const pct = await profileApi.getProfileCompletion(uid);
+        if (typeof pct === 'number') setProfileCompletion(pct);
+      } catch {}
+    };
+    fetchCompletion();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -40,26 +59,30 @@ const GenderOrientationScreen = ({ navigation }: any) => {
     setLoading(true);
     try {
       const userIdStr = await AuthStorage.getUserIdStr();
-      if (userIdStr) {
-        try {
-          await profileApi.saveGenderOrientation({
-            userId: userIdStr,
-            gender: selectedGender,
-            orientation: selectedGender === 'male' ? 'straight_man' : selectedGender === 'female' ? 'straight_woman' : 'lgbtqia',
-          });
-        } catch {}
+      if (!userIdStr) {
+        Alert.alert('Error', 'Session expired. Please login again.');
+        return;
       }
-    } catch {}
-    setLoading(false);
-    navigation.navigate('DisplayName');
+      const orientation = mapGenderToDefaultOrientation(selectedGender);
+      await profileApi.saveGenderOrientation({
+        userId: userIdStr,
+        gender: selectedGender,
+        orientation,
+      });
+      setGender(selectedGender);
+      setOrientation(orientation);
+      navigation.navigate('DisplayName');
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to save. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressBarFill} />
-      </View>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <OnboardingProgressBar percent={profileCompletion} />
 
       <Text style={styles.title}>What's your gender?</Text>
 
@@ -75,7 +98,7 @@ const GenderOrientationScreen = ({ navigation }: any) => {
             <Icon
               name={g.icon}
               size={24}
-              color={selectedGender === g.value ? '#E94057' : '#555'}
+              color={selectedGender === g.value ? colors.primary : colors.inkMuted}
             />
             <Text
               style={[
@@ -89,41 +112,36 @@ const GenderOrientationScreen = ({ navigation }: any) => {
       </View>
 
       <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={[styles.nextButton, (!selectedGender || loading) && styles.disabledButton]}
-          onPress={handleNext}
-          disabled={!selectedGender || loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.nextButtonText}>Next</Text>
-          )}
-        </TouchableOpacity>
+        {selectedGender && !loading ? (
+          <TouchableOpacity onPress={handleNext} activeOpacity={0.9}>
+            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.nextButton}>
+              <Text style={styles.nextButtonText}>Next</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.nextButton, styles.disabledButton]}
+            onPress={handleNext}
+            disabled={!selectedGender || loading}>
+            {loading ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <Text style={[styles.nextButtonText, { color: colors.inkFaint }]}>Next</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 },
-  progressBarContainer: {
-    height: 5,
-    backgroundColor: '#e0e0e0',
-    marginTop: 10,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    width: '20%',
-    height: '100%',
-    backgroundColor: '#E94057',
-  },
+  container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: 24 },
   title: {
     marginTop: 30,
-    fontSize: 20,
-    fontWeight: '600',
+    ...typography.heading,
     textAlign: 'center',
-    color: '#333',
+    color: colors.ink,
   },
   genderRow: {
     marginTop: 24,
@@ -133,24 +151,23 @@ const styles = StyleSheet.create({
   genderBtn: {
     width: '30%',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.border,
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
-  selectedOption: { borderColor: '#E94057', backgroundColor: '#fff0f3' },
-  optionText: { textAlign: 'center', fontSize: 13, color: '#555', marginTop: 6 },
-  selectedOptionText: { color: '#E94057', fontWeight: '600' },
+  selectedOption: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  optionText: { textAlign: 'center', fontSize: 13, color: colors.inkMuted, marginTop: 6 },
+  selectedOptionText: { color: colors.primary, fontWeight: '600' },
   bottomContainer: { flex: 1, justifyContent: 'flex-end', paddingBottom: 30 },
   nextButton: {
-    backgroundColor: '#E94057',
     paddingVertical: 14,
-    borderRadius: 24,
+    borderRadius: radius.lg,
     alignItems: 'center',
   },
-  disabledButton: { backgroundColor: '#ddd' },
-  nextButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  disabledButton: { backgroundColor: colors.border },
+  nextButtonText: { color: colors.surface, fontWeight: '600', fontSize: 16 },
 });
 
 export default GenderOrientationScreen;

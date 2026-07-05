@@ -16,8 +16,8 @@ import SaveButton from '../../components/MoreInfoTabComponents/SaveButton';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const englishLevels = ['Bad', 'Medium', 'Good', 'Very Good'];
+import { ENGLISH_LEVELS as englishLevels } from '../../constants/profileOptions';
+import { colors } from '../../constants/theme';
 
 const MoreInfoScreen = () => {
   const {
@@ -29,8 +29,6 @@ const MoreInfoScreen = () => {
     setSelectedDrink,
     setTempHeight,
     setSelectedLanguages,
-    setSelectedLookingFor,
-    setDate,
   } = useContext(AppContext);
 
   const [loading, setLoading] = useState(true);
@@ -67,13 +65,8 @@ const MoreInfoScreen = () => {
       if (data.language) {
         setSelectedLanguages(data.language.split(',').map(s => s.trim()).filter(Boolean));
       }
-      if (data.lookingFor) {
-        setSelectedLookingFor(data.lookingFor.split(',').map(s => s.trim()).filter(Boolean));
-      }
-      if (data.dob) {
-        const parsed = new Date(data.dob);
-        if (!isNaN(parsed.getTime())) setDate(parsed);
-      }
+      // /profile/me never returns lookingFor/dob (confirmed against the live
+      // backend) — selectedLookingFor/date are carried via shared context.
     } catch {}
     setLoading(false);
   }, []);
@@ -87,7 +80,7 @@ const MoreInfoScreen = () => {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#D9534F" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }

@@ -1,13 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const appearanceOptions = [
-  'Very attractive',
-  'Attractive',
-  'Average',
-  'Below Average',
-];
+import { APPEARANCE_OPTIONS as appearanceOptions } from '../../constants/profileOptions';
 
 const Appearance = () => {
   // const [selectedOptions, setSelectedOptions] = useState<string[]>([]);

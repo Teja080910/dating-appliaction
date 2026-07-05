@@ -1,6 +1,7 @@
 import React, {useContext, useState} from 'react';
 import {View, Text, StyleSheet, Pressable, FlatList} from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { colors, radius } from '../../constants/theme';
 
 const ETHNICITIES = [
   'Asian',
@@ -64,22 +65,22 @@ const styles = StyleSheet.create({
   },
   option: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 30,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: colors.surfaceAlt,
   },
   selectedOption: {
-    backgroundColor: '#d9534f',
-    borderColor: '#d9534f',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   optionText: {
-    color: '#333',
+    color: colors.ink,
     fontSize: 14,
   },
   selectedText: {
-    color: '#fff',
+    color: colors.surface,
   },
 });
 

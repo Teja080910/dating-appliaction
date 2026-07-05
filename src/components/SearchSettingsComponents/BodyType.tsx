@@ -1,8 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const bodyTypes = ['Slim', 'Curvy', 'Athletic', 'Average', 'Overweight', 'Other'];
+import { BODY_TYPES as bodyTypes } from '../../constants/profileOptions';
 
 const BodyType = () => {
   // const [selectBodyTypes, setSelectBodyTypes] = useState<string[]>([]);

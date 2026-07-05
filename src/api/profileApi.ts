@@ -9,22 +9,25 @@ import {
   HomeResponse,
 } from './types';
 
+// The /profile/{userId}/setup endpoint requires a multipart/form-data request
+// (a plain JSON body 403s, even with a correct auth token) and expects each
+// ProfileRequestDTO field as its own flattened query param, NOT a single
+// JSON-stringified `dto` param — confirmed by live-testing both shapes
+// against the deployed backend.
+const buildSetupParams = (dto: ProfileRequestDTO): Record<string, string | number> => {
+  const params: Record<string, string | number> = {};
+  Object.entries(dto).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      params[key] = value as string | number;
+    }
+  });
+  return params;
+};
+
 export const profileApi = {
   getMyProfile: async (userId: string): Promise<ProfileResponse> => {
     const response = await apiClient.post('/profile/me', null, {
       params: { userId },
-    });
-    return response.data;
-  },
-
-  setupProfile: async (userId: string, dto: ProfileRequestDTO, photo?: any) => {
-    const formData = new FormData();
-    if (photo) {
-      formData.append('photo', photo);
-    }
-    const response = await apiClient.post(`/profile/${userId}/setup`, formData, {
-      params: { dto: JSON.stringify(dto) },
-      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
@@ -77,13 +80,22 @@ export const profileApi = {
     return response.data;
   },
 
-  setProfilePhoto: async (userId: string, imageId: number) => {
-    const response = await apiClient.put(`/users/${userId}/profile-photo/${imageId}`);
+  uploadSelfie: async (userId: number, image: any) => {
+    const formData = new FormData();
+    formData.append('selfie', {
+      uri: image.uri,
+      type: image.type || 'image/jpeg',
+      name: image.fileName || 'selfie.jpg',
+    } as any);
+    const response = await apiClient.post('/profile/selfie/upload', formData, {
+      params: { userId },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 
-  getMyUser: async (userId: string) => {
-    const response = await apiClient.get(`/users/${userId}`);
+  setProfilePhoto: async (userId: string, imageId: number) => {
+    const response = await apiClient.put(`/users/${userId}/profile-photo/${imageId}`);
     return response.data;
   },
 
@@ -104,9 +116,14 @@ export const profileApi = {
     return response.data;
   },
 
-  saveAllProfile: async (userId: string, dto: ProfileRequestDTO) => {
-    const response = await apiClient.post(`/profile/${userId}/setup`, null, {
-      params: { dto: JSON.stringify(dto) },
+  saveAllProfile: async (userId: string, dto: ProfileRequestDTO, photo?: any) => {
+    const formData = new FormData();
+    if (photo) {
+      formData.append('photo', photo);
+    }
+    const response = await apiClient.post(`/profile/${userId}/setup`, formData, {
+      params: buildSetupParams(dto),
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },

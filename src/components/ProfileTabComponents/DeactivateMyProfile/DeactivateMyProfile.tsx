@@ -6,25 +6,24 @@ import { AuthStorage } from '../../../api/authStorage';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootParamList } from '../../../utils/types/navigation.types';
-import { colors } from '../../../constants/theme';
 
-const DeleteMyProfile = () => {
+const DeactivateMyProfile = () => {
   const navigation = useNavigation<StackNavigationProp<RootParamList>>();
 
-  const handleDelete = async () => {
+  const handleDeactivate = async () => {
     Alert.alert(
-      'Delete Profile',
-      'Are you sure you want to permanently delete your profile? This action cannot be undone.',
+      'Deactivate Profile',
+      'Your profile will be hidden until you log in again. You can reactivate anytime by logging back in. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Deactivate',
           style: 'destructive',
           onPress: async () => {
             try {
               const userIdNum = await AuthStorage.getUserId();
               if (userIdNum) {
-                await accountApi.hardDelete(userIdNum);
+                await accountApi.deactivate(userIdNum);
               }
               await AuthStorage.clear();
               navigation.reset({
@@ -32,10 +31,7 @@ const DeleteMyProfile = () => {
                 routes: [{ name: 'Login' }],
               });
             } catch (err: any) {
-              Alert.alert(
-                'Error',
-                err?.response?.data?.message || 'Failed to delete your profile. Please try again.',
-              );
+              Alert.alert('Error', err?.response?.data?.message || 'Failed to deactivate profile');
             }
           },
         },
@@ -44,10 +40,10 @@ const DeleteMyProfile = () => {
   };
 
   return (
-    <TouchableOpacity style={styles.container} activeOpacity={0.6} onPress={handleDelete}>
+    <TouchableOpacity style={styles.container} activeOpacity={0.6} onPress={handleDeactivate}>
       <View style={styles.row}>
-        <Ionicons name="trash-outline" size={24} color={colors.danger} style={styles.icon} />
-        <Text style={styles.text}>Delete my profile</Text>
+        <Ionicons name="pause-circle-outline" size={24} color="#333" style={styles.icon} />
+        <Text style={styles.text}>Deactivate my profile</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#bbb" />
     </TouchableOpacity>
@@ -72,8 +68,8 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-    color: colors.danger,
+    color: '#333',
   },
 });
 
-export default DeleteMyProfile;
+export default DeactivateMyProfile;

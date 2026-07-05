@@ -6,6 +6,8 @@ import {
   Dimensions,
   Pressable,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 import AuthImage from '../AuthImage';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +15,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { User } from '../../api/types';
 import { resolveImageUri } from '../../utils/imageUtils';
+import { colors, radius, shadow, typography } from '../../constants/theme';
 
 interface UserCardProps {
   name: string;
@@ -45,27 +48,41 @@ const UserCard = ({ name, age, image, city, bio, userId, userUserId, userData }:
   };
 
   return (
-    <Pressable onPress={handleUserCard}>
+    <Pressable onPress={handleUserCard} style={({ pressed }) => [pressed && styles.pressed]}>
       <View style={styles.card}>
         <View style={styles.imageContainer}>
           {image ? (
             <AuthImage uri={resolveImageUri(image)} style={styles.image} />
           ) : (
-            <View style={[styles.image, styles.placeholder]}>
-              <Text style={styles.placeholderText}>{name?.charAt(0) || '?'}</Text>
-            </View>
+            <LinearGradient
+              colors={[colors.gradientStart, colors.gradientEnd]}
+              style={[styles.image, styles.placeholder]}
+            >
+              <Text style={styles.placeholderText}>{name?.charAt(0)?.toUpperCase() || '?'}</Text>
+            </LinearGradient>
           )}
-        </View>
-        <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name}{age ? `, ${age}` : ''}
-          </Text>
-          {city ? (
-            <Text style={styles.city} numberOfLines={1}>{city}</Text>
-          ) : null}
-          {bio ? (
-            <Text style={styles.bio} numberOfLines={2}>{bio}</Text>
-          ) : null}
+
+          <LinearGradient
+            colors={['transparent', 'rgba(36,17,26,0.15)', 'rgba(36,17,26,0.92)']}
+            locations={[0, 0.5, 1]}
+            style={styles.scrim}
+          />
+
+          <View style={styles.likeBadge}>
+            <Icon name="heart" size={13} color="#fff" />
+          </View>
+
+          <View style={styles.info}>
+            <Text style={styles.name} numberOfLines={1}>
+              {name}{age ? <Text style={styles.age}>, {age}</Text> : null}
+            </Text>
+            {city ? (
+              <View style={styles.locationRow}>
+                <Icon name="map-marker-alt" size={10} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.city} numberOfLines={1}> {city}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
     </Pressable>
@@ -73,39 +90,54 @@ const UserCard = ({ name, age, image, city, bio, userId, userUserId, userData }:
 };
 
 const styles = StyleSheet.create({
+  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   card: {
     width: CARD_WIDTH,
-    borderRadius: 16,
-    backgroundColor: '#fff',
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
     marginBottom: 16,
     marginHorizontal: 7.5,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    ...shadow.card,
   },
-  imageContainer: { position: 'relative' },
+  imageContainer: { position: 'relative', height: 230 },
   image: {
     width: '100%',
-    height: 200,
+    height: '100%',
   },
   placeholder: {
-    backgroundColor: 'linear-gradient(135deg, #E94057, #8A2387)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { fontSize: 42, color: '#fff', fontWeight: '700' },
-  info: {
-    padding: 12,
-    paddingTop: 10,
+  placeholderText: { fontSize: 44, color: '#fff', fontWeight: '800' },
+  scrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '65%',
   },
-  name: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
-  city: { fontSize: 13, color: '#888', marginTop: 3 },
-  bio: { fontSize: 12, color: '#666', marginTop: 4, lineHeight: 16 },
+  likeBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(36,17,26,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  info: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+  },
+  name: { ...typography.heading, color: '#fff' },
+  age: { fontWeight: '400' as const, color: 'rgba(255,255,255,0.9)' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  city: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: '500' },
 });
 
 export default UserCard;

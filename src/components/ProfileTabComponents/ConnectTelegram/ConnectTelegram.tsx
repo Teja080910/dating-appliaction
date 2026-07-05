@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Modal, ActivityIndicator, Linking } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Feather from 'react-native-vector-icons/Feather';
 import { telegramApi } from '../../../api/telegramApi';
@@ -11,6 +11,7 @@ const ConnectTelegram = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [inputUsername, setInputUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [botLink, setBotLink] = useState('');
 
   useEffect(() => {
     const checkTelegram = async () => {
@@ -20,9 +21,20 @@ const ConnectTelegram = () => {
         setConnected(true);
         setUsername(tg);
       }
+      const userIdNum = await AuthStorage.getUserId();
+      if (userIdNum) {
+        try {
+          const link = await telegramApi.getLink(userIdNum);
+          if (link) setBotLink(link);
+        } catch {}
+      }
     };
     checkTelegram();
   }, []);
+
+  const handleOpenBot = () => {
+    if (botLink) Linking.openURL(botLink);
+  };
 
   const handleConnect = async () => {
     if (!inputUsername.trim()) {
@@ -82,6 +94,16 @@ const ConnectTelegram = () => {
         </View>
         <Feather name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
       </TouchableOpacity>
+
+      {connected && botLink ? (
+        <TouchableOpacity style={styles.row} onPress={handleOpenBot}>
+          <View style={styles.left}>
+            <FontAwesome name="external-link" size={18} style={styles.icon} />
+            <Text style={styles.text}>Open in Telegram</Text>
+          </View>
+          <Feather name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
+        </TouchableOpacity>
+      ) : null}
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>

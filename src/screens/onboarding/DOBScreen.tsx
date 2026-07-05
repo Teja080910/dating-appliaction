@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,36 +8,56 @@ import {
   StatusBar,
   BackHandler,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
+import { calculateAge } from '../../utils/dateUtils';
+import OnboardingProgressBar from '../../components/onboarding/OnboardingProgressBar';
+import { colors, radius, typography } from '../../constants/theme';
 
 const DOBScreen = ({ navigation }: any) => {
-  const { date, setDate } = useContext(AppContext);
+  const { date, setDate, profileCompletion, setProfileCompletion } = useContext(AppContext);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchCompletion = async () => {
+      const uid = await AuthStorage.getUserIdStr();
+      if (!uid) return;
+      try {
+        const pct = await profileApi.getProfileCompletion(uid);
+        if (typeof pct === 'number') setProfileCompletion(pct);
+      } catch {}
+    };
+    fetchCompletion();
+  }, []);
 
   const handleNext = async () => {
     setSaving(true);
     try {
       const userIdStr = await AuthStorage.getUserIdStr();
-      if (userIdStr) {
-        const dobStr = date.toISOString().split('T')[0];
-        const age = new Date().getFullYear() - date.getFullYear();
-        try {
-          await profileApi.saveAllProfile(userIdStr, {
-            dob: dobStr,
-            age,
-          });
-        } catch {}
+      if (!userIdStr) {
+        Alert.alert('Error', 'Session expired. Please login again.');
+        return;
       }
-    } catch {}
-    setSaving(false);
-    navigation.navigate('UploadImage');
+      const dobStr = date.toISOString().split('T')[0];
+      const age = calculateAge(date);
+      await profileApi.saveAllProfile(userIdStr, {
+        dob: dobStr,
+        age,
+      });
+      navigation.navigate('UploadImage');
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.message || 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   useFocusEffect(
@@ -55,11 +75,9 @@ const DOBScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressBarFill} />
-      </View>
+      <OnboardingProgressBar percent={profileCompletion} />
 
       <Text style={styles.title}>When are you born?</Text>
 
@@ -81,7 +99,7 @@ const DOBScreen = ({ navigation }: any) => {
 
       <View style={styles.bottomContainer}>
         <View style={styles.infoContainer}>
-          <Icon name="info-circle" size={14} color="#999" style={{ marginTop: 2 }} />
+          <Icon name="info-circle" size={14} color={colors.inkFaint} style={{ marginTop: 2 }} />
           <Text style={styles.infoText}>
             Did you know that you have 100% privacy at Dating? Only the people
             who you have sent an invitation to will be able to view your profile!
@@ -89,14 +107,17 @@ const DOBScreen = ({ navigation }: any) => {
         </View>
 
         <TouchableOpacity
-          style={[styles.nextButton, saving && { opacity: 0.7 }]}
           onPress={handleNext}
-          disabled={saving}>
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.nextButtonText}>Next</Text>
-          )}
+          disabled={saving}
+          activeOpacity={0.9}
+          style={saving && { opacity: 0.7 }}>
+          <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.nextButton}>
+            {saving ? (
+              <ActivityIndicator color={colors.surface} />
+            ) : (
+              <Text style={styles.nextButtonText}>Next</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -104,37 +125,25 @@ const DOBScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 },
-  progressBarContainer: {
-    height: 5,
-    backgroundColor: '#eee',
-    marginTop: 10,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    width: '60%',
-    height: '100%',
-    backgroundColor: '#E94057',
-  },
+  container: { flex: 1, backgroundColor: colors.surface, paddingHorizontal: 24 },
   title: {
     marginTop: 30,
-    fontSize: 26,
-    fontWeight: '700',
+    ...typography.title,
     textAlign: 'center',
-    color: '#000',
+    color: colors.ink,
   },
   dateDisplay: {
     marginTop: 20,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
   },
-  dateText: { fontSize: 16, color: '#000' },
+  dateText: { fontSize: 16, color: colors.ink },
   bottomContainer: { marginTop: 'auto', paddingBottom: 30 },
   infoContainer: {
     flexDirection: 'row',
@@ -142,14 +151,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 20,
   },
-  infoText: { fontSize: 12, color: '#999', flex: 1 },
+  infoText: { fontSize: 12, color: colors.inkFaint, flex: 1 },
   nextButton: {
-    backgroundColor: '#E94057',
     paddingVertical: 16,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     alignItems: 'center',
   },
-  nextButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  nextButtonText: { color: colors.surface, fontWeight: '600', fontSize: 16 },
 });
 
 export default DOBScreen;

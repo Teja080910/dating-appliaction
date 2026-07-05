@@ -1,46 +1,32 @@
-// // navigation/BottomTabs.tsx
-// import React from 'react';
-// import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-// import HomeScreen from '../HomeTab/HomeScreen';
-// import MessageScreen from '../MessageTab/MessageScreen';
-// import ProfileScreen from '../ProfileTab/ProfileScreen';
-// import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
-
-// const Tab = createBottomTabNavigator();
-
-// const BottomTabs = () => {
-//   return (
-//     <Tab.Navigator>
-//       <Tab.Screen name="Home" component={HomeScreen} />
-//       <Tab.Screen name="Message" component={MessageScreen} />
-//       <Tab.Screen name="Profile" component={ProfileScreen} />
-//       <Tab.Screen name="MoreInfo" component={MoreInfoScreen} />
-//     </Tab.Navigator>
-//   );
-// };
-
-// export default BottomTabs;
-
-
-
-
-
-
-
-
-
-
-
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image } from 'react-native';
+import { Image, View } from 'react-native';
 import HomeScreen from '../HomeTab/HomeScreen';
 import MessageScreen from '../MessageTab/MessageScreen';
 import ProfileScreen from '../ProfileTab/ProfileScreen';
 import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
 import { AuthStorage } from '../../api/authStorage';
+import { colors } from '../../constants/theme';
 
 const Tab = createBottomTabNavigator();
+
+const TabIcon = ({ source, focused, size = 24 }: { source: any; focused: boolean; size?: number }) => (
+  <View style={{ alignItems: 'center', justifyContent: 'center', width: 40 }}>
+    <Image
+      source={source}
+      style={{ width: size, height: size, tintColor: focused ? colors.primary : colors.inkFaint }}
+    />
+    <View
+      style={{
+        marginTop: 5,
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: focused ? colors.primary : 'transparent',
+      }}
+    />
+  </View>
+);
 
 const BottomTabs = () => {
   const [isFemale, setIsFemale] = useState(false);
@@ -51,8 +37,6 @@ const BottomTabs = () => {
       try {
         const userData = await AuthStorage.getUser();
         const gender = userData?.gender || '';
-        console.log(gender === 'female')
-
         setIsFemale(gender === 'female');
       } catch {}
       setLoaded(true);
@@ -68,20 +52,20 @@ const BottomTabs = () => {
         tabBarShowLabel: false,
         headerShown: false,
         tabBarStyle: {
-          height: 65,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          height: 68,
+          borderTopLeftRadius: 26,
+          borderTopRightRadius: 26,
           position: 'absolute',
-          backgroundColor: '#fff',
-          shadowColor: '#000',
-          shadowOpacity: 0.08,
+          backgroundColor: colors.surface,
+          shadowColor: '#5B1030',
+          shadowOpacity: 0.1,
           shadowOffset: { width: 0, height: -4 },
-          shadowRadius: 12,
+          shadowRadius: 16,
           elevation: 8,
           borderTopWidth: 0,
         },
         tabBarItemStyle: {
-          paddingVertical: 8,
+          paddingVertical: 10,
         },
       }}
     >
@@ -91,10 +75,7 @@ const BottomTabs = () => {
           component={HomeScreen}
           options={{
             tabBarIcon: ({ focused }) => (
-              <Image
-                source={require('../../assets/HomeTabImages/HomeTab.png')}
-                style={{ width: 26, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
-              />
+              <TabIcon source={require('../../assets/HomeTabImages/HomeTab.png')} focused={focused} />
             ),
           }}
         />
@@ -104,10 +85,7 @@ const BottomTabs = () => {
         component={MessageScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/MessageTabImages/MessageTab.png')}
-              style={{ width: 26, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
-            />
+            <TabIcon source={require('../../assets/MessageTabImages/MessageTab.png')} focused={focused} />
           ),
         }}
       />
@@ -116,10 +94,7 @@ const BottomTabs = () => {
         component={MoreInfoScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')}
-              style={{ width: 26, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
-            />
+            <TabIcon source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')} focused={focused} />
           ),
         }}
       />
@@ -128,10 +103,7 @@ const BottomTabs = () => {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/ProfileTabImages/ProfileTab.png')}
-              style={{ width: 30, height: 26, tintColor: focused ? '#E94057' : '#bbb' }}
-            />
+            <TabIcon source={require('../../assets/ProfileTabImages/ProfileTab.png')} focused={focused} size={26} />
           ),
         }}
       />

@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { profileApi } from '../../../api/profileApi';
 import { AuthStorage } from '../../../api/authStorage';
+import { calculateAge } from '../../../utils/dateUtils';
 
 const ProfileSettingsHeader = () => {
   const navigation = useNavigation();
@@ -20,7 +21,7 @@ const ProfileSettingsHeader = () => {
       const userId = userData?.userId;
       if (userId) {
         const dobStr = date ? date.toISOString().split('T')[0] : undefined;
-        const age = date ? new Date().getFullYear() - date.getFullYear() : undefined;
+        const age = date ? calculateAge(date) : undefined;
         await profileApi.saveAllProfile(userId, {
           name: name || undefined,
           displayName: name || undefined,

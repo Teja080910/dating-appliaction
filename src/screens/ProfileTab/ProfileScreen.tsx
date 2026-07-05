@@ -1,9 +1,13 @@
 import { useContext, useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootParamList } from '../../utils/types/navigation.types';
 import AppContext from '../../context/CreateGlobalStateContext';
 import {
   ScrollView, View, Text, StyleSheet, Alert, Linking, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/FontAwesome5';
 import AuthImage from '../../components/AuthImage';
 import Header from '../../components/ProfileTabComponents/Header';
 import AdditionalUploadSection from '../../components/ProfileTabComponents/AdditionalUploadSection';
@@ -18,21 +22,25 @@ import TermsOfUse from '../../components/ProfileTabComponents/TermsOfUse/TermsOf
 import Logout from '../../components/ProfileTabComponents/Logout/Logout';
 import ChangePassword from '../../components/ProfileTabComponents/ChangePassword/ChangePassword';
 import DeleteMyProfile from '../../components/ProfileTabComponents/DeleteMyProfile/DeleteMyProfile';
+import DeactivateMyProfile from '../../components/ProfileTabComponents/DeactivateMyProfile/DeactivateMyProfile';
 import AllRightsReserved from '../../components/ProfileTabComponents/AllRightsReserved';
 import { profileApi } from '../../api/profileApi';
 import { onlineStatusApi } from '../../api/onlineStatusApi';
 import { AuthStorage } from '../../api/authStorage';
+import { ENGLISH_LEVELS } from '../../constants/profileOptions';
+import { colors, radius, shadow, typography } from '../../constants/theme';
 import { resolveImageUri, parseImageList } from '../../utils/imageUtils';
 
 const ProfileScreen = () => {
+  const navigation = useNavigation<StackNavigationProp<RootParamList>>();
   const {
-    name, profileText, profileImage, images,
+    name, profileText, profileImage, images, verifiedSelfie,
     height, setHeight, setTempHeight,
     selectedAppearance, selectedBodyType, selectedLanguages, englishSkillLevel,
     selectedEthinicity, selectedSmoking, selectedLookingFor,
-    setName, setProfileText, setImages, setProfileImage, setDate,
+    setName, setProfileText, setImages, setProfileImage,
     setSelectedAppearance, setSelectedBodyType, setSelectedSmoking, setEnglishSkillLevel,
-    setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor,
+    setSelectedEthinicity, setSelectedLanguages, setVerifiedSelfie,
   } = useContext(AppContext);
 
   const [loading, setLoading] = useState(true);
@@ -76,17 +84,13 @@ const ProfileScreen = () => {
       if (data.ethnicity) setSelectedEthinicity(data.ethnicity);
       if (data.smoke) setSelectedSmoking(data.smoke);
       if (data.englishLevel) {
-        const levels = ['Bad', 'Medium', 'Good', 'Very Good'];
-        const idx = levels.indexOf(data.englishLevel);
+        const idx = ENGLISH_LEVELS.indexOf(data.englishLevel);
         if (idx >= 0) setEnglishSkillLevel(idx);
       }
-      if (data.lookingFor) {
-        setSelectedLookingFor(data.lookingFor.split(',').map((s: string) => s.trim()).filter(Boolean));
-      }
-      if (data.dob) {
-        const parsed = new Date(data.dob);
-        if (!isNaN(parsed.getTime())) setDate(parsed);
-      }
+      setVerifiedSelfie(!!data.verifiedSelfie);
+      // /profile/me never returns lookingFor/dob (confirmed against the live
+      // backend) — selectedLookingFor/date are carried via shared context,
+      // populated during onboarding, not re-fetched here.
 
       try {
         const allImages = await profileApi.getAllImages(uid);
@@ -116,7 +120,7 @@ const ProfileScreen = () => {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#D9534F" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -127,17 +131,35 @@ const ProfileScreen = () => {
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={styles.summarySection}>
           <View style={styles.profileHeader}>
-            {profileImage ? (
-              <AuthImage uri={profileImage} style={styles.profilePic} />
-            ) : (
-              <View style={[styles.profilePic, styles.profilePicPlaceholder]}>
-                <Text style={styles.profilePicPlaceholderText}>
-                  {(name || 'U')[0].toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <View style={styles.avatarWrapper}>
+              <LinearGradient
+                colors={[colors.gradientStart, colors.gradientEnd]}
+                style={styles.avatarRing}
+              >
+                {profileImage ? (
+                  <AuthImage uri={profileImage} style={styles.profilePic} />
+                ) : (
+                  <View style={[styles.profilePic, styles.profilePicPlaceholder]}>
+                    <Text style={styles.profilePicPlaceholderText}>
+                      {(name || 'U')[0].toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </LinearGradient>
+              {verifiedSelfie ? (
+                <View style={styles.verifiedDot}>
+                  <Icon name="check" size={11} color="#fff" solid />
+                </View>
+              ) : null}
+            </View>
             <View style={styles.profileNameSection}>
               <Text style={styles.userName}>{name || 'User'}</Text>
+              {verifiedSelfie ? (
+                <View style={styles.verifiedPill}>
+                  <Icon name="shield-alt" size={10} color={colors.primary} solid />
+                  <Text style={styles.verifiedPillText}>Verified</Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -151,7 +173,7 @@ const ProfileScreen = () => {
             {selectedEthinicity ? <Text style={styles.detailChip}>{selectedEthinicity}</Text> : null}
             {englishSkillLevel > 0 ? (
               <Text style={styles.detailChip}>
-                {['Bad', 'Medium', 'Good', 'Very Good'][englishSkillLevel]}
+                {ENGLISH_LEVELS[englishSkillLevel]}
               </Text>
             ) : null}
             {selectedSmoking ? <Text style={styles.detailChip}>Smoke: {selectedSmoking}</Text> : null}
@@ -160,21 +182,28 @@ const ProfileScreen = () => {
 
           {(ownMobile || ownTelegram || ownEmail) ? (
             <View style={styles.contactSection}>
+              <Text style={styles.contactSectionTitle}>Contact</Text>
               {ownMobile ? (
                 <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`tel:${ownMobile}`)}>
-                  <Text style={styles.contactIcon}>📞</Text>
+                  <View style={styles.contactIconCircle}>
+                    <Icon name="phone-alt" size={13} color={colors.primary} solid />
+                  </View>
                   <Text style={styles.contactText}>{ownMobile}</Text>
                 </TouchableOpacity>
               ) : null}
               {ownTelegram ? (
                 <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`https://t.me/${ownTelegram.replace('@', '')}`)}>
-                  <Text style={styles.contactIcon}>✈️</Text>
+                  <View style={styles.contactIconCircle}>
+                    <Icon name="paper-plane" size={13} color={colors.primary} solid />
+                  </View>
                   <Text style={styles.contactText}>@{ownTelegram}</Text>
                 </TouchableOpacity>
               ) : null}
               {ownEmail ? (
                 <TouchableOpacity style={styles.contactRow} onPress={() => Linking.openURL(`mailto:${ownEmail}`)}>
-                  <Text style={styles.contactIcon}>📧</Text>
+                  <View style={styles.contactIconCircle}>
+                    <Icon name="envelope" size={13} color={colors.primary} solid />
+                  </View>
                   <Text style={styles.contactText}>{ownEmail}</Text>
                 </TouchableOpacity>
               ) : null}
@@ -186,12 +215,13 @@ const ProfileScreen = () => {
         <ProfileSetting />
         <ChangeLocation />
         <ConnectTelegram />
-        <ChatWithUs onPress={() => Linking.openURL('mailto:hi@dating.com')} />
+        <ChatWithUs onPress={() => navigation.navigate('SupportTickets')} />
         <Privacy onPress={() => Linking.openURL('https://example.com/privacy')} />
         <TermsAndConditions onPress={() => Linking.openURL('https://example.com/terms')} />
         <TermsOfUse onPress={() => Linking.openURL('https://example.com/eula')} />
         <Logout />
         <ChangePassword />
+        <DeactivateMyProfile />
         <DeleteMyProfile />
         <AllRightsReserved />
       </ScrollView>
@@ -208,18 +238,26 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
+  },
+  avatarWrapper: { position: 'relative', marginRight: 16 },
+  avatarRing: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    padding: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   profilePic: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginRight: 16,
     borderWidth: 3,
-    borderColor: '#E94057',
+    borderColor: colors.surface,
   },
   profilePicPlaceholder: {
-    backgroundColor: '#E94057',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -228,41 +266,73 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
   },
+  verifiedDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
   profileNameSection: { flex: 1 },
-  userName: { fontSize: 24, fontWeight: '700', color: '#1a1a1a' },
-  userBio: { fontSize: 14, color: '#666', marginBottom: 14, lineHeight: 20, paddingRight: 10 },
+  userName: { ...typography.title, color: colors.ink },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 6,
+    gap: 5,
+  },
+  verifiedPillText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  userBio: { ...typography.body, color: colors.inkMuted, marginBottom: 16, lineHeight: 21, paddingRight: 10 },
   detailsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   detailChip: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
     fontSize: 13,
-    color: '#333',
+    color: colors.ink,
     fontWeight: '500',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   contactSection: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: colors.border,
+    ...shadow.soft,
   },
-  contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
-  contactIcon: { fontSize: 18, marginRight: 12 },
-  contactText: { fontSize: 15, color: '#333' },
+  contactSectionTitle: { ...typography.micro, color: colors.inkMuted, marginBottom: 8, textTransform: 'uppercase' },
+  contactRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7 },
+  contactIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  contactText: { ...typography.body, color: colors.ink },
 });
 
 export default ProfileScreen;

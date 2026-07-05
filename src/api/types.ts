@@ -246,6 +246,11 @@ export interface TermsAcceptance {
   acceptedAt?: string;
 }
 
+// Matches the live /profile/me response exactly — this endpoint never
+// returns gender/orientation/age/dob/lookingFor (confirmed against the
+// deployed backend). Those values live in shared context/AsyncStorage,
+// captured at the point the user actually entered them (registration,
+// GenderOrientationScreen, DOBScreen, OnboardingMoreInfoScreen), not here.
 export interface ProfileResponse {
   id: number;
   name?: string;
@@ -260,14 +265,9 @@ export interface ProfileResponse {
   ethnicity?: string;
   smoke?: string;
   drink?: string;
-  lookingFor?: string;
   verifiedSelfie?: boolean;
   profileImageUrl?: string;
   images?: string[];
-  gender?: string;
-  orientation?: string;
-  age?: number;
-  dob?: string;
 }
 
 export interface UserSearchResponse {

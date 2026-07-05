@@ -12,6 +12,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { authApi } from '../../api/authApi';
+import { colors, radius } from '../../constants/theme';
 
 const ForgotPasswordScreen = ({ navigation }: any) => {
   const [mobile, setMobile] = useState('');
@@ -55,7 +56,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
   };
 
   return (
-    <LinearGradient colors={['#ee486b', '#e14c61']} style={styles.container}>
+    <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.logoContainer}>
           <Text style={styles.appName}>Dating</Text>
@@ -66,7 +67,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
         {step === 'mobile' ? (
           <>
             <View style={styles.inputWrapper}>
-              <Icon name="phone-outline" size={20} color="#e14c61" style={styles.icon} />
+              <Icon name="phone-outline" size={20} color={colors.primary} style={styles.icon} />
               <TextInput
                 placeholder="Enter your mobile number"
                 placeholderTextColor="#666"
@@ -82,7 +83,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
               onPress={handleSendOtp}
               disabled={loading}>
               {loading ? (
-                <ActivityIndicator color="#000" />
+                <ActivityIndicator color={colors.primary} />
               ) : (
                 <Text style={styles.primaryBtnText}>Send OTP</Text>
               )}
@@ -91,7 +92,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
         ) : (
           <>
             <View style={styles.inputWrapper}>
-              <Icon name="key-variant" size={20} color="#e14c61" style={styles.icon} />
+              <Icon name="key-variant" size={20} color={colors.primary} style={styles.icon} />
               <TextInput
                 placeholder="Enter OTP"
                 placeholderTextColor="#666"
@@ -103,7 +104,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
             </View>
 
             <View style={styles.inputWrapper}>
-              <Icon name="lock-outline" size={20} color="#e14c61" style={styles.icon} />
+              <Icon name="lock-outline" size={20} color={colors.primary} style={styles.icon} />
               <TextInput
                 placeholder="Enter new password"
                 placeholderTextColor="#666"
@@ -119,7 +120,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
               onPress={handleResetPassword}
               disabled={loading}>
               {loading ? (
-                <ActivityIndicator color="#000" />
+                <ActivityIndicator color={colors.primary} />
               ) : (
                 <Text style={styles.primaryBtnText}>Reset Password</Text>
               )}
@@ -149,13 +150,13 @@ const styles = StyleSheet.create({
   logo: { width: 70, height: 70 },
   appName: {
     fontSize: 34,
-    color: '#fff',
+    color: colors.surface,
     fontWeight: 'bold',
     marginTop: 5,
     fontFamily: 'sans-serif-medium',
   },
   forgotText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 18,
     textAlign: 'center',
     marginBottom: 25,
@@ -163,8 +164,8 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 30,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     paddingHorizontal: 20,
     alignItems: 'center',
     marginBottom: 20,
@@ -172,26 +173,26 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   icon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 15, color: '#000' },
+  input: { flex: 1, fontSize: 15, color: colors.ink },
   primaryBtn: {
-    backgroundColor: '#fff',
-    borderRadius: 30,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     height: 55,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
     elevation: 2,
   },
-  primaryBtnText: { color: '#000', fontWeight: 'bold', fontSize: 15 },
+  primaryBtnText: { color: colors.primary, fontWeight: 'bold', fontSize: 15 },
   secondaryBtn: {
     borderWidth: 1,
-    borderColor: '#fff',
-    borderRadius: 30,
+    borderColor: colors.surface,
+    borderRadius: radius.pill,
     height: 55,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  secondaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  secondaryBtnText: { color: colors.surface, fontWeight: 'bold', fontSize: 15 },
 });
 
 export default ForgotPasswordScreen;

@@ -1,11 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const languages = [
-  'English', 'Spanish', 'Portuguese', 'German',
-  'Romanian', 'Russian', 'French', 'Chinese', 'Japanese',
-];
+import { LANGUAGES as languages } from '../../constants/profileOptions';
 
 const LanguagesSelector = () => {
   const { selectedLanguages, setSelectedLanguages } = useContext(AppContext);

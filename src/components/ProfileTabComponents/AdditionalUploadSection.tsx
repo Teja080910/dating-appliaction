@@ -14,6 +14,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { profileApi } from '../../api/profileApi';
 import { AuthStorage } from '../../api/authStorage';
 import { resolveImageUri, parseImageList } from '../../utils/imageUtils';
+import { colors, radius } from '../../constants/theme';
 
 const AdditionalUploadSection = () => {
   const {
@@ -74,7 +75,13 @@ const AdditionalUploadSection = () => {
             if (currentImageId) {
               try {
                 await profileApi.deleteImage(currentImageId);
-              } catch {}
+              } catch (err: any) {
+                Alert.alert(
+                  'Error',
+                  err?.response?.data?.message || 'Failed to delete photo. Please try again.',
+                );
+                return;
+              }
             }
             const newImages = [...images];
             newImages[index] = null;
@@ -144,7 +151,7 @@ const AdditionalUploadSection = () => {
               disabled={uploadingIndex !== null}
             >
               {uploadingIndex === i ? (
-                <ActivityIndicator size="large" color="#D94B58" />
+                <ActivityIndicator size="large" color={colors.primary} />
               ) : imageUri ? (
                 <AuthImage uri={imageUri} style={styles.uploadedImage} />
               ) : (
@@ -171,7 +178,7 @@ const styles = StyleSheet.create({
   textPhoto: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: colors.ink,
     marginBottom: 14,
     paddingHorizontal: 20,
     paddingTop: 8,
@@ -186,19 +193,19 @@ const styles = StyleSheet.create({
   imageBox: {
     width: 108,
     height: 108,
-    borderRadius: 16,
-    backgroundColor: '#f5f5f5',
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: '#e8e8e8',
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   uploadedImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 16,
+    borderRadius: radius.lg,
   },
   iconContainer: {
     alignItems: 'center',
@@ -206,26 +213,26 @@ const styles = StyleSheet.create({
   },
   cameraIcon: {
     fontSize: 28,
-    color: '#999',
+    color: colors.inkFaint,
   },
   plusBadge: {
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#E94057',
+    backgroundColor: colors.primary,
     width: 20,
     height: 20,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#E94057',
+    shadowColor: colors.primary,
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 3,
   },
   plusText: {
-    color: 'white',
+    color: colors.surface,
     fontSize: 12,
     fontWeight: 'bold',
   },

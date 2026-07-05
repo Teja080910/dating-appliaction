@@ -2,8 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import AppContext from '../../context/CreateGlobalStateContext';
-
-const englishLevels = ['Bad', 'Medium', 'Good', 'Very Good'];
+import { ENGLISH_LEVELS as englishLevels } from '../../constants/profileOptions';
 
 const EnglishSkillSelector = () => {
   const { englishSkillLevel, setEnglishSkillLevel } = useContext(AppContext);

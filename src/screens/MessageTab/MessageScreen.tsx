@@ -11,13 +11,14 @@ import {
   TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
 import { connectionsApi } from '../../api/connectionsApi';
-import { profileApi } from '../../api/profileApi';
 import { notificationApi } from '../../api/notificationApi';
 import AuthImage from '../../components/AuthImage';
 import { resolveImageUri } from '../../utils/imageUtils';
 import { AuthStorage } from '../../api/authStorage';
 import { ConnectionRequest } from '../../api/types';
+import { colors, radius, shadow, typography } from '../../constants/theme';
 
 type TabKey = 'pending' | 'accepted' | 'declined';
 
@@ -43,6 +44,7 @@ export default function InvitationsScreen() {
   const [allDeclined, setAllDeclined] = useState<ConnectionRequest[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -64,21 +66,27 @@ export default function InvitationsScreen() {
 
   const fetchAll = useCallback(async () => {
     try {
+      setLoadError(false);
       const userData = await AuthStorage.getUser();
       const id = userData?.userId || (await AuthStorage.getUserIdStr());
       if (!id) return;
       setMyUserId(id);
 
-      const profile = await profileApi.getMyProfile(id).catch(async () => {
-        const u = await AuthStorage.getUser();
-        return u;
-      });
-      const gender = profile?.gender || '';
-      setUserGender(gender);
+      // /profile/me never returns gender (confirmed against the live
+      // backend) — read it from the cached login/register payload instead,
+      // which does return it top-level.
+      setUserGender(userData?.gender || '');
 
+      // NOTE: do not swallow individual failures here — /connections/sent and
+      // /connections/received are known to fail (malformed JSON) whenever the
+      // backend's circular User<->Profile serialization bug is triggered by
+      // real data. Letting the error propagate to the outer catch surfaces a
+      // clear "couldn't load" state instead of silently showing an empty
+      // list, which would look like "no pending requests" even when a real
+      // request exists.
       const [sentRes, receivedRes] = await Promise.all([
-        connectionsApi.getSentRequests(id).catch(() => []),
-        connectionsApi.getReceivedRequests(id).catch(() => []),
+        connectionsApi.getSentRequests(id),
+        connectionsApi.getReceivedRequests(id),
       ]);
 
       const sent = extractList(sentRes);
@@ -102,7 +110,9 @@ export default function InvitationsScreen() {
       setAllDeclined(declined);
       setPage(0);
       setHasMore(true);
-    } catch {}
+    } catch {
+      setLoadError(true);
+    }
   }, []);
 
   useFocusEffect(
@@ -196,19 +206,29 @@ export default function InvitationsScreen() {
     const otherName = otherUser?.name || otherUser?.profile?.displayName || otherUser?.profile?.name || otherUser?.userId || '';
     const otherImage = otherUser?.profile?.profileImageUrl || '';
 
+    const statusStyle =
+      item.status === 'ACCEPTED' ? s.statusAccepted :
+      item.status === 'PENDING' ? s.statusPending : s.statusDeclined;
+    const statusDotStyle =
+      item.status === 'ACCEPTED' ? s.dotAccepted :
+      item.status === 'PENDING' ? s.dotPending : s.dotDeclined;
+
     return (
       <View style={s.card}>
         <View style={s.cardRow}>
           {otherImage ? (
             <AuthImage uri={resolveImageUri(otherImage)} style={s.avatar} />
           ) : (
-            <View style={[s.avatar, s.avatarPlaceholder]}>
+            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={[s.avatar, s.avatarPlaceholder]}>
               <Text style={s.avatarText}>{otherName ? otherName.charAt(0).toUpperCase() : '?'}</Text>
-            </View>
+            </LinearGradient>
           )}
           <View style={s.cardInfo}>
             <Text style={s.cardName}>{otherName || 'Unknown'}</Text>
-            <Text style={s.cardStatus}>{item.status}</Text>
+            <View style={[s.statusPill, statusStyle]}>
+              <View style={[s.statusDot, statusDotStyle]} />
+              <Text style={s.cardStatus}>{item.status}</Text>
+            </View>
           </View>
         </View>
         <View style={s.actionRow}>
@@ -235,7 +255,7 @@ export default function InvitationsScreen() {
   if (loading) {
     return (
       <View style={[s.container, s.centered]}>
-        <ActivityIndicator size="large" color="#D94B58" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -279,8 +299,15 @@ export default function InvitationsScreen() {
           contentContainerStyle={s.listContent}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
-          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#D94B58" /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={colors.primary} /> : null}
         />
+      ) : loadError ? (
+        <View style={s.centered}>
+          <Text style={s.emptyText}>Couldn't load requests due to a server issue. Your requests may still exist — please try again later.</Text>
+          <TouchableOpacity style={s.retryBtn} onPress={() => { setLoading(true); fetchAll().finally(() => setLoading(false)); }}>
+            <Text style={s.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <View style={s.centered}>
           <Text style={s.emptyText}>No {tabs.find((t) => t.key === activeTab)?.label.toLowerCase()} requests</Text>
@@ -291,55 +318,80 @@ export default function InvitationsScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: colors.surface },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
-  title: { fontSize: 28, fontWeight: '700', color: '#1a1a1a' },
+  title: { ...typography.display, color: colors.ink },
   searchBar: { paddingHorizontal: 24, paddingBottom: 12 },
   searchInput: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#333',
+    color: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   tabRow: { flexDirection: 'row', paddingHorizontal: 24, marginBottom: 16, gap: 8 },
   tab: {
     paddingVertical: 8,
     paddingHorizontal: 18,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  tabActive: { backgroundColor: '#E94057' },
-  tabText: { fontSize: 14, color: '#888', fontWeight: '600' },
+  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabText: { fontSize: 14, color: colors.inkMuted, fontWeight: '600' },
   tabTextActive: { color: '#fff' },
   listContent: { paddingHorizontal: 24, paddingBottom: 100 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: colors.border,
+    ...shadow.soft,
   },
   cardRow: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 52, height: 52, borderRadius: 26 },
-  avatarPlaceholder: { backgroundColor: '#E94057', justifyContent: 'center', alignItems: 'center' },
+  avatarPlaceholder: { justifyContent: 'center', alignItems: 'center' },
   avatarText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   cardInfo: { marginLeft: 14, flex: 1 },
-  cardName: { fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
-  cardStatus: { fontSize: 12, color: '#999', marginTop: 4, textTransform: 'capitalize' },
+  cardName: { ...typography.heading, color: colors.ink },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    gap: 5,
+  },
+  statusPending: { backgroundColor: colors.warningLight },
+  statusAccepted: { backgroundColor: colors.successLight },
+  statusDeclined: { backgroundColor: colors.dangerLight },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  dotPending: { backgroundColor: colors.warning },
+  dotAccepted: { backgroundColor: colors.success },
+  dotDeclined: { backgroundColor: colors.danger },
+  cardStatus: { fontSize: 11, color: colors.inkMuted, fontWeight: '700', textTransform: 'capitalize' },
   actionRow: { flexDirection: 'row', marginTop: 14, gap: 10 },
-  actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  acceptBtn: { backgroundColor: '#4CAF50' },
-  declineBtn: { backgroundColor: '#f44336' },
-  cancelBtn: { backgroundColor: '#FF9800' },
+  actionBtn: { flex: 1, paddingVertical: 10, borderRadius: radius.md, alignItems: 'center' },
+  acceptBtn: { backgroundColor: colors.success },
+  declineBtn: { backgroundColor: colors.danger },
+  cancelBtn: { backgroundColor: colors.warning },
   actionBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  emptyText: { fontSize: 16, color: '#999', textAlign: 'center' },
+  emptyText: { fontSize: 16, color: '#999', textAlign: 'center', paddingHorizontal: 24 },
+  retryBtn: {
+    marginTop: 16,
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  retryBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

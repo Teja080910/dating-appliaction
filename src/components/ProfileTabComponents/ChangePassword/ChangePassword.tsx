@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, TextInput, Modal } fro
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { changePasswordApi } from '../../../api/changePasswordApi';
 import { AuthStorage } from '../../../api/authStorage';
+import { colors, radius, shadow } from '../../../constants/theme';
 
 const ChangePassword = () => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -103,45 +104,46 @@ const styles = StyleSheet.create({
   text: { fontSize: 16, color: '#111' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     padding: 24,
     width: '85%',
+    ...shadow.card,
   },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#000', marginBottom: 20, textAlign: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: colors.ink, marginBottom: 20, textAlign: 'center' },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: '#000',
+    color: colors.ink,
     marginBottom: 12,
   },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   cancelBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     alignItems: 'center',
   },
-  cancelBtnText: { color: '#666', fontWeight: '600' },
+  cancelBtnText: { color: colors.inkMuted, fontWeight: '600' },
   saveBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#D94B58',
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
-  saveBtnText: { color: '#fff', fontWeight: '600' },
+  saveBtnText: { color: colors.surface, fontWeight: '600' },
 });
 
 export default ChangePassword;
