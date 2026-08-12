@@ -171,7 +171,7 @@ export const useUserImages = (userId?: string) => {
         throw new Error('UserId not resolved');
       }
 
-      const res = await apiClient.post(`/profile/me`, null, { params: { userId: normalizedUserId } });
+      const res = await apiClient.get(`/users/${normalizedUserId}/images`);
       const payload = res.data;
 
       return normalizeUserImagesResponse(payload);

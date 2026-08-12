@@ -140,6 +140,11 @@ export const isResolvedApiUserId = (value: unknown): boolean => {
     return false;
   }
 
+  // Backend userIds are alphanumeric strings (e.g. SA1000). Accept them as-is.
+  if (/^[A-Za-z]+\d+$/.test(normalized)) {
+    return true;
+  }
+
   const numeric = Number(normalized);
   if (!Number.isFinite(numeric) || numeric <= 0) {
     return false;

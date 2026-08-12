@@ -61,7 +61,16 @@ const normalizeDigitsOnly = (value: unknown): string | null => {
 
 const normalizeApiUserIdCandidate = (value: unknown): string | null => {
   const normalized = normalizeStoredString(value);
-  if (!normalized || !/^\d+$/.test(normalized)) {
+  if (!normalized) {
+    return null;
+  }
+
+  // Backend userIds are alphanumeric strings (e.g. SA1000)
+  if (/^[A-Za-z]+\d+$/.test(normalized)) {
+    return normalized;
+  }
+
+  if (!/^\d+$/.test(normalized)) {
     return null;
   }
 

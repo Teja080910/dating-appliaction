@@ -65,10 +65,10 @@ export default function MessageScreen() {
   }, []);
 
   const normalizeChat = useCallback((request: any) => {
-    const numericUserId = userId ? Number(userId) : null;
+    const currentUserId = userId ? String(userId) : null;
     const sender = request?.sender;
     const receiver = request?.receiver;
-    const targetUser = sender?.id === numericUserId ? receiver : sender;
+    const targetUser = String(sender?.id) === currentUserId ? receiver : sender;
     const profile = targetUser?.profile;
     const status = String(request?.status || 'CONNECTED').toUpperCase();
     return {

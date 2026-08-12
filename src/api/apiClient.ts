@@ -153,21 +153,15 @@ export const isApiHostedUrl = (url: string | null | undefined) => {
   return Boolean(normalizedUrl && normalizedUrl.startsWith(BASE_URL));
 };
 
-export const toApiUserId = (value: unknown): number => {
+export const toApiUserId = (value: unknown): string => {
   const strVal = String(value || '').trim();
 
   if (!strVal) {
     throw new Error('UserId is empty');
   }
 
-  // ✅ Extract only numbers (MA1000 → 1000)
-  const numericPart = strVal.replace(/\D/g, '');
-
-  if (!numericPart) {
-    throw new Error(`Invalid userId format: ${strVal}`);
-  }
-
-  return Number(numericPart);
+  // Backend userIds are alphanumeric strings (e.g. SA1000) — pass through as-is
+  return strVal;
 };
 
 export default apiClient;

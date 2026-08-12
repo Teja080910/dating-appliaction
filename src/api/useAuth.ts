@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './apiClient';
 import { clearFullSession, hasSessionToken, saveAuthSession } from '../utils/session';
+import { getUserId } from '../utils/sessionHelper';
 import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 
 type VerifyRegisterOtpRequest = {
@@ -120,10 +121,10 @@ export const useAuth = () => {
     return data;
   };
 
-  const extractNumericUserId = (rawUserId: any) => {
+  const extractUserId = (rawUserId: any) => {
     if (!rawUserId) return null;
-    const numeric = String(rawUserId).replace(/\D/g, '');
-    return numeric ? Number(numeric) : null;
+    const strVal = String(rawUserId).trim();
+    return strVal || null;
   };
 
   // 🔹 SEND OTP FOR REGISTRATION
@@ -154,7 +155,7 @@ export const useAuth = () => {
       const persisted = await persistSessionIfAvailable(normalizedResponse);
 
       // ✅ FIX: define here (global in function scope)
-      const cleanUserId = extractNumericUserId(persisted?.userId);
+      const cleanUserId = extractUserId(persisted?.userId);
 
       if (persisted?.token) {
         await AsyncStorage.multiSet([
@@ -262,7 +263,8 @@ export const useAuth = () => {
   // 🔹 CHANGE PASSWORD
   const changePassword = useMutation({
     mutationFn: async ({ userId, oldPassword, newPassword }: any) => {
-      void userId;
+      const resolvedUserId = userId ? String(userId) : extractUserId(await getUserId());
+      if (!resolvedUserId) throw new Error('Unable to resolve userId');
 
       const normalizedOldPassword = String(oldPassword ?? '').trim();
       const normalizedNewPassword = String(newPassword ?? '').trim();
@@ -275,6 +277,7 @@ export const useAuth = () => {
         null,
         {
           params: {
+            userId: resolvedUserId,
             oldPassword: normalizedOldPassword,
             newPassword: normalizedNewPassword,
           },
@@ -287,9 +290,12 @@ export const useAuth = () => {
   // 🔹 DEACTIVATE ACCOUNT (API + logout)
   const deactivateAccount = useMutation({
     mutationFn: async (userId: any) => {
-      void userId;
+      const resolvedUserId = userId ? String(userId) : extractUserId(await getUserId());
+      if (!resolvedUserId) throw new Error('Unable to resolve userId');
 
-      const res = await apiClient.post('/account/deactivate');
+      const res = await apiClient.post('/account/deactivate', null, {
+        params: { userId: resolvedUserId },
+      });
       return normalizePlainApiResponse(res.data);
     },
     onSuccess: async () => {
@@ -297,12 +303,28 @@ export const useAuth = () => {
     },
   });
 
+  // 🔹 ACTIVATE ACCOUNT
+  const activateAccount = useMutation({
+    mutationFn: async (userId: any) => {
+      const resolvedUserId = userId ? String(userId) : extractUserId(await getUserId());
+      if (!resolvedUserId) throw new Error('Unable to resolve userId');
+
+      const res = await apiClient.put('/account/activate', null, {
+        params: { userId: resolvedUserId },
+      });
+      return normalizePlainApiResponse(res.data);
+    },
+  });
+
   // 🔹 DELETE ACCOUNT
   const deleteAccount = useMutation({
     mutationFn: async (userId: any) => {
-      void userId;
+      const resolvedUserId = userId ? String(userId) : extractUserId(await getUserId());
+      if (!resolvedUserId) throw new Error('Unable to resolve userId');
 
-      const res = await apiClient.delete('/account/delete');
+      const res = await apiClient.delete('/account/delete', {
+        params: { userId: resolvedUserId },
+      });
       return normalizePlainApiResponse(res.data);
     },
     onSuccess: async () => {
@@ -329,6 +351,7 @@ export const useAuth = () => {
 
     changePassword,
     deactivateAccount,
+    activateAccount,
     deleteAccount,
 
     logout,

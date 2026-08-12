@@ -57,7 +57,7 @@ export const useSupport = (userId?: string | null) => {
     if (!resolvedUserId) {
       throw new Error('Unable to resolve backend userId from session.');
     }
-    return Number(resolvedUserId);
+    return resolvedUserId;
   };
 
   const createTicket = useMutation({

@@ -97,7 +97,7 @@ export const useLocation = (userId?: string) => {
     }) => {
       const resolvedUserId = await resolveBackendUserId();
       const payload = {
-        userId: Number(resolvedUserId),
+        userId: resolvedUserId,
         ...data,
       };
 
@@ -114,7 +114,7 @@ export const useLocation = (userId?: string) => {
       const resolvedUserId = await resolveBackendUserId();
       const res = await apiClient.put('/location/switch', null, {
         params: {
-          userId: Number(resolvedUserId),
+          userId: resolvedUserId,
           locationId,
         },
       });
@@ -153,4 +153,19 @@ export const useLocation = (userId?: string) => {
     locationHistory: useLocationHistory,
     currentLocation: useCurrentLocation,
   };
+};
+
+export const useNearbyUsers = () => {
+  const getNearbyUsers = useMutation({
+    mutationFn: async ({ userId, radius }: { userId?: string; radius?: number }) => {
+      const resolvedUserId = userId || (await getUserId());
+      if (!resolvedUserId) throw new Error('Unable to resolve userId');
+      const res = await apiClient.get('/location/nearby', {
+        params: { userId: resolvedUserId, radius: radius ?? 100 },
+      });
+      return res.data;
+    },
+  });
+
+  return { getNearbyUsers };
 };

@@ -82,7 +82,7 @@ export const useSubscription = (userId?: string | null) => {
     if (!resolvedUserId) {
       throw new Error('Unable to resolve backend userId from session.');
     }
-    return Number(resolvedUserId);
+    return String(resolvedUserId);
   };
 
   const activateSubscription = useMutation({
@@ -93,8 +93,8 @@ export const useSubscription = (userId?: string | null) => {
       uid?: any;
       plan: string;
     }) => {
-      const resolvedUserId = uid ? Number(uid) : await resolveBackendUserId();
-      const response = await apiClient.post('/subscription/activate', null, {
+      const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
+      const response = await apiClient.post('/subscriber/activate', null, {
         params: {
           userId: resolvedUserId,
           plan,
@@ -112,10 +112,8 @@ export const useSubscription = (userId?: string | null) => {
 
   const verifyPayment = useMutation({
     mutationFn: async ({ orderId, paymentId, signature }: { orderId: string; paymentId: string; signature: string }) => {
-      const response = await apiClient.post('/payment/success', {
-        orderId,
-        paymentId,
-        signature,
+      const response = await apiClient.post('/razorpay/verify', null, {
+        params: { orderId, paymentId, signature },
       });
       return response.data;
     },
@@ -127,42 +125,11 @@ export const useSubscription = (userId?: string | null) => {
     },
   });
 
-  const subscriptionRequest = useMutation({
-    mutationFn: async ({ senderId, receiverId }: { senderId?: any; receiverId: any }) => {
-      const resolvedSenderId = senderId ? Number(senderId) : await resolveBackendUserId();
-      const response = await apiClient.post('/subscription/request', null, {
-        params: {
-          senderId: resolvedSenderId,
-          receiverId: toApiUserId(receiverId),
-        },
-      });
-      return response.data;
-    },
-    onError: (err: any) => {
-      console.warn('Subscription Request Error:', getApiErrorMessage(err));
-    },
-  });
-
-  const subscriptionRespond = useMutation({
-    mutationFn: async ({ requestId, status }: { requestId: number; status: string }) => {
-      const response = await apiClient.put('/subscription/respond', null, {
-        params: {
-          requestId,
-          status,
-        },
-      });
-      return response.data;
-    },
-    onError: (err: any) => {
-      console.warn('Respond Error:', getApiErrorMessage(err));
-    },
-  });
-
   const subStatus = useQuery({
     queryKey: statusQueryKey,
     queryFn: async () => {
       const resolvedUserId = await resolveBackendUserId();
-      const response = await apiClient.get('/subscription/status', {
+      const response = await apiClient.get('/subscriber/status', {
         params: { userId: resolvedUserId },
       });
 
@@ -172,7 +139,7 @@ export const useSubscription = (userId?: string | null) => {
 
   const createOrder = useMutation({
     mutationFn: async ({ uid, plan }: { uid?: any; plan: string }) => {
-      const resolvedUserId = uid ? Number(uid) : await resolveBackendUserId();
+      const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
       const response = await apiClient.post('/razorpay/create-order', null, {
         params: {
           userId: resolvedUserId,
@@ -204,8 +171,6 @@ export const useSubscription = (userId?: string | null) => {
   return {
     activateSubscription,
     verifyPayment,
-    subscriptionRequest,
-    subscriptionRespond,
     subscriptionStatus: subStatus.data,
     isLoadingStatus: subStatus.isLoading,
     isFetchingStatus: subStatus.isFetching,
@@ -217,4 +182,23 @@ export const useSubscription = (userId?: string | null) => {
     useSubscriptionStatus: () => subStatus,
     subscriptionDetails: () => subStatus,
   };
+};
+
+export const useRemainingDays = () => {
+  const getRemainingDays = useQuery({
+    queryKey: ['subscription-remaining-days'],
+    queryFn: async () => {
+      const resolvedUserId = await (async () => {
+        const uid = await getUserId();
+        if (!uid) throw new Error('Unable to resolve userId');
+        return uid;
+      })();
+      const res = await apiClient.get('/subscriber/remaining-days', {
+        params: { userId: resolvedUserId },
+      });
+      return typeof res.data === 'number' ? res.data : Number(res.data);
+    },
+  });
+
+  return { getRemainingDays, remainingDays: getRemainingDays.data };
 };

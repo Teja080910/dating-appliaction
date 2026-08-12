@@ -59,18 +59,19 @@ export const useReport = (userId?: string | number | null) => {
   const queryClient = useQueryClient();
 
   const resolveBackendUserId = async () => {
-    if (userId) return Number(userId);
+    if (userId) return String(userId);
     const stored = await getUserId();
     if (!stored) throw new Error('Unable to resolve backend userId for reports.');
-    return Number(stored);
+    return stored;
   };
   const myReportsKey = ['reports', 'my'];
   const againstReportsKey = ['reports', 'against'];
 
   const reportMutation = useMutation({
-    mutationFn: async (data: { byUserId: number; targetUserId: number; reason: string; message: string }) => {
+    mutationFn: async (data: { byUserId: string | number; targetUserId: string | number; reason: string; message: string }) => {
       const response = await apiClient.post('/reports/report', {
-        targetUserId: data.targetUserId,
+        byUserId: String(data.byUserId),
+        targetUserId: String(data.targetUserId),
         reason: data.reason,
         message: data.message,
       });

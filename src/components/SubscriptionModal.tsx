@@ -32,7 +32,7 @@ type RazorpayCheckoutResponse = Awaited<ReturnType<typeof RazorpayCheckout.open>
 
 const PLANS = [
   {
-    id: 'Silver Plan',
+    id: 'BASIC',
     name: 'Standard',
     price: '₹499',
     duration: '1 Month',
@@ -41,7 +41,7 @@ const PLANS = [
     icon: 'star-outline',
   },
   {
-    id: 'Gold Plan',
+    id: 'GOLD',
     name: 'Premium',
     price: '₹1,299',
     duration: '3 Months',
@@ -51,7 +51,7 @@ const PLANS = [
     recommended: true,
   },
   {
-    id: 'Premium Plan',
+    id: 'PREMIUM',
     name: 'Elite',
     price: '₹2,499',
     duration: '6 Months',
@@ -316,7 +316,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     useContext(AppContext);
   const { createOrder, verifyPayment, activateSubscription } = useSubscription();
   const [loading, setLoading] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState('QUARTERLY_PLAN');
+  const [selectedPlanId, setSelectedPlanId] = useState('GOLD');
   const [selectedPaymentMode, setSelectedPaymentMode] =
     useState<SupportedPaymentMode | 'all'>('all');
 
@@ -326,7 +326,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     }
 
     setLoading(false);
-    setSelectedPlanId('QUARTERLY_PLAN');
+    setSelectedPlanId('GOLD');
     setSelectedPaymentMode('upi');
   }, [visible]);
 

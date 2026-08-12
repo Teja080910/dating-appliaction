@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import apiClient from './apiClient';
 import { toApiUserId } from './apiClient';
 import { isResolvedApiUserId } from '../utils/sessionState';
+import { getUserId } from '../utils/sessionHelper';
 
 const normalizeArrayFilter = (value: unknown) => {
   if (Array.isArray(value)) {
@@ -133,7 +134,7 @@ export const useDiscovery = (userId?: any) => {
   const filterUsers = useMutation({
     mutationFn: async (data: any) => {
       const payload: Record<string, any> = {
-        userId: data.userId ? Number(data.userId) : undefined,
+        userId: data.userId ? String(data.userId) : undefined,
         search: data.search,
         gender: normalizeArrayFilter(data.gender),
         bodyType: normalizeArrayFilter(data.bodyType),
@@ -206,6 +207,18 @@ export const useDiscovery = (userId?: any) => {
     },
   });
 
+  // =========================
+  // 🏠 HOME USERS
+  // =========================
+  const getHomeUsers = useMutation({
+    mutationFn: async (uid?: string) => {
+      const resolvedUserId = uid || (await getUserId());
+      if (!resolvedUserId) throw new Error('Unable to resolve userId');
+      const res = await apiClient.get(`/home/${resolvedUserId}`);
+      return res.data;
+    },
+  });
+
   return {
     // 🔥 MAIN DISCOVERY
     filterUsers,
@@ -219,5 +232,8 @@ export const useDiscovery = (userId?: any) => {
     // 🔄 PAGINATION (manual load more)
     getRecentUsers,
     getOnlineUsers,
+
+    // 🏠 HOME
+    getHomeUsers,
   };
 };

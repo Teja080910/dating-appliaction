@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const DEFAULT_BASE_URL = process.env.SEED_BASE_URL || 'http://165.22.218.70:9395';
+const DEFAULT_BASE_URL = process.env.SEED_BASE_URL || 'http://168.144.95.58:9395';
 const DEFAULT_PASSWORD = process.env.SEED_PASSWORD || 'Seed@123';
 const DEFAULT_COUNT = Number(process.env.SEED_COUNT || 100);
 const STATIC_OTP = process.env.SEED_OTP || '';

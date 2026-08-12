@@ -13,8 +13,8 @@ import { useAlert } from '../../../components/AlertModal';
 
 interface UserDetailsProps {
   profile?: any;
-  currentUserId?: number | null;
-  targetUserId?: number | null;
+  currentUserId?: string | number | null;
+  targetUserId?: string | number | null;
 }
 
 const { width: windowWidth } = Dimensions.get('window');
@@ -79,6 +79,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
   const resolveNumericIdentifier = (...values: unknown[]) => {
     for (const value of values) {
       const normalized = String(value ?? '').trim();
+      if (/^[A-Za-z]+\d+$/.test(normalized)) {
+        return normalized;
+      }
       if (/^\d+$/.test(normalized)) {
         const numericValue = Number(normalized);
         if (Number.isFinite(numericValue) && numericValue > 0) {
@@ -171,7 +174,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     if (!isResolvedApiUserId(activeCurrentUserId)) {
       const repairedId = await repairStoredSessionIdentity();
       if (repairedId && isResolvedApiUserId(repairedId)) {
-        activeCurrentUserId = Number(repairedId);
+        activeCurrentUserId = String(repairedId);
       }
     }
 
@@ -218,8 +221,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     };
 
     connection.send.mutate({
-      receiverId: Number(resolvedTargetUserId),
-      senderId: Number(activeCurrentUserId),
+      receiverId: String(resolvedTargetUserId),
+      senderId: String(activeCurrentUserId),
     }, {
       onSuccess: () => {
         const newInvite = {

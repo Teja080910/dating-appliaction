@@ -96,6 +96,9 @@ const dedupeImageUris = (items: unknown[]) => {
 const resolveNumericIdentifier = (...values: unknown[]) => {
   for (const value of values) {
     const normalized = String(value ?? '').trim();
+    if (/^[A-Za-z]+\d+$/.test(normalized)) {
+      return normalized;
+    }
     if (/^\d+$/.test(normalized)) {
       const numericValue = Number(normalized);
       if (Number.isFinite(numericValue) && numericValue > 0) {
@@ -141,7 +144,7 @@ const ViewMyProfileScreen = () => {
     fallbackImage,
   } = route.params || {};
 
-  const [myId, setMyId] = useState<number | null>(null);
+  const [myId, setMyId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
@@ -153,11 +156,11 @@ const ViewMyProfileScreen = () => {
       if (!isMounted) return;
 
       if (directId) {
-        setMyId(Number(directId));
+        setMyId(String(directId));
       } else {
         const repairedId = await repairStoredSessionIdentity();
         if (repairedId && isResolvedApiUserId(repairedId) && isMounted) {
-          setMyId(Number(repairedId));
+          setMyId(String(repairedId));
         }
       }
 
@@ -193,11 +196,11 @@ const ViewMyProfileScreen = () => {
   const targetId = viewMyProfile ? myId : routeTargetId;
   const hasNumericTargetId =
     typeof targetId === 'number' ||
-    (typeof targetId === 'string' && /^\d+$/.test(targetId));
+    (typeof targetId === 'string' && (/^\d+$/.test(targetId) || /^[A-Za-z]+\d+$/.test(targetId)));
   const { data: fetchedProfile, isLoading: loading } = useMyProfile(
     hasNumericTargetId ? targetId : null
   );
-  const numericTargetId = hasNumericTargetId ? Number(targetId) : null;
+  const numericTargetId = hasNumericTargetId ? String(targetId) : null;
 
   useEffect(() => {
     let isMounted = true;
@@ -245,7 +248,6 @@ const ViewMyProfileScreen = () => {
       onSuccess: () => navigation.goBack()
     });
   };
-
   const handleDislike = () => {
     navigation.goBack();
   };

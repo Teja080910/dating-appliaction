@@ -107,15 +107,11 @@ const resolveNumericUserId = async (candidate?: any) => {
   if (!userId || String(userId).trim() === '') {
     userId = await resolveBackendUserId();
   }
-  const cleaned = String(userId).replace(/\D/g, '');
+  const cleaned = String(userId).trim();
   if (!cleaned) {
     throw new Error(`Invalid userId format: ${userId}`);
   }
-  const numericUserId = Number(cleaned);
-  if (!Number.isFinite(numericUserId)) {
-    throw new Error(`Invalid userId: ${userId}`);
-  }
-  return numericUserId;
+  return cleaned;
 };
 
 export const useMyProfile = (uid?: any) => {
@@ -213,6 +209,7 @@ export const useProfile = () => {
       const res = await apiClient.post(
         `/profile/${resolvedUserId}/setup`,
         formData,
+        { params: { dto: JSON.stringify(normalizedDto) } },
       );
 
       return res.data;
@@ -269,6 +266,7 @@ export const useProfile = () => {
 
   type UpdateBasicInput = {
     userId?: any;
+    name?: string;
     displayName: string;
     bio: string;
     age: number;
@@ -280,6 +278,7 @@ export const useProfile = () => {
 
       const payload = {
         userId: resolvedUserId,
+        name: data.name || data.displayName,
         displayName: data.displayName,
         bio: data.bio,
         age: data.age,

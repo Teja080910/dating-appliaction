@@ -2,7 +2,7 @@ const axios = require('axios');
 
 (async () => {
     try {
-        const loginRes = await axios.post('http://165.22.218.70:9395/login', {
+        const loginRes = await axios.post('http://168.144.95.58:9395/login', {
             mobile: '9876501000',
             password: 'Seed@123'
         });
@@ -13,7 +13,7 @@ const axios = require('axios');
         
         for (const plan of testPlans) {
             try {
-                const res = await axios.post(`http://165.22.218.70:9395/razorpay/create-order?userId=1&plan=${plan}`, null, {
+                const res = await axios.post(`http://168.144.95.58:9395/razorpay/create-order?userId=1&plan=${plan}`, null, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 console.log(`Plan '${plan}' SUCCESS:`, res.status);

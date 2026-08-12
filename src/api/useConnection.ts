@@ -53,10 +53,10 @@ export const useConnection = (userId?: string | number) => {
   const queryClient = useQueryClient();
 
   const resolveBackendUserId = async () => {
-    if (userId) return Number(userId);
+    if (userId) return String(userId);
     const stored = await getUserId();
     if (!stored) throw new Error('Unable to resolve backend userId for connections.');
-    return Number(stored);
+    return stored;
   };
   const connectionListKey = ['connections'];
   const sentListKey = ['connections-sent'];
@@ -72,6 +72,7 @@ export const useConnection = (userId?: string | number) => {
     mutationFn: async (
       input:
         | number
+        | string
         | {
             receiverId: number | string;
             senderId?: number | string | null;
@@ -92,8 +93,10 @@ export const useConnection = (userId?: string | number) => {
 
   const accept = useMutation({
     mutationFn: async (requestId: number) => {
+      const resolvedUserId = await resolveBackendUserId();
       const res = await apiClient.put('/connections/accept', {
         requestId: Number(requestId),
+        userId: resolvedUserId,
       });
       return res.data;
     },
@@ -104,8 +107,10 @@ export const useConnection = (userId?: string | number) => {
 
   const decline = useMutation({
     mutationFn: async (requestId: number) => {
+      const resolvedUserId = await resolveBackendUserId();
       const res = await apiClient.put('/connections/decline', {
         requestId: Number(requestId),
+        userId: resolvedUserId,
       });
       return res.data;
     },
@@ -116,8 +121,10 @@ export const useConnection = (userId?: string | number) => {
 
   const cancel = useMutation({
     mutationFn: async (requestId: number) => {
+      const resolvedUserId = await resolveBackendUserId();
       const res = await apiClient.put('/connections/cancel', {
         requestId: Number(requestId),
+        userId: resolvedUserId,
       });
       return res.data;
     },
@@ -163,7 +170,7 @@ export const useConnection = (userId?: string | number) => {
   });
 
   const connectionStatus = useMutation({
-    mutationFn: async ({ user1, user2 }: { user1: number; user2: number }) => {
+    mutationFn: async ({ user1, user2 }: { user1: number | string; user2: number | string }) => {
       const res = await apiClient.get('/connections/status', {
         params: {
           user1: toApiUserId(user1),

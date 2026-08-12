@@ -8,7 +8,7 @@ export const useUpload = () => {
     mutationFn: async ({ formData, userId }: any) => {
       formData.append('userId', userId);
 
-      const res = await apiClient.post('/profile/upload-images', formData);
+      const res = await apiClient.post('/profile/upload-image', formData);
       return res.data;
     },
 

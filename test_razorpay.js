@@ -6,7 +6,7 @@ const axios = require('axios');
         console.log('Registering with mobile:', uniqueMobile);
         
         // 1. Register
-        const regRes = await axios.post('http://165.22.218.70:9395/register', {
+        const regRes = await axios.post('http://168.144.95.58:9395/register', {
             name: 'Test Razorpay',
             mobile: uniqueMobile,
             password: 'Password@123',
@@ -15,7 +15,7 @@ const axios = require('axios');
         });
         
         // 2. Login
-        const loginRes = await axios.post('http://165.22.218.70:9395/login', {
+        const loginRes = await axios.post('http://168.144.95.58:9395/login', {
             mobile: uniqueMobile,
             password: 'Password@123'
         });
@@ -34,7 +34,7 @@ const axios = require('axios');
         
         for (const plan of testPlans) {
             try {
-                const res = await axios.post(`http://165.22.218.70:9395/razorpay/create-order?userId=${userId}&plan=${plan}`, null, {
+                const res = await axios.post(`http://168.144.95.58:9395/razorpay/create-order?userId=${userId}&plan=${plan}`, null, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 console.log(`✅ Plan '${plan}' SUCCESS:`, res.status, res.data);
