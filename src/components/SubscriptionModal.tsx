@@ -234,7 +234,8 @@ const normalizeOrderResponse = (orderData: any) => {
       normalizeTextValue(dataPayload?.razorpayKey) ||
       normalizeTextValue(orderPayload?.key) ||
       normalizeTextValue(orderPayload?.keyId) ||
-      normalizeTextValue(orderPayload?.key_id),
+      normalizeTextValue(orderPayload?.key_id) ||
+      'rzp_live_rwNG1cJwMzkuCO',
     orderId:
       resolveRazorpayOrderId(
         orderData?.order_id,
@@ -252,9 +253,12 @@ const normalizeOrderResponse = (orderData: any) => {
       ),
     amount:
       resolveCheckoutAmount(orderData?.amount) ||
+      resolveCheckoutAmount(orderData?.amountValue) ||
       resolveCheckoutAmount(dataPayload?.amount) ||
+      resolveCheckoutAmount(dataPayload?.amountValue) ||
       resolveCheckoutAmount(dataPayload?.amount_due) ||
-      resolveCheckoutAmount(orderPayload?.amount),
+      resolveCheckoutAmount(orderPayload?.amount) ||
+      resolveCheckoutAmount(orderPayload?.amountValue),
     currency:
       normalizeTextValue(orderData?.currency) ||
       normalizeTextValue(dataPayload?.currency) ||

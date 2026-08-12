@@ -32,9 +32,17 @@ const normalizeSubscriptionStatus = (payload: any): NormalizedSubscriptionStatus
       source?.active ??
       source?.isActive ??
       source?.subscribed ??
-      source?.isSubscribed,
+      source?.isSubscribed ??
+      (typeof source?.status === 'string' &&
+        String(source.status).trim().toUpperCase() === 'ACTIVE'),
     ),
-    plan: source?.plan ? String(source.plan) : null,
+    plan: source?.plan
+      ? String(source.plan)
+      : source?.type
+        ? String(source.type)
+        : source?.planType
+          ? String(source.planType)
+          : null,
     startDate: source?.startDate ? String(source.startDate) : null,
     endDate: source?.endDate ? String(source.endDate) : null,
     raw: payload,
