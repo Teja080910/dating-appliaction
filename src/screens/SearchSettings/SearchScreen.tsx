@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -22,9 +22,13 @@ import SaveResetButtons from '../../components/SearchSettingsComponents/SaveRese
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
+import { useDiscovery } from '../../api/useDiscovery';
+import { getUserId } from '../../utils/sessionHelper';
 
 const SearchScreen = ({ navigation }: any) => {
   const { alert, AlertComponent } = useAlert();
+  const [saving, setSaving] = useState(false);
+  const { filterUsers } = useDiscovery();
   const {
     setAgeRange,
     setDistanceRange,
@@ -37,9 +41,10 @@ const SearchScreen = ({ navigation }: any) => {
     setSmoke,
     setIsChecked,
     setLocation,
+    setFilter,
   } = React.useContext(AppContext);
 
-  const [, setFilters] = React.useState<any>({
+  const [filters, setFilters] = React.useState<any>({
     minAge: 18, maxAge: 40, maxDistanceKm: 50, worldwide: false,
     bodyType: [], appearance: [], language: [], englishLevel: [],
     ethnicity: [], lookingFor: [], gender: [], smoke: false, drink: false,
@@ -47,8 +52,36 @@ const SearchScreen = ({ navigation }: any) => {
   });
 
   const handleSave = async () => {
-    alert('Filters Applied', 'Updated matches will refresh on the home screen.');
-    navigation.goBack();
+    try {
+      setSaving(true);
+      const resolvedUserId = await getUserId();
+      const payload = {
+        userId: resolvedUserId || undefined,
+        minAge: filters.minAge,
+        maxAge: filters.maxAge,
+        maxDistanceKm: filters.maxDistanceKm,
+        worldwide: filters.worldwide,
+        bodyType: filters.bodyType,
+        appearance: filters.appearance,
+        language: filters.language,
+        englishLevel: filters.englishLevel,
+        ethnicity: filters.ethnicity,
+        lookingFor: filters.lookingFor,
+        gender: filters.gender,
+        smoke: filters.smoke,
+        drink: filters.drink,
+        page: 0,
+        size: 20,
+      };
+      await filterUsers.mutateAsync(payload);
+      setFilter('online');
+      alert('Filters Applied', 'Matches updated successfully.');
+      navigation.goBack();
+    } catch (err) {
+      alert('Error', 'Failed to apply filters. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -140,7 +173,12 @@ const SearchScreen = ({ navigation }: any) => {
         </View>
       </ScrollView>
 
-      <SaveResetButtons onSave={handleSave} onReset={handleReset} />
+      <SaveResetButtons
+        onSave={handleSave}
+        onReset={handleReset}
+        saving={saving}
+      />
+      {AlertComponent}
     </SafeAreaView>
   );
 };

@@ -25,6 +25,7 @@ export type RootParamList = {
   ChatDetailScreen: { name: string; image: string | null };
   MoreDetails: undefined;
   SupportScreen: undefined;
+  NotificationsScreen: undefined;
   UploadImage: undefined;
   SelfieVerification: undefined;
 };

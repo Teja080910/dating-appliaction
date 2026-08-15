@@ -170,10 +170,7 @@ export const useServices = (userId?: string) => {
   // Mark notification read
   const markNotificationRead = useMutation({
     mutationFn: async (notificationId: number) => {
-      // Swagger: notificationId is a query param ("in": "query")
-      const res = await apiClient.put('/notification/read/', null, {
-        params: { notificationId }
-      });
+      const res = await apiClient.put(`/notification/read/${notificationId}`);
       return res.data;
     },
     onSuccess: async () => {
@@ -291,22 +288,31 @@ export const useServices = (userId?: string) => {
   };
 };
   const normalizeNotifications = (payload: unknown) => {
-    if (Array.isArray(payload)) {
-      return payload;
-    }
+    let list: any[] = [];
 
-    if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload)) {
+      list = payload;
+    } else if (payload && typeof payload === 'object') {
       const record = payload as Record<string, unknown>;
       if (Array.isArray(record.data)) {
-        return record.data;
-      }
-      if (Array.isArray(record.content)) {
-        return record.content;
-      }
-      if (Array.isArray(record.notifications)) {
-        return record.notifications;
+        list = record.data;
+      } else if (Array.isArray(record.content)) {
+        list = record.content;
+      } else if (Array.isArray(record.notifications)) {
+        list = record.notifications;
       }
     }
 
-    return [];
+    return list.map((item) => {
+      if (!item || typeof item !== 'object') {
+        return item;
+      }
+      const copy = { ...item };
+      if (copy.user && typeof copy.user === 'object') {
+        copy.user = { ...copy.user };
+        delete copy.user.mobile;
+        delete copy.user.password;
+      }
+      return copy;
+    });
   };

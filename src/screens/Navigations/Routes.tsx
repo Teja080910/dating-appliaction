@@ -24,6 +24,7 @@ import PrivacyPolicyScreen from '../ProfileTab/PrivacyPolicyScreen';
 import ChatDetailScreen from '../MessageTab/ChatDetailScreen';
 import MoreDetailsScreen from '../onboarding/MoreDetailsScreen';
 import SupportScreen from '../ProfileTab/SupportScreen';
+import NotificationsScreen from '../ProfileTab/NotificationsScreen';
 import { SESSION_EXPIRED_EVENT } from '../../api/apiClient';
 import { resolveInitialRoute } from '../../utils/session';
 import SubscriptionModal from '../../components/SubscriptionModal';
@@ -111,6 +112,7 @@ const Routes = () => {
         <Stack.Screen name="MoreDetails" component={MoreDetailsScreen} />
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="SupportScreen" component={SupportScreen} />
+        <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
       </Stack.Navigator>
       <SubscriptionModal
         visible={paywallVisible}

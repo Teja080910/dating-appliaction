@@ -33,15 +33,25 @@ const resolveNotificationArray = (payload: unknown): any[] => {
 };
 
 const normalizeNotifications = (payload: unknown): NotificationItem[] =>
-  resolveNotificationArray(payload).map((item) => ({
-    id: typeof item?.id === 'number' ? item.id : 0,
-    title: String(item?.title || item?.subject || 'Notification').trim(),
-    body: String(item?.body || item?.message || '').trim(),
-    message: String(item?.message || item?.body || '').trim(),
-    read: Boolean(item?.read ?? item?.isRead ?? false),
-    createdAt: item?.createdAt ? String(item.createdAt) : null,
-    raw: item,
-  }));
+  resolveNotificationArray(payload).map((item) => {
+    const user =
+      item?.user && typeof item.user === 'object'
+        ? { ...item.user }
+        : undefined;
+    if (user) {
+      delete user.mobile;
+      delete user.password;
+    }
+    return {
+      id: typeof item?.id === 'number' ? item.id : 0,
+      title: String(item?.title || item?.subject || 'Notification').trim(),
+      body: String(item?.body || item?.message || '').trim(),
+      message: String(item?.message || item?.body || '').trim(),
+      read: Boolean(item?.read ?? item?.isRead ?? false),
+      createdAt: item?.createdAt ? String(item.createdAt) : null,
+      raw: item,
+    };
+  });
 
 const getNotificationErrorMessage = (error: any, fallback: string) =>
   error?.response?.data?.message ||
@@ -67,10 +77,7 @@ export const useNotification = (userId?: string) => {
 
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
-      // Swagger: notificationId is a query param ("in": "query")
-      const response = await apiClient.put('/notification/read/', null, {
-        params: { notificationId },
-      });
+      const response = await apiClient.put(`/notification/read/${notificationId}`);
       return response.data;
     },
     onSuccess: async () => {

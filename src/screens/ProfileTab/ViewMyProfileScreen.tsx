@@ -1,4 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,6 +23,7 @@ import AppContext from "../../context/CreateGlobalStateContext";
 import { Colors } from "../../theme";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
+import { RootParamList } from "../../utils/types/navigation.types";
 
 const { width: screenWidth } = Dimensions.get("window");
 const heroHeight = Math.min(Math.max(screenWidth * 1.15, 360), 520);
@@ -111,7 +113,7 @@ const resolveNumericIdentifier = (...values: unknown[]) => {
 };
 
 const ViewMyProfileScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route = useRoute<any>();
   const {
     viewMyProfile,
@@ -245,7 +247,18 @@ const ViewMyProfileScreen = () => {
   const handleLike = () => {
     if (!numericTargetId || !myId) return;
     likeMutation.mutate(numericTargetId, {
-      onSuccess: () => navigation.goBack()
+      onSuccess: () => {
+        const matchedImage = mergedProfile?.profileImageUrl || null;
+        navigation.navigate('MatchScreen', {
+          matchedUser: {
+            id: numericTargetId,
+            name: mergedProfile?.displayName || mergedProfile?.name || 'User',
+            image: matchedImage,
+            age: mergedProfile?.age || null,
+            city: mergedProfile?.currentCity || null,
+          },
+        });
+      },
     });
   };
   const handleDislike = () => {

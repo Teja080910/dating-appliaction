@@ -101,6 +101,12 @@ const ProfileScreen = () => {
             iconName="eye"
             onPress={() => navigation.navigate('ViewMyProfileScreen', { userId: undefined })}
           />
+          <ProfileRow
+            title="Notifications"
+            iconName="bell"
+            color={Colors.primaryLight}
+            onPress={() => navigation.navigate('NotificationsScreen')}
+          />
         </View>
 
         <View style={styles.section}>

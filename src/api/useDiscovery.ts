@@ -34,6 +34,23 @@ const normalizeBooleanFilter = (value: unknown) => {
   return undefined;
 };
 
+const SENSITIVE_USER_FIELDS = ['mobile', 'password'];
+
+const sanitizeUserRecord = (user: any): any => {
+  if (!user || typeof user !== 'object') {
+    return user;
+  }
+
+  const copy = { ...user };
+  SENSITIVE_USER_FIELDS.forEach((field) => {
+    delete copy[field];
+    if (copy.profile && typeof copy.profile === 'object') {
+      delete copy.profile[field];
+    }
+  });
+  return copy;
+};
+
 const normalizePagedUsersResponse = (payload: any) => {
   const base =
     payload && typeof payload === 'object' && !Array.isArray(payload)
@@ -46,13 +63,15 @@ const normalizePagedUsersResponse = (payload: any) => {
     (Array.isArray(base.data) ? base.data : null) ||
     (Array.isArray(payload) ? payload : []);
 
+  const sanitized = content.map(sanitizeUserRecord);
+
   return {
     totalPages: Number(base.totalPages ?? 0),
     totalElements: Number(base.totalElements ?? content.length ?? 0),
     first: Boolean(base.first ?? true),
     last: Boolean(base.last ?? true),
     size: Number(base.size ?? content.length ?? 0),
-    content,
+    content: sanitized,
     number: Number(base.number ?? 0),
     numberOfElements: Number(base.numberOfElements ?? content.length ?? 0),
     empty: Boolean(base.empty ?? content.length === 0),
