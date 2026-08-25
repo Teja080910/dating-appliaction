@@ -85,22 +85,24 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.divider,
   },
   button: {
-    flex: 1,
-    paddingVertical: Spacing.md,
+    paddingVertical: 0,
     borderRadius: Spacing.radiusXl,
     marginHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 50,
+    height: Spacing.buttonHeight,
   },
   resetButton: {
     backgroundColor: Colors.inputBackground,
     borderWidth: 1,
     borderColor: Colors.glassBorder,
+    flex: 1,
+    width: '40%',
   },
   saveButton: {
     overflow: 'hidden',
     ...Shadows.md,
+    flex: 1,
   },
   saveGradient: {
     flex: 1,

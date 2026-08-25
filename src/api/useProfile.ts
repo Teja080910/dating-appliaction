@@ -117,15 +117,36 @@ const resolveNumericUserId = async (candidate?: any) => {
 export const useMyProfile = (uid?: any) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const hasExplicitUid = uid !== undefined && uid !== null && String(uid).trim() !== '';
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(
+    hasExplicitUid ? String(uid) : null,
+  );
 
   useEffect(() => {
-    if (!uid) return;
+    let cancelled = false;
+    if (uid !== undefined && uid !== null && String(uid).trim() !== '') {
+      setResolvedUserId(String(uid));
+      return;
+    }
+
+    // No uid passed → fall back to the logged-in user's stored userId so the
+    // profile still loads after logout/login (in-memory context is reset).
+    getUserId()
+      .then((id) => {
+        if (!cancelled && id) setResolvedUserId(String(id));
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  useEffect(() => {
+    if (!resolvedUserId) return;
 
     setLoading(true);
     let cancelled = false;
     const fetch = async () => {
       try {
-        const resolvedUserId = String(uid);
         const res = await apiClient.post(`/profile/me`, null, { params: { userId: resolvedUserId } });
         if (!cancelled) {
           setData(normalizeProfile(res.data));
@@ -138,7 +159,7 @@ export const useMyProfile = (uid?: any) => {
     };
     fetch();
     return () => { cancelled = true; };
-  }, [uid]);
+  }, [resolvedUserId]);
 
   return { data, isLoading: loading };
 };

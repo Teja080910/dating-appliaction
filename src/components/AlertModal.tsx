@@ -9,6 +9,7 @@ import {
   BackHandler,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, Typography } from '../theme';
 
 interface AlertButton {
@@ -77,6 +78,15 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
             colors={[Colors.surface, Colors.surfaceLight]}
             style={styles.gradient}
           >
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onDismiss}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="close" size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+
             {title && <Text style={styles.title}>{title}</Text>}
             <Text style={[styles.message, !title && styles.messageNoTitle]}>{message}</Text>
 
@@ -190,6 +200,17 @@ const styles = StyleSheet.create({
   gradient: {
     padding: Spacing.xxl,
     alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.glass,
   },
   title: {
     fontSize: 18,

@@ -77,8 +77,21 @@ const SearchScreen = ({ navigation }: any) => {
       setFilter('online');
       alert('Filters Applied', 'Matches updated successfully.');
       navigation.goBack();
-    } catch (err) {
-      alert('Error', 'Failed to apply filters. Please try again.');
+    } catch (err: any) {
+      const serverMessage =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        (typeof err?.message === 'string' ? err.message : null);
+      if (err?.response?.status === 401) {
+        alert('Session Expired', 'Please login again to continue.');
+      } else {
+        alert(
+          'Error',
+          serverMessage
+            ? `Failed to apply filters: ${String(serverMessage)}`
+            : 'Failed to apply filters. Please try again.',
+        );
+      }
     } finally {
       setSaving(false);
     }

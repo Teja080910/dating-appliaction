@@ -51,11 +51,19 @@ const resolveHomeCardImage = (item: any) => {
   return imagePath ? getAbsoluteUrl(imagePath) : null;
 };
 
-const resolveProfileUserId = (item: any) => {
+const resolveProfileUserId = (item: any): string | number | null => {
   const ids = [
-    item?.id, item?.profile?.userId, item?.user?.id, item?.profile?.user?.id,
+    item?.id, item?.userId, item?.profile?.userId,
+    item?.user?.id, item?.user?.userId,
+    item?.profile?.user?.id, item?.profile?.user?.userId,
   ];
   for (const id of ids) {
+    // if (id === null || id === undefined) continue;
+    // const normalized = String(id).trim();
+    // if (!normalized || normalized === '0' || normalized === 'null' || normalized === 'undefined') continue;
+    // // Alphanumeric backend IDs like SA1000, US1025
+    // if (/^[A-Za-z]+\d+$/.test(normalized)) return normalized;
+    // Pure numeric IDs
     const num = Number(id);
     if (Number.isFinite(num) && num > 0) return num;
   }
@@ -80,7 +88,10 @@ const keepInvitableProfiles = (items: any[]) =>
 
 const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
   const { filterUsers, searchUsers } = useDiscovery();
-  const { showMe, authUserId } = useContext(AppContext);
+  const {
+    showMe,
+    authUserId,
+  } = useContext(AppContext);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvedBackendUserId, setResolvedBackendUserId] = useState<string | null>(null);
@@ -148,7 +159,8 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
         const genderMatched = items.filter((item) =>
           matchesGenderSelection(item, selectedGender)
         );
-        const finalItems = keepInvitableProfiles(genderMatched);
+        let finalItems = keepInvitableProfiles(genderMatched);
+
         if (isMounted) setProfiles(finalItems);
       } catch (error) {
         console.warn('Home load failed:', error);
