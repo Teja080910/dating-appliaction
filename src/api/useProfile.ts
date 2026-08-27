@@ -94,6 +94,9 @@ const normalizeCompletion = (payload: any) => {
   return Number.isFinite(nestedNumeric) ? nestedNumeric : 0;
 };
 
+const hasValidUid = (uid: any): boolean =>
+  uid !== undefined && uid !== null && String(uid).trim() !== '';
+
 const resolveBackendUserId = async () => {
   const userId = await getUserId();
   if (!userId || String(userId).trim() === '') {
@@ -117,14 +120,14 @@ const resolveNumericUserId = async (candidate?: any) => {
 export const useMyProfile = (uid?: any) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const hasExplicitUid = uid !== undefined && uid !== null && String(uid).trim() !== '';
+  const [error, setError] = useState<string | null>(null);
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(
-    hasExplicitUid ? String(uid) : null,
+    hasValidUid(uid) ? String(uid) : null,
   );
 
   useEffect(() => {
     let cancelled = false;
-    if (uid !== undefined && uid !== null && String(uid).trim() !== '') {
+    if (hasValidUid(uid)) {
       setResolvedUserId(String(uid));
       return;
     }
@@ -144,6 +147,7 @@ export const useMyProfile = (uid?: any) => {
     if (!resolvedUserId) return;
 
     setLoading(true);
+    setError(null);
     let cancelled = false;
     const fetch = async () => {
       try {
@@ -151,8 +155,14 @@ export const useMyProfile = (uid?: any) => {
         if (!cancelled) {
           setData(normalizeProfile(res.data));
         }
-      } catch {
-        if (!cancelled) setData(null);
+      } catch (err: any) {
+        if (!cancelled) {
+          setData(null);
+          const message =
+            err?.response?.data?.message ||
+            (typeof err?.message === 'string' ? err.message : 'Failed to load profile');
+          setError(message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -161,7 +171,7 @@ export const useMyProfile = (uid?: any) => {
     return () => { cancelled = true; };
   }, [resolvedUserId]);
 
-  return { data, isLoading: loading };
+  return { data, isLoading: loading, error };
 };
 
 export const useProfileCompletion = (uid: any) => {

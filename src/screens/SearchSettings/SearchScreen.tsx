@@ -24,6 +24,8 @@ import { Colors, Spacing } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { useDiscovery } from '../../api/useDiscovery';
 import { getUserId } from '../../utils/sessionHelper';
+import { clearAuthSession } from '../../utils/session';
+import { CommonActions } from '@react-navigation/native';
 
 const SearchScreen = ({ navigation }: any) => {
   const { alert, AlertComponent } = useAlert();
@@ -83,7 +85,14 @@ const SearchScreen = ({ navigation }: any) => {
         err?.response?.data ||
         (typeof err?.message === 'string' ? err.message : null);
       if (err?.response?.status === 401) {
+        await clearAuthSession();
         alert('Session Expired', 'Please login again to continue.');
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          })
+        );
       } else {
         alert(
           'Error',

@@ -58,12 +58,10 @@ const resolveProfileUserId = (item: any): string | number | null => {
     item?.profile?.user?.id, item?.profile?.user?.userId,
   ];
   for (const id of ids) {
-    // if (id === null || id === undefined) continue;
-    // const normalized = String(id).trim();
-    // if (!normalized || normalized === '0' || normalized === 'null' || normalized === 'undefined') continue;
-    // // Alphanumeric backend IDs like SA1000, US1025
-    // if (/^[A-Za-z]+\d+$/.test(normalized)) return normalized;
-    // Pure numeric IDs
+    if (id === null || id === undefined) continue;
+    const normalized = String(id).trim();
+    if (!normalized || normalized === '0' || normalized === 'null' || normalized === 'undefined') continue;
+    if (/^[A-Za-z]+\d+$/.test(normalized)) return normalized;
     const num = Number(id);
     if (Number.isFinite(num) && num > 0) return num;
   }
@@ -159,7 +157,7 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
         const genderMatched = items.filter((item) =>
           matchesGenderSelection(item, selectedGender)
         );
-        let finalItems = keepInvitableProfiles(genderMatched);
+        const finalItems = keepInvitableProfiles(genderMatched);
 
         if (isMounted) setProfiles(finalItems);
       } catch (error) {

@@ -97,7 +97,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.glassBorder,
     flex: 1,
-    width: '40%',
   },
   saveButton: {
     overflow: 'hidden',
