@@ -157,7 +157,13 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
         const genderMatched = items.filter((item) =>
           matchesGenderSelection(item, selectedGender)
         );
-        const finalItems = keepInvitableProfiles(genderMatched);
+        const invitable = keepInvitableProfiles(genderMatched);
+        const finalItems = resolvedBackendUserId
+          ? invitable.filter((item) => {
+              const itemUserId = String(resolveProfileUserId(item) || '');
+              return itemUserId && itemUserId !== String(resolvedBackendUserId);
+            })
+          : invitable;
 
         if (isMounted) setProfiles(finalItems);
       } catch (error) {

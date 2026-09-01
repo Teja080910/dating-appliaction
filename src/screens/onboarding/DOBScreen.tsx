@@ -14,6 +14,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAlert } from '../../components/AlertModal';
+import { Colors, Spacing } from '../../theme';
 
 const DOBScreen = ({ navigation }: any) => {
   const { date, setDate } = useContext(AppContext);
@@ -64,7 +65,7 @@ const DOBScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
 
       {/* Progress Bar */}
       <View style={styles.progressBarContainer}>
@@ -96,7 +97,7 @@ const DOBScreen = ({ navigation }: any) => {
       {/* Bottom Info */}
       <View style={styles.bottomContainer}>
         <View style={styles.infoContainer}>
-          <Icon name="info-circle" size={14} color="#999" />
+          <Icon name="info-circle" size={14} color={Colors.textMuted} />
           <Text style={styles.infoText}>
             Did you know that you have 100% privacy at AMARA? Only invited users can see your profile.
           </Text>
@@ -116,18 +117,18 @@ const DOBScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 },
-  progressBarContainer: { height: 5, backgroundColor: '#eee', marginTop: 10, borderRadius: 10, overflow: 'hidden' },
-  progressBarFill: { width: '60%', height: '100%', backgroundColor: '#FF5A79' },
-  title: { marginTop: 30, fontSize: 26, fontWeight: '700', textAlign: 'center', color: '#000' },
-  dateDisplay: { marginTop: 20, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: '#eee', borderRadius: 12, alignItems: 'center', backgroundColor: '#FAFAFA' },
-  dateText: { fontSize: 16, color: '#000' },
+  container: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: 24 },
+  progressBarContainer: { height: 5, backgroundColor: Colors.surfaceLighter, marginTop: 10, borderRadius: 10, overflow: 'hidden' },
+  progressBarFill: { width: '60%', height: '100%', backgroundColor: Colors.primary },
+  title: { marginTop: 30, fontSize: 26, fontWeight: '700', textAlign: 'center', color: Colors.text },
+  dateDisplay: { marginTop: 20, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, alignItems: 'center', backgroundColor: Colors.surface },
+  dateText: { fontSize: 16, color: Colors.text },
   bottomContainer: { marginTop: 'auto', paddingBottom: 30 },
   infoContainer: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 20 },
-  infoText: { fontSize: 12, color: '#999', flex: 1 },
-  nextButton: { backgroundColor: '#FF5A79', paddingVertical: 16, borderRadius: 999, alignItems: 'center' },
+  infoText: { fontSize: 12, color: Colors.textMuted, flex: 1 },
+  nextButton: { backgroundColor: Colors.primary, paddingVertical: 16, borderRadius: 999, alignItems: 'center' },
   disabledButton: { opacity: 0.5 },
-  nextButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+  nextButtonText: { color: Colors.white, fontWeight: 'bold', fontSize: 18 },
 });
 
 export default DOBScreen;

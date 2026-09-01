@@ -173,12 +173,12 @@ const AdditionalUploadSection = () => {
               ) : (
                 <View style={styles.iconContainer}>
                   {uploadImage.isPending ? (
-                    <ActivityIndicator color="#E94057" />
+                    <ActivityIndicator color={Colors.primary} />
                   ) : (
                     <>
-                      <Icon name="camera" size={24} color="#777" />
+                      <Icon name="camera" size={24} color={Colors.textMuted} />
                       <View style={styles.plusBadge}>
-                        <Icon name="plus" size={12} color="#fff" />
+                        <Icon name="plus" size={12} color={Colors.white} />
                       </View>
                     </>
                   )}

@@ -34,8 +34,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     selectedEthinicity,
     selectedSmoking,
     selectedDrinking,
-    setInvitations,
-    invitations,
     setPaywallVisible,
     isSubscribed,
     verifiedSelfie,
@@ -142,8 +140,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge))
     : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, 'N/A');
 
-  // Check if this user is already invited
-  const isAlreadyInvited = invitations?.some((inv: any) => Number(inv.receiverId || inv.id) === Number(resolvedTargetUserId));
+  // Check if this user is already invited (from sent connections API)
+  const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+  const isAlreadyInvited = sentConnections.some((inv: any) => {
+    const receiverId = inv?.receiver?.id ?? inv?.receiverId ?? inv?.id;
+    return Number(receiverId) === Number(resolvedTargetUserId);
+  });
   const resolvedLanguages = (isOwnProfile || propProfile)
     ? normalizeTextValue(resolvedProfile?.language || profile.language, '')
         .split(',')
@@ -220,18 +222,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
         image: selectedUserImage || '',
     };
 
-    connection.send.mutate({
-      receiverId: String(resolvedTargetUserId),
-      senderId: String(activeCurrentUserId),
-    }, {
+    connection.send.mutate(String(resolvedTargetUserId), {
       onSuccess: () => {
-        const newInvite = {
-          id: Date.now().toString(),
-          ...inviteData,
-          status: 'Pending',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setInvitations([newInvite, ...invitations]);
+        connection.sentList.refetch();
         connection.refreshAll();
         Toast.show({ type: 'success', text1: 'Invitation sent!' });
       },

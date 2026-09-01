@@ -210,6 +210,7 @@ const LoginScreen = ({navigation}: any) => {
     }
 
     setLoading(true);
+    Keyboard.dismiss();
     const payload = buildLoginPayload(normalizedMobile, password);
 
     login.mutate(payload, {
@@ -361,7 +362,7 @@ const LoginScreen = ({navigation}: any) => {
         backgroundColor="transparent"
       />
       <LinearGradient
-        colors={[Colors.background, '#1A1530', Colors.surface]}
+        colors={[Colors.background, Colors.surface, Colors.surface]}
         style={styles.gradient}>
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView

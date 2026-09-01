@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 
@@ -124,6 +124,9 @@ export const useMyProfile = (uid?: any) => {
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(
     hasValidUid(uid) ? String(uid) : null,
   );
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,9 +172,9 @@ export const useMyProfile = (uid?: any) => {
     };
     fetch();
     return () => { cancelled = true; };
-  }, [resolvedUserId]);
+  }, [resolvedUserId, refreshKey]);
 
-  return { data, isLoading: loading, error };
+  return { data, isLoading: loading, error, refetch };
 };
 
 export const useProfileCompletion = (uid: any) => {
@@ -276,18 +279,26 @@ export const useProfile = () => {
     bodyType: string;
     appearance: string;
     height: number;
+    englishLevel?: string;
+    ethnicity?: string;
+    kidCount?: string;
+    netWorth?: string;
   };
 
   const updateDetails = useMutation<any, Error, UpdateDetailsInput>({
     mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
-      const payload = {
+      const payload: Record<string, any> = {
         userId: resolvedUserId,
         language: data.language,
         bodyType: data.bodyType,
         appearance: data.appearance,
         height: data.height,
+        englishLevel: data.englishLevel || '',
+        ethnicity: data.ethnicity || '',
+        kidCount: data.kidCount || '',
+        netWorth: data.netWorth || '',
       };
 
       const res = await apiClient.put('/profile/update-details', payload);

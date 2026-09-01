@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -75,6 +76,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     }
 
     setLoading(true);
+    Keyboard.dismiss();
     forgotPasswordSendOtp.mutate(
       { mobile: normalizedMobile },
       {
@@ -104,6 +106,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     }
 
     setLoading(true);
+    Keyboard.dismiss();
     forgotPasswordReset.mutate(
       { mobile: normalizedMobile, otp: otp.trim(), newPassword: newPassword.trim() },
       {

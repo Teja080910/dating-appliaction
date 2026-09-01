@@ -80,14 +80,8 @@ export const useConnection = (userId?: string | number) => {
     ) => {
       const receiverId =
         typeof input === 'object' && input !== null ? input.receiverId : input;
-      const senderId =
-        typeof input === 'object' && input !== null ? input.senderId : undefined;
-      const resolvedSenderId = senderId
-        ? toApiUserId(senderId)
-        : await resolveBackendUserId();
 
       const res = await apiClient.post('/connections/send', {
-        senderId: resolvedSenderId,
         receiverId: toApiUserId(receiverId),
       });
       return res.data;

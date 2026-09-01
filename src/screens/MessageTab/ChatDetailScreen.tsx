@@ -22,15 +22,10 @@ import { Colors, Spacing, Shadows, Typography } from '../../theme';
 const ChatDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const { name, image } = route.params || { name: 'Alisha', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format' };
+  const { name, image } = route.params || { name: 'User', image: null };
   const { requireSubscription } = useSubscriptionGate();
 
-  const [messages, setMessages] = useState([
-    { id: '1', text: 'Hey there! How is your day going?', sender: 'other', time: '10:15 AM' },
-    { id: '2', text: 'It is going great, thank you for asking! How about yours?', sender: 'me', time: '10:18 AM' },
-    { id: '3', text: 'Pretty busy, but saw your profile and had to say hi.', sender: 'other', time: '10:20 AM' },
-  ]);
-
+  const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
 
   const sendMessage = () => {
@@ -56,6 +51,16 @@ const ChatDetailScreen = () => {
     </View>
   );
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIconCircle}>
+        <Icon name="chat-outline" size={40} color={Colors.textMuted} />
+      </View>
+      <Text style={styles.emptyTitle}>No messages yet</Text>
+      <Text style={styles.emptyDesc}>Send a message to start the conversation!</Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
@@ -66,7 +71,13 @@ const ChatDetailScreen = () => {
         </TouchableOpacity>
 
         <View style={styles.headerProfile}>
-          <Image source={{ uri: image }} style={styles.headerAvatar} />
+          {image ? (
+            <Image source={{ uri: image }} style={styles.headerAvatar} />
+          ) : (
+            <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
+              <Icon name="account" size={22} color={Colors.textMuted} />
+            </View>
+          )}
           <View>
             <Text style={styles.headerName}>{name}</Text>
             <View style={styles.onlineStatus}>
@@ -85,7 +96,8 @@ const ChatDetailScreen = () => {
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessage}
-        contentContainerStyle={styles.chatArea}
+        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={messages.length === 0 ? styles.emptyChatArea : styles.chatArea}
         showsVerticalScrollIndicator={false}
       />
 
@@ -103,21 +115,22 @@ const ChatDetailScreen = () => {
 
           <View style={styles.inputWrapper}>
             <TextInput
-              placeholder="Type a message..."
+              placeholder="Messaging coming soon..."
               style={styles.input}
               value={inputText}
               onChangeText={setInputText}
               multiline
               placeholderTextColor={Colors.textMuted}
+              editable={false}
             />
           </View>
 
           <TouchableOpacity
-            style={[styles.sendBtn, inputText.trim() === '' && styles.disabledSend]}
-            onPress={sendMessage}
+            style={[styles.sendBtn, styles.disabledSend]}
+            disabled
           >
             <LinearGradient
-              colors={inputText.trim() === '' ? [Colors.disabled, Colors.disabled] : [Colors.primary, Colors.secondary]}
+              colors={[Colors.disabled, Colors.disabled]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sendGradient}
@@ -290,5 +303,40 @@ const styles = StyleSheet.create({
   },
   disabledSend: {
     opacity: 0.5,
+  },
+  emptyChatArea: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.glass,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  emptyDesc: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  headerAvatarPlaceholder: {
+    backgroundColor: Colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Keyboard } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -56,6 +56,7 @@ const SearchScreen = ({ navigation }: any) => {
   const handleSave = async () => {
     try {
       setSaving(true);
+      Keyboard.dismiss();
       const resolvedUserId = await getUserId();
       const payload = {
         userId: resolvedUserId || undefined,
@@ -72,6 +73,8 @@ const SearchScreen = ({ navigation }: any) => {
         gender: filters.gender,
         smoke: filters.smoke,
         drink: filters.drink,
+        minHeight: filters.minHeight,
+        maxHeight: filters.maxHeight,
         page: 0,
         size: 20,
       };

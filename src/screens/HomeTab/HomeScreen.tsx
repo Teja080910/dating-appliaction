@@ -7,10 +7,11 @@ import { getGender } from '../../utils/types/AsyncStorage';
 import UserList from '../../components/HomeTabComponents/UserList';
 import HomeHeader from '../../components/HomeTabComponents/HomeHeader';
 import { Colors, Spacing } from '../../theme';
+import { getCurrentLocation } from '../../utils/geolocation';
 
 const HomeScreen = () => {
   const { oppositeGender, setOppositeGender, filter, setFilter } = useContext(AppContext);
-  const [userLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     const fetchGender = async () => {
@@ -21,6 +22,18 @@ const HomeScreen = () => {
     };
     fetchGender();
   }, [setOppositeGender]);
+
+  useEffect(() => {
+    const fetchLocation = async () => {
+      try {
+        const location = await getCurrentLocation();
+        setUserLocation(location);
+      } catch {
+        // Location permission denied or unavailable
+      }
+    };
+    fetchLocation();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
