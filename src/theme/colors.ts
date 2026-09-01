@@ -47,6 +47,8 @@ export const Colors = {
   placeholder: '#6B6980',
   disabled: '#2D2950',
   disabledText: '#4D4B65',
+  grey: '#6B6980',
+  lightGrey: '#2D2950',
 
   // Shadows
   shadow: 'rgba(124, 58, 237, 0.3)',

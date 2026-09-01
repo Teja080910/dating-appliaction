@@ -210,6 +210,7 @@ const LoginScreen = ({navigation}: any) => {
     }
 
     setLoading(true);
+    Keyboard.dismiss();
     const payload = buildLoginPayload(normalizedMobile, password);
 
     login.mutate(payload, {
@@ -316,6 +317,12 @@ const LoginScreen = ({navigation}: any) => {
         </View>
 
         <TouchableOpacity
+          style={styles.forgotBtn}
+          onPress={() => navigation.navigate('ForgotPassword')}>
+          <Text style={styles.forgotBtnText}>Forgot Password?</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[dynamicStyles.loginBtn, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}>
@@ -355,7 +362,7 @@ const LoginScreen = ({navigation}: any) => {
         backgroundColor="transparent"
       />
       <LinearGradient
-        colors={[Colors.background, '#1A1530', Colors.surface]}
+        colors={[Colors.background, Colors.surface, Colors.surface]}
         style={styles.gradient}>
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView
@@ -389,7 +396,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: Spacing.xs,
   },
-  inputGroup: {marginBottom: Spacing.md},
+  inputGroup: {marginBottom: Spacing.sm},
+  forgotBtn: {alignSelf: 'flex-end', marginBottom: Spacing.md},
+  forgotBtnText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   eyeToggle: {padding: Spacing.sm},
   loginGradient: {
     flex: 1,

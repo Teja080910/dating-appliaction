@@ -79,6 +79,7 @@ const RegisterScreen = ({navigation}: any) => {
     }
 
     setLoading(true);
+    Keyboard.dismiss();
     try {
       const res = await sendRegisterOtp.mutateAsync(
         buildRegisterPayload({

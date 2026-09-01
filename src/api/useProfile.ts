@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 
@@ -94,6 +94,9 @@ const normalizeCompletion = (payload: any) => {
   return Number.isFinite(nestedNumeric) ? nestedNumeric : 0;
 };
 
+const hasValidUid = (uid: any): boolean =>
+  uid !== undefined && uid !== null && String(uid).trim() !== '';
+
 const resolveBackendUserId = async () => {
   const userId = await getUserId();
   if (!userId || String(userId).trim() === '') {
@@ -117,30 +120,61 @@ const resolveNumericUserId = async (candidate?: any) => {
 export const useMyProfile = (uid?: any) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(
+    hasValidUid(uid) ? String(uid) : null,
+  );
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
-    if (!uid) return;
+    let cancelled = false;
+    if (hasValidUid(uid)) {
+      setResolvedUserId(String(uid));
+      return;
+    }
+
+    // No uid passed → fall back to the logged-in user's stored userId so the
+    // profile still loads after logout/login (in-memory context is reset).
+    getUserId()
+      .then((id) => {
+        if (!cancelled && id) setResolvedUserId(String(id));
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  useEffect(() => {
+    if (!resolvedUserId) return;
 
     setLoading(true);
+    setError(null);
     let cancelled = false;
     const fetch = async () => {
       try {
-        const resolvedUserId = String(uid);
         const res = await apiClient.post(`/profile/me`, null, { params: { userId: resolvedUserId } });
         if (!cancelled) {
           setData(normalizeProfile(res.data));
         }
-      } catch {
-        if (!cancelled) setData(null);
+      } catch (err: any) {
+        if (!cancelled) {
+          setData(null);
+          const message =
+            err?.response?.data?.message ||
+            (typeof err?.message === 'string' ? err.message : 'Failed to load profile');
+          setError(message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     fetch();
     return () => { cancelled = true; };
-  }, [uid]);
+  }, [resolvedUserId, refreshKey]);
 
-  return { data, isLoading: loading };
+  return { data, isLoading: loading, error, refetch };
 };
 
 export const useProfileCompletion = (uid: any) => {
@@ -245,18 +279,26 @@ export const useProfile = () => {
     bodyType: string;
     appearance: string;
     height: number;
+    englishLevel?: string;
+    ethnicity?: string;
+    kidCount?: string;
+    netWorth?: string;
   };
 
   const updateDetails = useMutation<any, Error, UpdateDetailsInput>({
     mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
-      const payload = {
+      const payload: Record<string, any> = {
         userId: resolvedUserId,
         language: data.language,
         bodyType: data.bodyType,
         appearance: data.appearance,
         height: data.height,
+        englishLevel: data.englishLevel || '',
+        ethnicity: data.ethnicity || '',
+        kidCount: data.kidCount || '',
+        netWorth: data.netWorth || '',
       };
 
       const res = await apiClient.put('/profile/update-details', payload);

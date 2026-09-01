@@ -166,6 +166,8 @@ export const useDiscovery = (userId?: any) => {
         drink: normalizeBooleanFilter(data.drink),
         maxDistanceKm: Number.isFinite(Number(data?.maxDistanceKm)) ? Number(data.maxDistanceKm) : undefined,
         worldwide: typeof data?.worldwide === 'boolean' ? data.worldwide : undefined,
+        minHeight: Number.isFinite(Number(data?.minHeight)) ? Number(data.minHeight) : undefined,
+        maxHeight: Number.isFinite(Number(data?.maxHeight)) ? Number(data.maxHeight) : undefined,
         page: Number.isFinite(Number(data?.page)) ? Number(data.page) : 0,
         size: Number.isFinite(Number(data?.size)) ? Number(data.size) : 20,
       };

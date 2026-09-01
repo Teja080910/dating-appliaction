@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -9,6 +9,7 @@ import {
   Image,
   BackHandler,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -20,8 +21,9 @@ import { Colors, Spacing, Shadows } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 
 const ConnectTelegramScreen = ({ navigation }: any) => {
-  const { getTelegramLink } = useTelegram();
+  const { getTelegramLink, connectTelegram } = useTelegram();
   const { alert, AlertComponent } = useAlert();
+  const [loading, setLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +53,7 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
   };
 
   const handleConnectTelegram = async () => {
+    setLoading(true);
     const fallbackUrls = [
       'tg://resolve?domain=AmaraDatingBot',
       'https://t.me/AmaraDatingBot',
@@ -98,9 +101,19 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
         throw new Error('Unable to open Telegram link');
       }
 
+      try {
+        await connectTelegram.mutateAsync({ userId: '' });
+      } catch (connectErr: any) {
+        const msg = connectErr?.response?.data?.message || connectErr?.message || 'Could not link Telegram.';
+        console.warn('[Telegram] Connect registration failed:', msg);
+        alert('Telegram Connect', msg);
+      }
+
       await completeOnboarding();
+      setLoading(false);
       navigation.navigate('BottomTabs');
     } catch (error) {
+      setLoading(false);
       console.error('Telegram Error:', error);
       alert('Telegram Connect', 'We could not open the Telegram bot right now. You can continue onboarding and connect Telegram later from your profile.', [
         {
@@ -160,14 +173,18 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
                 </Text>
               </View>
 
-              <TouchableOpacity style={styles.connectBtn} onPress={handleConnectTelegram}>
+              <TouchableOpacity style={styles.connectBtn} onPress={handleConnectTelegram} disabled={loading}>
                 <LinearGradient
                   colors={[Colors.primary, Colors.secondary]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.connectGradient}
                 >
-                  <Text style={styles.connectBtnText}>Connect Telegram</Text>
+                  {loading ? (
+                    <ActivityIndicator color={Colors.white} />
+                  ) : (
+                    <Text style={styles.connectBtnText}>Connect Telegram</Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
 

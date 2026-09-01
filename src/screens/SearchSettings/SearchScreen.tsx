@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Keyboard } from 'react-native';
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -24,6 +24,8 @@ import { Colors, Spacing } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { useDiscovery } from '../../api/useDiscovery';
 import { getUserId } from '../../utils/sessionHelper';
+import { clearAuthSession } from '../../utils/session';
+import { CommonActions } from '@react-navigation/native';
 
 const SearchScreen = ({ navigation }: any) => {
   const { alert, AlertComponent } = useAlert();
@@ -54,6 +56,7 @@ const SearchScreen = ({ navigation }: any) => {
   const handleSave = async () => {
     try {
       setSaving(true);
+      Keyboard.dismiss();
       const resolvedUserId = await getUserId();
       const payload = {
         userId: resolvedUserId || undefined,
@@ -70,6 +73,8 @@ const SearchScreen = ({ navigation }: any) => {
         gender: filters.gender,
         smoke: filters.smoke,
         drink: filters.drink,
+        minHeight: filters.minHeight,
+        maxHeight: filters.maxHeight,
         page: 0,
         size: 20,
       };
@@ -77,8 +82,28 @@ const SearchScreen = ({ navigation }: any) => {
       setFilter('online');
       alert('Filters Applied', 'Matches updated successfully.');
       navigation.goBack();
-    } catch (err) {
-      alert('Error', 'Failed to apply filters. Please try again.');
+    } catch (err: any) {
+      const serverMessage =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        (typeof err?.message === 'string' ? err.message : null);
+      if (err?.response?.status === 401) {
+        await clearAuthSession();
+        alert('Session Expired', 'Please login again to continue.');
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          })
+        );
+      } else {
+        alert(
+          'Error',
+          serverMessage
+            ? `Failed to apply filters: ${String(serverMessage)}`
+            : 'Failed to apply filters. Please try again.',
+        );
+      }
     } finally {
       setSaving(false);
     }

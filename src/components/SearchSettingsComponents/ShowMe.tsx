@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { getGender } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -10,20 +10,23 @@ interface ShowMeProps {
 
 const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
   const { showMe, setShowMe } = useContext(AppContext);
+  const initialized = useRef(false);
 
   useEffect(() => {
+    if (initialized.current) return;
     const fetchGender = async () => {
       try {
         const gender = await getGender();
         const initialShow = gender === 'straight_man' ? 'straight_woman' : 'straight_man';
         setShowMe(initialShow);
         if (onChange) onChange([initialShow]);
+        initialized.current = true;
       } catch (error) {
         console.error('Error fetching gender:', error);
       }
     };
     fetchGender();
-  }, [onChange, setShowMe]);
+  }, []);
 
   const handleSelect = (val: 'straight_man' | 'straight_woman') => {
     setShowMe(val);
