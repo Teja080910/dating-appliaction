@@ -5,11 +5,12 @@ import { useDiscovery } from '../../api/useDiscovery';
 import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
-import { Colors, Spacing, Typography } from '../../theme';
+import { Colors, Spacing } from '../../theme';
 
 interface HomeUserListProps {
   filterByGender: string | null;
   mode?: 'online' | 'newest';
+  filteredProfiles?: any[] | null;
   userLocation?: { latitude: number; longitude: number } | null;
 }
 
@@ -76,15 +77,19 @@ const parseUserCollection = (data: any) =>
 const matchesGenderSelection = (item: any, selectedGender: string | null) => {
   if (!selectedGender || selectedGender === 'lgbtqia') return true;
   const gender = normalizeText(item?.profile?.gender || item?.gender);
-  if (selectedGender === 'straight_man') return gender === 'woman' || gender === 'female';
-  if (selectedGender === 'straight_woman') return gender === 'man' || gender === 'male';
+  if (selectedGender === 'straight_man') return gender === 'man' || gender === 'male';
+  if (selectedGender === 'straight_woman') return gender === 'woman' || gender === 'female';
   return true;
 };
 
 const keepInvitableProfiles = (items: any[]) =>
   items.filter((item) => resolveProfileUserId(item));
 
-const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
+const UserList = ({
+  filterByGender,
+  mode = 'online',
+  filteredProfiles = null,
+}: HomeUserListProps) => {
   const { filterUsers, searchUsers } = useDiscovery();
   const {
     showMe,
@@ -117,7 +122,9 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
         let items: any[] = [];
 
         try {
-          if (mode === 'online') {
+          if (filteredProfiles !== null) {
+            items = filteredProfiles;
+          } else if (mode === 'online') {
             try {
               const res = await apiClient.get('/dashboard/online', {
                 params: { page: 0, size: 20 },
@@ -176,7 +183,7 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
 
     fetchMatches();
     return () => { isMounted = false; };
-  }, [mode, filterByGender, showMe, resolvedBackendUserId]);
+  }, [mode, filterByGender, showMe, resolvedBackendUserId, filteredProfiles]);
 
   if (loading) {
     return (

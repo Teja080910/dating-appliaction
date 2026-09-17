@@ -18,7 +18,6 @@ import { Colors, Spacing } from '../../theme';
 
 const DOBScreen = ({ navigation }: any) => {
   const { date, setDate } = useContext(AppContext);
-  const [open, setOpen] = useState(false);
   const { alert, AlertComponent } = useAlert();
 
   // ✅ Safe default date
@@ -36,9 +35,6 @@ const DOBScreen = ({ navigation }: any) => {
   };
 
   const currentAge = getAge(safeDate);
-  
-  // ✅ FINAL logic from user
-  const formattedDate = date ? new Date(date).toLocaleDateString('en-GB') : 'Select Date';
 
   const handleNext = () => {
     if (currentAge < 18) {
@@ -75,24 +71,17 @@ const DOBScreen = ({ navigation }: any) => {
       {/* Title */}
       <Text style={styles.title}>When are you born?</Text>
 
-      {/* Date Display */}
-      <TouchableOpacity style={styles.dateDisplay} onPress={() => setOpen(true)}>
-        <Text style={styles.dateText}>{formattedDate}</Text>
-      </TouchableOpacity>
-
-      {/* Date Picker Modal */}
-      <DatePicker
-        modal
-        open={open}
-        date={safeDate}
-        mode="date"
-        maximumDate={new Date()}
-        onConfirm={(selectedDate) => {
-          setOpen(false);
-          setDate(selectedDate);
-        }}
-        onCancel={() => setOpen(false)}
-      />
+      {/* Inline Date Picker Wheel */}
+      <View style={styles.datePickerWrapper}>
+        <DatePicker
+          date={safeDate}
+          onDateChange={setDate}
+          mode="date"
+          theme="dark"
+          locale="en"
+          maximumDate={new Date()}
+        />
+      </View>
 
       {/* Bottom Info */}
       <View style={styles.bottomContainer}>
@@ -121,8 +110,11 @@ const styles = StyleSheet.create({
   progressBarContainer: { height: 5, backgroundColor: Colors.surfaceLighter, marginTop: 10, borderRadius: 10, overflow: 'hidden' },
   progressBarFill: { width: '60%', height: '100%', backgroundColor: Colors.primary },
   title: { marginTop: 30, fontSize: 26, fontWeight: '700', textAlign: 'center', color: Colors.text },
-  dateDisplay: { marginTop: 20, paddingVertical: 14, paddingHorizontal: 20, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, alignItems: 'center', backgroundColor: Colors.surface },
-  dateText: { fontSize: 16, color: Colors.text },
+  datePickerWrapper: {
+    marginTop: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   bottomContainer: { marginTop: 'auto', paddingBottom: 30 },
   infoContainer: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 20 },
   infoText: { fontSize: 12, color: Colors.textMuted, flex: 1 },

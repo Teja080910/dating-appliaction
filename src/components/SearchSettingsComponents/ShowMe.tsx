@@ -14,23 +14,28 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
 
   useEffect(() => {
     if (initialized.current) return;
+    if (showMe) {
+      if (onChange) onChange([showMe === 'straight_man' ? 'Male' : 'Female']);
+      initialized.current = true;
+      return;
+    }
     const fetchGender = async () => {
       try {
-        const gender = await getGender();
-        const initialShow = gender === 'straight_man' ? 'straight_woman' : 'straight_man';
+        const userGender = await getGender();
+        const initialShow = userGender === 'straight_man' || userGender === 'Male' ? 'straight_woman' : 'straight_man';
         setShowMe(initialShow);
-        if (onChange) onChange([initialShow]);
+        if (onChange) onChange([initialShow === 'straight_man' ? 'Male' : 'Female']);
         initialized.current = true;
       } catch (error) {
         console.error('Error fetching gender:', error);
       }
     };
     fetchGender();
-  }, []);
+  }, [showMe]);
 
   const handleSelect = (val: 'straight_man' | 'straight_woman') => {
     setShowMe(val);
-    if (onChange) onChange([val]);
+    if (onChange) onChange([val === 'straight_man' ? 'Male' : 'Female']);
   };
 
   return (

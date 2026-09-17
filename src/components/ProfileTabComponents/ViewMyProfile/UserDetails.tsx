@@ -222,7 +222,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
         image: selectedUserImage || '',
     };
 
-    connection.send.mutate(String(resolvedTargetUserId), {
+    // Use the verified identity resolved above instead of the hook's initial
+    // `currentUserId`, which may be stale after session repair.
+    connection.send.mutate({
+      senderId: String(activeCurrentUserId),
+      receiverId: String(resolvedTargetUserId),
+    }, {
       onSuccess: () => {
         connection.sentList.refetch();
         connection.refreshAll();

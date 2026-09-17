@@ -6,11 +6,18 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { getGender } from '../../utils/types/AsyncStorage';
 import UserList from '../../components/HomeTabComponents/UserList';
 import HomeHeader from '../../components/HomeTabComponents/HomeHeader';
-import { Colors, Spacing } from '../../theme';
+import { Colors } from '../../theme';
 import { getCurrentLocation } from '../../utils/geolocation';
 
 const HomeScreen = () => {
-  const { oppositeGender, setOppositeGender, filter, setFilter } = useContext(AppContext);
+  const {
+    oppositeGender,
+    setOppositeGender,
+    filter,
+    setFilter,
+    filteredProfiles,
+    setFilteredProfiles,
+  } = useContext(AppContext);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
@@ -51,17 +58,23 @@ const HomeScreen = () => {
     console.log('Menu pressed');
   };
 
+  const handleFilterChange = (nextFilter: 'online' | 'newest') => {
+    setFilteredProfiles(null);
+    setFilter(nextFilter);
+  };
+
   return (
     <View style={styles.container}>
       <HomeHeader
         selectedFilter={filter}
-        onFilterChange={setFilter}
+        onFilterChange={handleFilterChange}
         onMenuPress={handleMenuPress}
       />
       {oppositeGender ? (
         <UserList
           filterByGender={oppositeGender}
           mode={filter}
+          filteredProfiles={filteredProfiles}
           userLocation={userLocation}
         />
       ) : (

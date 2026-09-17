@@ -179,7 +179,8 @@ const ViewMyProfileScreen = () => {
   }, []);
 
   const { getAllImages } = useUserImages();
-  const { send: likeMutation } = useConnection(myId || undefined);
+  const connection = useConnection(myId || undefined);
+  const { send: likeMutation } = connection;
 
   // Fetch based on whether it's "Me" or "Other"
   const routeTargetId = resolveNumericIdentifier(
@@ -246,8 +247,19 @@ const ViewMyProfileScreen = () => {
     setActiveIndex(index);
   };
 
+  const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+  const isAlreadyInvited = sentConnections.some((inv: any) => {
+    const receiverId = inv?.receiver?.id ?? inv?.receiverId ?? inv?.id;
+    return Number(receiverId) === Number(numericTargetId);
+  });
+
   const handleLike = async () => {
     if (!numericTargetId || !myId) return;
+
+    if (isAlreadyInvited) {
+      alert('Already Invited', 'You have already sent an invitation to this user.');
+      return;
+    }
 
     const normalizeId = (id: string) => id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (normalizeId(String(numericTargetId)) === normalizeId(String(myId))) {
@@ -266,10 +278,13 @@ const ViewMyProfileScreen = () => {
       }
     }
 
-    console.log('[handleLike] Sending invite:', { receiverId: numericTargetId });
+    console.log('[handleLike] Sending invite:', { senderId, receiverId: numericTargetId });
 
-    likeMutation.mutate(numericTargetId, {
+    // Pass the verified sender ID explicitly. `myId` can be stale when the
+    // session identity was repaired above, which made the API reject the like.
+    likeMutation.mutate({ senderId, receiverId: numericTargetId }, {
       onSuccess: () => {
+        connection.sentList.refetch();
         const matchedImage = mergedProfile?.profileImageUrl || null;
         navigation.navigate('MatchScreen', {
           matchedUser: {
@@ -287,7 +302,16 @@ const ViewMyProfileScreen = () => {
           status: error?.response?.status,
           details: error?.response?.data,
         });
-        const message = error?.response?.data?.message || 'Could not send invite. Please try again.';
+        const errorDetails = String(error?.response?.data?.details || error?.response?.data?.message || '');
+        if (
+          error?.response?.status === 400 &&
+          (errorDetails.toLowerCase().includes('duplicate') || errorDetails.toLowerCase().includes('already'))
+        ) {
+          connection.sentList.refetch();
+          alert('Already Invited', 'You have already sent an invitation to this user.');
+          return;
+        }
+        const message = error?.response?.data?.message || error?.response?.data?.details || 'Could not send invite. Please try again.';
         alert('Invite Failed', message);
       },
     });
@@ -547,8 +571,20 @@ const ViewMyProfileScreen = () => {
             <Icon name="x" size={28} color="red" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: Colors.secondary }]} onPress={handleLike}>
-            <Icon name="heart" size={28} color={Colors.secondary} />
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              { borderColor: isAlreadyInvited ? '#4CAF50' : Colors.secondary },
+              (isAlreadyInvited || likeMutation.isPending) && styles.disabledActionBtn,
+            ]}
+            onPress={handleLike}
+            disabled={isAlreadyInvited || likeMutation.isPending}
+          >
+            <Icon
+              name={isAlreadyInvited ? "check" : "heart"}
+              size={28}
+              color={isAlreadyInvited ? '#4CAF50' : Colors.secondary}
+            />
           </TouchableOpacity>
         </View>
       )}
@@ -634,5 +670,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 5
+  },
+  disabledActionBtn: {
+    opacity: 0.6,
   },
 });

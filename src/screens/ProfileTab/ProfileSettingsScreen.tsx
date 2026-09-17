@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native'
-import React, { useContext, useEffect, useMemo, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useProfile } from '../../api/useProfile'
@@ -11,6 +11,7 @@ import AppContext from '../../context/CreateGlobalStateContext'
 import { Colors } from '../../theme'
 import { getAuthSession } from '../../utils/session'
 import { useAlert } from '../../components/AlertModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfileSettingsScreen = () => {
   const navigation = useNavigation<any>();
@@ -19,28 +20,42 @@ const ProfileSettingsScreen = () => {
   const [localDisplayName, setLocalDisplayName] = useState(displayName);
   const [localDescription, setLocalDescription] = useState(profileText);
   const [localDob, setLocalDob] = useState(date.toISOString().split('T')[0]);
+  const isInitialized = useRef(false);
   const { updateBasic, useMyProfile } = useProfile();
   const profileQuery = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
 
   useEffect(() => {
+    const loadStoredDob = async () => {
+      try {
+        const storedDob = await AsyncStorage.getItem('userDob');
+        if (storedDob) {
+          setLocalDob(storedDob);
+          setDate(new Date(storedDob));
+        }
+      } catch (e) {}
+    };
+    void loadStoredDob();
+  }, []);
+
+  useEffect(() => {
     const profile = profileQuery.data;
-    if (!profile) return;
+    if (!profile || isInitialized.current) return;
 
     const nextName = profile.displayName || profile.name || displayName;
     const nextBio = profile.bio || profileText || '';
-    const nextDob = profile.dob || localDob;
 
     setLocalDisplayName(nextName);
     setLocalDescription(nextBio);
-    setLocalDob(nextDob);
     setDisplayName(nextName);
     setName(profile.name || nextName);
     setProfileText(nextBio);
     if (profile.dob) {
+      setLocalDob(profile.dob);
       setDate(new Date(profile.dob));
     }
-  }, [displayName, localDob, profileQuery.data, profileText, setDate, setDisplayName, setName, setProfileText]);
+    isInitialized.current = true;
+  }, [profileQuery.data]);
 
   const computedAge = useMemo(() => {
     const dob = new Date(localDob);
@@ -61,11 +76,12 @@ const ProfileSettingsScreen = () => {
       return;
     }
 
-    const persistLocalState = () => {
+    const persistLocalState = async () => {
       setDisplayName(localDisplayName.trim());
       setName(localDisplayName.trim());
       setProfileText(localDescription.trim());
       setDate(new Date(localDob));
+      await AsyncStorage.setItem('userDob', localDob);
     };
 
     const handlePersist = async () => {
@@ -86,23 +102,24 @@ const ProfileSettingsScreen = () => {
         {
           displayName: localDisplayName.trim(),
           bio: localDescription.trim(),
+          dob: localDob,
           age: computedAge,
         },
         {
-          onSuccess: () => {
-            persistLocalState();
+          onSuccess: async () => {
+            await persistLocalState();
             alert('Saved', 'Profile settings updated successfully.');
             navigation.goBack();
           },
           onError: async (error: any) => {
-            const authSession = await getAuthSession();
+            const currentSession = await getAuthSession();
             if (
-              authSession?.token &&
+              currentSession?.token &&
               (Number(error?.response?.status) === 400 ||
                 Number(error?.response?.status) === 404 ||
                 String(error?.response?.data?.message || error?.message || '').toLowerCase().includes('user not found'))
             ) {
-              persistLocalState();
+              await persistLocalState();
               alert('Saved locally', 'Profile changes are saved in the app and will sync automatically once your session finishes syncing.');
               navigation.goBack();
               return;

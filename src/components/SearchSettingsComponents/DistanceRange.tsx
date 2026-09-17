@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -10,17 +10,14 @@ interface DistanceSliderProps {
 
 const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange }) => {
   const { distanceRange } = useContext(AppContext);
-  const [localDistanceRange, setLocalDistanceRange] = useState(distanceRange || 50);
-
   const handleValueChange = (val: number) => {
-    setLocalDistanceRange(val);
     if (onChange) onChange(val);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
-        Distance Range: <Text style={styles.value}>{localDistanceRange} km</Text>
+        Distance Range: <Text style={styles.value}>{distanceRange} km</Text>
       </Text>
 
       <Slider
@@ -28,7 +25,7 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange }) => {
         minimumValue={5}
         maximumValue={2000}
         step={5}
-        value={localDistanceRange}
+        value={distanceRange}
         onValueChange={handleValueChange}
         minimumTrackTintColor={Colors.primary}
         maximumTrackTintColor={Colors.surfaceLight}

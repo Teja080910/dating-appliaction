@@ -311,6 +311,7 @@ export const useProfile = () => {
     name?: string;
     displayName: string;
     bio: string;
+    dob?: string;
     age: number;
   };
 
@@ -323,6 +324,7 @@ export const useProfile = () => {
         name: data.name || data.displayName,
         displayName: data.displayName,
         bio: data.bio,
+        dob: data.dob,
         age: data.age,
       };
 

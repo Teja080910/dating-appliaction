@@ -47,6 +47,9 @@ const GlobalStateProvider = ({ children }: any) => {
   // ================= DISCOVERY =================
   const [filter, setFilter] = useState<'online' | 'newest'>('online');
   const [oppositeGender, setOppositeGender] = useState<string | null>(null);
+  // Results from the Search Settings screen. They are cleared when the user
+  // switches back to one of the dashboard feeds.
+  const [filteredProfiles, setFilteredProfiles] = useState<any[] | null>(null);
 
   // ================= SEARCH FILTER =================
   const [ageRange, setAgeRange] = useState([18, 55]);
@@ -58,6 +61,8 @@ const GlobalStateProvider = ({ children }: any) => {
   const [ethnicity, setEthnicity] = useState<string[]>([]);
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [smoke, setSmoke] = useState<string[]>([]);
+  const [smokeFilter, setSmokeFilter] = useState<boolean | undefined>(undefined);
+  const [drinkFilter, setDrinkFilter] = useState<boolean | undefined>(undefined);
   const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
 
   // Missing properties from components
@@ -185,6 +190,7 @@ const GlobalStateProvider = ({ children }: any) => {
         // discovery
         filter, setFilter,
         oppositeGender, setOppositeGender,
+        filteredProfiles, setFilteredProfiles,
 
         // search
         ageRange, setAgeRange,
@@ -195,6 +201,8 @@ const GlobalStateProvider = ({ children }: any) => {
         ethnicity, setEthnicity,
         lookingFor, setLookingFor,
         smoke, setSmoke,
+        smokeFilter, setSmokeFilter,
+        drinkFilter, setDrinkFilter,
         showMe, setShowMe,
 
         selectedOptions, setSelectedOptions,
