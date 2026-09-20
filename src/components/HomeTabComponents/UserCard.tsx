@@ -16,7 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
-import { isApiHostedUrl } from '../../api/apiClient';
+import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 
 interface UserCardProps {
   name?: string;
@@ -95,10 +95,17 @@ const UserCard = ({
     return FALLBACK_IMAGES[seedValue % FALLBACK_IMAGES.length];
   }, [fallbackAsset, id, safeName]);
 
-  const safeImage = !imageFailed ? normalizedImage : null;
+  const safeImage = !imageFailed && normalizedImage ? getAbsoluteUrl(normalizedImage) : null;
   const imageSource: ImageSourcePropType | null = safeImage
-    ? authToken && isApiHostedUrl(safeImage)
-      ? { uri: safeImage, headers: { Authorization: `Bearer ${authToken}` } }
+    ? isApiHostedUrl(safeImage)
+      ? {
+          uri: safeImage,
+          headers: {
+            'ngrok-skip-browser-warning': '69420',
+            'User-Agent': 'AMARA-App',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+        }
       : { uri: safeImage }
     : null;
 

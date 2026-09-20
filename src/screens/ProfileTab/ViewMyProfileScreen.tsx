@@ -248,10 +248,17 @@ const ViewMyProfileScreen = () => {
   };
 
   const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
-  const isAlreadyInvited = sentConnections.some((inv: any) => {
-    const receiverId = inv?.receiver?.id ?? inv?.receiverId ?? inv?.id;
-    return Number(receiverId) === Number(numericTargetId);
-  });
+  const isAlreadyInvited = useMemo(() => {
+    if (!numericTargetId) return false;
+    const target = String(numericTargetId).trim().toLowerCase();
+    return sentConnections.some((inv: any) => {
+      const receiver = inv?.receiver;
+      const rId = String(receiver?.id ?? '').trim().toLowerCase();
+      const rUserId = String(receiver?.userId ?? '').trim().toLowerCase();
+      const invReceiverId = String(inv?.receiverId ?? '').trim().toLowerCase();
+      return (rId && rId === target) || (rUserId && rUserId === target) || (invReceiverId && invReceiverId === target);
+    });
+  }, [sentConnections, numericTargetId]);
 
   const handleLike = async () => {
     if (!numericTargetId || !myId) return;
@@ -302,16 +309,23 @@ const ViewMyProfileScreen = () => {
           status: error?.response?.status,
           details: error?.response?.data,
         });
-        const errorDetails = String(error?.response?.data?.details || error?.response?.data?.message || '');
+        const errorDetails = String(
+          error?.response?.data?.details ||
+          error?.response?.data?.message ||
+          (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+          error?.message ||
+          ''
+        ).toLowerCase();
+
         if (
           error?.response?.status === 400 &&
-          (errorDetails.toLowerCase().includes('duplicate') || errorDetails.toLowerCase().includes('already'))
+          (errorDetails.includes('duplicate') || errorDetails.includes('already') || errorDetails.includes('invalid data') || errorDetails.includes('cannot send request to yourself'))
         ) {
           connection.sentList.refetch();
           alert('Already Invited', 'You have already sent an invitation to this user.');
           return;
         }
-        const message = error?.response?.data?.message || error?.response?.data?.details || 'Could not send invite. Please try again.';
+        const message = error?.response?.data?.message || error?.response?.data?.details || (typeof error?.response?.data === 'string' ? error.response.data : null) || 'Could not send invite. Please try again.';
         alert('Invite Failed', message);
       },
     });
@@ -321,11 +335,19 @@ const ViewMyProfileScreen = () => {
   };
 
   const renderItem = ({ item }: any) => {
+    const cleanUrl = typeof item === 'string' ? getAbsoluteUrl(item) : null;
     const imageSource: ImageSourcePropType =
-      typeof item === 'string'
-        ? authToken && isApiHostedUrl(item)
-          ? { uri: item, headers: { Authorization: `Bearer ${authToken}` } }
-          : { uri: item }
+      cleanUrl
+        ? isApiHostedUrl(cleanUrl)
+          ? {
+              uri: cleanUrl,
+              headers: {
+                'ngrok-skip-browser-warning': '69420',
+                'User-Agent': 'AMARA-App',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              },
+            }
+          : { uri: cleanUrl }
         : item;
 
     return (

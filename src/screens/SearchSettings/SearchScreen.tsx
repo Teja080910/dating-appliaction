@@ -26,6 +26,11 @@ import { useAlert } from '../../components/AlertModal';
 import { useDiscovery } from '../../api/useDiscovery';
 import { getUserId } from '../../utils/sessionHelper';
 import { clearAuthSession } from '../../utils/session';
+import {
+  getSavedSearchFilters,
+  saveSearchFilters,
+  clearSavedSearchFilters,
+} from '../../utils/types/AsyncStorage';
 import { CommonActions } from '@react-navigation/native';
 
 const SearchScreen = ({ navigation }: any) => {
@@ -54,10 +59,14 @@ const SearchScreen = ({ navigation }: any) => {
     showMe,
     setShowMe,
     setIsChecked,
+    isChecked,
+    location,
     setLocation,
     setFilter,
     setFilteredProfiles,
+    selectedOptions,
     setSelectedOptions,
+    selectBodyTypes,
     setSelectBodyTypes,
   } = React.useContext(AppContext);
 
@@ -65,9 +74,9 @@ const SearchScreen = ({ navigation }: any) => {
     minAge: ageRange?.[0] ?? 18,
     maxAge: ageRange?.[1] ?? 40,
     maxDistanceKm: distanceRange ?? 50,
-    worldwide: false,
-    bodyType: [],
-    appearance: [],
+    worldwide: isChecked || false,
+    bodyType: selectBodyTypes || [],
+    appearance: selectedOptions || [],
     language: searchLanguages || [],
     englishLevel: englishProficiency || [],
     ethnicity: ethnicity || [],
@@ -76,9 +85,72 @@ const SearchScreen = ({ navigation }: any) => {
     smoke: smokeFilter,
     drink: drinkFilter,
     onlyOnline: false,
+    minHeight: bodyHeight?.[0] ?? 120,
+    maxHeight: bodyHeight?.[1] ?? 200,
     page: 0,
     size: 10,
   }));
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadSaved = async () => {
+      try {
+        const resolvedUserId = await getUserId();
+        const saved = await getSavedSearchFilters(resolvedUserId);
+        if (saved && isMounted) {
+          setFilters((prev: any) => ({
+            ...prev,
+            ...saved,
+            bodyType: saved.bodyType || prev.bodyType,
+            appearance: saved.appearance || prev.appearance,
+            language: saved.language || prev.language,
+            englishLevel: saved.englishLevel || prev.englishLevel,
+            ethnicity: saved.ethnicity || prev.ethnicity,
+            lookingFor: saved.lookingFor || prev.lookingFor,
+            gender:
+              saved.gender ||
+              (saved.showMe
+                ? [saved.showMe === 'straight_man' ? 'Male' : 'Female']
+                : prev.gender),
+          }));
+
+          if (saved.minAge !== undefined && saved.maxAge !== undefined) {
+            setAgeRange([saved.minAge, saved.maxAge]);
+          }
+          if (saved.maxDistanceKm !== undefined) {
+            setDistanceRange(saved.maxDistanceKm);
+          }
+          if (saved.minHeight !== undefined && saved.maxHeight !== undefined) {
+            setBodyHeight([saved.minHeight, saved.maxHeight]);
+          }
+          if (saved.bodyType) setSelectBodyTypes(saved.bodyType);
+          if (saved.appearance) setSelectedOptions(saved.appearance);
+          if (saved.language) setSearchLanguages(saved.language);
+          if (saved.englishLevel) setEnglishProficiency(saved.englishLevel);
+          if (saved.ethnicity) setEthnicity(saved.ethnicity);
+          if (saved.lookingFor) setLookingFor(saved.lookingFor);
+          if (saved.showMe !== undefined) {
+            setShowMe(saved.showMe);
+          } else if (saved.gender?.length) {
+            setShowMe(
+              saved.gender[0] === 'Male' ? 'straight_man' : 'straight_woman'
+            );
+          }
+          if (saved.smoke !== undefined) setSmokeFilter(saved.smoke);
+          if (saved.drink !== undefined) setDrinkFilter(saved.drink);
+          if (saved.worldwide !== undefined) setIsChecked(saved.worldwide);
+          if (saved.location) setLocation(saved.location);
+        }
+      } catch (err) {
+        console.warn('Failed to load saved search filters:', err);
+      }
+    };
+
+    loadSaved();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -106,6 +178,32 @@ const SearchScreen = ({ navigation }: any) => {
         page: 0,
         size: 20,
       };
+
+      // Persist filters to AsyncStorage
+      await saveSearchFilters(
+        {
+          minAge: filters.minAge,
+          maxAge: filters.maxAge,
+          maxDistanceKm: filters.maxDistanceKm,
+          worldwide: filters.worldwide,
+          location: location,
+          bodyType: filters.bodyType,
+          appearance: filters.appearance,
+          language: filters.language,
+          englishLevel: filters.englishLevel,
+          ethnicity: filters.ethnicity,
+          lookingFor: filters.lookingFor,
+          gender: filters.gender,
+          showMe: showMe,
+          smoke: filters.smoke,
+          drink: filters.drink,
+          onlyOnline: filters.onlyOnline,
+          minHeight: filters.minHeight,
+          maxHeight: filters.maxHeight,
+        },
+        resolvedUserId
+      );
+
       const result = await filterUsers.mutateAsync(payload);
       setSmokeFilter?.(filters.smoke);
       setDrinkFilter?.(filters.drink);
@@ -140,13 +238,29 @@ const SearchScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    const resolvedUserId = await getUserId();
+    await clearSavedSearchFilters(resolvedUserId);
+
     setFilters({
-      minAge: 18, maxAge: 40, maxDistanceKm: 50, worldwide: false,
-      bodyType: [], appearance: [], language: [], englishLevel: [],
-      ethnicity: [], lookingFor: [], gender: [], smoke: undefined, drink: undefined,
+      minAge: 18,
+      maxAge: 40,
+      maxDistanceKm: 50,
+      worldwide: false,
+      bodyType: [],
+      appearance: [],
+      language: [],
+      englishLevel: [],
+      ethnicity: [],
+      lookingFor: [],
+      gender: [],
+      smoke: undefined,
+      drink: undefined,
       onlyOnline: false,
-      page: 0, size: 10,
+      minHeight: 120,
+      maxHeight: 200,
+      page: 0,
+      size: 10,
     });
     setSmokeFilter?.(undefined);
     setDrinkFilter?.(undefined);
@@ -236,7 +350,6 @@ const SearchScreen = ({ navigation }: any) => {
           }} />
 
           <ShowMe onChange={(val: string[]) => {
-            setShowMe((val?.[0] as 'straight_man' | 'straight_woman' | null) || null);
             setFilters((prev: any) => ({ ...prev, gender: val }));
           }} />
         </View>

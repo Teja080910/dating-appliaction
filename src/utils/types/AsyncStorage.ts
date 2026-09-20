@@ -71,3 +71,70 @@ export const isFirstImageUploaded = async (): Promise<boolean> => {
 export const markFirstImageUploaded = async (): Promise<void> => {
   await AsyncStorage.setItem('firstImageUploaded', 'true');
 };
+
+export interface SavedSearchFilters {
+  minAge?: number;
+  maxAge?: number;
+  maxDistanceKm?: number;
+  worldwide?: boolean;
+  location?: string;
+  minHeight?: number;
+  maxHeight?: number;
+  bodyType?: string[];
+  appearance?: string[];
+  language?: string[];
+  englishLevel?: string[];
+  ethnicity?: string[];
+  lookingFor?: string[];
+  gender?: string[];
+  showMe?: 'straight_man' | 'straight_woman' | null;
+  smoke?: boolean;
+  drink?: boolean;
+  onlyOnline?: boolean;
+}
+
+export const saveSearchFilters = async (
+  filters: SavedSearchFilters,
+  userId?: string | number | null
+): Promise<void> => {
+  try {
+    const key = userId ? `@search_filters_${userId}` : '@search_filters';
+    await AsyncStorage.setItem(key, JSON.stringify(filters));
+    // Also save under global key as fallback
+    await AsyncStorage.setItem('@search_filters', JSON.stringify(filters));
+  } catch (e) {
+    console.error('Error saving search filters:', e);
+  }
+};
+
+export const getSavedSearchFilters = async (
+  userId?: string | number | null
+): Promise<SavedSearchFilters | null> => {
+  try {
+    const key = userId ? `@search_filters_${userId}` : '@search_filters';
+    let raw = await AsyncStorage.getItem(key);
+    if (!raw) {
+      raw = await AsyncStorage.getItem('@search_filters');
+    }
+    if (raw) {
+      return JSON.parse(raw);
+    }
+    return null;
+  } catch (e) {
+    console.error('Error getting search filters:', e);
+    return null;
+  }
+};
+
+export const clearSavedSearchFilters = async (
+  userId?: string | number | null
+): Promise<void> => {
+  try {
+    const key = userId ? `@search_filters_${userId}` : '@search_filters';
+    await AsyncStorage.removeItem(key);
+    await AsyncStorage.removeItem('@search_filters');
+  } catch (e) {
+    console.error('Error clearing search filters:', e);
+  }
+};
+

@@ -8,7 +8,7 @@ import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 type VerifyRegisterOtpRequest = {
   mobile: string;
   otp: string;
-  sessionId: string;
+  sessionId?: string;
 };
 
 type InitRegisterRequest = Omit<RegisterRequest, 'otp'> & {
@@ -86,8 +86,12 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
     sessionId:
       payload?.sessionId ||
       nestedData?.sessionId ||
+      payload?.session_id ||
+      nestedData?.session_id ||
       payload?.verificationSessionId ||
       nestedData?.verificationSessionId ||
+      payload?.verification_session_id ||
+      nestedData?.verification_session_id ||
       null,
   };
 };

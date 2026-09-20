@@ -12,10 +12,13 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
   const { showMe, setShowMe } = useContext(AppContext);
   const initialized = useRef(false);
 
+  const isMenSelected = showMe === 'straight_man' || (showMe as any) === 'Male' || (showMe as any) === 'man';
+  const isWomenSelected = showMe === 'straight_woman' || (showMe as any) === 'Female' || (showMe as any) === 'woman';
+
   useEffect(() => {
     if (initialized.current) return;
     if (showMe) {
-      if (onChange) onChange([showMe === 'straight_man' ? 'Male' : 'Female']);
+      if (onChange) onChange([isMenSelected ? 'Male' : 'Female']);
       initialized.current = true;
       return;
     }
@@ -43,19 +46,19 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
       <Text style={styles.label}>Show me:</Text>
       <View style={styles.buttonGroup}>
         <TouchableOpacity
-          style={[styles.button, showMe === 'straight_man' && styles.selectedButton]}
+          style={[styles.button, isMenSelected && styles.selectedButton]}
           onPress={() => handleSelect('straight_man')}
         >
-          <Text style={[styles.buttonText, showMe === 'straight_man' && styles.selectedText]}>
+          <Text style={[styles.buttonText, isMenSelected && styles.selectedText]}>
             Only men
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, showMe === 'straight_woman' && styles.selectedButton]}
+          style={[styles.button, isWomenSelected && styles.selectedButton]}
           onPress={() => handleSelect('straight_woman')}
         >
-          <Text style={[styles.buttonText, showMe === 'straight_woman' && styles.selectedText]}>
+          <Text style={[styles.buttonText, isWomenSelected && styles.selectedText]}>
             Only women
           </Text>
         </TouchableOpacity>

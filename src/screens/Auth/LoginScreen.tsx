@@ -233,8 +233,13 @@ const LoginScreen = ({navigation}: any) => {
           return;
         }
         setLoading(false);
-        const nextRoute = await resolveInitialRoute();
-        navigation.replace(nextRoute);
+        await AsyncStorage.multiSet([
+          ['isLoggedIn', 'true'],
+          ['entryHomeScreen', 'true'],
+          ['acceptedTerms', 'true'],
+        ]);
+        await AsyncStorage.removeItem('onboardingStep');
+        navigation.replace('BottomTabs');
       },
       onError: (error: any) => {
         setLoading(false);

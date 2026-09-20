@@ -109,29 +109,47 @@ const MoreInfoScreen = () => {
     try {
       setLoading(true);
 
+      const englishLevelStr = ['beginner', 'intermediate', 'advanced', 'native'][englishSkillLevel] || '';
+      const languageStr = Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '';
+      const lookingForStr = Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '';
+
       const detailsPayload = {
-        language: Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '',
+        language: languageStr,
         appearance: selectedAppearance || '',
         bodyType: selectedBodyType || '',
         height: Number(height) || 0,
-        englishLevel: ['beginner', 'intermediate', 'advanced', 'native'][englishSkillLevel] || '',
+        englishLevel: englishLevelStr,
         ethnicity: selectedEthinicity || '',
         kidCount: selectedKidCount || '',
         netWorth: selectedNetWorth || '',
       };
-      console.log('[MoreInfo] SENDING updateDetails:', JSON.stringify(detailsPayload));
-      const detailsRes = await updateDetails.mutateAsync(detailsPayload);
-      console.log('[MoreInfo] updateDetails RESPONSE:', JSON.stringify(detailsRes));
 
       const prefsPayload = {
-        lookingFor: Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '',
+        lookingFor: lookingForStr,
+        smoke: selectedSmoking || '',
+        drink: selectedDrinking || '',
+        ethnicity: selectedEthinicity || '',
+      };
+
+      const fullDto = {
+        language: languageStr,
+        appearance: selectedAppearance || '',
+        bodyType: selectedBodyType || '',
+        height: Number(height) || 0,
+        englishLevel: englishLevelStr,
+        ethnicity: selectedEthinicity || '',
+        lookingFor: lookingForStr,
         smoke: selectedSmoking || '',
         drink: selectedDrinking || '',
       };
-      console.log('[MoreInfo] SENDING updatePreferences:', JSON.stringify(prefsPayload));
-      const prefsRes = await updatePreferences.mutateAsync(prefsPayload);
-      console.log('[MoreInfo] updatePreferences RESPONSE:', JSON.stringify(prefsRes));
 
+      await Promise.allSettled([
+        setupProfile.mutateAsync({ dto: fullDto }),
+        updateDetails.mutateAsync(detailsPayload),
+        updatePreferences.mutateAsync(prefsPayload),
+      ]);
+
+      await profileQuery.refetch();
       alert('Saved', 'Your profile details have been updated.');
     } catch (error: any) {
       console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);

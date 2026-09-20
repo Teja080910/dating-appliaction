@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
 import { clearFullSession } from '../utils/session';
 import { MAX_PROFILE_IMAGES } from '../api/useImages';
+import { getSavedSearchFilters } from '../utils/types/AsyncStorage';
 
 const GlobalStateProvider = ({ children }: any) => {
 
@@ -104,6 +105,34 @@ const GlobalStateProvider = ({ children }: any) => {
 
         const subStatus = await AsyncStorage.getItem('isSubscribed');
         if (subStatus === 'true') setIsSubscribed(true);
+
+        const savedFilters = await getSavedSearchFilters(id);
+        if (savedFilters) {
+          if (savedFilters.minAge !== undefined && savedFilters.maxAge !== undefined) {
+            setAgeRange([savedFilters.minAge, savedFilters.maxAge]);
+          }
+          if (savedFilters.maxDistanceKm !== undefined) {
+            setDistanceRange(savedFilters.maxDistanceKm);
+          }
+          if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
+            setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);
+          }
+          if (savedFilters.bodyType) setSelectBodyTypes(savedFilters.bodyType);
+          if (savedFilters.appearance) setSelectedOptions(savedFilters.appearance);
+          if (savedFilters.language) setSearchLanguages(savedFilters.language);
+          if (savedFilters.englishLevel) setEnglishProficiency(savedFilters.englishLevel);
+          if (savedFilters.ethnicity) setEthnicity(savedFilters.ethnicity);
+          if (savedFilters.lookingFor) setLookingFor(savedFilters.lookingFor);
+          if (savedFilters.showMe !== undefined) {
+            setShowMe(savedFilters.showMe);
+          } else if (savedFilters.gender?.length) {
+            setShowMe(savedFilters.gender[0] === 'Male' ? 'straight_man' : 'straight_woman');
+          }
+          if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
+          if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
+          if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
+          if (savedFilters.location) setLocation(savedFilters.location);
+        }
       } catch (e) {
         console.error('Init Error:', e);
       }
