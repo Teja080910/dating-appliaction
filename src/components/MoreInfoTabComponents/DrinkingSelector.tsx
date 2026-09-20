@@ -1,34 +1,31 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useContext } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const options = [
-  { label: 'Any', value: undefined },
-  { label: 'Yes', value: true },
-  { label: 'No', value: false },
-];
+const OPTIONS = ['Yes', 'No', 'Sometimes'];
 
-interface SmokeProps {
-  value?: boolean;
-  onChange?: (val: boolean | undefined) => void;
-}
+const DrinkingSelector = () => {
+  const { selectedDrinking, setSelectedDrinking } = useContext(AppContext);
 
-const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
+  const toggleSelect = (item: string) => {
+    setSelectedDrinking((prev: string | null) => (prev === item ? null : item));
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Smoker?</Text>
-      <View style={styles.optionsWrapper}>
-        {options.map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={[styles.option, value === item.value && styles.optionSelected]}
-            onPress={() => onChange?.(item.value)}
+      <Text style={styles.label}>Do you drink?</Text>
+      <View style={styles.optionsContainer}>
+        {OPTIONS.map(option => (
+          <Pressable
+            key={option}
+            onPress={() => toggleSelect(option)}
+            style={[styles.option, selectedDrinking === option && styles.optionSelected]}
           >
-            <Text style={[styles.optionText, value === item.value && styles.optionTextSelected]}>
-              {item.label}
+            <Text style={[styles.optionText, selectedDrinking === option && styles.optionTextSelected]}>
+              {option}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -51,9 +48,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     color: Colors.textSecondary,
   },
-  optionsWrapper: {
+  optionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.sm,
   },
   option: {
@@ -63,15 +59,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.glassBorder,
     backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
   },
   optionSelected: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
   optionText: {
-    fontSize: 14,
     color: Colors.textSecondary,
+    fontSize: 14,
     fontWeight: '500',
   },
   optionTextSelected: {
@@ -80,4 +75,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Smoke;
+export default DrinkingSelector;

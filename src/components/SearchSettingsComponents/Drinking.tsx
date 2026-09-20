@@ -8,32 +8,29 @@ const options = [
   { label: 'No', value: false },
 ];
 
-interface SmokeProps {
+interface DrinkingProps {
   value?: boolean;
   onChange?: (val: boolean | undefined) => void;
 }
 
-const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Smoker?</Text>
-      <View style={styles.optionsWrapper}>
-        {options.map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={[styles.option, value === item.value && styles.optionSelected]}
-            onPress={() => onChange?.(item.value)}
-          >
-            <Text style={[styles.optionText, value === item.value && styles.optionTextSelected]}>
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+const Drinking: React.FC<DrinkingProps> = ({ value, onChange }) => (
+  <View style={styles.container}>
+    <Text style={styles.label}>Do you drink?</Text>
+    <View style={styles.optionsWrapper}>
+      {options.map((item) => (
+        <TouchableOpacity
+          key={item.label}
+          style={[styles.option, value === item.value && styles.optionSelected]}
+          onPress={() => onChange?.(item.value)}
+        >
+          <Text style={[styles.optionText, value === item.value && styles.optionTextSelected]}>
+            {item.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
-  );
-};
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -80,4 +77,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Smoke;
+export default Drinking;

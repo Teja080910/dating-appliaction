@@ -33,6 +33,7 @@ export default function MessageScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [activeMainTab, setActiveMainTab] = useState<'Invitations' | 'Messages'>('Invitations');
   const [activeInviteTab, setActiveInviteTab] = useState<'Sent' | 'Received'>('Sent');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     getUserId().then(setUserId);
@@ -82,7 +83,7 @@ export default function MessageScreen() {
     };
   }, [userId]);
 
-  const { setOppositeGender, chats } = useContext(AppContext);
+  const { setOppositeGender } = useContext(AppContext);
 
   const sentInvites = useMemo(() => {
     const items = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
@@ -137,7 +138,12 @@ export default function MessageScreen() {
   const isInvitesLoading = activeInviteTab === 'Sent' ? sentLoading : receivedLoading;
   const displaySentInvites = sentInvites.length > 0 ? sentInvites : [];
   const displayReceivedInvites = receivedInvites.length > 0 ? receivedInvites : [];
-  const displayChats = connectionChats.length > 0 ? connectionChats : chats;
+  const displayChats = connectionChats;
+  const filteredChats = searchQuery.trim()
+    ? displayChats.filter((chat: any) =>
+        chat.name?.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      )
+    : displayChats;
 
   const renderInviteItem = ({ item }: { item: any }) => (
     <View style={styles.listItem}>
@@ -273,16 +279,16 @@ export default function MessageScreen() {
           <View style={{ flex: 1 }}>
             <View style={styles.searchContainer}>
               <Icon name="magnify" size={20} color={Colors.textMuted} />
-              <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor={Colors.textMuted} />
+              <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor={Colors.textMuted} value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             {messagesLoading ? (
               <View style={{ flex: 1, justifyContent: 'center' }}>
                 <ActivityIndicator color={Colors.primary} />
               </View>
-            ) : displayChats.length > 0 ? (
+            ) : filteredChats.length > 0 ? (
               <FlatList
-                data={displayChats}
+                data={filteredChats}
                 renderItem={renderChatItem}
                 keyExtractor={item => String(item.id)}
                 contentContainerStyle={styles.listContainer}

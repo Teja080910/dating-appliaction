@@ -79,7 +79,7 @@ const Routes = () => {
   if (!initialScreen) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#FF5A79" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }

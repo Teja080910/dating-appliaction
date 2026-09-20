@@ -6,6 +6,7 @@ import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
 import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
+import DrinkingSelector from '../../components/MoreInfoTabComponents/DrinkingSelector';
 import EnglishSkillSelector from '../../components/MoreInfoTabComponents/EnglishSkillSelector';
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
 import Header from '../../components/MoreInfoTabComponents/Header';
@@ -42,6 +43,10 @@ const MoreInfoScreen = () => {
     setSelectedDrinking,
     selectedLookingFor,
     setSelectedLookingFor,
+    selectedKidCount,
+    setSelectedKidCount,
+    selectedNetWorth,
+    setSelectedNetWorth,
   } = useContext(AppContext);
   const [loading, setLoading] = useState(false);
   const { setupProfile, updateDetails, updatePreferences, useMyProfile } = useProfile();
@@ -52,6 +57,15 @@ const MoreInfoScreen = () => {
     if (!profile) {
       return;
     }
+
+    console.log('[MoreInfo] Profile loaded from API:', JSON.stringify({
+      ethnicity: profile.ethnicity,
+      lookingFor: profile.lookingFor,
+      smoke: profile.smoke,
+      drink: profile.drink,
+      kidCount: profile.kidCount,
+      netWorth: profile.netWorth,
+    }));
 
     const splitValues = (value?: string) =>
       String(value || '')
@@ -72,10 +86,16 @@ const MoreInfoScreen = () => {
     setSelectedSmoking(profile.smoke || null);
     setSelectedDrinking(profile.drink || null);
     setSelectedLookingFor(splitValues(profile.lookingFor));
+    if (profile.kidCount) {
+      setSelectedKidCount(profile.kidCount);
+    }
+    if (profile.netWorth) {
+      setSelectedNetWorth(profile.netWorth);
+    }
     if (englishIndex >= 0) {
       setEnglishSkillLevel(englishIndex);
     }
-  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor, setSelectedSmoking]);
+  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor, setSelectedSmoking, setSelectedKidCount, setSelectedNetWorth]);
 
   const handleSave = async () => {
     const authSession = await getAuthSession();
@@ -88,21 +108,51 @@ const MoreInfoScreen = () => {
 
     try {
       setLoading(true);
-      await updateDetails.mutateAsync({
-        language: Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '',
+
+      const englishLevelStr = ['beginner', 'intermediate', 'advanced', 'native'][englishSkillLevel] || '';
+      const languageStr = Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '';
+      const lookingForStr = Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '';
+
+      const detailsPayload = {
+        language: languageStr,
         appearance: selectedAppearance || '',
         bodyType: selectedBodyType || '',
         height: Number(height) || 0,
-      });
+        englishLevel: englishLevelStr,
+        ethnicity: selectedEthinicity || '',
+        kidCount: selectedKidCount || '',
+        netWorth: selectedNetWorth || '',
+      };
 
-      await updatePreferences.mutateAsync({
-        lookingFor: Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '',
+      const prefsPayload = {
+        lookingFor: lookingForStr,
         smoke: selectedSmoking || '',
         drink: selectedDrinking || '',
-      });
+        ethnicity: selectedEthinicity || '',
+      };
 
+      const fullDto = {
+        language: languageStr,
+        appearance: selectedAppearance || '',
+        bodyType: selectedBodyType || '',
+        height: Number(height) || 0,
+        englishLevel: englishLevelStr,
+        ethnicity: selectedEthinicity || '',
+        lookingFor: lookingForStr,
+        smoke: selectedSmoking || '',
+        drink: selectedDrinking || '',
+      };
+
+      await Promise.allSettled([
+        setupProfile.mutateAsync({ dto: fullDto }),
+        updateDetails.mutateAsync(detailsPayload),
+        updatePreferences.mutateAsync(prefsPayload),
+      ]);
+
+      await profileQuery.refetch();
       alert('Saved', 'Your profile details have been updated.');
     } catch (error: any) {
+      console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
       alert(
         'Save failed',
         error?.response?.data?.message || 'Could not save your profile details right now.',
@@ -128,6 +178,7 @@ const MoreInfoScreen = () => {
           <EnglishSkillSelector />
           <EthnicitySelector />
           <DoYouSmokeSelector />
+          <DrinkingSelector />
           <KidsCountSelector />
           <LookingForSelector />
           <NetWorthSelector />

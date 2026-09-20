@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -10,21 +10,18 @@ interface AgeRangeSliderProps {
 
 const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
   const { ageRange } = useContext(AppContext);
-  const [localAgeRange, setLocalAgeRange] = useState(ageRange || [18, 55]);
-
   const handleValuesChange = (values: number[]) => {
-    setLocalAgeRange(values);
     if (onChange) onChange(values[0], values[1]);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
-        Age Range: <Text style={styles.value}>{localAgeRange[0]} - {localAgeRange[1]}{localAgeRange[1] === 55 ? '+' : ''}</Text>
+        Age Range: <Text style={styles.value}>{ageRange[0]} - {ageRange[1]}{ageRange[1] === 55 ? '+' : ''}</Text>
       </Text>
 
       <MultiSlider
-        values={localAgeRange}
+        values={ageRange}
         sliderLength={330}
         onValuesChange={handleValuesChange}
         min={18}

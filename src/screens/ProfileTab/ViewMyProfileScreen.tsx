@@ -21,6 +21,7 @@ import { useMyProfile } from "../../api/useProfile";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
 import AppContext from "../../context/CreateGlobalStateContext";
 import { Colors } from "../../theme";
+import { useAlert } from "../../components/AlertModal";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { RootParamList } from "../../utils/types/navigation.types";
@@ -115,6 +116,7 @@ const resolveNumericIdentifier = (...values: unknown[]) => {
 const ViewMyProfileScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route = useRoute<any>();
+  const { alert, AlertComponent } = useAlert();
   const {
     viewMyProfile,
     name,
@@ -177,7 +179,8 @@ const ViewMyProfileScreen = () => {
   }, []);
 
   const { getAllImages } = useUserImages();
-  const { send: likeMutation } = useConnection(myId || undefined);
+  const connection = useConnection(myId || undefined);
+  const { send: likeMutation } = connection;
 
   // Fetch based on whether it's "Me" or "Other"
   const routeTargetId = resolveNumericIdentifier(
@@ -244,10 +247,51 @@ const ViewMyProfileScreen = () => {
     setActiveIndex(index);
   };
 
-  const handleLike = () => {
+  const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+  const isAlreadyInvited = useMemo(() => {
+    if (!numericTargetId) return false;
+    const target = String(numericTargetId).trim().toLowerCase();
+    return sentConnections.some((inv: any) => {
+      const receiver = inv?.receiver;
+      const rId = String(receiver?.id ?? '').trim().toLowerCase();
+      const rUserId = String(receiver?.userId ?? '').trim().toLowerCase();
+      const invReceiverId = String(inv?.receiverId ?? '').trim().toLowerCase();
+      return (rId && rId === target) || (rUserId && rUserId === target) || (invReceiverId && invReceiverId === target);
+    });
+  }, [sentConnections, numericTargetId]);
+
+  const handleLike = async () => {
     if (!numericTargetId || !myId) return;
-    likeMutation.mutate(numericTargetId, {
+
+    if (isAlreadyInvited) {
+      alert('Already Invited', 'You have already sent an invitation to this user.');
+      return;
+    }
+
+    const normalizeId = (id: string) => id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (normalizeId(String(numericTargetId)) === normalizeId(String(myId))) {
+      alert('Error', 'You cannot send an invite to yourself.');
+      return;
+    }
+
+    let senderId = myId;
+    if (!isResolvedApiUserId(senderId)) {
+      const repairedId = await repairStoredSessionIdentity();
+      if (repairedId && isResolvedApiUserId(repairedId)) {
+        senderId = String(repairedId);
+      } else {
+        alert('Account Issue', 'Could not verify your account. Please log in again.');
+        return;
+      }
+    }
+
+    console.log('[handleLike] Sending invite:', { senderId, receiverId: numericTargetId });
+
+    // Pass the verified sender ID explicitly. `myId` can be stale when the
+    // session identity was repaired above, which made the API reject the like.
+    likeMutation.mutate({ senderId, receiverId: numericTargetId }, {
       onSuccess: () => {
+        connection.sentList.refetch();
         const matchedImage = mergedProfile?.profileImageUrl || null;
         navigation.navigate('MatchScreen', {
           matchedUser: {
@@ -259,6 +303,31 @@ const ViewMyProfileScreen = () => {
           },
         });
       },
+      onError: (error: any) => {
+        console.log('[handleLike] Send failed:', {
+          receiverId: numericTargetId,
+          status: error?.response?.status,
+          details: error?.response?.data,
+        });
+        const errorDetails = String(
+          error?.response?.data?.details ||
+          error?.response?.data?.message ||
+          (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+          error?.message ||
+          ''
+        ).toLowerCase();
+
+        if (
+          error?.response?.status === 400 &&
+          (errorDetails.includes('duplicate') || errorDetails.includes('already') || errorDetails.includes('invalid data') || errorDetails.includes('cannot send request to yourself'))
+        ) {
+          connection.sentList.refetch();
+          alert('Already Invited', 'You have already sent an invitation to this user.');
+          return;
+        }
+        const message = error?.response?.data?.message || error?.response?.data?.details || (typeof error?.response?.data === 'string' ? error.response.data : null) || 'Could not send invite. Please try again.';
+        alert('Invite Failed', message);
+      },
     });
   };
   const handleDislike = () => {
@@ -266,11 +335,19 @@ const ViewMyProfileScreen = () => {
   };
 
   const renderItem = ({ item }: any) => {
+    const cleanUrl = typeof item === 'string' ? getAbsoluteUrl(item) : null;
     const imageSource: ImageSourcePropType =
-      typeof item === 'string'
-        ? authToken && isApiHostedUrl(item)
-          ? { uri: item, headers: { Authorization: `Bearer ${authToken}` } }
-          : { uri: item }
+      cleanUrl
+        ? isApiHostedUrl(cleanUrl)
+          ? {
+              uri: cleanUrl,
+              headers: {
+                'ngrok-skip-browser-warning': '69420',
+                'User-Agent': 'AMARA-App',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              },
+            }
+          : { uri: cleanUrl }
         : item;
 
     return (
@@ -431,7 +508,7 @@ const ViewMyProfileScreen = () => {
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#FF5A79" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -468,7 +545,7 @@ const ViewMyProfileScreen = () => {
             />
           ) : (
             <View style={[styles.emptyHero, { height: heroHeight }]}>
-              <Icon name="image" size={42} color="#CFCFCF" />
+              <Icon name="image" size={42} color={Colors.textMuted} />
             </View>
           )}
 
@@ -477,7 +554,7 @@ const ViewMyProfileScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Icon name="chevron-left" size={28} color="#fff" />
+            <Icon name="chevron-left" size={28} color={Colors.white} />
           </TouchableOpacity>
 
           {/* Dots */}
@@ -491,8 +568,8 @@ const ViewMyProfileScreen = () => {
                     {
                       backgroundColor:
                         index === activeIndex
-                          ? "#FF5A79"
-                          : "rgba(255,255,255,0.7)",
+                          ? Colors.primary
+                          : 'rgba(255,255,255,0.7)',
                       width: index === activeIndex ? 18 : 6,
                     },
                   ]}
@@ -516,11 +593,24 @@ const ViewMyProfileScreen = () => {
             <Icon name="x" size={28} color="red" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: '#FF5A79' }]} onPress={handleLike}>
-            <Icon name="heart" size={28} color="#FF5A79" />
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              { borderColor: isAlreadyInvited ? '#4CAF50' : Colors.secondary },
+              (isAlreadyInvited || likeMutation.isPending) && styles.disabledActionBtn,
+            ]}
+            onPress={handleLike}
+            disabled={isAlreadyInvited || likeMutation.isPending}
+          >
+            <Icon
+              name={isAlreadyInvited ? "check" : "heart"}
+              size={28}
+              color={isAlreadyInvited ? '#4CAF50' : Colors.secondary}
+            />
           </TouchableOpacity>
         </View>
       )}
+      {AlertComponent}
     </SafeAreaView>
   );
 };
@@ -602,5 +692,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 5
+  },
+  disabledActionBtn: {
+    opacity: 0.6,
   },
 });

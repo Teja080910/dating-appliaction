@@ -34,7 +34,7 @@ const PLANS = [
   {
     id: 'BASIC',
     name: 'Standard',
-    price: '₹499',
+    price: '₹99',
     duration: '1 Month',
     features: ['Unlimited Swipes', '5 Super Hearts', '1 Profile Boost'],
     color: ['#A0A0A0', '#4A4A4A'],
@@ -43,7 +43,7 @@ const PLANS = [
   {
     id: 'GOLD',
     name: 'Premium',
-    price: '₹1,299',
+    price: '₹199',
     duration: '3 Months',
     features: ['All Standard Features', 'See Who Likes You', 'Passport to Any Location', 'No Ads'],
     color: ['#FF5A79', '#7928CA'],
@@ -53,7 +53,7 @@ const PLANS = [
   {
     id: 'PREMIUM',
     name: 'Elite',
-    price: '₹2,499',
+    price: '₹499',
     duration: '6 Months',
     features: ['All Premium Features', 'Priority Messaging', 'Exclusive Elite Badge', 'Profile Review'],
     color: ['#FFD700', '#B8860B'],

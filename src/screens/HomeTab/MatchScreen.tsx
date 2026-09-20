@@ -57,7 +57,7 @@ const MatchScreen = () => {
 
   return (
     <LinearGradient
-      colors={[Colors.primary, Colors.secondary, '#5B21B6']}
+      colors={[Colors.primary, Colors.secondary, Colors.primaryDark]}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -97,7 +97,7 @@ const MatchScreen = () => {
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={() => requireSubscription(() => navigation.goBack())}
+                onPress={() => requireSubscription(() => (navigation as any).navigate('ChatDetailScreen', { name: theirName, image: matchedImage }))}
               >
                 <Icon name="message-circle" size={20} color={Colors.primary} style={styles.icon} />
                 <Text style={styles.primaryButtonText}>Say Hello</Text>

@@ -5,11 +5,12 @@ import { useDiscovery } from '../../api/useDiscovery';
 import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
-import { Colors, Spacing, Typography } from '../../theme';
+import { Colors, Spacing } from '../../theme';
 
 interface HomeUserListProps {
   filterByGender: string | null;
   mode?: 'online' | 'newest';
+  filteredProfiles?: any[] | null;
   userLocation?: { latitude: number; longitude: number } | null;
 }
 
@@ -51,11 +52,17 @@ const resolveHomeCardImage = (item: any) => {
   return imagePath ? getAbsoluteUrl(imagePath) : null;
 };
 
-const resolveProfileUserId = (item: any) => {
+const resolveProfileUserId = (item: any): string | number | null => {
   const ids = [
-    item?.id, item?.profile?.userId, item?.user?.id, item?.profile?.user?.id,
+    item?.id, item?.userId, item?.profile?.userId,
+    item?.user?.id, item?.user?.userId,
+    item?.profile?.user?.id, item?.profile?.user?.userId,
   ];
   for (const id of ids) {
+    if (id === null || id === undefined) continue;
+    const normalized = String(id).trim();
+    if (!normalized || normalized === '0' || normalized === 'null' || normalized === 'undefined') continue;
+    if (/^[A-Za-z]+\d+$/.test(normalized)) return normalized;
     const num = Number(id);
     if (Number.isFinite(num) && num > 0) return num;
   }
@@ -70,17 +77,24 @@ const parseUserCollection = (data: any) =>
 const matchesGenderSelection = (item: any, selectedGender: string | null) => {
   if (!selectedGender || selectedGender === 'lgbtqia') return true;
   const gender = normalizeText(item?.profile?.gender || item?.gender);
-  if (selectedGender === 'straight_man') return gender === 'woman' || gender === 'female';
-  if (selectedGender === 'straight_woman') return gender === 'man' || gender === 'male';
+  if (selectedGender === 'straight_man') return gender === 'man' || gender === 'male';
+  if (selectedGender === 'straight_woman') return gender === 'woman' || gender === 'female';
   return true;
 };
 
 const keepInvitableProfiles = (items: any[]) =>
   items.filter((item) => resolveProfileUserId(item));
 
-const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
+const UserList = ({
+  filterByGender,
+  mode = 'online',
+  filteredProfiles = null,
+}: HomeUserListProps) => {
   const { filterUsers, searchUsers } = useDiscovery();
-  const { showMe, authUserId } = useContext(AppContext);
+  const {
+    showMe,
+    authUserId,
+  } = useContext(AppContext);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvedBackendUserId, setResolvedBackendUserId] = useState<string | null>(null);
@@ -108,7 +122,9 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
         let items: any[] = [];
 
         try {
-          if (mode === 'online') {
+          if (filteredProfiles !== null) {
+            items = filteredProfiles;
+          } else if (mode === 'online') {
             try {
               const res = await apiClient.get('/dashboard/online', {
                 params: { page: 0, size: 20 },
@@ -148,7 +164,14 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
         const genderMatched = items.filter((item) =>
           matchesGenderSelection(item, selectedGender)
         );
-        const finalItems = keepInvitableProfiles(genderMatched);
+        const invitable = keepInvitableProfiles(genderMatched);
+        const finalItems = resolvedBackendUserId
+          ? invitable.filter((item) => {
+              const itemUserId = String(resolveProfileUserId(item) || '');
+              return itemUserId && itemUserId !== String(resolvedBackendUserId);
+            })
+          : invitable;
+
         if (isMounted) setProfiles(finalItems);
       } catch (error) {
         console.warn('Home load failed:', error);
@@ -160,7 +183,7 @@ const UserList = ({ filterByGender, mode = 'online' }: HomeUserListProps) => {
 
     fetchMatches();
     return () => { isMounted = false; };
-  }, [mode, filterByGender, showMe, resolvedBackendUserId]);
+  }, [mode, filterByGender, showMe, resolvedBackendUserId, filteredProfiles]);
 
   if (loading) {
     return (

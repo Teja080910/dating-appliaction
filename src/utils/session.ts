@@ -688,13 +688,18 @@ export const resolveInitialRoute = async (): Promise<string> => {
      console.log('[session] Route resolution continuing without a resolved API userId yet.');
   }
 
-  if (!onboardingCompleteAfterHydration && onboardingStepAfterHydration && ONBOARDING_ROUTES.has(onboardingStepAfterHydration)) {
-     if (__DEV__) console.log('[session] Routes: Resuming onboarding at', onboardingStepAfterHydration);
-     return onboardingStepAfterHydration;
-  }
-
   if (!acceptedTermsAfterHydration) {
     return 'Privacy';
+  }
+
+  // If user is already logged in with a valid session, navigate to the main app
+  if (isLoggedIn && storedToken) {
+    return 'BottomTabs';
+  }
+
+  if (!onboardingCompleteAfterHydration && onboardingStepAfterHydration && ONBOARDING_ROUTES.has(onboardingStepAfterHydration) && onboardingStepAfterHydration !== 'SelfieVerification') {
+     if (__DEV__) console.log('[session] Routes: Resuming onboarding at', onboardingStepAfterHydration);
+     return onboardingStepAfterHydration;
   }
 
   return onboardingCompleteAfterHydration ? 'BottomTabs' : 'GenderOrientation';

@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -10,21 +10,18 @@ interface BodyHeightProps {
 
 const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
   const { bodyHeight } = useContext(AppContext);
-  const [localBodyHeight, setLocalBodyHeight] = useState(bodyHeight || [120, 200]);
-
   const handleValuesChange = (values: number[]) => {
-    setLocalBodyHeight(values);
     if (onChange) onChange(values[0], values[1]);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
-        Body height: <Text style={styles.value}>{localBodyHeight[0]} cm - {localBodyHeight[1]} cm</Text>
+        Body height: <Text style={styles.value}>{bodyHeight[0]} cm - {bodyHeight[1]} cm</Text>
       </Text>
 
       <MultiSlider
-        values={localBodyHeight}
+        values={bodyHeight}
         sliderLength={330}
         min={120}
         max={200}

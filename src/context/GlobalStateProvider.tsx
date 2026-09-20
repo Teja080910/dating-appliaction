@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
 import { clearFullSession } from '../utils/session';
 import { MAX_PROFILE_IMAGES } from '../api/useImages';
+import { getSavedSearchFilters } from '../utils/types/AsyncStorage';
 
 const GlobalStateProvider = ({ children }: any) => {
 
@@ -47,6 +48,9 @@ const GlobalStateProvider = ({ children }: any) => {
   // ================= DISCOVERY =================
   const [filter, setFilter] = useState<'online' | 'newest'>('online');
   const [oppositeGender, setOppositeGender] = useState<string | null>(null);
+  // Results from the Search Settings screen. They are cleared when the user
+  // switches back to one of the dashboard feeds.
+  const [filteredProfiles, setFilteredProfiles] = useState<any[] | null>(null);
 
   // ================= SEARCH FILTER =================
   const [ageRange, setAgeRange] = useState([18, 55]);
@@ -58,6 +62,8 @@ const GlobalStateProvider = ({ children }: any) => {
   const [ethnicity, setEthnicity] = useState<string[]>([]);
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [smoke, setSmoke] = useState<string[]>([]);
+  const [smokeFilter, setSmokeFilter] = useState<boolean | undefined>(undefined);
+  const [drinkFilter, setDrinkFilter] = useState<boolean | undefined>(undefined);
   const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
 
   // Missing properties from components
@@ -99,6 +105,34 @@ const GlobalStateProvider = ({ children }: any) => {
 
         const subStatus = await AsyncStorage.getItem('isSubscribed');
         if (subStatus === 'true') setIsSubscribed(true);
+
+        const savedFilters = await getSavedSearchFilters(id);
+        if (savedFilters) {
+          if (savedFilters.minAge !== undefined && savedFilters.maxAge !== undefined) {
+            setAgeRange([savedFilters.minAge, savedFilters.maxAge]);
+          }
+          if (savedFilters.maxDistanceKm !== undefined) {
+            setDistanceRange(savedFilters.maxDistanceKm);
+          }
+          if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
+            setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);
+          }
+          if (savedFilters.bodyType) setSelectBodyTypes(savedFilters.bodyType);
+          if (savedFilters.appearance) setSelectedOptions(savedFilters.appearance);
+          if (savedFilters.language) setSearchLanguages(savedFilters.language);
+          if (savedFilters.englishLevel) setEnglishProficiency(savedFilters.englishLevel);
+          if (savedFilters.ethnicity) setEthnicity(savedFilters.ethnicity);
+          if (savedFilters.lookingFor) setLookingFor(savedFilters.lookingFor);
+          if (savedFilters.showMe !== undefined) {
+            setShowMe(savedFilters.showMe);
+          } else if (savedFilters.gender?.length) {
+            setShowMe(savedFilters.gender[0] === 'Male' ? 'straight_man' : 'straight_woman');
+          }
+          if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
+          if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
+          if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
+          if (savedFilters.location) setLocation(savedFilters.location);
+        }
       } catch (e) {
         console.error('Init Error:', e);
       }
@@ -185,6 +219,7 @@ const GlobalStateProvider = ({ children }: any) => {
         // discovery
         filter, setFilter,
         oppositeGender, setOppositeGender,
+        filteredProfiles, setFilteredProfiles,
 
         // search
         ageRange, setAgeRange,
@@ -195,6 +230,8 @@ const GlobalStateProvider = ({ children }: any) => {
         ethnicity, setEthnicity,
         lookingFor, setLookingFor,
         smoke, setSmoke,
+        smokeFilter, setSmokeFilter,
+        drinkFilter, setDrinkFilter,
         showMe, setShowMe,
 
         selectedOptions, setSelectedOptions,
