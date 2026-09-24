@@ -455,9 +455,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Icon name="diamond-stone" size={50} color="#FFD700" />
-              <Text style={styles.title}>AMARA PREMIUM</Text>
+              <Text style={styles.title}>SUBSCRIBE TO INVITE</Text>
               <Text style={styles.subtitle}>
-                Unlock exclusive features and find your perfect match faster.
+                Take a subscription to send invites and connect with profiles. Choose a plan to unlock invites:
               </Text>
             </View>
 

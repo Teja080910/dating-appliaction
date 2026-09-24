@@ -18,7 +18,7 @@ const ServerSync = () => {
   const setOnlineRef = useRef<() => void>(() => undefined);
   const setOfflineRef = useRef<() => void>(() => undefined);
   const { setOnline, setOffline } = useServices(userId || undefined);
-  const { subscriptionStatus } = useSubscription(userId);
+  const { subscriptionStatus, statusError } = useSubscription(userId);
 
   useEffect(() => {
     setOnlineRef.current = () => setOnline.mutate();
@@ -60,14 +60,15 @@ const ServerSync = () => {
   }, [userId]);
 
   useEffect(() => {
-    if (!subscriptionStatus) {
-      return;
+    if (subscriptionStatus) {
+      const active = Boolean(subscriptionStatus.active);
+      setIsSubscribed(active);
+      AsyncStorage.setItem('isSubscribed', active ? 'true' : 'false').catch(() => null);
+    } else if (statusError) {
+      setIsSubscribed(false);
+      AsyncStorage.setItem('isSubscribed', 'false').catch(() => null);
     }
-
-    setIsSubscribed(Boolean(subscriptionStatus.active));
-    AsyncStorage.setItem('isSubscribed', subscriptionStatus.active ? 'true' : 'false')
-      .catch(() => null);
-  }, [setIsSubscribed, subscriptionStatus]);
+  }, [setIsSubscribed, subscriptionStatus, statusError]);
 
   return null;
 };
