@@ -158,17 +158,25 @@ export default function MessageScreen() {
         {item.online && <View style={styles.onlineDot} />}
       </View>
       <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.itemName}>{item.age ? `${item.name}, ${item.age}` : item.name}</Text>
-          <Text style={styles.itemTime}>{item.time || 'now'}</Text>
-        </View>
+        <Text style={styles.itemName} numberOfLines={1}>
+          {item.age ? `${item.name}, ${item.age}` : item.name}
+        </Text>
         <View style={styles.itemStatusRow}>
-          <Icon name="clock-check-outline" size={14} color={Colors.secondary} />
-          <Text style={styles.itemStatusLabel}>{activeInviteTab === 'Sent' ? (item.status || 'PENDING') : 'Invited you'}</Text>
+          <Icon name="clock-check-outline" size={13} color={Colors.secondary} />
+          <Text style={styles.itemStatusLabel}>
+            {activeInviteTab === 'Sent' ? (item.status || 'PENDING') : 'Invited you'}
+          </Text>
+          {item.time ? (
+            <>
+              <Text style={styles.dotSeparator}>•</Text>
+              <Text style={styles.itemDateText}>{item.time}</Text>
+            </>
+          ) : null}
         </View>
       </View>
       <TouchableOpacity
         style={styles.actionPill}
+        activeOpacity={0.8}
         onPress={() => activeInviteTab === 'Sent' ? handleRecall(item.requestId || item.id) : handleAccept(item)}
       >
         <LinearGradient
@@ -424,6 +432,7 @@ const styles = StyleSheet.create({
   itemContent: {
     flex: 1,
     marginLeft: Spacing.md,
+    marginRight: Spacing.sm,
     justifyContent: 'center',
   },
   itemHeader: {
@@ -436,6 +445,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.text,
+    marginBottom: 2,
   },
   itemTime: {
     fontSize: 12,
@@ -445,12 +455,22 @@ const styles = StyleSheet.create({
   itemStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   itemStatusLabel: {
     fontSize: 13,
     color: Colors.secondary,
     fontWeight: '600',
+  },
+  dotSeparator: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginHorizontal: 3,
+  },
+  itemDateText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '500',
   },
   lastMsg: {
     fontSize: 14,
@@ -477,16 +497,21 @@ const styles = StyleSheet.create({
   actionPill: {
     borderRadius: Spacing.radiusFull,
     overflow: 'hidden',
+    marginLeft: Spacing.xs,
   },
   actionGradient: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Spacing.radiusFull,
+    minWidth: 78,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionPillText: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.white,
-    fontWeight: '800',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   searchContainer: {
     flexDirection: 'row',

@@ -14,14 +14,17 @@ const InviteButton = () => {
 
   const handlePress = () => {
     try {
-      const parent = (navigation as any).getParent?.();
-      if (parent) {
-        parent.navigate('Home');
+      if (typeof (navigation as any).jumpTo === 'function') {
+        (navigation as any).jumpTo('Home');
       } else {
-        navigation.navigate('Home' as never);
+        (navigation as any).navigate('BottomTabs', { screen: 'Home' });
       }
-    } catch (error) {
-      navigation.navigate('Home' as never);
+    } catch {
+      try {
+        (navigation as any).navigate('BottomTabs', { screen: 'Home' });
+      } catch {
+        (navigation as any).navigate('Home');
+      }
     }
   };
 
