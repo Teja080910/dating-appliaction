@@ -49,6 +49,79 @@ export default function MessageScreen() {
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
+  const extractFirstImagePath = (value: unknown): string | null => {
+    if (!value) return null;
+    if (typeof value === 'string') return value.trim() || null;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const candidate = extractFirstImagePath(item);
+        if (candidate) return candidate;
+      }
+      return null;
+    }
+    if (value && typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+      return (
+        extractFirstImagePath(obj.imageUrl) ||
+        extractFirstImagePath(obj.profileImageUrl) ||
+        extractFirstImagePath(obj.url) ||
+        extractFirstImagePath(obj.uri) ||
+        extractFirstImagePath(obj.path) ||
+        null
+      );
+    }
+    return null;
+  };
+
+  const resolveUserImage = (targetUser: any, profile: any) => {
+    const imagePath = [
+      profile?.profileImageUrl,
+      targetUser?.profileImageUrl,
+      profile?.imageUrl,
+      targetUser?.imageUrl,
+      profile?.images,
+      targetUser?.images,
+    ]
+      .map(extractFirstImagePath)
+      .find(Boolean) || null;
+    return imagePath ? getAbsoluteUrl(imagePath) : null;
+  };
+
+  const resolveUserAge = (profile: any, targetUser: any) => {
+    if (profile?.age != null && profile?.age !== '' && Number(profile.age) > 0) {
+      return profile.age;
+    }
+    if (targetUser?.age != null && targetUser?.age !== '' && Number(targetUser.age) > 0) {
+      return targetUser.age;
+    }
+    const dob = profile?.dob || targetUser?.dob;
+    if (dob) {
+      const dobDate = new Date(dob);
+      if (!isNaN(dobDate.getTime())) {
+        const today = new Date();
+        let calculatedAge = today.getFullYear() - dobDate.getFullYear();
+        const m = today.getMonth() - dobDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+          calculatedAge--;
+        }
+        if (calculatedAge > 0 && calculatedAge < 120) return calculatedAge;
+      }
+    }
+    return '';
+  };
+
+  const resolveUserName = (profile: any, targetUser: any) => {
+    const raw =
+      profile?.displayName ||
+      targetUser?.displayName ||
+      targetUser?.name ||
+      targetUser?.fullName ||
+      targetUser?.username ||
+      '';
+    const trimmed = String(raw).trim();
+    return trimmed || 'User';
+  };
+
   const normalizeInvite = useCallback((request: any, mode: 'sent' | 'received') => {
     const targetUser = mode === 'sent' ? request?.receiver : request?.sender;
     const profile = targetUser?.profile;
@@ -56,12 +129,12 @@ export default function MessageScreen() {
       id: request?.id,
       requestId: request?.id,
       userId: targetUser?.id,
-      name: profile?.displayName || targetUser?.name || 'User',
-      age: profile?.age ?? '',
-      image: profile?.profileImageUrl ? getAbsoluteUrl(profile.profileImageUrl) : null,
+      name: resolveUserName(profile, targetUser),
+      age: resolveUserAge(profile, targetUser),
+      image: resolveUserImage(targetUser, profile),
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       status: request?.status || 'PENDING',
-      online: profile?.online ?? false,
+      online: profile?.online ?? targetUser?.online ?? false,
     };
   }, []);
 
@@ -74,12 +147,12 @@ export default function MessageScreen() {
     const status = String(request?.status || 'CONNECTED').toUpperCase();
     return {
       id: String(request?.id || targetUser?.id || `${status}-${Date.now()}`),
-      name: profile?.displayName || targetUser?.name || 'User',
+      name: resolveUserName(profile, targetUser),
       lastMsg: status === 'ACCEPTED' ? 'You are connected. Start the conversation.' : `Connection status: ${status}`,
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       unread: 0,
-      image: profile?.profileImageUrl ? getAbsoluteUrl(profile.profileImageUrl) : null,
-      online: profile?.online ?? false,
+      image: resolveUserImage(targetUser, profile),
+      online: profile?.online ?? targetUser?.online ?? false,
     };
   }, [userId]);
 
@@ -364,12 +437,13 @@ const styles = StyleSheet.create({
   subTabs: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.screenPaddingHorizontal,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.md,
     gap: Spacing.xl,
-    marginBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
   subTab: {
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -388,7 +462,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: Spacing.screenPaddingHorizontal,
     paddingTop: Spacing.sm,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   listItem: {
     flexDirection: 'row',

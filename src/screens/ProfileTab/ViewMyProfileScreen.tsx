@@ -292,7 +292,11 @@ const ViewMyProfileScreen = () => {
     likeMutation.mutate({ senderId, receiverId: numericTargetId }, {
       onSuccess: () => {
         connection.sentList.refetch();
-        const matchedImage = mergedProfile?.profileImageUrl || null;
+        const matchedImage =
+          mergedProfile?.profileImageUrl ||
+          (Array.isArray(mergedProfile?.images) ? mergedProfile.images[0] : null) ||
+          mergedProfile?.imageUrl ||
+          null;
         navigation.navigate('MatchScreen', {
           matchedUser: {
             id: numericTargetId,

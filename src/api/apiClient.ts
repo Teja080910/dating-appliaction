@@ -87,10 +87,11 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ DEDUPLICATE in-flight GET requests (prevents infinite loops)
+// ✅ DEDUPLICATE in-flight GET requests (prevents infinite loops while preserving distinct query params)
 const originalGet = apiClient.get;
 apiClient.get = async function(url: string, config?: any) {
-  const key = `GET:${url}`;
+  const paramsKey = config?.params ? JSON.stringify(config.params) : '';
+  const key = `GET:${url}:${paramsKey}`;
   if (pendingRequests.has(key)) {
     return pendingRequests.get(key)!;
   }

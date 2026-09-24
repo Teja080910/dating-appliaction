@@ -1,25 +1,63 @@
-import React, { useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+  ImageSourcePropType,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { getAbsoluteUrl } from '../../api/apiClient';
+import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 import { Colors, Spacing, Shadows } from '../../theme';
+import { getAuthToken } from '../../utils/sessionHelper';
 
 const { width } = Dimensions.get('window');
 const avatarSize = Math.min(width * 0.34, 140);
 
-const FALLBACK_MATCH_IMAGE = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop';
+const FALLBACK_IMAGES = [
+  require('../../assets/MessageTabImages/girl1.webp'),
+  require('../../assets/MessageTabImages/girl2.webp'),
+  require('../../assets/MessageTabImages/girl3.webp'),
+  require('../../assets/MessageTabImages/boy1.webp'),
+  require('../../assets/MessageTabImages/boy2.webp'),
+  require('../../assets/MessageTabImages/boy3.webp'),
+];
 
-const normalizeImageUri = (value: unknown): string | null => {
-  if (typeof value === 'string' && value.trim()) {
-    const trimmed = value.trim();
-    return /^(https?:\/\/|file:\/\/|content:\/\/|asset:\/\/|ph:\/\/|data:)/i.test(trimmed)
-      ? trimmed
-      : getAbsoluteUrl(trimmed);
+const getFallbackAsset = (seed: string | number = 'user') => {
+  const seedNum = String(seed)
+    .split('')
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return FALLBACK_IMAGES[seedNum % FALLBACK_IMAGES.length];
+};
+
+const extractFirstImagePath = (value: unknown): string | null => {
+  if (!value) return null;
+  if (typeof value === 'string') return value.trim() || null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const candidate = extractFirstImagePath(item);
+      if (candidate) return candidate;
+    }
+    return null;
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    return (
+      extractFirstImagePath(obj.imageUrl) ||
+      extractFirstImagePath(obj.profileImageUrl) ||
+      extractFirstImagePath(obj.url) ||
+      extractFirstImagePath(obj.uri) ||
+      extractFirstImagePath(obj.path) ||
+      null
+    );
   }
   return null;
 };
@@ -30,30 +68,87 @@ const MatchScreen = () => {
   const { requireSubscription } = useSubscriptionGate();
   const { profileImageUrl, profileImage, images } = useContext(AppContext);
 
+  const [myImageFailed, setMyImageFailed] = useState(false);
+  const [theirImageFailed, setTheirImageFailed] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAuthToken()
+      .then((token) => {
+        if (isMounted) setAuthToken(token);
+      })
+      .catch(() => {
+        if (isMounted) setAuthToken(null);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const params = route.params as any;
   const matchedUser = params?.matchedUser || { name: 'User', image: null };
+  const theirName = matchedUser?.name || matchedUser?.displayName || 'User';
 
-  const matchedImage = useMemo(() => {
-    const image =
-      normalizeImageUri(matchedUser?.image) ||
-      normalizeImageUri(matchedUser?.profileImageUrl) ||
-      normalizeImageUri(matchedUser?.images) ||
-      FALLBACK_MATCH_IMAGE;
-    return image;
-  }, [matchedUser?.image, matchedUser?.profileImageUrl, matchedUser?.images]);
+  const rawTheirImage = useMemo(() => {
+    const candidate = [
+      matchedUser?.image,
+      matchedUser?.profileImageUrl,
+      matchedUser?.imageUrl,
+      matchedUser?.images,
+      matchedUser?.profile?.profileImageUrl,
+      matchedUser?.profile?.imageUrl,
+      matchedUser?.profile?.images,
+    ]
+      .map(extractFirstImagePath)
+      .find(Boolean);
 
-  const myImage = useMemo(() => {
-    const imageList = Array.isArray(images) ? images : [];
-    const firstImage = imageList.find((img) => typeof img === 'string' && img.trim());
-    return (
-      normalizeImageUri(profileImageUrl) ||
-      normalizeImageUri(profileImage) ||
-      normalizeImageUri(firstImage) ||
-      'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=200&auto=format&fit=crop'
-    );
+    return candidate ? getAbsoluteUrl(candidate) : null;
+  }, [matchedUser]);
+
+  const rawMyImage = useMemo(() => {
+    const candidate = [
+      profileImageUrl,
+      profileImage,
+      images,
+    ]
+      .map(extractFirstImagePath)
+      .find(Boolean);
+
+    return candidate ? getAbsoluteUrl(candidate) : null;
   }, [profileImageUrl, profileImage, images]);
 
-  const theirName = matchedUser?.name || 'User';
+  const myFallback = useMemo(() => getFallbackAsset('my-profile'), []);
+  const theirFallback = useMemo(
+    () => getFallbackAsset(matchedUser?.id || theirName),
+    [matchedUser?.id, theirName],
+  );
+
+  const mySource: ImageSourcePropType = useMemo(() => {
+    if (!myImageFailed && rawMyImage) {
+      if (isApiHostedUrl(rawMyImage) && authToken) {
+        return {
+          uri: rawMyImage,
+          headers: { Authorization: `Bearer ${authToken}` },
+        };
+      }
+      return { uri: rawMyImage };
+    }
+    return myFallback;
+  }, [myImageFailed, rawMyImage, authToken, myFallback]);
+
+  const theirSource: ImageSourcePropType = useMemo(() => {
+    if (!theirImageFailed && rawTheirImage) {
+      if (isApiHostedUrl(rawTheirImage) && authToken) {
+        return {
+          uri: rawTheirImage,
+          headers: { Authorization: `Bearer ${authToken}` },
+        };
+      }
+      return { uri: rawTheirImage };
+    }
+    return theirFallback;
+  }, [theirImageFailed, rawTheirImage, authToken, theirFallback]);
 
   return (
     <LinearGradient
@@ -61,13 +156,23 @@ const MatchScreen = () => {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.content}>
             <View style={styles.sparkleContainer}>
-              <Icon name="heart" size={24} color={Colors.white} style={styles.sparkleIcon} />
+              <Icon
+                name="heart"
+                size={24}
+                color={Colors.white}
+                style={styles.sparkleIcon}
+              />
             </View>
             <Text style={styles.title}>It's a Match!</Text>
-            <Text style={styles.subtitle}>You and {theirName} liked each other</Text>
+            <Text style={styles.subtitle}>
+              You and {theirName} liked each other
+            </Text>
 
             <View style={styles.avatarContainer}>
               <View style={[styles.avatarWrapper, styles.myAvatar]}>
@@ -76,8 +181,9 @@ const MatchScreen = () => {
                   style={styles.avatarBorder}
                 >
                   <Image
-                    source={{ uri: myImage }}
+                    source={mySource}
                     style={styles.avatar}
+                    onError={() => setMyImageFailed(true)}
                   />
                 </LinearGradient>
               </View>
@@ -87,8 +193,9 @@ const MatchScreen = () => {
                   style={styles.avatarBorder}
                 >
                   <Image
-                    source={{ uri: matchedImage }}
+                    source={theirSource}
                     style={styles.avatar}
+                    onError={() => setTheirImageFailed(true)}
                   />
                 </LinearGradient>
               </View>
@@ -97,9 +204,21 @@ const MatchScreen = () => {
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={() => requireSubscription(() => (navigation as any).navigate('ChatDetailScreen', { name: theirName, image: matchedImage }))}
+                onPress={() =>
+                  requireSubscription(() =>
+                    (navigation as any).navigate('ChatDetailScreen', {
+                      name: theirName,
+                      image: rawTheirImage,
+                    }),
+                  )
+                }
               >
-                <Icon name="message-circle" size={20} color={Colors.primary} style={styles.icon} />
+                <Icon
+                  name="message-circle"
+                  size={20}
+                  color={Colors.primary}
+                  style={styles.icon}
+                />
                 <Text style={styles.primaryButtonText}>Say Hello</Text>
               </TouchableOpacity>
 
@@ -175,6 +294,7 @@ const styles = StyleSheet.create({
     padding: 3,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.surface,
   },
   myAvatar: {
     zIndex: 1,
