@@ -77,8 +77,12 @@ export default function MessageScreen() {
     const imagePath = [
       profile?.profileImageUrl,
       targetUser?.profileImageUrl,
+      targetUser?.photo,
+      profile?.photo,
       profile?.imageUrl,
       targetUser?.imageUrl,
+      profile?.photos,
+      targetUser?.photos,
       profile?.images,
       targetUser?.images,
     ]
@@ -118,7 +122,8 @@ export default function MessageScreen() {
       targetUser?.fullName ||
       targetUser?.username ||
       '';
-    const trimmed = String(raw).trim();
+    let trimmed = String(raw).trim();
+    trimmed = trimmed.replace(/,\s*\d+$/, '').trim();
     return trimmed || 'User';
   };
 
@@ -148,7 +153,7 @@ export default function MessageScreen() {
     return {
       id: String(request?.id || targetUser?.id || `${status}-${Date.now()}`),
       name: resolveUserName(profile, targetUser),
-      lastMsg: status === 'ACCEPTED' ? 'You are connected. Start the conversation.' : `Connection status: ${status}`,
+      lastMsg: status === 'APPROVED' ? 'You are connected. Start the conversation.' : `Connection status: ${status}`,
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       unread: 0,
       image: resolveUserImage(targetUser, profile),
@@ -160,12 +165,22 @@ export default function MessageScreen() {
 
   const sentInvites = useMemo(() => {
     const items = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
-    return items.map((item: any) => normalizeInvite(item, 'sent'));
+    return items
+      .map((item: any) => normalizeInvite(item, 'sent'))
+      .filter((item: any) => {
+        const status = String(item?.status || 'PENDING').trim().toUpperCase();
+        return status === 'PENDING';
+      });
   }, [connection.sentList.data, normalizeInvite]);
 
   const receivedInvites = useMemo(() => {
     const items = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
-    return items.map((item: any) => normalizeInvite(item, 'received'));
+    return items
+      .map((item: any) => normalizeInvite(item, 'received'))
+      .filter((item: any) => {
+        const status = String(item?.status || 'PENDING').trim().toUpperCase();
+        return status === 'PENDING';
+      });
   }, [connection.receivedList.data, normalizeInvite]);
 
   const connectionChats = useMemo(() => {
@@ -177,22 +192,15 @@ export default function MessageScreen() {
   const receivedLoading = Boolean(userId) && (connection.receivedList.isLoading || connection.receivedList.isRefetching);
   const messagesLoading = Boolean(userId) && (connection.connectionList.isLoading || connection.connectionList.isRefetching);
 
-  const handleRecall = (id: string | number) => {
-    connection.cancel.mutate(Number(id), {
-      onSuccess: () => {
-        void connection.sentList.refetch();
-        Toast.show({ type: 'success', text1: 'Invitation Recalled', text2: 'The invitation has been cancelled.' });
-      },
-      onError: () => { alert('Error', 'Failed to recall invitation.'); },
-    });
-  };
-
   const handleAccept = (item: any) => {
-    connection.accept.mutate(Number(item.requestId || item.id), {
+    const targetRequestId = item.requestId || item.id;
+    connection.accept.mutate(targetRequestId, {
       onSuccess: () => {
         void connection.receivedList.refetch();
+        void connection.sentList.refetch();
         void connection.connectionList.refetch();
         Toast.show({ type: 'success', text1: 'Invitation Accepted!', text2: `You can now chat with ${item.name || item.username || 'them'}.` });
+        setActiveMainTab('Messages');
       },
       onError: () => { alert('Error', 'Failed to accept invitation.'); },
     });
@@ -235,32 +243,36 @@ export default function MessageScreen() {
           {item.age ? `${item.name}, ${item.age}` : item.name}
         </Text>
         <View style={styles.itemStatusRow}>
-          <Icon name="clock-check-outline" size={13} color={Colors.secondary} />
-          <Text style={styles.itemStatusLabel}>
-            {activeInviteTab === 'Sent' ? (item.status || 'PENDING') : 'Invited you'}
-          </Text>
-          {item.time ? (
+          {activeInviteTab === 'Received' ? (
             <>
-              <Text style={styles.dotSeparator}>•</Text>
-              <Text style={styles.itemDateText}>{item.time}</Text>
+              <Icon name="clock-check-outline" size={13} color={Colors.secondary} />
+              <Text style={styles.itemStatusLabel}>Invited you</Text>
             </>
+          ) : null}
+          {item.time ? (
+            <View style={styles.inviteDateContainer}>
+              {activeInviteTab === 'Received' ? <Text style={styles.dotSeparator}>•</Text> : null}
+              <Text style={styles.itemDateText}>{item.time}</Text>
+            </View>
           ) : null}
         </View>
       </View>
-      <TouchableOpacity
-        style={styles.actionPill}
-        activeOpacity={0.8}
-        onPress={() => activeInviteTab === 'Sent' ? handleRecall(item.requestId || item.id) : handleAccept(item)}
-      >
-        <LinearGradient
-          colors={[Colors.primary, Colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.actionGradient}
+      {activeInviteTab === 'Received' ? (
+        <TouchableOpacity
+          style={styles.actionPill}
+          activeOpacity={0.8}
+          onPress={() => handleAccept(item)}
         >
-          <Text style={styles.actionPillText}>{activeInviteTab === 'Sent' ? 'Recall' : 'Accept'}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={[Colors.primary, Colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.actionGradient}
+          >
+            <Text style={styles.actionPillText}>Accept</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 
@@ -530,6 +542,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  inviteDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   itemStatusLabel: {
     fontSize: 13,

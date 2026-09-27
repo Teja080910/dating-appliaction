@@ -98,9 +98,8 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
 
 export const useAuth = () => {
   const persistSessionIfAvailable = async (data: any) => {
-    // 🔍 DEBUG: Log the FULL response from login/register to understand its structure
     if (__DEV__) {
-      console.log('🔍 [AUTH] Raw response from server:', JSON.stringify(data, null, 2));
+      console.log('[AUTH] Server response received.');
     }
 
     if (hasSessionToken(data)) {

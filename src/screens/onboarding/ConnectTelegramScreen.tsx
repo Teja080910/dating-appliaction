@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -8,8 +8,8 @@ import {
   StatusBar,
   Image,
   BackHandler,
-  Linking,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -17,29 +17,52 @@ import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { completeOnboarding } from '../../utils/session';
 import { useTelegram } from '../../api/useTelegram';
+import { useProfile } from '../../api/useProfile';
 import { Colors, Spacing, Shadows } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 
-const ConnectTelegramScreen = ({ navigation }: any) => {
-  const { getTelegramLink, connectTelegram } = useTelegram();
+const ConnectTelegramScreen = ({ navigation, route }: any) => {
+  const fromProfile = Boolean(route?.params?.fromProfile);
+  const { connectTelegram } = useTelegram();
+  const { useMyProfile } = useProfile();
+  const { data: profile, refetch: refetchProfile } = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
   const [loading, setLoading] = useState(false);
+  const [telegramUsername, setTelegramUsername] = useState('');
+
+  const connectedUsername = profile?.telegramUsername || '';
+
+  useEffect(() => {
+    if (profile?.userId) {
+      setTelegramUsername(connectedUsername);
+    }
+  }, [profile?.userId]);
 
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.setItem('onboardingStep', 'ConnectTelegram');
+      if (!fromProfile) {
+        AsyncStorage.setItem('onboardingStep', 'ConnectTelegram');
+      }
 
       const onBackPress = () => {
+        if (fromProfile || navigation.canGoBack()) {
+          navigation.goBack();
+          return true;
+        }
         navigation.replace('AboutProfile');
         return true;
       };
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => backHandler.remove();
-    }, [navigation]),
+    }, [navigation, fromProfile]),
   );
 
   const handleSkip = async () => {
+    if (fromProfile) {
+      navigation.goBack();
+      return;
+    }
     try {
       await completeOnboarding();
       navigation.navigate('BottomTabs');
@@ -49,83 +72,52 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
   };
 
   const handleBack = () => {
-    navigation.replace('AboutProfile');
+    if (fromProfile || navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('AboutProfile');
+    }
   };
 
   const handleConnectTelegram = async () => {
     setLoading(true);
-    const fallbackUrls = [
-      'tg://resolve?domain=AmaraDatingBot',
-      'https://t.me/AmaraDatingBot',
-      'https://telegram.org/',
-    ];
-
-    const openFirstAvailableUrl = async (candidates: string[]) => {
-      for (const candidate of candidates) {
-        try {
-          const canOpen = await Linking.canOpenURL(candidate);
-          if (canOpen) {
-            await Linking.openURL(candidate);
-            return true;
-          }
-        } catch (error) {
-          console.warn('Telegram URL open failed:', candidate, error);
-        }
-      }
-      return false;
-    };
-
     try {
-      let telegramUrl: string | null = null;
-      try {
-        const linkResponse = await getTelegramLink.mutateAsync({});
-        if (typeof linkResponse === 'string' && linkResponse.trim()) {
-          telegramUrl = linkResponse.trim();
-        } else if (linkResponse && typeof linkResponse === 'object') {
-          const record = linkResponse as Record<string, unknown>;
-          if (typeof record.link === 'string' && record.link.trim()) {
-            telegramUrl = record.link.trim();
-          } else if (typeof record.url === 'string' && record.url.trim()) {
-            telegramUrl = record.url.trim();
-          }
-        }
-      } catch (err) {
-        console.warn('Telegram link fetch failed, using fallback bot link.');
+      const username = telegramUsername.trim().replace(/^@/, '');
+      if (!username) {
+        throw new Error('Enter your Telegram username, then tap Connect Telegram again.');
       }
 
-      const didOpen = await openFirstAvailableUrl(
-        telegramUrl ? [telegramUrl, ...fallbackUrls] : fallbackUrls,
-      );
+      await connectTelegram.mutateAsync({ userId: '', username });
+      await refetchProfile();
 
-      if (!didOpen) {
-        throw new Error('Unable to open Telegram link');
-      }
-
-      try {
-        await connectTelegram.mutateAsync({ userId: '' });
-      } catch (connectErr: any) {
-        const msg = connectErr?.response?.data?.message || connectErr?.message || 'Could not link Telegram.';
-        console.warn('[Telegram] Connect registration failed:', msg);
-        alert('Telegram Connect', msg);
-      }
-
-      await completeOnboarding();
       setLoading(false);
-      navigation.navigate('BottomTabs');
+
+      if (fromProfile) {
+        alert('Telegram Connected', 'Your Telegram has been linked to your AMARA profile.', [
+          { text: 'Done', onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        await completeOnboarding();
+        navigation.navigate('BottomTabs');
+      }
     } catch (error) {
       setLoading(false);
       console.error('Telegram Error:', error);
-      alert('Telegram Connect', 'We could not open the Telegram bot right now. You can continue onboarding and connect Telegram later from your profile.', [
-        {
-          text: 'Continue',
-          onPress: async () => {
-            try {
-              await completeOnboarding();
-            } catch (e) {}
-            navigation.navigate('BottomTabs');
+      if (fromProfile) {
+        alert('Notice', error instanceof Error ? error.message : 'Could not connect Telegram right now.');
+      } else {
+        alert('Telegram Connect', 'We could not save your Telegram username right now. You can continue onboarding and connect Telegram later from your profile.', [
+          {
+            text: 'Continue',
+            onPress: async () => {
+              try {
+                await completeOnboarding();
+              } catch (e) {}
+              navigation.navigate('BottomTabs');
+            },
           },
-        },
-      ]);
+        ]);
+      }
     }
   };
 
@@ -134,18 +126,22 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.progressBackground}>
-            <View style={styles.progressBar} />
-          </View>
+          {!fromProfile && (
+            <View style={styles.progressBackground}>
+              <View style={styles.progressBar} />
+            </View>
+          )}
 
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={handleBack}>
+            <TouchableOpacity onPress={handleBack} style={styles.backBtnTouch}>
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-              <Text style={styles.skipBtnText}>Skip</Text>
-            </TouchableOpacity>
+            {!fromProfile && (
+              <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
+                <Text style={styles.skipBtnText}>Skip</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.content}>
@@ -155,10 +151,33 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
                 style={styles.telegramIcon}
               />
 
-              <Text style={styles.heading}>Connect Your Telegram</Text>
+              <Text style={styles.heading}>
+                {connectedUsername ? 'Telegram Connected' : 'Connect Your Telegram'}
+              </Text>
+
+              {connectedUsername ? (
+                <View style={styles.connectedBadgeBox}>
+                  <Text style={styles.connectedBadgeLabel}>ACTIVE HANDLE</Text>
+                  <Text style={styles.connectedBadgeText}>
+                    @{connectedUsername.replace('@', '')}
+                  </Text>
+                </View>
+              ) : null}
+
+              <TextInput
+                style={styles.usernameInput}
+                value={telegramUsername}
+                onChangeText={setTelegramUsername}
+                placeholder="Telegram username (e.g. @yourname)"
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
 
               <Text style={styles.description}>
-                Effortlessly manage your invitations directly from the Telegram app and invite nearby users with just one click.
+                {connectedUsername
+                  ? 'Your profile is connected to Telegram. Approved matches can reach you directly.'
+                  : 'Add your Telegram username so approved matches can contact you safely.'}
               </Text>
 
               <View style={styles.bulletRow}>
@@ -169,7 +188,7 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
               <View style={styles.bulletRow}>
                 <Text style={styles.bullet}>🔔</Text>
                 <Text style={styles.bulletText}>
-                  Discover new profiles near you and send invites with a single tap.
+                  Safe contact handoff only after request approval.
                 </Text>
               </View>
 
@@ -183,25 +202,32 @@ const ConnectTelegramScreen = ({ navigation }: any) => {
                   {loading ? (
                     <ActivityIndicator color={Colors.white} />
                   ) : (
-                    <Text style={styles.connectBtnText}>Connect Telegram</Text>
+                    <Text style={styles.connectBtnText}>
+                      {connectedUsername ? 'Update Telegram Username' : 'Connect Telegram'}
+                    </Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
 
               <Text style={styles.footerText}>
-                Your Telegram information is always private—we never share it with anyone.
+                Your Telegram information is private—we never reveal it before request approval.
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
-              <Text style={styles.bottomSkipText}>Keep it for later</Text>
-            </TouchableOpacity>
+            {!fromProfile && (
+              <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
+                <Text style={styles.bottomSkipText}>Keep it for later</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </SafeAreaView>
       </LinearGradient>
+      {AlertComponent}
     </View>
   );
 };
+
+export default ConnectTelegramScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -227,6 +253,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.sm + 2,
+  },
+  backBtnTouch: {
+    padding: 6,
   },
   closeIcon: {
     fontSize: 26,
@@ -264,21 +293,44 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     alignSelf: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   heading: {
     fontSize: 22,
     fontWeight: '900',
     textAlign: 'center',
     color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  connectedBadgeBox: {
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'center',
+    alignItems: 'center',
     marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+  },
+  connectedBadgeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#22c55e',
+    letterSpacing: 0.5,
+  },
+  connectedBadgeText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+    marginTop: 2,
   },
   description: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center',
     color: Colors.textSecondary,
-    marginBottom: Spacing.xl,
-    lineHeight: 22,
+    marginBottom: Spacing.lg,
+    lineHeight: 20,
   },
   bulletRow: {
     flexDirection: 'row',
@@ -300,11 +352,11 @@ const styles = StyleSheet.create({
   connectBtn: {
     borderRadius: Spacing.radiusLg,
     overflow: 'hidden',
-    marginVertical: Spacing.xl,
+    marginVertical: Spacing.lg,
     ...Shadows.md,
   },
   connectGradient: {
-    height: 56,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -319,6 +371,17 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     lineHeight: 18,
   },
+  usernameInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.background,
+  },
   bottomSkip: {
     marginTop: Spacing.xl,
     alignSelf: 'center',
@@ -330,5 +393,3 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
-
-export default ConnectTelegramScreen;

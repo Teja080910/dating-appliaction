@@ -169,9 +169,9 @@ const MatchScreen = () => {
                 style={styles.sparkleIcon}
               />
             </View>
-            <Text style={styles.title}>It's a Match!</Text>
+            <Text style={styles.title}>Invitation Sent! 💌</Text>
             <Text style={styles.subtitle}>
-              You and {theirName} liked each other
+              We've notified {theirName}. Once she accepts, her Telegram handle will appear in your Sent Invitations.
             </Text>
 
             <View style={styles.avatarContainer}>
@@ -204,29 +204,32 @@ const MatchScreen = () => {
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
                 style={styles.primaryButton}
-                onPress={() =>
-                  requireSubscription(() =>
-                    (navigation as any).navigate('ChatDetailScreen', {
-                      name: theirName,
-                      image: rawTheirImage,
-                    }),
-                  )
-                }
+                onPress={() => {
+                  try {
+                    (navigation as any).navigate('BottomTabs', { screen: 'Sent' });
+                  } catch {
+                    try {
+                      (navigation as any).navigate('SentRequestsScreen');
+                    } catch {
+                      (navigation as any).navigate('Sent');
+                    }
+                  }
+                }}
               >
                 <Icon
-                  name="message-circle"
+                  name="send"
                   size={20}
                   color={Colors.primary}
                   style={styles.icon}
                 />
-                <Text style={styles.primaryButtonText}>Say Hello</Text>
+                <Text style={styles.primaryButtonText}>View Sent Invitations</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => navigation.goBack()}
               >
-                <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
+                <Text style={styles.secondaryButtonText}>Keep Browsing</Text>
               </TouchableOpacity>
             </View>
           </View>

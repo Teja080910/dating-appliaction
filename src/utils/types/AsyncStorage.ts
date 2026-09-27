@@ -24,6 +24,19 @@ export const getGender = async (): Promise<string | null> => {
 
 export class AsyncStorageService {
   static USER = 'user';
+  static TOKEN = 'auth_token';
+
+  static async setToken(token: string) {
+    await EncryptedStorage.setItem(AsyncStorageService.TOKEN, token);
+  }
+
+  static async getToken(): Promise<string | null> {
+    return EncryptedStorage.getItem(AsyncStorageService.TOKEN);
+  }
+
+  static async clearToken() {
+    await EncryptedStorage.removeItem(AsyncStorageService.TOKEN);
+  }
 
   // Encrypt and store user data securely
   static async setUser(data: any) {
@@ -137,4 +150,3 @@ export const clearSavedSearchFilters = async (
     console.error('Error clearing search filters:', e);
   }
 };
-

@@ -103,6 +103,17 @@ const GlobalStateProvider = ({ children }: any) => {
         const id = await getUserId();
         if (id) setAuthUserId(id);
 
+        const [storedName, storedDisplayName, storedGender, storedUserGender] = await Promise.all([
+          AsyncStorage.getItem('name'),
+          AsyncStorage.getItem('displayName'),
+          AsyncStorage.getItem('selectedGender'),
+          AsyncStorage.getItem('userGender'),
+        ]);
+        if (storedName) setName(storedName);
+        if (storedDisplayName) setDisplayName(storedDisplayName);
+        const resolvedGender = storedGender || storedUserGender;
+        if (resolvedGender) setGender(resolvedGender);
+
         const subStatus = await AsyncStorage.getItem('isSubscribed');
         if (subStatus === 'true') setIsSubscribed(true);
 

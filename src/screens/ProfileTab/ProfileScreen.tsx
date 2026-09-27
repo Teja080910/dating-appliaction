@@ -1,6 +1,8 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useContext, useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../../components/ProfileTabComponents/Header';
 import AdditionalUploadSection from '../../components/ProfileTabComponents/AdditionalUploadSection';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
@@ -13,11 +15,33 @@ import { clearFullSession } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { getUserId } from '../../utils/sessionHelper';
 import { Colors, Spacing, Shadows, Typography } from '../../theme';
+import AppContext from '../../context/CreateGlobalStateContext';
+import { useSubscription, useRemainingDays } from '../../api/useSubscription';
+import { useMyProfile } from '../../api/useProfile';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const ProfileScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  const { setViewMyProfile, setPaywallVisible } = useContext(AppContext);
   const { logout, deleteAccount } = useAuth();
   const { alert, AlertComponent } = useAlert();
+  const { subscriptionStatus } = useSubscription();
+  const { remainingDays } = useRemainingDays();
+  const { data: myProfile } = useMyProfile();
+  const [storedGender, setStoredGender] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    AsyncStorage.getItem('userGender').then((g) => {
+      if (isMounted && g) setStoredGender(g);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const cleanGender = (myProfile?.gender || storedGender || '').toLowerCase();
+  const isWoman = cleanGender.includes('woman') || cleanGender.includes('female');
 
   const handleLogout = async () => {
     alert('Logout', 'Are you sure you want to logout?', [
@@ -76,6 +100,12 @@ const ProfileScreen = () => {
     ]);
   };
 
+  const isSubscribed = Boolean(subscriptionStatus?.active);
+  const planCode = String(subscriptionStatus?.plan || '').toUpperCase();
+  const planName = planCode === 'PREMIUM' ? 'Elite' : planCode === 'GOLD' ? 'Premium' : planCode === 'BASIC' ? 'Standard' : 'Standard';
+  const daysLeft = typeof remainingDays === 'number' ? remainingDays : 0;
+  const isElite = Boolean(subscriptionStatus?.eliteBadge || planCode === 'PREMIUM');
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <Header />
@@ -83,6 +113,67 @@ const ProfileScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* PRD FR-35 & TC-30: Active membership plan badge, remaining days countdown, and renew/upgrade button (Men only) */}
+        {!isWoman && (
+          <View style={styles.membershipCardWrapper}>
+            <LinearGradient
+              colors={isSubscribed ? [Colors.primary, Colors.secondary] : ['#374151', '#1f2937']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.membershipCard}
+            >
+              <View style={styles.membershipHeader}>
+                <View style={styles.membershipBadgeRow}>
+                  <Icon
+                    name={isSubscribed ? 'crown' : 'shield-account-outline'}
+                    size={20}
+                    color={Colors.white}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.membershipPlanTitle}>
+                    {isSubscribed ? `${planName.toUpperCase()} MEMBER` : 'FREE PLAN'}
+                  </Text>
+                </View>
+                <View style={styles.membershipStatusRow}>
+                  {isSubscribed && (
+                    <View style={styles.daysBadge}>
+                      <Text style={styles.daysBadgeText}>
+                        {daysLeft > 0 ? `${daysLeft} days left` : 'Active'}
+                      </Text>
+                    </View>
+                  )}
+                  {isElite && (
+                    <View style={styles.eliteBadge}>
+                      <Icon name="crown" size={13} color="#4A3200" style={styles.eliteBadgeIcon} />
+                      <Text style={styles.eliteBadgeText}>Elite member</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <Text style={styles.membershipSubtitle}>
+                {isSubscribed
+                  ? planCode === 'PREMIUM'
+                    ? 'Enjoy unlimited invitations, priority Telegram handoff, and your Elite badge.'
+                    : planCode === 'GOLD'
+                      ? 'Enjoy 20 invitations per day and priority Telegram handoff.'
+                      : 'Enjoy 10 invitations per day with Telegram handoff after approval.'
+                  : 'Upgrade to send requests, connect on Telegram, and unlock all features.'}
+              </Text>
+
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                activeOpacity={0.8}
+                onPress={() => setPaywallVisible(true)}
+              >
+                <Text style={styles.upgradeBtnText}>
+                  {isSubscribed ? 'Renew / Upgrade Plan' : 'View Membership Plans'}
+                </Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Photos</Text>
           <AdditionalUploadSection />
@@ -99,29 +190,16 @@ const ProfileScreen = () => {
           <ProfileRow
             title="View My Profile"
             iconName="eye"
-            onPress={() => navigation.navigate('ViewMyProfileScreen', { userId: undefined })}
+            onPress={() => {
+              setViewMyProfile(true);
+              navigation.navigate('ViewMyProfileScreen', { userId: undefined });
+            }}
           />
-          <ProfileRow
-            title="Notifications"
-            iconName="bell"
-            color={Colors.primaryLight}
-            onPress={() => navigation.navigate('NotificationsScreen')}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
           <ProfileRow
             title="Connect Telegram"
             iconName="send"
             color={Colors.primaryLight}
-            onPress={() => navigation.navigate('ConnectTelegram')}
-          />
-          <ProfileRow
-            title="Chat with us"
-            iconName="message-circle"
-            color={Colors.success}
-            onPress={() => navigation.navigate('SupportScreen')}
+            onPress={() => navigation.navigate('ConnectTelegram', { fromProfile: true } as any)}
           />
         </View>
 
@@ -197,6 +275,87 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxl,
     marginBottom: Spacing.xl,
     letterSpacing: 1,
+  },
+  membershipCardWrapper: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
+  membershipCard: {
+    borderRadius: Spacing.radiusLg,
+    padding: Spacing.lg,
+    ...Shadows.md,
+  },
+  membershipHeader: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    marginBottom: Spacing.xs,
+  },
+  membershipBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  membershipStatusRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  membershipPlanTitle: {
+    ...Typography.h3,
+    color: Colors.white,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  daysBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Spacing.radiusSm,
+  },
+  daysBadgeText: {
+    ...Typography.caption,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  eliteBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFD700',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Spacing.radiusSm,
+    maxWidth: '100%',
+  },
+  eliteBadgeIcon: {
+    marginRight: 4,
+  },
+  eliteBadgeText: {
+    ...Typography.caption,
+    fontWeight: '800',
+    color: '#4A3200',
+    flexShrink: 1,
+  },
+  membershipSubtitle: {
+    ...Typography.bodySmall,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginVertical: Spacing.sm,
+    lineHeight: 18,
+  },
+  upgradeBtn: {
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Spacing.radiusMd,
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+  },
+  upgradeBtnText: {
+    ...Typography.button,
+    color: Colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
   },
 });
 

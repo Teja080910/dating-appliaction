@@ -41,8 +41,16 @@ const COMPACT_HEIGHT = 640;
 
 const LoginScreen = ({navigation}: any) => {
   const {alert, AlertComponent} = useAlert();
-  const {password, setPassword, phoneNumber, setPhoneNumber} =
-    useContext(AppContext);
+  const {
+    password,
+    setPassword,
+    phoneNumber,
+    setPhoneNumber,
+    setName,
+    setDisplayName,
+    setGender,
+    setAuthUserId,
+  } = useContext(AppContext);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const {login} = useAuth();
@@ -232,14 +240,51 @@ const LoginScreen = ({navigation}: any) => {
           );
           return;
         }
-        setLoading(false);
-        await AsyncStorage.multiSet([
+
+        const user = data?.user || session.user || data?.data?.user || data?.data || {};
+        const userName = user.name || user.displayName || user.username || '';
+        const rawGender = String(user.gender || data?.gender || session.user?.gender || '').toLowerCase();
+        const userGender =
+          rawGender.includes('woman') || rawGender.includes('female')
+            ? 'straight_woman'
+            : 'straight_man';
+        const resolvedUid = String(session.userId || user.userId || user.id || '');
+
+        if (userName) {
+          setName(userName);
+          setDisplayName(userName);
+        }
+        if (userGender) {
+          setGender(userGender);
+        }
+        if (resolvedUid) {
+          setAuthUserId(resolvedUid);
+        }
+
+        const asyncStorageItems: [string, string][] = [
           ['isLoggedIn', 'true'],
-          ['entryHomeScreen', 'true'],
           ['acceptedTerms', 'true'],
-        ]);
-        await AsyncStorage.removeItem('onboardingStep');
-        navigation.replace('BottomTabs');
+        ];
+        if (userName) {
+          asyncStorageItems.push(['name', userName], ['displayName', userName]);
+        }
+        if (userGender) {
+          asyncStorageItems.push(
+            ['selectedGender', userGender],
+            ['userGender', userGender],
+          );
+        }
+        if (resolvedUid) {
+          asyncStorageItems.push(
+            ['userId', resolvedUid],
+            ['user_id', resolvedUid],
+          );
+        }
+
+        setLoading(false);
+        await AsyncStorage.multiSet(asyncStorageItems);
+        const nextRoute = await resolveInitialRoute();
+        navigation.replace(nextRoute as never);
       },
       onError: (error: any) => {
         setLoading(false);

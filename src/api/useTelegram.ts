@@ -57,11 +57,15 @@ export const useTelegram = () => {
   const connectTelegram = useMutation({
     mutationFn: async ({ userId, username }: { userId: string | number; username?: string }) => {
       const resolvedUserId = await resolveBackendUserId(userId);
+      const normalizedUsername = String(username || '').trim().replace(/^@/, '');
+      if (!normalizedUsername) {
+        throw new Error('Telegram username is required.');
+      }
       // Endpoint usually initiates connection or maps username
       const res = await apiClient.post('/telegram/connect', null, {
         params: {
           userId: resolvedUserId,
-          username: String(username || '').trim() || 'pending',
+          username: normalizedUsername,
         },
       });
       return normalizeTelegramResponse(res.data);

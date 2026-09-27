@@ -1,7 +1,6 @@
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import React, { useContext, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
@@ -20,10 +19,11 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { getAuthSession } from '../../utils/session';
 import { Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
+import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 
 const MoreInfoScreen = () => {
   const { alert, AlertComponent } = useAlert();
-  const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
   const {
     height,
     setHeight,
@@ -155,7 +155,7 @@ const MoreInfoScreen = () => {
       console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
       alert(
         'Save failed',
-        error?.response?.data?.message || 'Could not save your profile details right now.',
+        getUserFriendlyMessage(error, 'We could not save your profile details right now.'),
       );
     } finally {
       setLoading(false);
@@ -184,7 +184,7 @@ const MoreInfoScreen = () => {
           <NetWorthSelector />
         </View>
       </ScrollView>
-      <View style={[styles.footer, { paddingBottom: tabBarHeight + 8 }]}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         <SaveButton onPress={handleSave} loading={loading} />
       </View>
       {AlertComponent}

@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, StyleSheet, View, Platform, Dimensions } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View, Platform, Dimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import HomeScreen from '../HomeTab/HomeScreen';
-import MessageScreen from '../MessageTab/MessageScreen';
 import ProfileScreen from '../ProfileTab/ProfileScreen';
-import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
+import SentRequestsScreen from '../SentTab/SentRequestsScreen';
+import { getGender } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing, Shadows } from '../../theme';
+import apiClient from '../../api/apiClient';
+import { getUserId } from '../../utils/sessionHelper';
 
 const Tab = createBottomTabNavigator();
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
@@ -33,7 +36,55 @@ const TabIcon = ({ source, focused }: { source: any; focused: boolean }) => (
 );
 
 const BottomTabs = () => {
+  const [isWoman, setIsWoman] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkUserGender = async () => {
+      try {
+        const [g1, g2, u] = await Promise.all([
+          getGender(),
+          AsyncStorage.getItem('userGender'),
+          AsyncStorage.getItem('user'),
+        ]);
+        let raw = g1 || g2 || '';
+        if (!raw || raw === 'lgbtqia') {
+          if (u) {
+            try {
+              const parsed = JSON.parse(u);
+              const candidate = parsed?.gender || parsed?.user?.gender || parsed?.profile?.gender;
+              if (candidate) raw = candidate;
+            } catch {}
+          }
+        }
+        if (!raw || raw === 'lgbtqia') {
+          const userId = await getUserId();
+          if (userId) {
+            const response = await apiClient.post('/profile/me', null, { params: { userId } });
+            const apiGender = response?.data?.gender || response?.data?.profile?.gender;
+            if (apiGender) raw = String(apiGender);
+          }
+        }
+        const clean = String(raw).toLowerCase();
+        if (isMounted) {
+          setIsWoman(clean.includes('woman') || clean.includes('female'));
+        }
+      } catch {
+        if (isMounted) setIsWoman(false);
+      }
+    };
+    checkUserGender();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
+    isWoman === null ? (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    ) : (
     <Tab.Navigator
       screenOptions={{
         tabBarShowLabel: false,
@@ -51,24 +102,18 @@ const BottomTabs = () => {
           ),
         }}
       />
-      <Tab.Screen
-        name="Message"
-        component={MessageScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon source={require('../../assets/MessageTabImages/MessageTab.png')} focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="MoreInfo"
-        component={MoreInfoScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon source={require('../../assets/MoreInfoTabImages/MoreInfoTab.png')} focused={focused} />
-          ),
-        }}
-      />
+      {/* PRD Section 5: Sent tab is men only */}
+      {!isWoman && (
+        <Tab.Screen
+          name="Sent"
+          component={SentRequestsScreen}
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon source={require('../../assets/MessageTabImages/MessageTab.png')} focused={focused} />
+            ),
+          }}
+        />
+      )}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
@@ -79,10 +124,17 @@ const BottomTabs = () => {
         }}
       />
     </Tab.Navigator>
+    )
   );
 };
 
 const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
   tabBar: {
     height: Platform.OS === 'ios' ? (isCompactDevice ? 80 : 88) : (isCompactDevice ? 64 : 72),
     backgroundColor: Colors.tabBarBackground,

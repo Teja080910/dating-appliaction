@@ -40,6 +40,13 @@ const sanitizeUserRecord = (user: any): any => {
   }
 
   const copy = { ...user };
+  const resolvedUserId = copy.userId ?? copy.uid ?? copy.profile?.userId ?? copy.id;
+  copy.userId = resolvedUserId !== undefined && resolvedUserId !== null
+    ? String(resolvedUserId)
+    : '';
+  if (!Object.prototype.hasOwnProperty.call(copy, 'telegramUsername')) {
+    copy.telegramUsername = '';
+  }
   SENSITIVE_USER_FIELDS.forEach((field) => {
     delete copy[field];
     if (copy.profile && typeof copy.profile === 'object') {
@@ -110,18 +117,18 @@ const normalizeSearchRequest = (data: any) => ({
 
 const normalizeSearchUsersResponse = (payload: any) => {
   if (Array.isArray(payload)) {
-    return payload;
+    return payload.map(sanitizeUserRecord);
   }
 
   if (payload && typeof payload === 'object') {
     if (Array.isArray(payload.data)) {
-      return payload.data;
+      return payload.data.map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.content)) {
-      return payload.content;
+      return payload.content.map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.users)) {
-      return payload.users;
+      return payload.users.map(sanitizeUserRecord);
     }
   }
 

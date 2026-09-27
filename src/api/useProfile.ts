@@ -58,6 +58,9 @@ const normalizeProfile = (payload: any) => {
 
   return {
     id: typeof source?.id === 'number' ? source.id : null,
+    userId: source?.userId !== undefined && source?.userId !== null
+      ? String(source.userId)
+      : '',
     name: source?.name ? String(source.name) : '',
     displayName: source?.displayName ? String(source.displayName) : '',
     email: source?.email ? String(source.email) : '',
@@ -75,10 +78,12 @@ const normalizeProfile = (payload: any) => {
     lookingFor: source?.lookingFor ? String(source.lookingFor) : '',
     smoke: source?.smoke ? String(source.smoke) : '',
     drink: source?.drink ? String(source.drink) : '',
+    telegramUsername: source?.telegramUsername ? String(source.telegramUsername) : '',
     verifiedSelfie: Boolean(source?.verifiedSelfie ?? source?.selfieVerified),
     selfieVerified: Boolean(source?.selfieVerified ?? source?.verifiedSelfie),
-    profileImageUrl: source?.profileImageUrl ? String(source.profileImageUrl) : null,
-    images: Array.isArray(source?.images) ? source.images : [],
+    profileImageUrl: source?.profileImageUrl ? String(source.profileImageUrl) : (Array.isArray(source?.photos) && source.photos[0] ? String(source.photos[0]) : null),
+    images: Array.isArray(source?.images) ? source.images : (Array.isArray(source?.photos) ? source.photos : []),
+    photos: Array.isArray(source?.photos) ? source.photos : (Array.isArray(source?.images) ? source.images : []),
     raw: payload,
   };
 };
@@ -301,8 +306,59 @@ export const useProfile = () => {
         netWorth: data.netWorth || '',
       };
 
-      const res = await apiClient.put('/profile/update-details', payload);
+      const res = await apiClient.put('/profile/update', payload).catch(() =>
+        apiClient.put('/profile/update-details', payload)
+      );
       return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
+    },
+  });
+
+  type UpdateProfileInput = {
+    userId?: any;
+    name?: string;
+    displayName?: string;
+    bio?: string;
+    dob?: string;
+    age?: number;
+    language?: string;
+    bodyType?: string;
+    appearance?: string;
+    height?: number;
+    englishLevel?: string;
+    ethnicity?: string;
+    kidCount?: string;
+    netWorth?: string;
+    lookingFor?: string;
+    smoke?: string;
+    drink?: string;
+    photos?: string[];
+    telegramUsername?: string;
+  };
+
+  const updateProfile = useMutation<any, Error, UpdateProfileInput>({
+    mutationFn: async data => {
+      const resolvedUserId = await resolveNumericUserId(data.userId);
+
+      const payload: Record<string, any> = {
+        userId: resolvedUserId,
+        ...data,
+      };
+
+      if (data.displayName || data.name) {
+        payload.name = data.name || data.displayName;
+        payload.displayName = data.displayName || data.name;
+      }
+
+      const res = await apiClient.put('/profile/update', payload).catch(() =>
+        apiClient.put('/profile/update-basic', payload)
+      );
+      return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
     },
   });
 
@@ -328,8 +384,13 @@ export const useProfile = () => {
         age: data.age,
       };
 
-      const res = await apiClient.put('/profile/update-basic', payload);
+      const res = await apiClient.put('/profile/update', payload).catch(() =>
+        apiClient.put('/profile/update-basic', payload)
+      );
       return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
     },
   });
 
@@ -422,6 +483,8 @@ export const useProfile = () => {
     getUser: useMyProfile,
     setupProfile,
     updateUser: setupProfile,
+    updateProfile,
+    useUpdateProfile: updateProfile,
     updatePreferences,
     updateDetails,
     useUpdateProfileDetails: updateDetails,

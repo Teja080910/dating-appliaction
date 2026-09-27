@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { APIURL } from '../environment/ApiConfig';
+import { APIURL, USE_MOCK } from '../environment/ApiConfig';
 import { clearAuthSession, getAuthToken } from '../utils/sessionState';
+import { handleMockRequest } from '../mock/mockAdapter';
 
 const BASE_URL = APIURL;
 
@@ -41,6 +42,7 @@ const apiClient = axios.create({
   headers: {
     Accept: '*/*',
   },
+  adapter: USE_MOCK ? handleMockRequest : undefined,
 });
 
 const pendingRequests = new Map<string, Promise<any>>();

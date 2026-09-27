@@ -24,6 +24,7 @@ import { Colors } from "../../theme";
 import { useAlert } from "../../components/AlertModal";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
+import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
 import { RootParamList } from "../../utils/types/navigation.types";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -71,6 +72,8 @@ const collectImageUris = (value: unknown): string[] => {
       ...collectImageUris(imageObject.uri),
       ...collectImageUris(imageObject.path),
       ...collectImageUris(imageObject.image),
+      ...collectImageUris(imageObject.photos),
+      ...collectImageUris(imageObject.photo),
     ];
   }
 
@@ -99,7 +102,7 @@ const dedupeImageUris = (items: unknown[]) => {
 const resolveNumericIdentifier = (...values: unknown[]) => {
   for (const value of values) {
     const normalized = String(value ?? '').trim();
-    if (/^[A-Za-z]+\d+$/.test(normalized)) {
+    if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) {
       return normalized;
     }
     if (/^\d+$/.test(normalized)) {
@@ -137,6 +140,7 @@ const ViewMyProfileScreen = () => {
     selectedLookingFor,
     verifiedSelfie,
     location,
+    setPaywallVisible,
   } = useContext(AppContext);
 
   // userId from params if we are viewing someone else
@@ -146,6 +150,9 @@ const ViewMyProfileScreen = () => {
     profileData: routeProfileData,
     image: routeImage,
     fallbackImage,
+    requestId,
+    requestRole,
+    requestStatus,
   } = route.params || {};
 
   const [myId, setMyId] = useState<string | null>(null);
@@ -198,14 +205,23 @@ const ViewMyProfileScreen = () => {
     routeProfileData?.user?.userId,
     routeProfileData?.user?.uid,
   );
-  const targetId = viewMyProfile ? myId : routeTargetId;
-  const hasNumericTargetId =
-    typeof targetId === 'number' ||
-    (typeof targetId === 'string' && (/^\d+$/.test(targetId) || /^[A-Za-z]+\d+$/.test(targetId)));
-  const { data: fetchedProfile, isLoading: loading } = useMyProfile(
-    hasNumericTargetId ? targetId : null
+  const hasRouteTarget = Boolean(paramTargetId || paramId || routeProfileData);
+  const isTargetSameAsMe = Boolean(
+    myId &&
+    routeTargetId &&
+    String(myId).trim().toLowerCase() === String(routeTargetId).trim().toLowerCase()
   );
-  const numericTargetId = hasNumericTargetId ? String(targetId) : null;
+  const isViewingSelf = Boolean(!hasRouteTarget || isTargetSameAsMe || viewMyProfile);
+  const targetId = isViewingSelf ? myId : routeTargetId;
+  const hasValidTargetId =
+    typeof targetId === 'number' ||
+    (typeof targetId === 'string' &&
+      (/^\d+$/.test(targetId) ||
+        (/^[A-Za-z0-9_-]+$/.test(targetId) && /[A-Za-z]/.test(targetId))));
+  const { data: fetchedProfile, isLoading: loading } = useMyProfile(
+    hasValidTargetId ? targetId : (isViewingSelf ? undefined : null)
+  );
+  const numericTargetId = hasValidTargetId ? String(targetId) : null;
 
   useEffect(() => {
     let isMounted = true;
@@ -307,7 +323,7 @@ const ViewMyProfileScreen = () => {
           },
         });
       },
-      onError: (error: any) => {
+    onError: (error: any) => {
         console.log('[handleLike] Send failed:', {
           receiverId: numericTargetId,
           status: error?.response?.status,
@@ -329,8 +345,12 @@ const ViewMyProfileScreen = () => {
           alert('Already Invited', 'You have already sent an invitation to this user.');
           return;
         }
-        const message = error?.response?.data?.message || error?.response?.data?.details || (typeof error?.response?.data === 'string' ? error.response.data : null) || 'Could not send invite. Please try again.';
-        alert('Invite Failed', message);
+        if (isSubscriptionGateError(error)) {
+          // FR-34: quota/subscription errors reopen the paywall automatically.
+          setPaywallVisible(true);
+          return;
+        }
+        alert("Couldn't send invitation", getUserFriendlyMessage(error, 'We could not send your invitation right now.'));
       },
     });
   };
@@ -396,90 +416,86 @@ const ViewMyProfileScreen = () => {
     const contextPrimaryImage =
       dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
 
-    const mergedImages = dedupeImageUris([
+    const targetImages = dedupeImageUris([
+      fetched?.photos,
       fetched?.images,
       fetched?.allImages,
+      routed?.photos,
       routed?.images,
       routed?.allImages,
       galleryImages,
-      contextImages,
-      profileImageUrl,
-      profileImage,
       fetched?.profileImageUrl,
       routed?.profileImageUrl,
       routeImage,
     ]);
 
+    const ownImages = dedupeImageUris([
+      fetched?.photos,
+      fetched?.images,
+      fetched?.allImages,
+      galleryImages,
+      contextImages,
+      profileImageUrl,
+      profileImage,
+      fetched?.profileImageUrl,
+    ]);
+
+    const mergedImages = isViewingSelf ? ownImages : targetImages;
+
     return {
       ...routed,
       ...fetched,
-      id: fetched?.id || routed?.id || numericTargetId || (viewMyProfile ? myId : null) || null,
-      targetUserId: numericTargetId || routed?.targetUserId || routed?.userId || null,
-      name:
-        normalizeTextValue(fetched?.name) ||
-        normalizeTextValue(routed?.name) ||
-        normalizeTextValue(name) ||
-        normalizeTextValue(displayName) ||
-        "User",
-      displayName:
-        normalizeTextValue(fetched?.displayName) ||
-        normalizeTextValue(routed?.displayName) ||
-        normalizeTextValue(displayName) ||
-        normalizeTextValue(name) ||
-        "User",
-      age: fetched?.age || routed?.age || ownAge || null,
-      bio:
-        normalizeTextValue(fetched?.bio) ||
-        normalizeTextValue(routed?.bio) ||
-        normalizeTextValue(profileText),
-      height: fetched?.height || routed?.height || height || null,
-      appearance:
-        normalizeTextValue(fetched?.appearance) ||
-        normalizeTextValue(routed?.appearance) ||
-        normalizeTextValue(selectedAppearance),
-      bodyType:
-        normalizeTextValue(fetched?.bodyType) ||
-        normalizeTextValue(routed?.bodyType) ||
-        normalizeTextValue(selectedBodyType),
-      language:
-        normalizeTextValue(fetched?.language) ||
-        normalizeTextValue(routed?.language) ||
-        contextLanguage,
-      englishLevel:
-        normalizeTextValue(fetched?.englishLevel) ||
-        normalizeTextValue(routed?.englishLevel) ||
-        contextEnglishLevel,
-      ethnicity:
-        normalizeTextValue(fetched?.ethnicity) ||
-        normalizeTextValue(routed?.ethnicity) ||
-        normalizeTextValue(selectedEthinicity),
-      smoke:
-        normalizeTextValue(fetched?.smoke) ||
-        normalizeTextValue(routed?.smoke) ||
-        normalizeTextValue(selectedSmoking),
-      drink:
-        normalizeTextValue(fetched?.drink) ||
-        normalizeTextValue(routed?.drink) ||
-        normalizeTextValue(selectedDrinking),
-      lookingFor:
-        normalizeTextValue(fetched?.lookingFor) ||
-        normalizeTextValue(routed?.lookingFor) ||
-        contextLookingFor,
-      currentCity:
-        normalizeTextValue(fetched?.currentCity) ||
-        normalizeTextValue(routed?.currentCity) ||
-        normalizeTextValue(location),
-      verifiedSelfie:
-        fetched?.verifiedSelfie ??
-        fetched?.selfieVerified ??
-        routed?.verifiedSelfie ??
-        routed?.selfieVerified ??
-        verifiedSelfie,
-      profileImageUrl:
-        normalizeTextValue(fetched?.profileImageUrl) ||
-        normalizeTextValue(routed?.profileImageUrl) ||
-        contextPrimaryImage,
-      images: mergedImages,
+      id: (isViewingSelf ? (fetched?.id || myId) : (fetched?.id || routed?.id || numericTargetId)) || null,
+      targetUserId: isViewingSelf ? null : (numericTargetId || routed?.targetUserId || routed?.userId || null),
+      name: isViewingSelf
+        ? (normalizeTextValue(fetched?.name) || normalizeTextValue(name) || normalizeTextValue(displayName) || 'User')
+        : (normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || 'User'),
+      displayName: isViewingSelf
+        ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(displayName) || normalizeTextValue(name) || 'User')
+        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || 'User'),
+      age: isViewingSelf
+        ? (fetched?.age || ownAge || null)
+        : (routed?.age || fetched?.age || null),
+      bio: isViewingSelf
+        ? (normalizeTextValue(fetched?.bio) || normalizeTextValue(profileText) || '')
+        : (normalizeTextValue(routed?.bio) || normalizeTextValue(fetched?.bio) || ''),
+      height: isViewingSelf
+        ? (fetched?.height || height || null)
+        : (routed?.height || fetched?.height || null),
+      appearance: isViewingSelf
+        ? (normalizeTextValue(fetched?.appearance) || normalizeTextValue(selectedAppearance) || '')
+        : (normalizeTextValue(routed?.appearance) || normalizeTextValue(fetched?.appearance) || ''),
+      bodyType: isViewingSelf
+        ? (normalizeTextValue(fetched?.bodyType) || normalizeTextValue(selectedBodyType) || '')
+        : (normalizeTextValue(routed?.bodyType) || normalizeTextValue(fetched?.bodyType) || ''),
+      language: isViewingSelf
+        ? (normalizeTextValue(fetched?.language) || contextLanguage || '')
+        : (normalizeTextValue(routed?.language) || normalizeTextValue(fetched?.language) || 'English'),
+      englishLevel: isViewingSelf
+        ? (normalizeTextValue(fetched?.englishLevel) || contextEnglishLevel || '')
+        : (normalizeTextValue(routed?.englishLevel) || normalizeTextValue(fetched?.englishLevel) || 'Conversational'),
+      ethnicity: isViewingSelf
+        ? (normalizeTextValue(fetched?.ethnicity) || normalizeTextValue(selectedEthinicity) || '')
+        : (normalizeTextValue(routed?.ethnicity) || normalizeTextValue(fetched?.ethnicity) || 'Asian'),
+      smoke: isViewingSelf
+        ? (normalizeTextValue(fetched?.smoke) || normalizeTextValue(selectedSmoking) || '')
+        : (normalizeTextValue(routed?.smoke) || normalizeTextValue(fetched?.smoke) || 'Never'),
+      drink: isViewingSelf
+        ? (normalizeTextValue(fetched?.drink) || normalizeTextValue(selectedDrinking) || '')
+        : (normalizeTextValue(routed?.drink) || normalizeTextValue(fetched?.drink) || 'Socially'),
+      lookingFor: isViewingSelf
+        ? (normalizeTextValue(fetched?.lookingFor) || contextLookingFor || '')
+        : (normalizeTextValue(routed?.lookingFor) || normalizeTextValue(fetched?.lookingFor) || 'Long-term'),
+      currentCity: isViewingSelf
+        ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(location) || '')
+        : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(fetched?.currentCity) || 'Nearby'),
+      verifiedSelfie: isViewingSelf
+        ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
+        : Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? routed?.verifiedSelfie ?? true),
+      profileImageUrl: isViewingSelf
+        ? (normalizeTextValue(fetched?.profileImageUrl) || contextPrimaryImage)
+        : (normalizeTextValue(routed?.profileImageUrl) || normalizeTextValue(fetched?.profileImageUrl) || routeImage || (targetImages[0] || null)),
+      images: mergedImages.length > 0 ? mergedImages : (routeImage ? [routeImage] : []),
     };
   }, [
     date,
@@ -537,16 +553,49 @@ const ViewMyProfileScreen = () => {
       >
         <View style={styles.sliderWrapper}>
           {sliderImages.length > 0 ? (
-            <FlatList
-              ref={flatlistRef}
-              data={sliderImages}
-              renderItem={renderItem}
-              keyExtractor={(_, i) => i.toString()}
-              horizontal
-              pagingEnabled
-              onScroll={handleScroll}
-              showsHorizontalScrollIndicator={false}
-            />
+            <View style={{ width: screenWidth, height: heroHeight, position: 'relative' }}>
+              <Image
+                source={
+                  typeof sliderImages[activeIndex] === 'string'
+                    ? isApiHostedUrl(getAbsoluteUrl(sliderImages[activeIndex])!)
+                      ? {
+                          uri: getAbsoluteUrl(sliderImages[activeIndex])!,
+                          headers: {
+                            'ngrok-skip-browser-warning': '69420',
+                            'User-Agent': 'AMARA-App',
+                            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                          },
+                        }
+                      : { uri: getAbsoluteUrl(sliderImages[activeIndex])! }
+                    : sliderImages[activeIndex]
+                }
+                style={[styles.image, { height: heroHeight }]}
+                resizeMode="cover"
+              />
+
+              {sliderImages.length > 1 && (
+                <>
+                  <TouchableOpacity
+                    style={styles.heroTapLeft}
+                    activeOpacity={1}
+                    onPress={() =>
+                      setActiveIndex((prev) =>
+                        prev > 0 ? prev - 1 : sliderImages.length - 1
+                      )
+                    }
+                  />
+                  <TouchableOpacity
+                    style={styles.heroTapRight}
+                    activeOpacity={1}
+                    onPress={() =>
+                      setActiveIndex((prev) =>
+                        prev + 1 < sliderImages.length ? prev + 1 : 0
+                      )
+                    }
+                  />
+                </>
+              )}
+            </View>
           ) : (
             <View style={[styles.emptyHero, { height: heroHeight }]}>
               <Icon name="image" size={42} color={Colors.textMuted} />
@@ -563,7 +612,7 @@ const ViewMyProfileScreen = () => {
 
           {/* Dots */}
           {sliderImages.length > 1 && (
-            <View style={styles.dotsContainer}>
+            <View style={styles.dotsContainer} pointerEvents="none">
               {sliderImages.map((_: any, index: number) => (
                 <View
                   key={index}
@@ -586,12 +635,15 @@ const ViewMyProfileScreen = () => {
         <UserDetails
           profile={mergedProfile}
           currentUserId={myId}
-          targetUserId={numericTargetId}
+          targetUserId={isViewingSelf ? undefined : numericTargetId}
+          requestId={requestId}
+          requestRole={requestRole}
+          requestStatus={requestStatus}
         />
       </ScrollView>
 
       {/* 🔥 ACTION BUTTONS */}
-      {!viewMyProfile && numericTargetId && (
+      {!isViewingSelf && !viewMyProfile && numericTargetId && requestRole !== 'received' && (
         <View style={styles.actionFooter}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleDislike}>
             <Icon name="x" size={28} color="red" />
@@ -644,6 +696,22 @@ const styles = StyleSheet.create({
   image: {
     width: screenWidth,
     resizeMode: "cover",
+  },
+  heroTapLeft: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    bottom: 0,
+    width: '45%',
+    zIndex: 5,
+  },
+  heroTapRight: {
+    position: 'absolute',
+    top: 50,
+    right: 0,
+    bottom: 0,
+    width: '55%',
+    zIndex: 5,
   },
   emptyHero: {
     width: screenWidth,

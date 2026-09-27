@@ -14,6 +14,9 @@ export interface NormalizedSubscriptionStatus {
   plan: string | null;
   startDate: string | null;
   endDate: string | null;
+  priorityHandoff?: boolean;
+  eliteBadge?: boolean;
+  dailyRequestLimit?: number | null;
   raw: any;
 }
 
@@ -45,6 +48,9 @@ const normalizeSubscriptionStatus = (payload: any): NormalizedSubscriptionStatus
           : null,
     startDate: source?.startDate ? String(source.startDate) : null,
     endDate: source?.endDate ? String(source.endDate) : null,
+    priorityHandoff: Boolean(source?.priorityHandoff),
+    eliteBadge: Boolean(source?.eliteBadge),
+    dailyRequestLimit: source?.dailyRequestLimit == null ? null : Number(source.dailyRequestLimit),
     raw: payload,
   };
 };
@@ -204,7 +210,17 @@ export const useRemainingDays = () => {
       const res = await apiClient.get('/subscriber/remaining-days', {
         params: { userId: resolvedUserId },
       });
-      return typeof res.data === 'number' ? res.data : Number(res.data);
+      if (typeof res.data === 'number') {
+        return res.data;
+      }
+
+      if (res.data && typeof res.data === 'object') {
+        const value = Number((res.data as any).remainingDays);
+        return Number.isFinite(value) ? value : 0;
+      }
+
+      const value = Number(res.data);
+      return Number.isFinite(value) ? value : 0;
     },
   });
 

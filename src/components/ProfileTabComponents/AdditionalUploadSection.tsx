@@ -19,7 +19,8 @@ import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
 import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { useAlert } from '../AlertModal';
 
-const TOTAL_SLOTS = 6;
+// PRD FR-08: profiles may contain a maximum of five photos.
+const TOTAL_SLOTS = 5;
 
 const AdditionalUploadSection = () => {
   const { alert, AlertComponent } = useAlert();
@@ -131,28 +132,62 @@ const AdditionalUploadSection = () => {
     const imageId = imageMap[index];
 
     if (currentImage && currentImage.trim() !== '') {
-      // REMOVE CASE
-      alert('Photo Options', 'What would you like to do with this photo?', [
+      // EXISTING PHOTO OPTIONS (Set as Primary or Remove)
+      const options: any[] = [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove Photo',
-          style: 'destructive',
-          onPress: () => {
-            if (imageId) {
-              deleteImage.mutate(imageId, {
-                onSuccess: () => {
-                  syncImagesFromServer(localUserId);
-                },
-                onError: () => alert('Error', 'Failed to delete image from server.'),
-              });
+      ];
+
+      if (index !== 0) {
+        options.push({
+          text: 'Set as Primary Photo',
+          onPress: async () => {
+            if (imageId && localUserId) {
+              setProfilePhoto.mutate(
+                { uid: localUserId, imageId },
+                {
+                  onSuccess: () => {
+                    syncImagesFromServer(localUserId);
+                    alert('Primary Photo', 'Primary profile photo updated.');
+                  },
+                  onError: () => alert('Error', 'Failed to update primary photo.'),
+                }
+              );
             } else {
               const newImages = [...images];
-              newImages[index] = null;
+              const temp = newImages[0];
+              newImages[0] = newImages[index];
+              newImages[index] = temp;
               setImages(newImages);
+              if (newImages[0]) {
+                setProfileImage(newImages[0]);
+                setProfileImageUrl(newImages[0]);
+              }
+              alert('Primary Photo', 'Primary profile photo updated.');
             }
           },
+        });
+      }
+
+      options.push({
+        text: 'Remove Photo',
+        style: 'destructive',
+        onPress: () => {
+          if (imageId) {
+            deleteImage.mutate(imageId, {
+              onSuccess: () => {
+                syncImagesFromServer(localUserId);
+              },
+              onError: () => alert('Error', 'Failed to delete image from server.'),
+            });
+          } else {
+            const newImages = [...images];
+            newImages[index] = null;
+            setImages(newImages);
+          }
         },
-      ]);
+      });
+
+      alert('Photo Options', index === 0 ? 'This is currently your primary photo.' : 'Choose an action for this photo:', options);
     } else {
       // UPLOAD CASE
       setUploadingSlot(index);
@@ -231,8 +266,6 @@ const AdditionalUploadSection = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.textPhoto}>PHOTOS</Text>
-
       <View style={styles.grid}>
         {Array.from({ length: TOTAL_SLOTS }).map((_, i) => {
           const imageUri = images?.[i];
@@ -299,13 +332,6 @@ const styles = StyleSheet.create({
   container: {
     paddingBottom: 20,
   },
-  textPhoto: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    marginBottom: 10,
-    padding: 12,
-  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -368,4 +394,3 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 });
-

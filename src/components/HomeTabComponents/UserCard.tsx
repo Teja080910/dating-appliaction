@@ -67,7 +67,7 @@ const UserCard = ({
   const [imageFailed, setImageFailed] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
-  const safeName = name || 'User';
+  const safeName = (name ? String(name).replace(/,\s*\d+$/, '').trim() : '') || 'User';
   const safeAge = age || 'N/A';
   const normalizedImage =
     typeof image === 'string' && SUPPORTED_IMAGE_URI_REGEX.test(image.trim())
@@ -114,14 +114,32 @@ const UserCard = ({
     setCardUserAge(safeAge);
     setViewMyProfile(false);
     setSelectedUserImage(safeImage);
+
+    const rawProfile = profileData?.profile || profileData || {};
+    const targetUserId = id || rawProfile?.userId || rawProfile?.id;
+    const fullProfileData = {
+      ...rawProfile,
+      id: targetUserId,
+      userId: targetUserId,
+      targetUserId: targetUserId,
+      name: safeName,
+      displayName: safeName,
+      age: safeAge,
+      gender: rawProfile?.gender || 'woman',
+      bio: rawProfile?.bio || '',
+      currentCity: safeDistance,
+      online: isOnline,
+      isNew,
+      profileImageUrl: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
+      image: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
+      photos: rawProfile?.photos || (safeImage ? [safeImage] : []),
+      images: rawProfile?.photos || rawProfile?.images || (safeImage ? [safeImage] : []),
+    };
+
     navigation.navigate('ViewMyProfileScreen', {
-      userId: id,
-      targetUserId: id,
-      profileData: profileData || {
-        id, targetUserId: id, displayName: safeName, age: safeAge,
-        currentCity: safeDistance, online: isOnline, isNew,
-        profileImageUrl: safeImage,
-      },
+      userId: targetUserId,
+      targetUserId: targetUserId,
+      profileData: fullProfileData,
       image: safeImage,
       fallbackImage: resolvedFallbackAsset,
     });

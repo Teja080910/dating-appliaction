@@ -1,0 +1,78 @@
+{
+  "plans": [
+    {
+      "id": "BASIC",
+      "name": "Standard",
+      "durationMonths": 1,
+      "price": 99,
+      "tagline": "Start Connecting",
+      "popular": false,
+      "features": [
+        "10 Dating Requests per day",
+        "Browse all verified women profiles",
+        "Standard Telegram handoff upon approval",
+        "Basic search filters"
+      ],
+      "gradient": ["#6366F1", "#8B5CF6"]
+    },
+    {
+      "id": "GOLD",
+      "name": "Premium",
+      "durationMonths": 3,
+      "price": 199,
+      "tagline": "Most Popular",
+      "popular": true,
+      "features": [
+        "Unlimited Dating Requests",
+        "Priority Telegram handoff",
+        "See who liked your profile first",
+        "Ad-free premium experience",
+        "Dedicated customer support"
+      ],
+      "gradient": ["#7C3AED", "#EC4899"]
+    },
+    {
+      "id": "PREMIUM",
+      "name": "Elite",
+      "durationMonths": 6,
+      "price": 499,
+      "tagline": "VIP Treatment",
+      "popular": false,
+      "features": [
+        "Unlimited Dating Requests",
+        "VIP Elite Profile Badge",
+        "Top placement on discovery feed",
+        "Instant priority handoff",
+        "Read receipts & activity status",
+        "VIP Concierge support"
+      ],
+      "gradient": ["#F59E0B", "#EF4444"]
+    }
+  ],
+  "userSubscriptions": {
+    "usr_man_101": {
+      "id": "sub_101_01",
+      "userId": "usr_man_101",
+      "plan": "GOLD",
+      "status": "ACTIVE",
+      "startDate": "2026-09-01T00:00:00Z",
+      "endDate": "2026-12-01T00:00:00Z",
+      "orderId": "order_mock_101",
+      "paymentId": "pay_mock_101",
+      "amount": 199,
+      "createdAt": "2026-09-01T00:00:00Z"
+    },
+    "usr_woman_201": {
+      "id": "sub_201_01",
+      "userId": "usr_woman_201",
+      "plan": "PREMIUM",
+      "status": "ACTIVE",
+      "startDate": "2026-09-01T00:00:00Z",
+      "endDate": "2026-12-01T00:00:00Z",
+      "orderId": "order_mock_201",
+      "paymentId": "pay_mock_201",
+      "amount": 499,
+      "createdAt": "2026-09-01T00:00:00Z"
+    }
+  }
+}

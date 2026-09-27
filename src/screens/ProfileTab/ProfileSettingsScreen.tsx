@@ -12,6 +12,7 @@ import { Colors } from '../../theme'
 import { getAuthSession } from '../../utils/session'
 import { useAlert } from '../../components/AlertModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 
 const ProfileSettingsScreen = () => {
   const navigation = useNavigation<any>();
@@ -127,7 +128,7 @@ const ProfileSettingsScreen = () => {
 
             alert(
               'Update failed',
-              error?.response?.data?.message || 'Could not save your profile settings.'
+              getUserFriendlyMessage(error, 'We could not save your profile settings. Please try again.')
             );
           },
           onSettled: () => setLoading(false),

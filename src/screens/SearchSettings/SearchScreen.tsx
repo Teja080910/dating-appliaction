@@ -7,17 +7,7 @@ import AgeRangeSlider from '../../components/SearchSettingsComponents/AgeRange';
 import DistanceSlider from '../../components/SearchSettingsComponents/DistanceRange';
 import SearchWorldWide from '../../components/SearchSettingsComponents/SearchWorldWide';
 import Location from '../../components/SearchSettingsComponents/Location';
-import BodyHeight from '../../components/SearchSettingsComponents/BodyHeight';
-import BodyType from '../../components/SearchSettingsComponents/BodyType';
-import Appearance from '../../components/SearchSettingsComponents/Appearance';
-import Languages from '../../components/SearchSettingsComponents/Languages';
-import EnglishProficiency from '../../components/SearchSettingsComponents/EnglishProficiency';
-import Ethnicity from '../../components/SearchSettingsComponents/Ethnicity';
-import Smoke from '../../components/SearchSettingsComponents/Smoke';
-import Drinking from '../../components/SearchSettingsComponents/Drinking';
 import OnlineOnly from '../../components/SearchSettingsComponents/OnlineOnly';
-import LookingFor from '../../components/SearchSettingsComponents/LookingFor';
-import ShowMe from '../../components/SearchSettingsComponents/ShowMe';
 import SaveResetButtons from '../../components/SearchSettingsComponents/SaveResetButtons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -42,32 +32,12 @@ const SearchScreen = ({ navigation }: any) => {
     setAgeRange,
     distanceRange,
     setDistanceRange,
-    bodyHeight,
-    setBodyHeight,
-    searchLanguages,
-    setSearchLanguages,
-    englishProficiency,
-    setEnglishProficiency,
-    ethnicity,
-    setEthnicity,
-    lookingFor,
-    setLookingFor,
-    smokeFilter,
-    setSmokeFilter,
-    drinkFilter,
-    setDrinkFilter,
-    showMe,
-    setShowMe,
     setIsChecked,
     isChecked,
     location,
     setLocation,
     setFilter,
     setFilteredProfiles,
-    selectedOptions,
-    setSelectedOptions,
-    selectBodyTypes,
-    setSelectBodyTypes,
   } = React.useContext(AppContext);
 
   const [filters, setFilters] = React.useState<any>(() => ({
@@ -75,20 +45,10 @@ const SearchScreen = ({ navigation }: any) => {
     maxAge: ageRange?.[1] ?? 40,
     maxDistanceKm: distanceRange ?? 50,
     worldwide: isChecked || false,
-    bodyType: selectBodyTypes || [],
-    appearance: selectedOptions || [],
-    language: searchLanguages || [],
-    englishLevel: englishProficiency || [],
-    ethnicity: ethnicity || [],
-    lookingFor: lookingFor || [],
-    gender: showMe ? [showMe === 'straight_man' ? 'Male' : 'Female'] : [],
-    smoke: smokeFilter,
-    drink: drinkFilter,
+    gender: ['Female'],
     onlyOnline: false,
-    minHeight: bodyHeight?.[0] ?? 120,
-    maxHeight: bodyHeight?.[1] ?? 200,
     page: 0,
-    size: 10,
+    size: 20,
   }));
 
   React.useEffect(() => {
@@ -120,24 +80,6 @@ const SearchScreen = ({ navigation }: any) => {
           if (saved.maxDistanceKm !== undefined) {
             setDistanceRange(saved.maxDistanceKm);
           }
-          if (saved.minHeight !== undefined && saved.maxHeight !== undefined) {
-            setBodyHeight([saved.minHeight, saved.maxHeight]);
-          }
-          if (saved.bodyType) setSelectBodyTypes(saved.bodyType);
-          if (saved.appearance) setSelectedOptions(saved.appearance);
-          if (saved.language) setSearchLanguages(saved.language);
-          if (saved.englishLevel) setEnglishProficiency(saved.englishLevel);
-          if (saved.ethnicity) setEthnicity(saved.ethnicity);
-          if (saved.lookingFor) setLookingFor(saved.lookingFor);
-          if (saved.showMe !== undefined) {
-            setShowMe(saved.showMe);
-          } else if (saved.gender?.length) {
-            setShowMe(
-              saved.gender[0] === 'Male' ? 'straight_man' : 'straight_woman'
-            );
-          }
-          if (saved.smoke !== undefined) setSmokeFilter(saved.smoke);
-          if (saved.drink !== undefined) setDrinkFilter(saved.drink);
           if (saved.worldwide !== undefined) setIsChecked(saved.worldwide);
           if (saved.location) setLocation(saved.location);
         }
@@ -163,18 +105,8 @@ const SearchScreen = ({ navigation }: any) => {
         maxAge: filters.maxAge,
         maxDistanceKm: filters.maxDistanceKm,
         worldwide: filters.worldwide,
-        bodyType: filters.bodyType,
-        appearance: filters.appearance,
-        language: filters.language,
-        englishLevel: filters.englishLevel,
-        ethnicity: filters.ethnicity,
-        lookingFor: filters.lookingFor,
-        gender: filters.gender,
-        smoke: filters.smoke,
-        drink: filters.drink,
+        gender: ['Female'],
         onlyOnline: filters.onlyOnline,
-        minHeight: filters.minHeight,
-        maxHeight: filters.maxHeight,
         page: 0,
         size: 20,
       };
@@ -187,28 +119,15 @@ const SearchScreen = ({ navigation }: any) => {
           maxDistanceKm: filters.maxDistanceKm,
           worldwide: filters.worldwide,
           location: location,
-          bodyType: filters.bodyType,
-          appearance: filters.appearance,
-          language: filters.language,
-          englishLevel: filters.englishLevel,
-          ethnicity: filters.ethnicity,
-          lookingFor: filters.lookingFor,
-          gender: filters.gender,
-          showMe: showMe,
-          smoke: filters.smoke,
-          drink: filters.drink,
+          gender: ['Female'],
           onlyOnline: filters.onlyOnline,
-          minHeight: filters.minHeight,
-          maxHeight: filters.maxHeight,
         },
         resolvedUserId
       );
 
       const result = await filterUsers.mutateAsync(payload);
-      setSmokeFilter?.(filters.smoke);
-      setDrinkFilter?.(filters.drink);
       setFilteredProfiles(result.content || []);
-      setFilter('online');
+      setFilter(filters.onlyOnline ? 'online' : 'newest');
       alert('Filters Applied', 'Matches updated successfully.');
       navigation.goBack();
     } catch (err: any) {
@@ -247,33 +166,13 @@ const SearchScreen = ({ navigation }: any) => {
       maxAge: 40,
       maxDistanceKm: 50,
       worldwide: false,
-      bodyType: [],
-      appearance: [],
-      language: [],
-      englishLevel: [],
-      ethnicity: [],
-      lookingFor: [],
-      gender: [],
-      smoke: undefined,
-      drink: undefined,
+      gender: ['Female'],
       onlyOnline: false,
-      minHeight: 120,
-      maxHeight: 200,
       page: 0,
-      size: 10,
+      size: 20,
     });
-    setSmokeFilter?.(undefined);
-    setDrinkFilter?.(undefined);
     setAgeRange([18, 40]);
     setDistanceRange(50);
-    setBodyHeight([120, 200]);
-    setSearchLanguages([]);
-    setEnglishProficiency([]);
-    setEthnicity([]);
-    setLookingFor([]);
-    setSelectedOptions([]);
-    setSelectBodyTypes([]);
-    setShowMe(null);
     setIsChecked(false);
     setLocation('My current location');
   };
@@ -287,71 +186,34 @@ const SearchScreen = ({ navigation }: any) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          <AgeRangeSlider onChange={(min: number, max: number) => {
-            setAgeRange([min, max]);
-            setFilters((prev: any) => ({ ...prev, minAge: min, maxAge: max }));
-          }} />
+          <AgeRangeSlider
+            onChange={(min: number, max: number) => {
+              setAgeRange([min, max]);
+              setFilters((prev: any) => ({ ...prev, minAge: min, maxAge: max }));
+            }}
+          />
 
-          <DistanceSlider onChange={(val: number) => {
-            setDistanceRange(val);
-            setFilters((prev: any) => ({ ...prev, maxDistanceKm: val }));
-          }} />
+          <DistanceSlider
+            onChange={(val: number) => {
+              setDistanceRange(val);
+              setFilters((prev: any) => ({ ...prev, maxDistanceKm: val }));
+            }}
+          />
 
-          <SearchWorldWide onToggle={(val: boolean) =>
-            setFilters((prev: any) => ({ ...prev, worldwide: val }))
-          } />
+          <SearchWorldWide
+            onToggle={(val: boolean) =>
+              setFilters((prev: any) => ({ ...prev, worldwide: val }))
+            }
+          />
 
           <Location />
 
-          <BodyHeight onChange={(min: number, max: number) => {
-            setBodyHeight([min, max]);
-            setFilters((prev: any) => ({ ...prev, minHeight: min, maxHeight: max }));
-          }} />
-
-          <BodyType onChange={(val: string[]) =>
-            setFilters((prev: any) => ({ ...prev, bodyType: val }))
-          } />
-
-          <Appearance onChange={(val: string[]) =>
-            setFilters((prev: any) => ({ ...prev, appearance: val }))
-          } />
-
-          <Languages onChange={(val: string[]) => {
-            setSearchLanguages(val);
-            setFilters((prev: any) => ({ ...prev, language: val }));
-          }} />
-
-          <EnglishProficiency onChange={(val: string[]) => {
-            setEnglishProficiency(val);
-            setFilters((prev: any) => ({ ...prev, englishLevel: val }));
-          }} />
-
-          <Ethnicity onChange={(val: string[]) => {
-            setEthnicity(val);
-            setFilters((prev: any) => ({ ...prev, ethnicity: val }));
-          }} />
-
-          <Smoke value={filters.smoke} onChange={(val: boolean | undefined) =>
-            setFilters((prev: any) => ({ ...prev, smoke: val }))
-          } />
-
-          <Drinking value={filters.drink} onChange={(val: boolean | undefined) =>
-            setFilters((prev: any) => ({ ...prev, drink: val }))
-          } />
-
           <OnlineOnly
             value={filters.onlyOnline}
-            onChange={(val: boolean) => setFilters((prev: any) => ({ ...prev, onlyOnline: val }))}
+            onChange={(val: boolean) =>
+              setFilters((prev: any) => ({ ...prev, onlyOnline: val }))
+            }
           />
-
-          <LookingFor onChange={(val: string[]) => {
-            setLookingFor(val);
-            setFilters((prev: any) => ({ ...prev, lookingFor: val }));
-          }} />
-
-          <ShowMe onChange={(val: string[]) => {
-            setFilters((prev: any) => ({ ...prev, gender: val }));
-          }} />
         </View>
       </ScrollView>
 

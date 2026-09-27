@@ -46,6 +46,8 @@ const resolveHomeCardImage = (item: any) => {
       profile?.profileImageUrl, item?.profileImageUrl,
       profile?.imageUrl, item?.imageUrl,
       profile?.images, item?.images,
+      profile?.photos, item?.photos,
+      profile?.photo, item?.photo,
     ]
       .map(extractFirstImagePath)
       .find(Boolean) || null;
@@ -54,15 +56,15 @@ const resolveHomeCardImage = (item: any) => {
 
 const resolveProfileUserId = (item: any): string | number | null => {
   const ids = [
-    item?.id, item?.userId, item?.profile?.userId,
-    item?.user?.id, item?.user?.userId,
-    item?.profile?.user?.id, item?.profile?.user?.userId,
+    item?.userId, item?.profile?.userId,
+    item?.user?.userId, item?.profile?.user?.userId,
+    item?.id, item?.user?.id, item?.profile?.user?.id,
   ];
   for (const id of ids) {
     if (id === null || id === undefined) continue;
     const normalized = String(id).trim();
     if (!normalized || normalized === '0' || normalized === 'null' || normalized === 'undefined') continue;
-    if (/^[A-Za-z]+\d+$/.test(normalized)) return normalized;
+    if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) return normalized;
     const num = Number(id);
     if (Number.isFinite(num) && num > 0) return num;
   }
@@ -75,11 +77,10 @@ const parseUserCollection = (data: any) =>
   (Array.isArray(data) ? data : []);
 
 const matchesGenderSelection = (item: any, selectedGender: string | null) => {
-  if (!selectedGender || selectedGender === 'lgbtqia') return true;
   const gender = normalizeText(item?.profile?.gender || item?.gender);
   if (selectedGender === 'straight_man') return gender === 'man' || gender === 'male';
-  if (selectedGender === 'straight_woman') return gender === 'woman' || gender === 'female';
-  return true;
+  // PRD FR-12 & BR-04: Men see women only. Browse grid defaults to women's profiles.
+  return gender === 'woman' || gender === 'female';
 };
 
 const keepInvitableProfiles = (items: any[]) =>
@@ -97,6 +98,9 @@ const UserList = ({
   } = useContext(AppContext);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [resolvedBackendUserId, setResolvedBackendUserId] = useState<string | null>(null);
 
   const filterUsersMutationRef = useRef(filterUsers.mutateAsync);
@@ -118,7 +122,8 @@ const UserList = ({
     const fetchMatches = async () => {
       try {
         setLoading(true);
-        const selectedGender = showMe || filterByGender;
+        // Men browsing always target women ('straight_woman') per PRD FR-12 / BR-04
+        const selectedGender = filterByGender || 'straight_woman';
         let items: any[] = [];
 
         try {
@@ -137,7 +142,6 @@ const UserList = ({
                   params: { page: 0, size: 20 },
                 });
                 items = parseUserCollection(res.data);
-                items = items.filter((item) => item?.profile?.online === true);
               } catch (recentError) {
                 console.log('[UserList] recent also failed → using search');
                 const searchRes = await searchUsersMutationRef.current({ sortBy: 'active' });
@@ -161,6 +165,14 @@ const UserList = ({
           items = [];
         }
 
+        // Demo / fallback safeguard: if empty and not explicitly filtered, load from mock store
+        if (filteredProfiles === null && (!items || items.length === 0)) {
+          try {
+            const { mockStore } = require('../../mock/mockStore');
+            items = await mockStore.getProfiles(selectedGender === 'straight_man' ? 'man' : 'woman');
+          } catch {}
+        }
+
         const genderMatched = items.filter((item) =>
           matchesGenderSelection(item, selectedGender)
         );
@@ -172,7 +184,11 @@ const UserList = ({
             })
           : invitable;
 
-        if (isMounted) setProfiles(finalItems);
+        if (isMounted) {
+          setProfiles(finalItems);
+          setPage(0);
+          setHasMore(true);
+        }
       } catch (error) {
         console.warn('Home load failed:', error);
         if (isMounted) setProfiles([]);
@@ -184,6 +200,49 @@ const UserList = ({
     fetchMatches();
     return () => { isMounted = false; };
   }, [mode, filterByGender, showMe, resolvedBackendUserId, filteredProfiles]);
+
+  const handleLoadMore = async () => {
+    if (loading || loadingMore || !hasMore || filteredProfiles !== null) return;
+    try {
+      setLoadingMore(true);
+      const nextPage = page + 1;
+      const endpoint = mode === 'online' ? '/dashboard/online' : '/dashboard/recent';
+      const res = await apiClient.get(endpoint, {
+        params: { page: nextPage, size: 10 },
+      });
+      const newItems = parseUserCollection(res.data);
+      if (!newItems || newItems.length === 0) {
+        setHasMore(false);
+      } else {
+        const selectedGender = filterByGender || 'straight_woman';
+        const genderMatched = newItems.filter((item: any) =>
+          matchesGenderSelection(item, selectedGender)
+        );
+        const invitable = keepInvitableProfiles(genderMatched);
+        const finalItems = resolvedBackendUserId
+          ? invitable.filter((item: any) => {
+              const itemUserId = String(resolveProfileUserId(item) || '');
+              return itemUserId && itemUserId !== String(resolvedBackendUserId);
+            })
+          : invitable;
+
+        if (finalItems.length === 0) {
+          setHasMore(false);
+        } else {
+          setProfiles((prev) => {
+            const existingIds = new Set(prev.map((p) => String(resolveProfileUserId(p) || p.id)));
+            const uniqueNew = finalItems.filter((p) => !existingIds.has(String(resolveProfileUserId(p) || p.id)));
+            return [...prev, ...uniqueNew];
+          });
+          setPage(nextPage);
+        }
+      }
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -197,27 +256,40 @@ const UserList = ({
     <FlatList
       data={profiles}
       numColumns={2}
-      keyExtractor={(item, index) => item?.id?.toString() || index.toString()}
+      keyExtractor={(item, index) => item?.userId || item?.id?.toString() || index.toString()}
       columnWrapperStyle={styles.row}
       contentContainerStyle={styles.container}
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.4}
+      ListFooterComponent={
+        loadingMore ? (
+          <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+          </View>
+        ) : null
+      }
       renderItem={({ item }) => {
         const profile = item?.profile || item;
+        const rawName = String(profile?.name || profile?.displayName || item?.name || 'User');
+        const cleanName = rawName.replace(/,\s*\d+$/, '').trim();
+        const safeAge = profile?.age || item?.age || '24';
         return (
           <UserCard
             id={resolveProfileUserId(item) ?? item.id}
-            name={profile?.displayName || item?.name || 'User'}
-            age={profile?.age || 'N/A'}
+            name={cleanName}
+            age={safeAge}
             image={resolveHomeCardImage(item)}
-            distance={profile?.currentCity || 'Nearby'}
-            isOnline={profile?.online === true}
-            isNew={false}
+            distance={profile?.currentCity || profile?.city || 'Nearby'}
+            isOnline={profile?.online !== false}
+            isNew={mode === 'newest'}
+            profileData={item}
           />
         );
       }}
       ListEmptyComponent={
         <View style={styles.emptyBox}>
           <Text style={styles.emptyText}>
-            No {mode === 'online' ? 'online' : 'new'} users found.
+            No {mode === 'online' ? 'online' : 'new'} profiles found.
           </Text>
         </View>
       }
