@@ -1,7 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import apiClient from './apiClient';
-import { toApiUserId } from './apiClient';
-import { isResolvedApiUserId } from '../utils/sessionState';
 import { getUserId } from '../utils/sessionHelper';
 
 const normalizeArrayFilter = (value: unknown) => {
@@ -42,6 +40,13 @@ const sanitizeUserRecord = (user: any): any => {
   }
 
   const copy = { ...user };
+  const resolvedUserId = copy.userId ?? copy.uid ?? copy.profile?.userId ?? copy.id;
+  copy.userId = resolvedUserId !== undefined && resolvedUserId !== null
+    ? String(resolvedUserId)
+    : '';
+  if (!Object.prototype.hasOwnProperty.call(copy, 'telegramUsername')) {
+    copy.telegramUsername = '';
+  }
   SENSITIVE_USER_FIELDS.forEach((field) => {
     delete copy[field];
     if (copy.profile && typeof copy.profile === 'object') {
@@ -112,18 +117,18 @@ const normalizeSearchRequest = (data: any) => ({
 
 const normalizeSearchUsersResponse = (payload: any) => {
   if (Array.isArray(payload)) {
-    return payload;
+    return payload.map(sanitizeUserRecord);
   }
 
   if (payload && typeof payload === 'object') {
     if (Array.isArray(payload.data)) {
-      return payload.data;
+      return payload.data.map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.content)) {
-      return payload.content;
+      return payload.content.map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.users)) {
-      return payload.users;
+      return payload.users.map(sanitizeUserRecord);
     }
   }
 
@@ -155,6 +160,8 @@ export const useDiscovery = (userId?: any) => {
       const payload: Record<string, any> = {
         userId: data.userId ? String(data.userId) : undefined,
         search: data.search,
+        minAge: Number.isFinite(Number(data?.minAge)) ? Number(data.minAge) : undefined,
+        maxAge: Number.isFinite(Number(data?.maxAge)) ? Number(data.maxAge) : undefined,
         gender: normalizeArrayFilter(data.gender),
         bodyType: normalizeArrayFilter(data.bodyType),
         appearance: normalizeArrayFilter(data.appearance),
@@ -166,6 +173,9 @@ export const useDiscovery = (userId?: any) => {
         drink: normalizeBooleanFilter(data.drink),
         maxDistanceKm: Number.isFinite(Number(data?.maxDistanceKm)) ? Number(data.maxDistanceKm) : undefined,
         worldwide: typeof data?.worldwide === 'boolean' ? data.worldwide : undefined,
+        onlyOnline: data?.onlyOnline === true ? true : undefined,
+        minHeight: Number.isFinite(Number(data?.minHeight)) ? Number(data.minHeight) : undefined,
+        maxHeight: Number.isFinite(Number(data?.maxHeight)) ? Number(data.maxHeight) : undefined,
         page: Number.isFinite(Number(data?.page)) ? Number(data.page) : 0,
         size: Number.isFinite(Number(data?.size)) ? Number(data.size) : 20,
       };

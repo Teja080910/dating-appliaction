@@ -21,8 +21,10 @@ import { useMyProfile } from "../../api/useProfile";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
 import AppContext from "../../context/CreateGlobalStateContext";
 import { Colors } from "../../theme";
+import { useAlert } from "../../components/AlertModal";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
+import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
 import { RootParamList } from "../../utils/types/navigation.types";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -70,6 +72,8 @@ const collectImageUris = (value: unknown): string[] => {
       ...collectImageUris(imageObject.uri),
       ...collectImageUris(imageObject.path),
       ...collectImageUris(imageObject.image),
+      ...collectImageUris(imageObject.photos),
+      ...collectImageUris(imageObject.photo),
     ];
   }
 
@@ -98,7 +102,7 @@ const dedupeImageUris = (items: unknown[]) => {
 const resolveNumericIdentifier = (...values: unknown[]) => {
   for (const value of values) {
     const normalized = String(value ?? '').trim();
-    if (/^[A-Za-z]+\d+$/.test(normalized)) {
+    if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) {
       return normalized;
     }
     if (/^\d+$/.test(normalized)) {
@@ -115,6 +119,7 @@ const resolveNumericIdentifier = (...values: unknown[]) => {
 const ViewMyProfileScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route = useRoute<any>();
+  const { alert, AlertComponent } = useAlert();
   const {
     viewMyProfile,
     name,
@@ -135,6 +140,7 @@ const ViewMyProfileScreen = () => {
     selectedLookingFor,
     verifiedSelfie,
     location,
+    setPaywallVisible,
   } = useContext(AppContext);
 
   // userId from params if we are viewing someone else
@@ -144,6 +150,9 @@ const ViewMyProfileScreen = () => {
     profileData: routeProfileData,
     image: routeImage,
     fallbackImage,
+    requestId,
+    requestRole,
+    requestStatus,
   } = route.params || {};
 
   const [myId, setMyId] = useState<string | null>(null);
@@ -177,7 +186,8 @@ const ViewMyProfileScreen = () => {
   }, []);
 
   const { getAllImages } = useUserImages();
-  const { send: likeMutation } = useConnection(myId || undefined);
+  const connection = useConnection(myId || undefined);
+  const { send: likeMutation } = connection;
 
   // Fetch based on whether it's "Me" or "Other"
   const routeTargetId = resolveNumericIdentifier(
@@ -195,14 +205,23 @@ const ViewMyProfileScreen = () => {
     routeProfileData?.user?.userId,
     routeProfileData?.user?.uid,
   );
-  const targetId = viewMyProfile ? myId : routeTargetId;
-  const hasNumericTargetId =
-    typeof targetId === 'number' ||
-    (typeof targetId === 'string' && (/^\d+$/.test(targetId) || /^[A-Za-z]+\d+$/.test(targetId)));
-  const { data: fetchedProfile, isLoading: loading } = useMyProfile(
-    hasNumericTargetId ? targetId : null
+  const hasRouteTarget = Boolean(paramTargetId || paramId || routeProfileData);
+  const isTargetSameAsMe = Boolean(
+    myId &&
+    routeTargetId &&
+    String(myId).trim().toLowerCase() === String(routeTargetId).trim().toLowerCase()
   );
-  const numericTargetId = hasNumericTargetId ? String(targetId) : null;
+  const isViewingSelf = Boolean(!hasRouteTarget || isTargetSameAsMe || viewMyProfile);
+  const targetId = isViewingSelf ? myId : routeTargetId;
+  const hasValidTargetId =
+    typeof targetId === 'number' ||
+    (typeof targetId === 'string' &&
+      (/^\d+$/.test(targetId) ||
+        (/^[A-Za-z0-9_-]+$/.test(targetId) && /[A-Za-z]/.test(targetId))));
+  const { data: fetchedProfile, isLoading: loading } = useMyProfile(
+    hasValidTargetId ? targetId : (isViewingSelf ? undefined : null)
+  );
+  const numericTargetId = hasValidTargetId ? String(targetId) : null;
 
   useEffect(() => {
     let isMounted = true;
@@ -244,11 +263,56 @@ const ViewMyProfileScreen = () => {
     setActiveIndex(index);
   };
 
-  const handleLike = () => {
+  const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+  const isAlreadyInvited = useMemo(() => {
+    if (!numericTargetId) return false;
+    const target = String(numericTargetId).trim().toLowerCase();
+    return sentConnections.some((inv: any) => {
+      const receiver = inv?.receiver;
+      const rId = String(receiver?.id ?? '').trim().toLowerCase();
+      const rUserId = String(receiver?.userId ?? '').trim().toLowerCase();
+      const invReceiverId = String(inv?.receiverId ?? '').trim().toLowerCase();
+      return (rId && rId === target) || (rUserId && rUserId === target) || (invReceiverId && invReceiverId === target);
+    });
+  }, [sentConnections, numericTargetId]);
+
+  const handleLike = async () => {
     if (!numericTargetId || !myId) return;
-    likeMutation.mutate(numericTargetId, {
+
+    if (isAlreadyInvited) {
+      alert('Already Invited', 'You have already sent an invitation to this user.');
+      return;
+    }
+
+    const normalizeId = (id: string) => id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (normalizeId(String(numericTargetId)) === normalizeId(String(myId))) {
+      alert('Error', 'You cannot send an invite to yourself.');
+      return;
+    }
+
+    let senderId = myId;
+    if (!isResolvedApiUserId(senderId)) {
+      const repairedId = await repairStoredSessionIdentity();
+      if (repairedId && isResolvedApiUserId(repairedId)) {
+        senderId = String(repairedId);
+      } else {
+        alert('Account Issue', 'Could not verify your account. Please log in again.');
+        return;
+      }
+    }
+
+    console.log('[handleLike] Sending invite:', { senderId, receiverId: numericTargetId });
+
+    // Pass the verified sender ID explicitly. `myId` can be stale when the
+    // session identity was repaired above, which made the API reject the like.
+    likeMutation.mutate({ senderId, receiverId: numericTargetId }, {
       onSuccess: () => {
-        const matchedImage = mergedProfile?.profileImageUrl || null;
+        connection.sentList.refetch();
+        const matchedImage =
+          mergedProfile?.profileImageUrl ||
+          (Array.isArray(mergedProfile?.images) ? mergedProfile.images[0] : null) ||
+          mergedProfile?.imageUrl ||
+          null;
         navigation.navigate('MatchScreen', {
           matchedUser: {
             id: numericTargetId,
@@ -259,6 +323,35 @@ const ViewMyProfileScreen = () => {
           },
         });
       },
+    onError: (error: any) => {
+        console.log('[handleLike] Send failed:', {
+          receiverId: numericTargetId,
+          status: error?.response?.status,
+          details: error?.response?.data,
+        });
+        const errorDetails = String(
+          error?.response?.data?.details ||
+          error?.response?.data?.message ||
+          (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+          error?.message ||
+          ''
+        ).toLowerCase();
+
+        if (
+          error?.response?.status === 400 &&
+          (errorDetails.includes('duplicate') || errorDetails.includes('already') || errorDetails.includes('invalid data') || errorDetails.includes('cannot send request to yourself'))
+        ) {
+          connection.sentList.refetch();
+          alert('Already Invited', 'You have already sent an invitation to this user.');
+          return;
+        }
+        if (isSubscriptionGateError(error)) {
+          // FR-34: quota/subscription errors reopen the paywall automatically.
+          setPaywallVisible(true);
+          return;
+        }
+        alert("Couldn't send invitation", getUserFriendlyMessage(error, 'We could not send your invitation right now.'));
+      },
     });
   };
   const handleDislike = () => {
@@ -266,11 +359,19 @@ const ViewMyProfileScreen = () => {
   };
 
   const renderItem = ({ item }: any) => {
+    const cleanUrl = typeof item === 'string' ? getAbsoluteUrl(item) : null;
     const imageSource: ImageSourcePropType =
-      typeof item === 'string'
-        ? authToken && isApiHostedUrl(item)
-          ? { uri: item, headers: { Authorization: `Bearer ${authToken}` } }
-          : { uri: item }
+      cleanUrl
+        ? isApiHostedUrl(cleanUrl)
+          ? {
+              uri: cleanUrl,
+              headers: {
+                'ngrok-skip-browser-warning': '69420',
+                'User-Agent': 'AMARA-App',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              },
+            }
+          : { uri: cleanUrl }
         : item;
 
     return (
@@ -315,90 +416,86 @@ const ViewMyProfileScreen = () => {
     const contextPrimaryImage =
       dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
 
-    const mergedImages = dedupeImageUris([
+    const targetImages = dedupeImageUris([
+      fetched?.photos,
       fetched?.images,
       fetched?.allImages,
+      routed?.photos,
       routed?.images,
       routed?.allImages,
       galleryImages,
-      contextImages,
-      profileImageUrl,
-      profileImage,
       fetched?.profileImageUrl,
       routed?.profileImageUrl,
       routeImage,
     ]);
 
+    const ownImages = dedupeImageUris([
+      fetched?.photos,
+      fetched?.images,
+      fetched?.allImages,
+      galleryImages,
+      contextImages,
+      profileImageUrl,
+      profileImage,
+      fetched?.profileImageUrl,
+    ]);
+
+    const mergedImages = isViewingSelf ? ownImages : targetImages;
+
     return {
       ...routed,
       ...fetched,
-      id: fetched?.id || routed?.id || numericTargetId || (viewMyProfile ? myId : null) || null,
-      targetUserId: numericTargetId || routed?.targetUserId || routed?.userId || null,
-      name:
-        normalizeTextValue(fetched?.name) ||
-        normalizeTextValue(routed?.name) ||
-        normalizeTextValue(name) ||
-        normalizeTextValue(displayName) ||
-        "User",
-      displayName:
-        normalizeTextValue(fetched?.displayName) ||
-        normalizeTextValue(routed?.displayName) ||
-        normalizeTextValue(displayName) ||
-        normalizeTextValue(name) ||
-        "User",
-      age: fetched?.age || routed?.age || ownAge || null,
-      bio:
-        normalizeTextValue(fetched?.bio) ||
-        normalizeTextValue(routed?.bio) ||
-        normalizeTextValue(profileText),
-      height: fetched?.height || routed?.height || height || null,
-      appearance:
-        normalizeTextValue(fetched?.appearance) ||
-        normalizeTextValue(routed?.appearance) ||
-        normalizeTextValue(selectedAppearance),
-      bodyType:
-        normalizeTextValue(fetched?.bodyType) ||
-        normalizeTextValue(routed?.bodyType) ||
-        normalizeTextValue(selectedBodyType),
-      language:
-        normalizeTextValue(fetched?.language) ||
-        normalizeTextValue(routed?.language) ||
-        contextLanguage,
-      englishLevel:
-        normalizeTextValue(fetched?.englishLevel) ||
-        normalizeTextValue(routed?.englishLevel) ||
-        contextEnglishLevel,
-      ethnicity:
-        normalizeTextValue(fetched?.ethnicity) ||
-        normalizeTextValue(routed?.ethnicity) ||
-        normalizeTextValue(selectedEthinicity),
-      smoke:
-        normalizeTextValue(fetched?.smoke) ||
-        normalizeTextValue(routed?.smoke) ||
-        normalizeTextValue(selectedSmoking),
-      drink:
-        normalizeTextValue(fetched?.drink) ||
-        normalizeTextValue(routed?.drink) ||
-        normalizeTextValue(selectedDrinking),
-      lookingFor:
-        normalizeTextValue(fetched?.lookingFor) ||
-        normalizeTextValue(routed?.lookingFor) ||
-        contextLookingFor,
-      currentCity:
-        normalizeTextValue(fetched?.currentCity) ||
-        normalizeTextValue(routed?.currentCity) ||
-        normalizeTextValue(location),
-      verifiedSelfie:
-        fetched?.verifiedSelfie ??
-        fetched?.selfieVerified ??
-        routed?.verifiedSelfie ??
-        routed?.selfieVerified ??
-        verifiedSelfie,
-      profileImageUrl:
-        normalizeTextValue(fetched?.profileImageUrl) ||
-        normalizeTextValue(routed?.profileImageUrl) ||
-        contextPrimaryImage,
-      images: mergedImages,
+      id: (isViewingSelf ? (fetched?.id || myId) : (fetched?.id || routed?.id || numericTargetId)) || null,
+      targetUserId: isViewingSelf ? null : (numericTargetId || routed?.targetUserId || routed?.userId || null),
+      name: isViewingSelf
+        ? (normalizeTextValue(fetched?.name) || normalizeTextValue(name) || normalizeTextValue(displayName) || 'User')
+        : (normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || 'User'),
+      displayName: isViewingSelf
+        ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(displayName) || normalizeTextValue(name) || 'User')
+        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || 'User'),
+      age: isViewingSelf
+        ? (fetched?.age || ownAge || null)
+        : (routed?.age || fetched?.age || null),
+      bio: isViewingSelf
+        ? (normalizeTextValue(fetched?.bio) || normalizeTextValue(profileText) || '')
+        : (normalizeTextValue(routed?.bio) || normalizeTextValue(fetched?.bio) || ''),
+      height: isViewingSelf
+        ? (fetched?.height || height || null)
+        : (routed?.height || fetched?.height || null),
+      appearance: isViewingSelf
+        ? (normalizeTextValue(fetched?.appearance) || normalizeTextValue(selectedAppearance) || '')
+        : (normalizeTextValue(routed?.appearance) || normalizeTextValue(fetched?.appearance) || ''),
+      bodyType: isViewingSelf
+        ? (normalizeTextValue(fetched?.bodyType) || normalizeTextValue(selectedBodyType) || '')
+        : (normalizeTextValue(routed?.bodyType) || normalizeTextValue(fetched?.bodyType) || ''),
+      language: isViewingSelf
+        ? (normalizeTextValue(fetched?.language) || contextLanguage || '')
+        : (normalizeTextValue(routed?.language) || normalizeTextValue(fetched?.language) || 'English'),
+      englishLevel: isViewingSelf
+        ? (normalizeTextValue(fetched?.englishLevel) || contextEnglishLevel || '')
+        : (normalizeTextValue(routed?.englishLevel) || normalizeTextValue(fetched?.englishLevel) || 'Conversational'),
+      ethnicity: isViewingSelf
+        ? (normalizeTextValue(fetched?.ethnicity) || normalizeTextValue(selectedEthinicity) || '')
+        : (normalizeTextValue(routed?.ethnicity) || normalizeTextValue(fetched?.ethnicity) || 'Asian'),
+      smoke: isViewingSelf
+        ? (normalizeTextValue(fetched?.smoke) || normalizeTextValue(selectedSmoking) || '')
+        : (normalizeTextValue(routed?.smoke) || normalizeTextValue(fetched?.smoke) || 'Never'),
+      drink: isViewingSelf
+        ? (normalizeTextValue(fetched?.drink) || normalizeTextValue(selectedDrinking) || '')
+        : (normalizeTextValue(routed?.drink) || normalizeTextValue(fetched?.drink) || 'Socially'),
+      lookingFor: isViewingSelf
+        ? (normalizeTextValue(fetched?.lookingFor) || contextLookingFor || '')
+        : (normalizeTextValue(routed?.lookingFor) || normalizeTextValue(fetched?.lookingFor) || 'Long-term'),
+      currentCity: isViewingSelf
+        ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(location) || '')
+        : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(fetched?.currentCity) || 'Nearby'),
+      verifiedSelfie: isViewingSelf
+        ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
+        : Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? routed?.verifiedSelfie ?? true),
+      profileImageUrl: isViewingSelf
+        ? (normalizeTextValue(fetched?.profileImageUrl) || contextPrimaryImage)
+        : (normalizeTextValue(routed?.profileImageUrl) || normalizeTextValue(fetched?.profileImageUrl) || routeImage || (targetImages[0] || null)),
+      images: mergedImages.length > 0 ? mergedImages : (routeImage ? [routeImage] : []),
     };
   }, [
     date,
@@ -431,7 +528,7 @@ const ViewMyProfileScreen = () => {
   if (loading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#FF5A79" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -456,19 +553,52 @@ const ViewMyProfileScreen = () => {
       >
         <View style={styles.sliderWrapper}>
           {sliderImages.length > 0 ? (
-            <FlatList
-              ref={flatlistRef}
-              data={sliderImages}
-              renderItem={renderItem}
-              keyExtractor={(_, i) => i.toString()}
-              horizontal
-              pagingEnabled
-              onScroll={handleScroll}
-              showsHorizontalScrollIndicator={false}
-            />
+            <View style={{ width: screenWidth, height: heroHeight, position: 'relative' }}>
+              <Image
+                source={
+                  typeof sliderImages[activeIndex] === 'string'
+                    ? isApiHostedUrl(getAbsoluteUrl(sliderImages[activeIndex])!)
+                      ? {
+                          uri: getAbsoluteUrl(sliderImages[activeIndex])!,
+                          headers: {
+                            'ngrok-skip-browser-warning': '69420',
+                            'User-Agent': 'AMARA-App',
+                            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                          },
+                        }
+                      : { uri: getAbsoluteUrl(sliderImages[activeIndex])! }
+                    : sliderImages[activeIndex]
+                }
+                style={[styles.image, { height: heroHeight }]}
+                resizeMode="cover"
+              />
+
+              {sliderImages.length > 1 && (
+                <>
+                  <TouchableOpacity
+                    style={styles.heroTapLeft}
+                    activeOpacity={1}
+                    onPress={() =>
+                      setActiveIndex((prev) =>
+                        prev > 0 ? prev - 1 : sliderImages.length - 1
+                      )
+                    }
+                  />
+                  <TouchableOpacity
+                    style={styles.heroTapRight}
+                    activeOpacity={1}
+                    onPress={() =>
+                      setActiveIndex((prev) =>
+                        prev + 1 < sliderImages.length ? prev + 1 : 0
+                      )
+                    }
+                  />
+                </>
+              )}
+            </View>
           ) : (
             <View style={[styles.emptyHero, { height: heroHeight }]}>
-              <Icon name="image" size={42} color="#CFCFCF" />
+              <Icon name="image" size={42} color={Colors.textMuted} />
             </View>
           )}
 
@@ -477,12 +607,12 @@ const ViewMyProfileScreen = () => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Icon name="chevron-left" size={28} color="#fff" />
+            <Icon name="chevron-left" size={28} color={Colors.white} />
           </TouchableOpacity>
 
           {/* Dots */}
           {sliderImages.length > 1 && (
-            <View style={styles.dotsContainer}>
+            <View style={styles.dotsContainer} pointerEvents="none">
               {sliderImages.map((_: any, index: number) => (
                 <View
                   key={index}
@@ -491,8 +621,8 @@ const ViewMyProfileScreen = () => {
                     {
                       backgroundColor:
                         index === activeIndex
-                          ? "#FF5A79"
-                          : "rgba(255,255,255,0.7)",
+                          ? Colors.primary
+                          : 'rgba(255,255,255,0.7)',
                       width: index === activeIndex ? 18 : 6,
                     },
                   ]}
@@ -505,22 +635,38 @@ const ViewMyProfileScreen = () => {
         <UserDetails
           profile={mergedProfile}
           currentUserId={myId}
-          targetUserId={numericTargetId}
+          targetUserId={isViewingSelf ? undefined : numericTargetId}
+          requestId={requestId}
+          requestRole={requestRole}
+          requestStatus={requestStatus}
         />
       </ScrollView>
 
       {/* 🔥 ACTION BUTTONS */}
-      {!viewMyProfile && numericTargetId && (
+      {!isViewingSelf && !viewMyProfile && numericTargetId && requestRole !== 'received' && (
         <View style={styles.actionFooter}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleDislike}>
             <Icon name="x" size={28} color="red" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: '#FF5A79' }]} onPress={handleLike}>
-            <Icon name="heart" size={28} color="#FF5A79" />
+          <TouchableOpacity
+            style={[
+              styles.actionBtn,
+              { borderColor: isAlreadyInvited ? '#4CAF50' : Colors.secondary },
+              (isAlreadyInvited || likeMutation.isPending) && styles.disabledActionBtn,
+            ]}
+            onPress={handleLike}
+            disabled={isAlreadyInvited || likeMutation.isPending}
+          >
+            <Icon
+              name={isAlreadyInvited ? "check" : "heart"}
+              size={28}
+              color={isAlreadyInvited ? '#4CAF50' : Colors.secondary}
+            />
           </TouchableOpacity>
         </View>
       )}
+      {AlertComponent}
     </SafeAreaView>
   );
 };
@@ -550,6 +696,22 @@ const styles = StyleSheet.create({
   image: {
     width: screenWidth,
     resizeMode: "cover",
+  },
+  heroTapLeft: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    bottom: 0,
+    width: '45%',
+    zIndex: 5,
+  },
+  heroTapRight: {
+    position: 'absolute',
+    top: 50,
+    right: 0,
+    bottom: 0,
+    width: '55%',
+    zIndex: 5,
   },
   emptyHero: {
     width: screenWidth,
@@ -602,5 +764,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 5
+  },
+  disabledActionBtn: {
+    opacity: 0.6,
   },
 });

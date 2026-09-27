@@ -16,7 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
-import { isApiHostedUrl } from '../../api/apiClient';
+import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 
 interface UserCardProps {
   name?: string;
@@ -67,7 +67,7 @@ const UserCard = ({
   const [imageFailed, setImageFailed] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
-  const safeName = name || 'User';
+  const safeName = (name ? String(name).replace(/,\s*\d+$/, '').trim() : '') || 'User';
   const safeAge = age || 'N/A';
   const normalizedImage =
     typeof image === 'string' && SUPPORTED_IMAGE_URI_REGEX.test(image.trim())
@@ -95,10 +95,17 @@ const UserCard = ({
     return FALLBACK_IMAGES[seedValue % FALLBACK_IMAGES.length];
   }, [fallbackAsset, id, safeName]);
 
-  const safeImage = !imageFailed ? normalizedImage : null;
+  const safeImage = !imageFailed && normalizedImage ? getAbsoluteUrl(normalizedImage) : null;
   const imageSource: ImageSourcePropType | null = safeImage
-    ? authToken && isApiHostedUrl(safeImage)
-      ? { uri: safeImage, headers: { Authorization: `Bearer ${authToken}` } }
+    ? isApiHostedUrl(safeImage)
+      ? {
+          uri: safeImage,
+          headers: {
+            'ngrok-skip-browser-warning': '69420',
+            'User-Agent': 'AMARA-App',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+        }
       : { uri: safeImage }
     : null;
 
@@ -107,14 +114,32 @@ const UserCard = ({
     setCardUserAge(safeAge);
     setViewMyProfile(false);
     setSelectedUserImage(safeImage);
+
+    const rawProfile = profileData?.profile || profileData || {};
+    const targetUserId = id || rawProfile?.userId || rawProfile?.id;
+    const fullProfileData = {
+      ...rawProfile,
+      id: targetUserId,
+      userId: targetUserId,
+      targetUserId: targetUserId,
+      name: safeName,
+      displayName: safeName,
+      age: safeAge,
+      gender: rawProfile?.gender || 'woman',
+      bio: rawProfile?.bio || '',
+      currentCity: safeDistance,
+      online: isOnline,
+      isNew,
+      profileImageUrl: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
+      image: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
+      photos: rawProfile?.photos || (safeImage ? [safeImage] : []),
+      images: rawProfile?.photos || rawProfile?.images || (safeImage ? [safeImage] : []),
+    };
+
     navigation.navigate('ViewMyProfileScreen', {
-      userId: id,
-      targetUserId: id,
-      profileData: profileData || {
-        id, targetUserId: id, displayName: safeName, age: safeAge,
-        currentCity: safeDistance, online: isOnline, isNew,
-        profileImageUrl: safeImage,
-      },
+      userId: targetUserId,
+      targetUserId: targetUserId,
+      profileData: fullProfileData,
       image: safeImage,
       fallbackImage: resolvedFallbackAsset,
     });

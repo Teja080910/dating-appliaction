@@ -1,7 +1,8 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  ImageSourcePropType,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,6 +10,8 @@ import {
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
+import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
+import { getAuthToken } from '../../utils/sessionHelper';
 import { mapImagesToSlots, useUserImages } from '../../api/useImages';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors } from '../../theme';
@@ -16,10 +19,15 @@ import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
 import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { useAlert } from '../AlertModal';
 
+// PRD FR-08: profiles may contain a maximum of five photos.
+const TOTAL_SLOTS = 5;
+
 const AdditionalUploadSection = () => {
   const { alert, AlertComponent } = useAlert();
   const {
     images,
+    profileImage,
+    profileImageUrl,
     setProfileImage,
     setProfileImageUrl,
     setImages,
@@ -30,6 +38,30 @@ const AdditionalUploadSection = () => {
   const { uploadImage, getAllImages, deleteImage, setProfilePhoto } = useUserImages();
   const [localUserId, setLocalUserId] = useState<string | null>(null);
   const [imageMap, setImageMap] = useState<Record<number, number>>({}); // index -> imageId
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [tokenReady, setTokenReady] = useState(false);
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
+
+  const hasSyncedRef = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAuthToken()
+      .then((token) => {
+        if (isMounted) {
+          setAuthToken(token);
+          setTokenReady(true);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAuthToken(null);
+          setTokenReady(true);
+        }
+      });
+    return () => { isMounted = false; };
+  }, []);
 
   const resolveActiveUserId = useCallback(async () => {
     if (authUserId && isResolvedApiUserId(authUserId)) {
@@ -47,24 +79,40 @@ const AdditionalUploadSection = () => {
   const syncImagesFromServer = useCallback((uid?: string | null) => {
     getAllImages.mutate(uid || undefined, {
       onSuccess: (data: any) => {
-        const mapped = mapImagesToSlots(data);
-        setImages(mapped.slots);
-        setImageMap(mapped.imageIdByIndex);
-        setProfileImage(mapped.profileImageUrl);
-        setProfileImageUrl(mapped.profileImageUrl);
+        const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
+        const resolvedSlots = [...mapped.slots];
+
+        // If slot 0 is empty but we have a profileImageUrl in context/response, use it
+        if (!resolvedSlots[0] && mapped.profileImageUrl) {
+          resolvedSlots[0] = mapped.profileImageUrl;
+        }
+
+        if (resolvedSlots.some(Boolean)) {
+          setImages(resolvedSlots);
+          setImageMap(mapped.imageIdByIndex);
+          if (mapped.profileImageUrl) {
+            setProfileImage(mapped.profileImageUrl);
+            setProfileImageUrl(mapped.profileImageUrl);
+          }
+        }
       },
       onError: (error: any) => {
-        const message =
-          error?.response?.data?.message ||
-          error?.message ||
-          'Unable to sync your images right now.';
-              alert('Error', String(message));
+        console.warn('[AdditionalUploadSection] Image sync warning:', error?.message);
       },
     });
   }, [getAllImages, setImages, setProfileImage, setProfileImageUrl]);
 
   useEffect(() => {
+    if (hasSyncedRef.current) return;
+    hasSyncedRef.current = true;
+
     const init = async () => {
+      const token = await getAuthToken();
+      if (token) {
+        setAuthToken(token);
+        setTokenReady(true);
+      }
+
       const uid = await resolveActiveUserId();
       if (uid) {
         const uidStr = uid.toString();
@@ -84,101 +132,182 @@ const AdditionalUploadSection = () => {
     const imageId = imageMap[index];
 
     if (currentImage && currentImage.trim() !== '') {
-      // REMOVE CASE
-      alert('Remove Photo', 'Are you sure you want to remove this photo?', [
+      // EXISTING PHOTO OPTIONS (Set as Primary or Remove)
+      const options: any[] = [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            if (imageId) {
-              deleteImage.mutate(imageId, {
-                onSuccess: () => {
-                  syncImagesFromServer(localUserId);
-                },
-                onError: () => alert('Error', 'Failed to delete image from server.'),
-              });
+      ];
+
+      if (index !== 0) {
+        options.push({
+          text: 'Set as Primary Photo',
+          onPress: async () => {
+            if (imageId && localUserId) {
+              setProfilePhoto.mutate(
+                { uid: localUserId, imageId },
+                {
+                  onSuccess: () => {
+                    syncImagesFromServer(localUserId);
+                    alert('Primary Photo', 'Primary profile photo updated.');
+                  },
+                  onError: () => alert('Error', 'Failed to update primary photo.'),
+                }
+              );
             } else {
               const newImages = [...images];
-              newImages[index] = null;
+              const temp = newImages[0];
+              newImages[0] = newImages[index];
+              newImages[index] = temp;
               setImages(newImages);
+              if (newImages[0]) {
+                setProfileImage(newImages[0]);
+                setProfileImageUrl(newImages[0]);
+              }
+              alert('Primary Photo', 'Primary profile photo updated.');
             }
           },
+        });
+      }
+
+      options.push({
+        text: 'Remove Photo',
+        style: 'destructive',
+        onPress: () => {
+          if (imageId) {
+            deleteImage.mutate(imageId, {
+              onSuccess: () => {
+                syncImagesFromServer(localUserId);
+              },
+              onError: () => alert('Error', 'Failed to delete image from server.'),
+            });
+          } else {
+            const newImages = [...images];
+            newImages[index] = null;
+            setImages(newImages);
+          }
         },
-      ]);
+      });
+
+      alert('Photo Options', index === 0 ? 'This is currently your primary photo.' : 'Choose an action for this photo:', options);
     } else {
       // UPLOAD CASE
-      const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+      setUploadingSlot(index);
+      try {
+        const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
 
-      if (result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        if (asset.uri) {
-          uploadImage.mutate({
-            uid: localUserId || undefined,
-            photo: {
-              uri: asset.uri,
-              fileName: asset.fileName || `upload_${Date.now()}.jpg`,
-              type: asset.type || 'image/jpeg',
-            },
-          }, {
-            onSuccess: async (response: any) => {
-              const uploadedImageId =
-                typeof response?.id === 'number'
-                  ? response.id
-                  : typeof response?.data?.id === 'number'
-                    ? response.data.id
-                    : null;
+        if (result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          if (asset.uri) {
+            uploadImage.mutate({
+              uid: localUserId || undefined,
+              photo: {
+                uri: asset.uri,
+                fileName: asset.fileName || `upload_${Date.now()}.jpg`,
+                type: asset.type || 'image/jpeg',
+              },
+            }, {
+              onSuccess: async (response: any) => {
+                const uploadedImageId =
+                  typeof response?.id === 'number'
+                    ? response.id
+                    : typeof response?.data?.id === 'number'
+                      ? response.data.id
+                      : null;
 
-              if (index === 0 && uploadedImageId && localUserId) {
-                try {
-                  await setProfilePhoto.mutateAsync({
-                    uid: localUserId,
-                    imageId: uploadedImageId,
-                  });
-                } catch { }
-              }
+                if (index === 0 && uploadedImageId && localUserId) {
+                  try {
+                    await setProfilePhoto.mutateAsync({
+                      uid: localUserId,
+                      imageId: uploadedImageId,
+                    });
+                  } catch { }
+                }
 
-              syncImagesFromServer(localUserId);
-            },
-            onError: (error: any) => {
-              const message =
-                error?.response?.data?.message ||
-                error?.message ||
-                'Failed to upload image to server.';
-        alert('Error', String(message));
-            },
-          });
+                syncImagesFromServer(localUserId);
+                setUploadingSlot(null);
+              },
+              onError: (error: any) => {
+                setUploadingSlot(null);
+                const message =
+                  error?.response?.data?.message ||
+                  error?.message ||
+                  'Failed to upload image to server.';
+                alert('Error', String(message));
+              },
+            });
+            return;
+          }
         }
+      } catch (err: any) {
+        console.warn('Image pick error:', err);
       }
+      setUploadingSlot(null);
     }
+  };
+
+  const getImageSource = (uri: string | null | undefined): ImageSourcePropType | null => {
+    if (!uri || typeof uri !== 'string' || !uri.trim()) return null;
+    const absUrl = getAbsoluteUrl(uri.trim());
+    const isApi = isApiHostedUrl(absUrl);
+    if (isApi) {
+      const headers: Record<string, string> = {
+        'ngrok-skip-browser-warning': '69420',
+        'User-Agent': 'AMARA-App',
+      };
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+      return {
+        uri: absUrl,
+        headers,
+      };
+    }
+    return { uri: absUrl };
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.textPhoto}>PHOTOS</Text>
-
       <View style={styles.grid}>
-        {Array.from({ length: 6 }).map((_, i) => {
-          const imageUri = images[i];
-          const isProcessing = (uploadImage.isPending || deleteImage.isPending || getAllImages.isPending);
+        {Array.from({ length: TOTAL_SLOTS }).map((_, i) => {
+          const imageUri = images?.[i];
+          const isFailed = Boolean(failedImages[i]);
+          const isSlotUploading = uploadImage.isPending && uploadingSlot === i;
+          const isProcessing = uploadImage.isPending || deleteImage.isPending || getAllImages.isPending;
+          const imageSource = !isFailed && imageUri ? getImageSource(imageUri) : null;
 
           return (
             <TouchableOpacity
-              key={i}
+              key={`slot-${i}-${imageUri || 'empty'}-${tokenReady}`}
               style={styles.imageBox}
               onPress={() => onPressImage(i)}
-              disabled={isProcessing}>
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
+              disabled={isProcessing}
+              activeOpacity={0.8}>
+              {imageSource ? (
+                <>
+                  <Image
+                    source={imageSource}
+                    style={styles.uploadedImage}
+                    resizeMode="cover"
+                    onError={(err) => {
+                      console.warn(`[AdditionalUploadSection] Failed to load image at index ${i}:`, err.nativeEvent);
+                      setFailedImages((prev) => ({ ...prev, [i]: true }));
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={styles.deleteBadge}
+                    onPress={() => onPressImage(i)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Icon name="x" size={11} color={Colors.white} />
+                  </TouchableOpacity>
+                </>
               ) : (
                 <View style={styles.iconContainer}>
-                  {uploadImage.isPending ? (
-                    <ActivityIndicator color="#E94057" />
+                  {isSlotUploading ? (
+                    <ActivityIndicator color={Colors.primary} size="small" />
                   ) : (
                     <>
-                      <Icon name="camera" size={24} color="#777" />
+                      <Icon name="camera" size={24} color={Colors.textMuted} />
                       <View style={styles.plusBadge}>
-                        <Icon name="plus" size={12} color="#fff" />
+                        <Icon name="plus" size={12} color={Colors.white} />
                       </View>
                     </>
                   )}
@@ -203,13 +332,6 @@ const styles = StyleSheet.create({
   container: {
     paddingBottom: 20,
   },
-  textPhoto: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    marginBottom: 10,
-    padding: 12,
-  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -227,10 +349,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.glassBorder,
+    position: 'relative',
   },
   uploadedImage: {
     width: '100%',
     height: '100%',
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   iconContainer: {
     alignItems: 'center',

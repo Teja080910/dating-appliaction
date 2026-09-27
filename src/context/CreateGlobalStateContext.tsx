@@ -72,6 +72,8 @@ interface AppContextType {
   setFilter: Dispatch<SetStateAction<'online' | 'newest'>>;
   oppositeGender: string | null;
   setOppositeGender: Dispatch<SetStateAction<string | null>>;
+  filteredProfiles: any[] | null;
+  setFilteredProfiles: Dispatch<SetStateAction<any[] | null>>;
 
   // search
   ageRange: number[];
@@ -90,6 +92,10 @@ interface AppContextType {
   setLookingFor: Dispatch<SetStateAction<string[]>>;
   smoke: string[];
   setSmoke: Dispatch<SetStateAction<string[]>>;
+  smokeFilter?: boolean | undefined;
+  setSmokeFilter: Dispatch<SetStateAction<boolean | undefined>>;
+  drinkFilter?: boolean | undefined;
+  setDrinkFilter: Dispatch<SetStateAction<boolean | undefined>>;
   showMe: 'straight_man' | 'straight_woman' | null;
   setShowMe: Dispatch<SetStateAction<'straight_man' | 'straight_woman' | null>>;
 

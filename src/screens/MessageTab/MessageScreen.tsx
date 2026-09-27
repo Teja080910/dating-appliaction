@@ -33,6 +33,7 @@ export default function MessageScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [activeMainTab, setActiveMainTab] = useState<'Invitations' | 'Messages'>('Invitations');
   const [activeInviteTab, setActiveInviteTab] = useState<'Sent' | 'Received'>('Sent');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     getUserId().then(setUserId);
@@ -48,6 +49,84 @@ export default function MessageScreen() {
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
+  const extractFirstImagePath = (value: unknown): string | null => {
+    if (!value) return null;
+    if (typeof value === 'string') return value.trim() || null;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const candidate = extractFirstImagePath(item);
+        if (candidate) return candidate;
+      }
+      return null;
+    }
+    if (value && typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+      return (
+        extractFirstImagePath(obj.imageUrl) ||
+        extractFirstImagePath(obj.profileImageUrl) ||
+        extractFirstImagePath(obj.url) ||
+        extractFirstImagePath(obj.uri) ||
+        extractFirstImagePath(obj.path) ||
+        null
+      );
+    }
+    return null;
+  };
+
+  const resolveUserImage = (targetUser: any, profile: any) => {
+    const imagePath = [
+      profile?.profileImageUrl,
+      targetUser?.profileImageUrl,
+      targetUser?.photo,
+      profile?.photo,
+      profile?.imageUrl,
+      targetUser?.imageUrl,
+      profile?.photos,
+      targetUser?.photos,
+      profile?.images,
+      targetUser?.images,
+    ]
+      .map(extractFirstImagePath)
+      .find(Boolean) || null;
+    return imagePath ? getAbsoluteUrl(imagePath) : null;
+  };
+
+  const resolveUserAge = (profile: any, targetUser: any) => {
+    if (profile?.age != null && profile?.age !== '' && Number(profile.age) > 0) {
+      return profile.age;
+    }
+    if (targetUser?.age != null && targetUser?.age !== '' && Number(targetUser.age) > 0) {
+      return targetUser.age;
+    }
+    const dob = profile?.dob || targetUser?.dob;
+    if (dob) {
+      const dobDate = new Date(dob);
+      if (!isNaN(dobDate.getTime())) {
+        const today = new Date();
+        let calculatedAge = today.getFullYear() - dobDate.getFullYear();
+        const m = today.getMonth() - dobDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+          calculatedAge--;
+        }
+        if (calculatedAge > 0 && calculatedAge < 120) return calculatedAge;
+      }
+    }
+    return '';
+  };
+
+  const resolveUserName = (profile: any, targetUser: any) => {
+    const raw =
+      profile?.displayName ||
+      targetUser?.displayName ||
+      targetUser?.name ||
+      targetUser?.fullName ||
+      targetUser?.username ||
+      '';
+    let trimmed = String(raw).trim();
+    trimmed = trimmed.replace(/,\s*\d+$/, '').trim();
+    return trimmed || 'User';
+  };
+
   const normalizeInvite = useCallback((request: any, mode: 'sent' | 'received') => {
     const targetUser = mode === 'sent' ? request?.receiver : request?.sender;
     const profile = targetUser?.profile;
@@ -55,12 +134,12 @@ export default function MessageScreen() {
       id: request?.id,
       requestId: request?.id,
       userId: targetUser?.id,
-      name: profile?.displayName || targetUser?.name || 'User',
-      age: profile?.age ?? '',
-      image: profile?.profileImageUrl ? getAbsoluteUrl(profile.profileImageUrl) : null,
+      name: resolveUserName(profile, targetUser),
+      age: resolveUserAge(profile, targetUser),
+      image: resolveUserImage(targetUser, profile),
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       status: request?.status || 'PENDING',
-      online: profile?.online ?? false,
+      online: profile?.online ?? targetUser?.online ?? false,
     };
   }, []);
 
@@ -73,25 +152,35 @@ export default function MessageScreen() {
     const status = String(request?.status || 'CONNECTED').toUpperCase();
     return {
       id: String(request?.id || targetUser?.id || `${status}-${Date.now()}`),
-      name: profile?.displayName || targetUser?.name || 'User',
-      lastMsg: status === 'ACCEPTED' ? 'You are connected. Start the conversation.' : `Connection status: ${status}`,
+      name: resolveUserName(profile, targetUser),
+      lastMsg: status === 'APPROVED' ? 'You are connected. Start the conversation.' : `Connection status: ${status}`,
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       unread: 0,
-      image: profile?.profileImageUrl ? getAbsoluteUrl(profile.profileImageUrl) : null,
-      online: profile?.online ?? false,
+      image: resolveUserImage(targetUser, profile),
+      online: profile?.online ?? targetUser?.online ?? false,
     };
   }, [userId]);
 
-  const { setOppositeGender, chats } = useContext(AppContext);
+  const { setOppositeGender } = useContext(AppContext);
 
   const sentInvites = useMemo(() => {
     const items = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
-    return items.map((item: any) => normalizeInvite(item, 'sent'));
+    return items
+      .map((item: any) => normalizeInvite(item, 'sent'))
+      .filter((item: any) => {
+        const status = String(item?.status || 'PENDING').trim().toUpperCase();
+        return status === 'PENDING';
+      });
   }, [connection.sentList.data, normalizeInvite]);
 
   const receivedInvites = useMemo(() => {
     const items = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
-    return items.map((item: any) => normalizeInvite(item, 'received'));
+    return items
+      .map((item: any) => normalizeInvite(item, 'received'))
+      .filter((item: any) => {
+        const status = String(item?.status || 'PENDING').trim().toUpperCase();
+        return status === 'PENDING';
+      });
   }, [connection.receivedList.data, normalizeInvite]);
 
   const connectionChats = useMemo(() => {
@@ -103,22 +192,15 @@ export default function MessageScreen() {
   const receivedLoading = Boolean(userId) && (connection.receivedList.isLoading || connection.receivedList.isRefetching);
   const messagesLoading = Boolean(userId) && (connection.connectionList.isLoading || connection.connectionList.isRefetching);
 
-  const handleRecall = (id: string | number) => {
-    connection.cancel.mutate(Number(id), {
-      onSuccess: () => {
-        void connection.sentList.refetch();
-        Toast.show({ type: 'success', text1: 'Invitation Recalled', text2: 'The invitation has been cancelled.' });
-      },
-      onError: () => { alert('Error', 'Failed to recall invitation.'); },
-    });
-  };
-
   const handleAccept = (item: any) => {
-    connection.accept.mutate(Number(item.requestId || item.id), {
+    const targetRequestId = item.requestId || item.id;
+    connection.accept.mutate(targetRequestId, {
       onSuccess: () => {
         void connection.receivedList.refetch();
+        void connection.sentList.refetch();
         void connection.connectionList.refetch();
         Toast.show({ type: 'success', text1: 'Invitation Accepted!', text2: `You can now chat with ${item.name || item.username || 'them'}.` });
+        setActiveMainTab('Messages');
       },
       onError: () => { alert('Error', 'Failed to accept invitation.'); },
     });
@@ -137,7 +219,12 @@ export default function MessageScreen() {
   const isInvitesLoading = activeInviteTab === 'Sent' ? sentLoading : receivedLoading;
   const displaySentInvites = sentInvites.length > 0 ? sentInvites : [];
   const displayReceivedInvites = receivedInvites.length > 0 ? receivedInvites : [];
-  const displayChats = connectionChats.length > 0 ? connectionChats : chats;
+  const displayChats = connectionChats;
+  const filteredChats = searchQuery.trim()
+    ? displayChats.filter((chat: any) =>
+        chat.name?.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      )
+    : displayChats;
 
   const renderInviteItem = ({ item }: { item: any }) => (
     <View style={styles.listItem}>
@@ -152,28 +239,40 @@ export default function MessageScreen() {
         {item.online && <View style={styles.onlineDot} />}
       </View>
       <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <Text style={styles.itemName}>{item.age ? `${item.name}, ${item.age}` : item.name}</Text>
-          <Text style={styles.itemTime}>{item.time || 'now'}</Text>
-        </View>
+        <Text style={styles.itemName} numberOfLines={1}>
+          {item.age ? `${item.name}, ${item.age}` : item.name}
+        </Text>
         <View style={styles.itemStatusRow}>
-          <Icon name="clock-check-outline" size={14} color={Colors.secondary} />
-          <Text style={styles.itemStatusLabel}>{activeInviteTab === 'Sent' ? (item.status || 'PENDING') : 'Invited you'}</Text>
+          {activeInviteTab === 'Received' ? (
+            <>
+              <Icon name="clock-check-outline" size={13} color={Colors.secondary} />
+              <Text style={styles.itemStatusLabel}>Invited you</Text>
+            </>
+          ) : null}
+          {item.time ? (
+            <View style={styles.inviteDateContainer}>
+              {activeInviteTab === 'Received' ? <Text style={styles.dotSeparator}>•</Text> : null}
+              <Text style={styles.itemDateText}>{item.time}</Text>
+            </View>
+          ) : null}
         </View>
       </View>
-      <TouchableOpacity
-        style={styles.actionPill}
-        onPress={() => activeInviteTab === 'Sent' ? handleRecall(item.requestId || item.id) : handleAccept(item)}
-      >
-        <LinearGradient
-          colors={[Colors.primary, Colors.secondary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.actionGradient}
+      {activeInviteTab === 'Received' ? (
+        <TouchableOpacity
+          style={styles.actionPill}
+          activeOpacity={0.8}
+          onPress={() => handleAccept(item)}
         >
-          <Text style={styles.actionPillText}>{activeInviteTab === 'Sent' ? 'Recall' : 'Accept'}</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={[Colors.primary, Colors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.actionGradient}
+          >
+            <Text style={styles.actionPillText}>Accept</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 
@@ -273,16 +372,16 @@ export default function MessageScreen() {
           <View style={{ flex: 1 }}>
             <View style={styles.searchContainer}>
               <Icon name="magnify" size={20} color={Colors.textMuted} />
-              <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor={Colors.textMuted} />
+              <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor={Colors.textMuted} value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             {messagesLoading ? (
               <View style={{ flex: 1, justifyContent: 'center' }}>
                 <ActivityIndicator color={Colors.primary} />
               </View>
-            ) : displayChats.length > 0 ? (
+            ) : filteredChats.length > 0 ? (
               <FlatList
-                data={displayChats}
+                data={filteredChats}
                 renderItem={renderChatItem}
                 keyExtractor={item => String(item.id)}
                 contentContainerStyle={styles.listContainer}
@@ -350,12 +449,13 @@ const styles = StyleSheet.create({
   subTabs: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.screenPaddingHorizontal,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.md,
     gap: Spacing.xl,
-    marginBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
   subTab: {
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -374,7 +474,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: Spacing.screenPaddingHorizontal,
     paddingTop: Spacing.sm,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   listItem: {
     flexDirection: 'row',
@@ -418,6 +518,7 @@ const styles = StyleSheet.create({
   itemContent: {
     flex: 1,
     marginLeft: Spacing.md,
+    marginRight: Spacing.sm,
     justifyContent: 'center',
   },
   itemHeader: {
@@ -430,6 +531,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.text,
+    marginBottom: 2,
   },
   itemTime: {
     fontSize: 12,
@@ -439,12 +541,26 @@ const styles = StyleSheet.create({
   itemStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
+  },
+  inviteDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   itemStatusLabel: {
     fontSize: 13,
     color: Colors.secondary,
     fontWeight: '600',
+  },
+  dotSeparator: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginHorizontal: 3,
+  },
+  itemDateText: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '500',
   },
   lastMsg: {
     fontSize: 14,
@@ -471,16 +587,21 @@ const styles = StyleSheet.create({
   actionPill: {
     borderRadius: Spacing.radiusFull,
     overflow: 'hidden',
+    marginLeft: Spacing.xs,
   },
   actionGradient: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Spacing.radiusFull,
+    minWidth: 78,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionPillText: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.white,
-    fontWeight: '800',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   searchContainer: {
     flexDirection: 'row',

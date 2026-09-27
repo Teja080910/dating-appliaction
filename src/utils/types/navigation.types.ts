@@ -24,8 +24,12 @@ export type RootParamList = {
   ConnectTelegram: undefined;
   ChatDetailScreen: { name: string; image: string | null };
   MoreDetails: undefined;
+  MoreInfoScreen: undefined;
   SupportScreen: undefined;
   NotificationsScreen: undefined;
   UploadImage: undefined;
   SelfieVerification: undefined;
+  Sent: undefined;
+  SentRequestsScreen: undefined;
+  RequestsInboxScreen: undefined;
 };

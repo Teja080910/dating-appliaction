@@ -8,7 +8,7 @@ import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 type VerifyRegisterOtpRequest = {
   mobile: string;
   otp: string;
-  sessionId: string;
+  sessionId?: string;
 };
 
 type InitRegisterRequest = Omit<RegisterRequest, 'otp'> & {
@@ -86,17 +86,20 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
     sessionId:
       payload?.sessionId ||
       nestedData?.sessionId ||
+      payload?.session_id ||
+      nestedData?.session_id ||
       payload?.verificationSessionId ||
       nestedData?.verificationSessionId ||
+      payload?.verification_session_id ||
+      nestedData?.verification_session_id ||
       null,
   };
 };
 
 export const useAuth = () => {
   const persistSessionIfAvailable = async (data: any) => {
-    // 🔍 DEBUG: Log the FULL response from login/register to understand its structure
     if (__DEV__) {
-      console.log('🔍 [AUTH] Raw response from server:', JSON.stringify(data, null, 2));
+      console.log('[AUTH] Server response received.');
     }
 
     if (hasSessionToken(data)) {

@@ -18,6 +18,7 @@ import Toast from 'react-native-toast-message';
 import RazorpayCheckout from 'react-native-razorpay';
 import { Image } from 'react-native';
 import { useAlert } from './AlertModal';
+import { USE_MOCK } from '../environment/ApiConfig';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -34,18 +35,18 @@ const PLANS = [
   {
     id: 'BASIC',
     name: 'Standard',
-    price: '₹499',
+    price: '₹99',
     duration: '1 Month',
-    features: ['Unlimited Swipes', '5 Super Hearts', '1 Profile Boost'],
+    features: ['10 invitations per day', 'Standard discovery', 'Telegram handoff after approval'],
     color: ['#A0A0A0', '#4A4A4A'],
     icon: 'star-outline',
   },
   {
     id: 'GOLD',
     name: 'Premium',
-    price: '₹1,299',
+    price: '₹199',
     duration: '3 Months',
-    features: ['All Standard Features', 'See Who Likes You', 'Passport to Any Location', 'No Ads'],
+    features: ['20 invitations per day', 'Priority Telegram handoff', 'Premium discovery'],
     color: ['#FF5A79', '#7928CA'],
     icon: 'crown',
     recommended: true,
@@ -53,9 +54,9 @@ const PLANS = [
   {
     id: 'PREMIUM',
     name: 'Elite',
-    price: '₹2,499',
+    price: '₹499',
     duration: '6 Months',
-    features: ['All Premium Features', 'Priority Messaging', 'Exclusive Elite Badge', 'Profile Review'],
+    features: ['Unlimited invitations', 'Priority Telegram handoff', 'Elite profile badge'],
     color: ['#FFD700', '#B8860B'],
     icon: 'diamond-stone',
   },
@@ -234,8 +235,7 @@ const normalizeOrderResponse = (orderData: any) => {
       normalizeTextValue(dataPayload?.razorpayKey) ||
       normalizeTextValue(orderPayload?.key) ||
       normalizeTextValue(orderPayload?.keyId) ||
-      normalizeTextValue(orderPayload?.key_id) ||
-      'rzp_live_rwNG1cJwMzkuCO',
+      normalizeTextValue(orderPayload?.key_id),
     orderId:
       resolveRazorpayOrderId(
         orderData?.order_id,
@@ -397,7 +397,16 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         },
       };
 
-      const paymentData: RazorpayCheckoutResponse = await RazorpayCheckout.open(options);
+      let paymentData: RazorpayCheckoutResponse;
+      if (USE_MOCK) {
+        paymentData = {
+          razorpay_order_id: normalizedOrder.orderId,
+          razorpay_payment_id: `pay_mock_${Date.now()}`,
+          razorpay_signature: `sig_mock_${Date.now()}`,
+        } as any;
+      } else {
+        paymentData = await RazorpayCheckout.open(options);
+      }
 
       // STEP 4: Activate on Success (Backend Data Saving)
       // Call both verification and activation as per backend requirements
@@ -414,7 +423,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
       setIsSubscribed(true);
       await AsyncStorage.setItem('isSubscribed', 'true');
-      Toast.show({ type: 'success', text1: 'Payment Successful 💎', text2: 'Welcome to AMARA PREMIUM' });
+      const activatedPlan = PLANS.find((plan) => plan.id === selectedPlanId);
+      Toast.show({
+        type: 'success',
+        text1: 'Payment Successful 💎',
+        text2: `${activatedPlan?.name || 'Your'} membership is now active.`,
+      });
       onClose();
 
     } catch (error: any) {
@@ -455,9 +469,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Icon name="diamond-stone" size={50} color="#FFD700" />
-              <Text style={styles.title}>AMARA PREMIUM</Text>
+              <Text style={styles.title}>SUBSCRIBE TO INVITE</Text>
               <Text style={styles.subtitle}>
-                Unlock exclusive features and find your perfect match faster.
+                Take a subscription to send invites and connect with profiles. Choose a plan to unlock invites:
               </Text>
             </View>
 

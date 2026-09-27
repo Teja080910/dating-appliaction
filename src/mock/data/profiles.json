@@ -1,0 +1,197 @@
+[
+  {
+    "id": 201,
+    "userId": "usr_woman_201",
+    "displayName": "Ananya",
+    "name": "Ananya Roy",
+    "age": 24,
+    "dob": "2002-05-14",
+    "gender": "woman",
+    "online": true,
+    "currentCity": "Mumbai",
+    "bio": "Architect by day, espresso enthusiast by night. Looking for meaningful conversations and spontaneous adventures.",
+    "photos": [
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "ananya_amara",
+    "language": "English, Hindi",
+    "height": 168,
+    "appearance": "Athletic",
+    "bodyType": "Fit",
+    "smoke": "Never",
+    "drink": "Socially",
+    "englishLevel": "native",
+    "ethnicity": "Asian",
+    "lookingFor": "Long-term, Marriage",
+    "kidCount": "No kids",
+    "netWorth": "₹10L-₹25L"
+  },
+  {
+    "id": 202,
+    "userId": "usr_woman_202",
+    "displayName": "Priya",
+    "name": "Priya Sen",
+    "age": 23,
+    "dob": "2003-08-20",
+    "gender": "woman",
+    "online": true,
+    "currentCity": "Bengaluru",
+    "bio": "Classical dancer, literature lover, and foodie. Tell me your favorite book and cafe in town!",
+    "photos": [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "priya_sen",
+    "language": "English, Bengali",
+    "height": 165,
+    "appearance": "Attractive",
+    "bodyType": "Slim",
+    "smoke": "Never",
+    "drink": "Never",
+    "englishLevel": "advanced",
+    "ethnicity": "Asian",
+    "lookingFor": "Long-term",
+    "kidCount": "No kids",
+    "netWorth": "₹10L-₹25L"
+  },
+  {
+    "id": 203,
+    "userId": "usr_woman_203",
+    "displayName": "Rhea",
+    "name": "Rhea Kapoor",
+    "age": 25,
+    "dob": "2001-03-11",
+    "gender": "woman",
+    "online": true,
+    "currentCity": "Delhi",
+    "bio": "Product designer, indie music fan, weekend hiker. Looking for someone with great humor and high emotional quotient.",
+    "photos": [
+      "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "rhea_designs"
+  },
+  {
+    "id": 204,
+    "userId": "usr_woman_204",
+    "displayName": "Sanya",
+    "name": "Sanya Malhotra",
+    "age": 22,
+    "dob": "2004-11-05",
+    "gender": "woman",
+    "online": true,
+    "currentCity": "Pune",
+    "bio": "Neuroscience student, yoga practitioner, dog mom. Always up for stargazing and late night drives.",
+    "photos": [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "sanya_m"
+  },
+  {
+    "id": 205,
+    "userId": "usr_woman_205",
+    "displayName": "Meera",
+    "name": "Meera Joshi",
+    "age": 26,
+    "dob": "2000-01-19",
+    "gender": "woman",
+    "online": true,
+    "currentCity": "Hyderabad",
+    "bio": "Baker, entrepreneur, world traveler (15 countries and counting). Looking for someone passionate about their dreams.",
+    "photos": [
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "meera_bakes"
+  },
+  {
+    "id": 206,
+    "userId": "usr_woman_206",
+    "displayName": "Tara",
+    "name": "Tara Varma",
+    "age": 24,
+    "dob": "2002-09-09",
+    "gender": "woman",
+    "online": true,
+    "currentCity": "Goa",
+    "bio": "Fashion stylist, pottery enthusiast, sunset chaser. Good vibes only!",
+    "photos": [
+      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "tara_v"
+  },
+  {
+    "userId": "usr_man_101",
+    "displayName": "Rahul",
+    "name": "Rahul Sharma",
+    "age": 25,
+    "dob": "2001-05-10",
+    "gender": "man",
+    "bio": "Software engineer and amateur guitarist. Love fitness, indie cinema, and weekend road trips.",
+    "photos": [
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "rahul_amara",
+    "language": "English, Hindi",
+    "height": 175,
+    "appearance": "Athletic",
+    "bodyType": "Fit",
+    "smoke": "Never",
+    "drink": "Socially",
+    "englishLevel": "advanced",
+    "ethnicity": "Asian",
+    "lookingFor": "Long-term, Marriage",
+    "kidCount": "No kids",
+    "netWorth": "₹10L-₹25L"
+  },
+  {
+    "userId": "usr_man_102",
+    "displayName": "Arjun",
+    "name": "Arjun Kapoor",
+    "age": 27,
+    "dob": "1999-07-15",
+    "gender": "man",
+    "bio": "Fintech founder & trail runner. Let's grab coffee or go for a run!",
+    "photos": [
+      "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "arjun_k"
+  },
+  {
+    "userId": "usr_man_103",
+    "displayName": "Kabir",
+    "name": "Kabir Malhotra",
+    "age": 26,
+    "dob": "2000-04-12",
+    "gender": "man",
+    "bio": "Architect, cyclist, and jazz lover. Looking for genuine connections and memorable coffee dates.",
+    "photos": [
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "kabir_m"
+  },
+  {
+    "userId": "usr_man_104",
+    "displayName": "Siddharth",
+    "name": "Siddharth Verma",
+    "age": 28,
+    "dob": "1998-09-22",
+    "gender": "man",
+    "bio": "Photographer and traveler. Passionate about storytelling, good food, and weekend hikes.",
+    "photos": [
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=800&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop&q=80"
+    ],
+    "telegramUsername": "sid_verma"
+  }
+]

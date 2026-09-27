@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { APIURL } from '../environment/ApiConfig';
+import { APIURL, USE_MOCK } from '../environment/ApiConfig';
 import { clearAuthSession, getAuthToken } from '../utils/sessionState';
+import { handleMockRequest } from '../mock/mockAdapter';
 
 const BASE_URL = APIURL;
 
@@ -41,6 +42,7 @@ const apiClient = axios.create({
   headers: {
     Accept: '*/*',
   },
+  adapter: USE_MOCK ? handleMockRequest : undefined,
 });
 
 const pendingRequests = new Map<string, Promise<any>>();
@@ -87,10 +89,11 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ DEDUPLICATE in-flight GET requests (prevents infinite loops)
+// ✅ DEDUPLICATE in-flight GET requests (prevents infinite loops while preserving distinct query params)
 const originalGet = apiClient.get;
 apiClient.get = async function(url: string, config?: any) {
-  const key = `GET:${url}`;
+  const paramsKey = config?.params ? JSON.stringify(config.params) : '';
+  const key = `GET:${url}:${paramsKey}`;
   if (pendingRequests.has(key)) {
     return pendingRequests.get(key)!;
   }

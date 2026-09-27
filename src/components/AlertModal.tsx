@@ -9,7 +9,9 @@ import {
   BackHandler,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, Typography } from '../theme';
+import { getUserFriendlyMessage, getUserFriendlyTitle } from '../utils/userFriendlyMessages';
 
 interface AlertButton {
   text: string;
@@ -77,16 +79,34 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
             colors={[Colors.surface, Colors.surfaceLight]}
             style={styles.gradient}
           >
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onDismiss}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Icon name="close" size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+
             {title && <Text style={styles.title}>{title}</Text>}
             <Text style={[styles.message, !title && styles.messageNoTitle]}>{message}</Text>
 
             {buttons && buttons.length > 0 && (
-              <View style={[styles.buttonRow, buttons.length === 1 && styles.singleButton]}>
+              <View
+                style={[
+                  styles.buttonRow,
+                  buttons.length === 1 && styles.singleButton,
+                  buttons.length > 2 && styles.multiButtonRow,
+                ]}
+              >
                 {buttons.map((btn, index) => (
                   <TouchableOpacity
                     key={index}
                     style={[
                       styles.button,
+                      buttons.length > 2 && styles.multiButton,
                       btn.style === 'destructive' && { backgroundColor: Colors.error },
                       btn.style === 'cancel' && { backgroundColor: Colors.surfaceLighter },
                       index === 0 && buttons.length > 1 && styles.buttonFirst,
@@ -149,7 +169,12 @@ export const useAlert = () => {
       buttons = messageOrButtons;
     }
 
-    setAlertState({ visible: true, title, message, buttons });
+    setAlertState({
+      visible: true,
+      title: title ? getUserFriendlyTitle(title) : title,
+      message: getUserFriendlyMessage(message),
+      buttons,
+    });
   };
 
   const dismiss = () => {
@@ -191,6 +216,17 @@ const styles = StyleSheet.create({
     padding: Spacing.xxl,
     alignItems: 'center',
   },
+  closeButton: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.glass,
+  },
   title: {
     fontSize: 18,
     fontWeight: '800',
@@ -213,6 +249,10 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: Spacing.sm,
   },
+  multiButtonRow: {
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
   singleButton: {
     justifyContent: 'center',
   },
@@ -223,6 +263,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  multiButton: {
+    flexBasis: '47%',
+    flexGrow: 0,
+    flexShrink: 0,
+    minHeight: 48,
   },
   buttonFirst: {
     marginRight: 0,

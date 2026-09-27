@@ -173,20 +173,44 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
   const handleOpenCamera = async () => {
     if (!hasSessionToken) {
-      alert('Wait', 'User session loading...');
-      return;
+      const session = await getAuthSession();
+      if (session?.token) {
+        setHasSessionToken(true);
+      }
     }
 
-    const granted = hasPermission || (await requestPermission());
-    if (!granted) {
-      alert('Permission Required', 'Camera permission is required');
-      return;
-    }
+    try {
+      if (frontCamera) {
+        const granted = hasPermission || (await requestPermission());
+        if (granted) {
+          setError(null);
+          setIsVerified(false);
+          setCanContinue(false);
+          setShowCamera(true);
+          return;
+        }
+      }
 
-    setError(null);
-    setIsVerified(false);
-    setCanContinue(false);
-    setShowCamera(true);
+      // Universal camera fallback across all devices & emulators
+      const asset = await captureCompressedSelfie();
+      if (asset) {
+        setSelfieUri(asset.uri || null);
+        setSelfieSizeBytes(asset.fileSize || null);
+        await handleUploadAndVerify(asset as Asset);
+      }
+    } catch (err: any) {
+      console.warn('Camera Error:', err);
+      try {
+        const asset = await captureCompressedSelfie();
+        if (asset) {
+          setSelfieUri(asset.uri || null);
+          setSelfieSizeBytes(asset.fileSize || null);
+          await handleUploadAndVerify(asset as Asset);
+        }
+      } catch (fallbackErr: any) {
+        setError(fallbackErr?.message || 'Unable to open camera.');
+      }
+    }
   };
 
   const handleTakeSelfie = async () => {
@@ -420,7 +444,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               <Text style={styles.errorText}>{error}</Text>
             ) : null}
 
-            {!isVerified && !showCamera && (
+            {!(showCamera && !!frontCamera) && (
               <TouchableOpacity style={styles.button} onPress={handleOpenCamera}>
                 <LinearGradient
                   colors={[Colors.primary, Colors.secondary]}
@@ -436,8 +460,8 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
             )}
 
             <TouchableOpacity
-              style={[styles.button, (!canContinue || showCamera) && { opacity: 0.5 }]}
-              disabled={!canContinue || showCamera}
+              style={[styles.button, (!canContinue || (showCamera && !!frontCamera)) && { opacity: 0.5 }]}
+              disabled={!canContinue || (showCamera && !!frontCamera)}
               onPress={() => navigation.navigate('MoreDetails')}
             >
               <LinearGradient
@@ -449,6 +473,15 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                 <Text style={styles.buttonText}>Next</Text>
               </LinearGradient>
             </TouchableOpacity>
+
+            {!(showCamera && !!frontCamera) && (
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={() => navigation.navigate('MoreDetails')}
+              >
+                <Text style={styles.skipButtonText}>Skip for now</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </SafeAreaView>
         {AlertComponent}
@@ -575,6 +608,17 @@ const styles = StyleSheet.create({
   successText: { color: Colors.success, fontWeight: 'bold', fontSize: 16, marginVertical: Spacing.sm },
   syncText: { color: Colors.primary, fontWeight: 'bold', textAlign: 'center', marginVertical: Spacing.sm },
   errorText: { color: Colors.error, textAlign: 'center', lineHeight: 20, marginVertical: Spacing.sm },
+  skipButton: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skipButtonText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
   loadingText: { marginTop: Spacing.sm + 2, color: Colors.textSecondary },
 });

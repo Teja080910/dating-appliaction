@@ -113,7 +113,7 @@ export interface ConnectionRequest {
   id: number;
   sender: User;
   receiver: User;
-  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED';
   createdAt: string;
   updatedAt: string;
 }

@@ -1,26 +1,40 @@
 import React, { useContext } from 'react';
 import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useConnection } from '../../../api/useConnection';
 import { useReport } from '../../../api/useReport';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors } from '../../../theme';
 import { isResolvedApiUserId, repairStoredSessionIdentity } from '../../../utils/session';
 import { getAuthToken } from '../../../utils/sessionHelper';
+import { getUserFriendlyMessage, isSubscriptionGateError } from '../../../utils/userFriendlyMessages';
 import { useAlert } from '../../../components/AlertModal';
 
 interface UserDetailsProps {
   profile?: any;
   currentUserId?: string | number | null;
   targetUserId?: string | number | null;
+  requestId?: string | number | null;
+  requestRole?: 'received' | 'sent';
+  requestStatus?: string | null;
 }
 
 const { width: windowWidth } = Dimensions.get('window');
 const isCompactDevice = windowWidth < 380;
 
-const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, currentUserId, targetUserId }) => {
+const UserDetails: React.FC<UserDetailsProps> = ({
+  profile: propProfile,
+  currentUserId,
+  targetUserId,
+  requestId,
+  requestRole,
+  requestStatus,
+}) => {
+  const navigation = useNavigation<any>();
   const { 
     name, 
     displayName,
@@ -34,8 +48,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     selectedEthinicity,
     selectedSmoking,
     selectedDrinking,
-    setInvitations,
-    invitations,
     setPaywallVisible,
     isSubscribed,
     verifiedSelfie,
@@ -52,6 +64,23 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
   const connection = useConnection(currentUserId || undefined);
   const reportApi = useReport(currentUserId || undefined);
   const { alert, AlertComponent } = useAlert();
+  const isReceivedPendingRequest =
+    requestRole === 'received' && String(requestStatus || '').toUpperCase() !== 'APPROVED';
+
+  const handleApproveRequest = () => {
+    if (!requestId) return;
+    connection.accept.mutate(requestId, {
+      onSuccess: () => {
+        connection.refreshAll();
+        alert('Request Approved', 'This connection is approved. Telegram contact is now available when connected.', [
+          { text: 'Done', onPress: () => navigation.goBack() },
+        ]);
+      },
+      onError: (error: any) => {
+        alert("Couldn't approve invitation", getUserFriendlyMessage(error, 'We could not approve this invitation right now.'));
+      },
+    });
+  };
 
   const normalizeTextValue = (value: unknown, fallback: string) => {
     if (Array.isArray(value)) {
@@ -79,7 +108,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
   const resolveNumericIdentifier = (...values: unknown[]) => {
     for (const value of values) {
       const normalized = String(value ?? '').trim();
-      if (/^[A-Za-z]+\d+$/.test(normalized)) {
+      if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) {
         return normalized;
       }
       if (/^\d+$/.test(normalized)) {
@@ -93,7 +122,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     return null;
   };
 
-  const resolvedTargetUserId = resolveNumericIdentifier(
+  const candidateIds = [
     targetUserId,
     propProfile?.targetUserId,
     propProfile?.target?.id,
@@ -122,28 +151,57 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     resolvedProfile?.user?.id,
     resolvedProfile?.user?.userId,
     resolvedProfile?.user?.profileId,
-  );
-  const isOwnProfile = Boolean(
-    viewMyProfile ||
-    (currentUserId && resolvedTargetUserId && Number(currentUserId) === Number(resolvedTargetUserId))
+  ];
+
+  const resolvedTargetUserId = resolveNumericIdentifier(...candidateIds);
+
+  const isSameAsCurrentUser = Boolean(
+    currentUserId &&
+    resolvedTargetUserId &&
+    String(currentUserId).trim().toLowerCase() === String(resolvedTargetUserId).trim().toLowerCase()
   );
 
-  const finalDisplayName = isOwnProfile
-    ? normalizeTextValue(
-        resolvedProfile?.displayName || profile.displayName || displayName || name,
-        'User'
-      )
-    : normalizeTextValue(
-        resolvedProfile?.displayName || profile.displayName || profile.name || cardUserName,
-        'User'
-      );
+  const isOwnProfile = Boolean(
+    isSameAsCurrentUser ||
+    (viewMyProfile && (!targetUserId || isSameAsCurrentUser)) ||
+    (!resolvedTargetUserId && !targetUserId)
+  );
+
+  const finalDisplayName = (
+    isOwnProfile
+      ? normalizeTextValue(
+          resolvedProfile?.name ||
+            resolvedProfile?.displayName ||
+            profile.name ||
+            profile.displayName ||
+            name ||
+            displayName,
+          'User'
+        )
+      : normalizeTextValue(
+          resolvedProfile?.name ||
+            resolvedProfile?.displayName ||
+            profile.name ||
+            profile.displayName ||
+            cardUserName,
+          'User'
+        )
+  ).replace(/,\s*\d+$/, '').trim() || 'User';
 
   const displayAge = isOwnProfile
-    ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge))
-    : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, 'N/A');
+    ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge || 25))
+    : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, '24');
 
-  // Check if this user is already invited
-  const isAlreadyInvited = invitations?.some((inv: any) => Number(inv.receiverId || inv.id) === Number(resolvedTargetUserId));
+  // Check if this user is already invited (from sent connections API)
+  const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+  const matchingInvitation = sentConnections.find((inv: any) => {
+    const receiverId = inv?.receiver?.id ?? inv?.receiver?.userId ?? inv?.receiverId ?? inv?.id;
+    if (!receiverId || !resolvedTargetUserId) return false;
+    return String(receiverId).trim().toLowerCase() === String(resolvedTargetUserId).trim().toLowerCase();
+  });
+  const isAlreadyInvited = Boolean(matchingInvitation);
+  const isApprovedInvitation = matchingInvitation?.status === 'APPROVED';
+
   const resolvedLanguages = (isOwnProfile || propProfile)
     ? normalizeTextValue(resolvedProfile?.language || profile.language, '')
         .split(',')
@@ -208,6 +266,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
       return;
     }
 
+    const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (normalizeId(resolvedTargetUserId) === normalizeId(activeCurrentUserId)) {
+      Toast.show({ type: 'error', text1: 'Action not allowed', text2: 'You cannot invite yourself.' });
+      return;
+    }
+
     if (isAlreadyInvited) {
         Toast.show({ type: 'info', text1: 'Already invited!' });
         return;
@@ -220,29 +284,60 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
         image: selectedUserImage || '',
     };
 
+    // Use the verified identity resolved above instead of the hook's initial
+    // `currentUserId`, which may be stale after session repair.
     connection.send.mutate({
-      receiverId: String(resolvedTargetUserId),
       senderId: String(activeCurrentUserId),
+      receiverId: String(resolvedTargetUserId),
     }, {
       onSuccess: () => {
-        const newInvite = {
-          id: Date.now().toString(),
-          ...inviteData,
-          status: 'Pending',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setInvitations([newInvite, ...invitations]);
+        connection.sentList.refetch();
         connection.refreshAll();
         Toast.show({ type: 'success', text1: 'Invitation sent!' });
       },
       onError: (error: any) => {
+        if (isSubscriptionGateError(error)) {
+          setPaywallVisible(true);
+          return;
+        }
         Toast.show({
           type: 'error',
           text1: 'Invite failed',
-          text2: error?.response?.data?.message || 'Please try again.',
+          text2: getUserFriendlyMessage(error, 'Please try again in a moment.'),
         });
       },
     });
+  };
+
+  const submitReport = (reason: string) => {
+      if (!resolvedTargetUserId || !currentUserId) {
+        return;
+      }
+
+      reportApi.report.mutate({
+        byUserId: String(currentUserId),
+        targetUserId: String(resolvedTargetUserId),
+        reason,
+        message: `Reported profile: ${finalDisplayName || 'Unknown user'}`,
+      }, {
+        onSuccess: () => {
+          Toast.show({ type: 'info', text1: 'Profile reported successfully.' });
+        },
+        onError: () => {
+          Toast.show({ type: 'error', text1: 'Report failed', text2: 'Please try again.' });
+        },
+      });
+  };
+
+  const confirmReport = (reason: string) => {
+    alert(
+      'Confirm Report',
+      'Are you sure you want to submit this report? Our safety team will review it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Submit Report', style: 'destructive', onPress: () => submitReport(reason) },
+      ],
+    );
   };
 
   const handleReport = () => {
@@ -251,26 +346,22 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
         return;
       }
 
+      const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      if (normalizeId(resolvedTargetUserId) === normalizeId(currentUserId)) {
+        Toast.show({ type: 'error', text1: 'Action not allowed', text2: 'You cannot report your own profile.' });
+        return;
+      }
+
       alert(
-          "Report Profile",
-          "Are you sure you want to report or block this user?",
+          'Report Profile',
+          'Choose the reason for reporting this profile.',
           [
-              { text: "Cancel", style: "cancel" },
-              { text: "Report", style: "destructive", onPress: () => {
-                  reportApi.report.mutate({
-                    byUserId: currentUserId,
-                    targetUserId: resolvedTargetUserId,
-                    reason: 'Profile report',
-                    message: `Reported profile: ${finalDisplayName || 'Unknown user'}`,
-                  }, {
-                    onSuccess: () => {
-                      Toast.show({ type: 'info', text1: 'Profile reported successfully.' });
-                    },
-                    onError: () => {
-                      Toast.show({ type: 'error', text1: 'Report failed', text2: 'Please try again.' });
-                    },
-                  });
-              }}
+              { text: 'Fake profile', onPress: () => setTimeout(() => confirmReport('FAKE_PROFILE'), 0) },
+              { text: 'Harassment or abuse', onPress: () => setTimeout(() => confirmReport('HARASSMENT'), 0) },
+              { text: 'Inappropriate content', onPress: () => setTimeout(() => confirmReport('INAPPROPRIATE_CONTENT'), 0) },
+              { text: 'Spam or scam', onPress: () => setTimeout(() => confirmReport('SPAM_SCAM'), 0) },
+              { text: 'Safety concern', onPress: () => setTimeout(() => confirmReport('SAFETY_CONCERN'), 0) },
+              { text: 'Cancel', style: 'cancel' },
           ]
       );
   }
@@ -309,22 +400,34 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
       <View style={styles.section}>
           <Text style={styles.sectionTitle}>About me</Text>
           <Text style={styles.bioText}>
-              {resolvedProfile?.bio || profile?.bio || profileText || "No bio added yet. Write something about yourself!"}
+              {resolvedProfile?.bio || profile?.bio || (isOwnProfile ? (profileText || "No bio added yet. Write something about yourself!") : "Looking for meaningful connections.")}
           </Text>
       </View>
 
       {/* More Info Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>More info</Text>
+        <View style={styles.sectionTitleRow}>
+          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>More info</Text>
+          {isOwnProfile && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MoreInfoScreen')}
+              style={styles.editSectionBtn}
+              activeOpacity={0.7}
+            >
+              <Feather name="edit-2" size={13} color={Colors.primary} style={{ marginRight: 4 }} />
+              <Text style={styles.editSectionText}>Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={styles.pillsContainer}>
-          <DetailPill icon="emoticon-happy-outline" text={normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, selectedAppearance || "Natural")} />
-          <DetailPill icon="ruler" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, String(height || '---'))} cm`} />
-          <DetailPill icon="human-handsup" text={normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, selectedBodyType || "Average")} />
-          <DetailPill icon="ear-hearing" text={normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Beginner')} />
-          <DetailPill icon="account-outline" text={normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, selectedEthinicity || "Not specified")} />
-          <DetailPill icon="smoking" text={`Smoke: ${normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, selectedSmoking || 'No')}`} />
-          <DetailPill icon="glass-cocktail" text={`Drink: ${normalizeTextValue(resolvedProfile?.drink || profile?.drink, selectedDrinking || 'No')}`} />
-          <DetailPill icon="baby-face-outline" text={`Soon: ${normalizeTextValue(resolvedProfile?.lookingFor || profile?.lookingFor, Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || "Relationship"))}`} />
+          <DetailPill icon="emoticon-happy-outline" text={normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || "Natural") : "Natural")} />
+          <DetailPill icon="ruler" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '---') : '165')} cm`} />
+          <DetailPill icon="human-handsup" text={normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || "Average") : "Fit")} />
+          <DetailPill icon="ear-hearing" text={normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Beginner') : 'Advanced')} />
+          <DetailPill icon="account-outline" text={normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || "Not specified") : "Asian")} />
+          <DetailPill icon="smoking" text={`Smoke: ${normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || 'No') : 'Never')}`} />
+          <DetailPill icon="glass-cocktail" text={`Drink: ${normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || 'No') : 'Socially')}`} />
+          <DetailPill icon="baby-face-outline" text={`Soon: ${normalizeTextValue(resolvedProfile?.lookingFor || profile?.lookingFor, isOwnProfile ? (Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || "Relationship")) : "Long-term")}`} />
         </View>
       </View>
 
@@ -345,7 +448,28 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
 
       {/* Action Buttons */}
       {!isOwnProfile && (
-        <View style={styles.actionSection}>
+          <View style={styles.actionSection}>
+            {isReceivedPendingRequest ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={styles.inviteBtnWrapper}
+                onPress={handleApproveRequest}
+                disabled={connection.accept.isPending}
+              >
+                <LinearGradient
+                  colors={[Colors.primary, Colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.inviteBtn}
+                >
+                  {connection.accept.isPending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.inviteText}>Approve Request</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity 
               activeOpacity={0.7} 
               style={styles.reportBtn} 
@@ -355,28 +479,39 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
                  <Text style={styles.reportText}>Report / block this profile</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              activeOpacity={0.9} 
-              style={[styles.inviteBtn, (!canAttemptInvite || isAlreadyInvited) && styles.disabledBtn]} 
-              onPress={handleInvite}
-              disabled={!canAttemptInvite || isAlreadyInvited || connection.send.isPending}
-            >
-                 {connection.send.isPending ? (
-                   <ActivityIndicator color="#fff" />
-                 ) : (
-                   <>
-                     <Icon
-                       name={!canAttemptInvite ? "lock-outline" : isAlreadyInvited ? "check-all" : "heart-flash"}
-                       size={22}
-                       color="#fff"
-                       style={styles.inviteIcon}
-                     />
-                     <Text style={styles.inviteText}>
-                       {!canAttemptInvite ? "Invite Unavailable" : isAlreadyInvited ? "Invited" : "Invite Now"}
-                     </Text>
-                   </>
-                 )}
-            </TouchableOpacity>
+            {isAlreadyInvited && !isApprovedInvitation ? (
+              <Text style={styles.pendingInvitationText}>Invitation pending approval</Text>
+            ) : (
+            <TouchableOpacity
+                activeOpacity={0.9}
+                style={styles.inviteBtnWrapper}
+                onPress={handleInvite}
+                disabled={!canAttemptInvite || isAlreadyInvited || connection.send.isPending}
+              >
+                <LinearGradient
+                  colors={(!canAttemptInvite || isAlreadyInvited) ? [Colors.textMuted, Colors.textMuted] : [Colors.primary, Colors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.inviteBtn}
+                >
+                  {connection.send.isPending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Icon
+                        name={!canAttemptInvite ? "lock-outline" : isAlreadyInvited ? "check-all" : "heart-flash"}
+                        size={22}
+                        color="#fff"
+                        style={styles.inviteIcon}
+                      />
+                      <Text style={styles.inviteText}>
+                        {!canAttemptInvite ? "Invite Unavailable" : isAlreadyInvited ? "Connected" : "Invite Now"}
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
         </View>
       )}
 
@@ -436,6 +571,27 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Colors.text,
     marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  editSectionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: Colors.glass,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+  },
+  editSectionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   bioText: {
       fontSize: isCompactDevice ? 15 : 16,
@@ -506,31 +662,61 @@ const styles = StyleSheet.create({
       fontSize: 15,
       fontWeight: '600',
   },
-  inviteBtn: {
-      backgroundColor: Colors.primary,
-      minHeight: isCompactDevice ? 60 : 66,
-      borderRadius: 18,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 12,
-      shadowColor: Colors.primary,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.3,
-      shadowRadius: 10,
-      elevation: 6,
+  inviteBtnWrapper: {
+    width: '100%',
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  disabledBtn: {
-      backgroundColor: Colors.textMuted,
-      shadowOpacity: 0,
-      elevation: 0,
+  inviteBtn: {
+    minHeight: isCompactDevice ? 60 : 66,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    width: '100%',
   },
   inviteIcon: {
-      transform: [{ rotate: '-15deg' }],
+    transform: [{ rotate: '-15deg' }],
   },
   inviteText: {
-      color: '#fff',
-      fontSize: isCompactDevice ? 18 : 20,
-      fontWeight: '900',
+    color: '#fff',
+    fontSize: isCompactDevice ? 18 : 20,
+    fontWeight: '900',
+  },
+  recallBtnWrapper: {
+    width: '100%',
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  recallGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: isCompactDevice ? 60 : 66,
+    borderRadius: 18,
+    width: '100%',
+  },
+  recallBtnText: {
+    color: '#fff',
+    fontSize: isCompactDevice ? 18 : 20,
+    fontWeight: '900',
+  },
+  pendingInvitationText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 12,
   },
 });

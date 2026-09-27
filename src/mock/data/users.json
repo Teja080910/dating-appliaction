@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "userId": "usr_man_101",
+    "name": "Rahul Sharma",
+    "mobile": "9876543210",
+    "password": "Password@123",
+    "gender": "man",
+    "telegramUsername": "rahul_amara",
+    "createdAt": "2026-09-01T10:00:00Z"
+  },
+  {
+    "id": 2,
+    "userId": "usr_woman_201",
+    "name": "Ananya Roy",
+    "mobile": "9876543211",
+    "password": "Password@123",
+    "gender": "woman",
+    "telegramUsername": "ananya_amara",
+    "createdAt": "2026-09-01T10:00:00Z"
+  },
+  {
+    "id": 3,
+    "userId": "usr_man_102",
+    "name": "Arjun Kapoor",
+    "mobile": "9876543212",
+    "password": "Password@123",
+    "gender": "man",
+    "telegramUsername": "arjun_k",
+    "createdAt": "2026-09-02T11:00:00Z"
+  },
+  {
+    "id": 4,
+    "userId": "usr_woman_202",
+    "name": "Priya Sen",
+    "mobile": "9876543213",
+    "password": "Password@123",
+    "gender": "woman",
+    "telegramUsername": "priya_sen",
+    "createdAt": "2026-09-02T12:00:00Z"
+  },
+  {
+    "id": 5,
+    "userId": "usr_man_103",
+    "name": "Kabir Malhotra",
+    "mobile": "9876543214",
+    "password": "Password@123",
+    "gender": "man",
+    "telegramUsername": "kabir_m",
+    "createdAt": "2026-09-03T10:00:00Z"
+  },
+  {
+    "id": 6,
+    "userId": "usr_man_104",
+    "name": "Siddharth Verma",
+    "mobile": "9876543215",
+    "password": "Password@123",
+    "gender": "man",
+    "telegramUsername": "sid_verma",
+    "createdAt": "2026-09-03T11:00:00Z"
+  },
+  {
+    "id": 7,
+    "userId": "usr_woman_203",
+    "name": "Rhea Kapoor",
+    "mobile": "9876543216",
+    "password": "Password@123",
+    "gender": "woman",
+    "telegramUsername": "rhea_designs",
+    "createdAt": "2026-09-03T12:00:00Z"
+  },
+  {
+    "id": 8,
+    "userId": "usr_woman_204",
+    "name": "Sanya Malhotra",
+    "mobile": "9876543217",
+    "password": "Password@123",
+    "gender": "woman",
+    "telegramUsername": "sanya_m",
+    "createdAt": "2026-09-03T13:00:00Z"
+  },
+  {
+    "id": 9,
+    "userId": "usr_woman_205",
+    "name": "Meera Joshi",
+    "mobile": "9876543218",
+    "password": "Password@123",
+    "gender": "woman",
+    "telegramUsername": "meera_bakes",
+    "createdAt": "2026-09-03T14:00:00Z"
+  },
+  {
+    "id": 10,
+    "userId": "usr_woman_206",
+    "name": "Tara Varma",
+    "mobile": "9876543219",
+    "password": "Password@123",
+    "gender": "woman",
+    "telegramUsername": "tara_v",
+    "createdAt": "2026-09-03T15:00:00Z"
+  }
+]

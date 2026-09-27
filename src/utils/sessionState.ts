@@ -60,7 +60,7 @@ const decodeJwtPayload = (token: string | null | undefined) => {
 
 export const resolveStoredSessionSubject = async (): Promise<string | null> => {
   try {
-    const token = await AsyncStorage.getItem(STORAGE_KEYS.token);
+    const token = await getAuthToken();
     const payload = decodeJwtPayload(token);
     return normalizeStoredString(payload?.sub || payload?.subject || null);
   } catch (error) {
@@ -140,8 +140,8 @@ export const isResolvedApiUserId = (value: unknown): boolean => {
     return false;
   }
 
-  // Backend userIds are alphanumeric strings (e.g. SA1000). Accept them as-is.
-  if (/^[A-Za-z]+\d+$/.test(normalized)) {
+  // Backend userIds are alphanumeric / slug strings (e.g. SA1000, usr_man_101, usr_woman_201). Accept them as-is.
+  if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) {
     return true;
   }
 
@@ -178,6 +178,7 @@ export const clearAuthSession = async () => {
   ]);
 
   try {
+    await AsyncStorageService.clearToken();
     await AsyncStorageService.clearUser();
   } catch (e) {}
 };
@@ -226,13 +227,26 @@ export const markIdentityVerified = async (userId: string) => {
  */
 export const getAuthToken = async (): Promise<string | null> => {
   try {
+    const secureToken = await AsyncStorageService.getToken();
+    if (secureToken && secureToken !== 'null') return secureToken;
+  } catch (e) {}
+
+  try {
     const token = await AsyncStorage.getItem(STORAGE_KEYS.token);
-    if (token && token !== '' && token !== 'null') return token;
+    if (token && token !== '' && token !== 'null') {
+      await AsyncStorageService.setToken(token);
+      await AsyncStorage.multiRemove([STORAGE_KEYS.token, 'userToken']);
+      return token;
+    }
   } catch (e) {}
 
   try {
     const legacyToken = await AsyncStorage.getItem('userToken');
-    if (legacyToken && legacyToken !== '' && legacyToken !== 'null') return legacyToken;
+    if (legacyToken && legacyToken !== '' && legacyToken !== 'null') {
+      await AsyncStorageService.setToken(legacyToken);
+      await AsyncStorage.removeItem('userToken');
+      return legacyToken;
+    }
   } catch (e) {}
 
   try {
