@@ -175,10 +175,19 @@ const GlobalStateProvider = ({ children }: any) => {
       await clearFullSession();
 
       setName('');
+      setDisplayName('');
       setEmail('');
       setPassword('');
       setUsername('');
       setPhoneNumber('');
+      setDate(new Date());
+      setProfileText('');
+      setSelected(null);
+      setOppositeGender('straight_woman');
+      setShowMe('straight_woman');
+      setSelectedOptions([]);
+      setSelectBodyTypes([]);
+      setSearchLanguages([]);
       setImages(emptyImageSlots());
       setLogin(false);
       setIsSubscribed(false);

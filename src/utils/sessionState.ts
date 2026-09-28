@@ -189,6 +189,15 @@ export const clearOnboardingState = async () => {
     STORAGE_KEYS.entryHomeScreen,
     STORAGE_KEYS.onboardingStep,
     STORAGE_KEYS.selectedGender,
+    STORAGE_KEYS.firstImageUploaded,
+    STORAGE_KEYS.isSubscribed,
+    'GenderOrientation',
+    'selectedGender',
+    'userGender',
+    'userDob',
+    'displayName',
+    'name',
+    'registerSessionId',
   ]);
 };
 
