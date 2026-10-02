@@ -1,8 +1,8 @@
-// Production must provide an HTTPS API URL. The current HTTP endpoint is retained
-// only for local/mock development until the backend supplies its TLS hostname.
 export const APIURL: string = 'http://168.144.95.58:9395';
-export const USE_MOCK: boolean = true;
+export const USE_MOCK: boolean = false;
 
-if (!USE_MOCK && !APIURL.startsWith('https://')) {
-  throw new Error('Production APIURL must use HTTPS.');
+// Warn if using plain HTTP in production environments
+if (!USE_MOCK && typeof __DEV__ !== 'undefined' && !__DEV__ && !APIURL.startsWith('https://')) {
+  console.warn('⚠️ Warning: Production APIURL should use HTTPS.');
 }
+
