@@ -1,4 +1,4 @@
-import React, {useContext, useCallback, useEffect} from 'react';
+import React, {useContext, useCallback} from 'react';
 import {
   View,
   Text,
@@ -20,20 +20,6 @@ import {Colors, Spacing, Shadows} from '../../theme';
 
 const DisplayNameScreen = ({navigation}: any) => {
   const {name, setName, displayName, setDisplayName} = useContext(AppContext);
-
-  useEffect(() => {
-    const hydrateName = async () => {
-      const stored =
-        (await AsyncStorage.getItem('displayName')) ||
-        (await AsyncStorage.getItem('name')) ||
-        (await AsyncStorage.getItem('userName'));
-      if (stored && !displayName && !name) {
-        setDisplayName(stored);
-        setName(stored);
-      }
-    };
-    hydrateName();
-  }, [displayName, name, setDisplayName, setName]);
 
   useFocusEffect(
     useCallback(() => {

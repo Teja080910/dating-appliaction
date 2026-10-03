@@ -108,7 +108,7 @@ export const useSubscription = (userId?: string | null) => {
       plan: string;
     }) => {
       const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
-      const response = await apiClient.post('/subscriber/activate', null, {
+      const response = await apiClient.post('/subscription/activate', null, {
         params: {
           userId: resolvedUserId,
           plan,
@@ -125,9 +125,15 @@ export const useSubscription = (userId?: string | null) => {
   });
 
   const verifyPayment = useMutation({
-    mutationFn: async ({ orderId, paymentId, signature }: { orderId: string; paymentId: string; signature: string }) => {
-      const response = await apiClient.post('/razorpay/verify', null, {
-        params: { orderId, paymentId, signature },
+    mutationFn: async ({ orderId, paymentId, signature, plan }: { orderId: string; paymentId: string; signature: string; plan?: string }) => {
+      // The backend expects Razorpay verification as a JSON body. Sending
+      // null with query params results in "Malformed or missing request body"
+      // and leaves a successfully captured payment unapplied.
+      const response = await apiClient.post('/razorpay/verify', {
+        orderId,
+        paymentId,
+        signature,
+        ...(plan ? { plan } : {}),
       });
       return response.data;
     },

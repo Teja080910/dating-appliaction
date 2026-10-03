@@ -39,7 +39,28 @@ const RegisterScreen = ({navigation}: any) => {
   const {height: screenHeight} = useWindowDimensions();
   const isSmall = screenHeight < 700;
   const isCompact = screenHeight < 640;
-  const {name, setName, password, setPassword, phoneNumber, setPhoneNumber} =
+  const {
+    name,
+    setName,
+    setDisplayName,
+    password,
+    setPassword,
+    phoneNumber,
+    setPhoneNumber,
+    setGender,
+    setDate,
+    setHeight,
+    setSelectedAppearance,
+    setSelectedBodyType,
+    setSelectedLanguages,
+    setSelectedEthinicity,
+    setSelectedSmoking,
+    setSelectedDrinking,
+    setSelectedLookingFor,
+    setEnglishSkillLevel,
+    setProfileText,
+    setImages,
+  } =
     useContext(AppContext);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -64,7 +85,55 @@ const RegisterScreen = ({navigation}: any) => {
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.setItem('onboardingStep', 'Register');
-    }, []),
+
+      // A new registration must never inherit the previous account's draft.
+      // Clear both context and legacy generic storage keys on entry.
+      setName('');
+      setDisplayName('');
+      setPassword('');
+      setPhoneNumber('');
+      setGender(null);
+      setDate(new Date(2004, 9, 7));
+      setHeight(165);
+      setSelectedAppearance(null);
+      setSelectedBodyType(null);
+      setSelectedLanguages([]);
+      setSelectedEthinicity(null);
+      setSelectedSmoking(null);
+      setSelectedDrinking(null);
+      setSelectedLookingFor([]);
+      setEnglishSkillLevel(0);
+      setProfileText('');
+      setImages(Array(5).fill(null));
+      AsyncStorage.multiRemove([
+        'name',
+        'displayName',
+        'userName',
+        'password',
+        'phoneNumber',
+        'profileImage',
+        'onboardingImages',
+        'registerSessionId',
+      ]);
+    }, [
+      setDate,
+      setDisplayName,
+      setEnglishSkillLevel,
+      setGender,
+      setHeight,
+      setImages,
+      setName,
+      setPassword,
+      setPhoneNumber,
+      setProfileText,
+      setSelectedAppearance,
+      setSelectedBodyType,
+      setSelectedDrinking,
+      setSelectedEthinicity,
+      setSelectedLanguages,
+      setSelectedLookingFor,
+      setSelectedSmoking,
+    ]),
   );
 
   const handleRegister = async () => {

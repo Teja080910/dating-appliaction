@@ -108,6 +108,7 @@ const GlobalStateProvider = ({ children }: any) => {
           storedUserGender,
           storedImages,
           storedProfileImage,
+          storedIsLoggedIn,
         ] = await Promise.all([
           AsyncStorage.getItem('name'),
           AsyncStorage.getItem('displayName'),
@@ -115,11 +116,17 @@ const GlobalStateProvider = ({ children }: any) => {
           AsyncStorage.getItem('userGender'),
           AsyncStorage.getItem('onboardingImages'),
           AsyncStorage.getItem('profileImage'),
+          AsyncStorage.getItem('isLoggedIn'),
         ]);
-        if (storedName) setName(storedName);
-        if (storedDisplayName) setDisplayName(storedDisplayName);
-        const resolvedGender = storedGender || storedUserGender;
-        if (resolvedGender) setGender(resolvedGender);
+        // Generic name/profile keys belong to the active account only. During
+        // a fresh registration they may still be present briefly while the
+        // previous session is being cleared, so never hydrate them as a draft.
+        if (storedIsLoggedIn === 'true') {
+          if (storedName) setName(storedName);
+          if (storedDisplayName) setDisplayName(storedDisplayName);
+          const resolvedGender = storedGender || storedUserGender;
+          if (resolvedGender) setGender(resolvedGender);
+        }
         if (storedImages) {
           try {
             const parsed = JSON.parse(storedImages);

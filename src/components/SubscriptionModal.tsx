@@ -318,7 +318,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const { alert, AlertComponent } = useAlert();
   const { setIsSubscribed, displayName, name, email, phoneNumber } =
     useContext(AppContext);
-  const { createOrder, verifyPayment, activateSubscription } = useSubscription();
+  const { createOrder, verifyPayment } = useSubscription();
   const [loading, setLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('GOLD');
   const [selectedPaymentMode, setSelectedPaymentMode] =
@@ -408,18 +408,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         paymentData = await RazorpayCheckout.open(options);
       }
 
-      // STEP 4: Activate on Success (Backend Data Saving)
-      // Call both verification and activation as per backend requirements
-      await Promise.all([
-        verifyPayment.mutateAsync({
-          orderId: paymentData.razorpay_order_id,
-          paymentId: paymentData.razorpay_payment_id,
-          signature: paymentData.razorpay_signature,
-        }),
-        activateSubscription.mutateAsync({
-          plan: selectedPlanId,
-        }),
-      ]);
+      // Verification validates the Razorpay signature and activates the
+      // subscription in the backend. Do not call the legacy activation route
+      // separately; that route is not available on the deployed API.
+      await verifyPayment.mutateAsync({
+        orderId: paymentData.razorpay_order_id,
+        paymentId: paymentData.razorpay_payment_id,
+        signature: paymentData.razorpay_signature,
+        plan: selectedPlanId,
+      });
 
       setIsSubscribed(true);
       await AsyncStorage.setItem('isSubscribed', 'true');

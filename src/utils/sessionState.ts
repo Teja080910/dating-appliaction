@@ -197,6 +197,11 @@ export const clearOnboardingState = async () => {
     'userDob',
     'displayName',
     'name',
+    'userName',
+    'password',
+    'phoneNumber',
+    'profileImage',
+    'onboardingImages',
     'registerSessionId',
   ]);
 };
