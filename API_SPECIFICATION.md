@@ -576,7 +576,155 @@ This document establishes the single source of truth for all REST API endpoints 
   ]
   ```
 
+### 4.2 Filtered Search & Discovery (Search Settings)
+* **Endpoint**: `POST /search`
+* **Access**: Authenticated (`Authorization: Bearer <token>`)
+* **Description**: Executes multi-criteria profile discovery based on user's Search Settings filters. For men browsing, it exclusively returns verified women profiles matching the filter criteria.
+* **Request Body (`SearchFilterRequest`)**:
+  ```json
+  {
+    "gender": "woman",
+    "minAge": 18,
+    "maxAge": 55,
+    "minHeight": 120,
+    "maxHeight": 200,
+    "language": "English",
+    "ethnicity": "South Asian",
+    "smoke": "No",
+    "drink": "Sometimes",
+    "name": "",
+    "bodyType": [
+      "Slim",
+      "Curvy",
+      "Muscular",
+      "Athletic",
+      "Average",
+      "A few extra pounds",
+      "Other"
+    ],
+    "appearance": [
+      "Very attractive",
+      "Attractive",
+      "Average",
+      "Below average"
+    ],
+    "englishLevel": [
+      "Basic",
+      "Medium",
+      "Good",
+      "Very Good"
+    ],
+    "lookingFor": [
+      "Hookup",
+      "Casual dating",
+      "Online relationship",
+      "Relationship",
+      "Marriage"
+    ],
+    "searchRadius": 50,
+    "worldwide": false,
+    "city": "Greater Noida",
+    "onlyOnline": false,
+    "sortBy": "createdAt"
+  }
+  ```
 
+#### Complete 19 Filter Fields Specification:
+| Field | Type | Required | Description & Allowed Values |
+|---|---|---|---|
+| `gender` | `string` | Optional | Target profile gender (`"woman"` or `"man"`). |
+| `minAge` | `integer` | Optional | Minimum age (`18` to `55`). |
+| `maxAge` | `integer` | Optional | Maximum age (`18` to `55`). |
+| `language` | `string` | Optional | Language (`"English"`, `"Spanish"`, `"German"`, `"French"`, `"Chinese"`, `"Japanese"`, `"Indonesian"`, etc.). |
+| `ethnicity` | `string` | Optional | `"Asian"`, `"Black/African descent"`, `"South Asian"`, `"Middle Eastern"`, `"Pacific Islander"`, `"White/Caucasian"`, `"Latin/Hispanic"`, `"Mixed"`, `"Indigenous"`, `"Other"`. |
+| `smoke` | `string` | Optional | `"Yes"`, `"No"`, `"Sometimes"`. |
+| `drink` | `string` | Optional | `"Yes"`, `"No"`, `"Sometimes"`. |
+| `name` | `string` | Optional | Search query keyword matching profile name or display name. |
+| `sortBy` | `string` | Optional | Sort order (`"createdAt"`, `"recent"`, `"active"`, `"age"`). |
+| `minHeight` | `integer` | Optional | Minimum height in cm (`120` to `200`). |
+| `maxHeight` | `integer` | Optional | Maximum height in cm (`120` to `200`). |
+| `bodyType` | `string[]` \| `string` | Optional | Allowed: `["Slim", "Curvy", "Muscular", "Athletic", "Average", "A few extra pounds", "Other"]`. |
+| `appearance` | `string[]` \| `string` | Optional | Allowed: `["Very attractive", "Attractive", "Average", "Below average"]`. |
+| `englishLevel` | `string[]` \| `string` | Optional | Allowed: `["Basic", "Medium", "Good", "Very Good"]`. |
+| `lookingFor` | `string[]` \| `string` | Optional | Allowed: `["Hookup", "Casual dating", "Online relationship", "Relationship", "Marriage"]`. |
+| `searchRadius` | `number` | Optional | Search distance in km (`5` to `115`). |
+| `worldwide` | `boolean` | Optional | If `true`, distance constraint is bypassed for global discovery. |
+| `city` | `string` | Optional | Custom location filter (e.g. `"Greater Noida"`). |
+| `onlyOnline` | `boolean` | Optional | If `true`, returns only users currently active online. |
+
+* **Success Response (200 OK)**:
+  ```json
+  [
+    {
+      "id": "67f1234567890abcdef12345",
+      "userId": "usr_woman_201",
+      "name": "Priya Sharma",
+      "displayName": "Priya, 24",
+      "age": 24,
+      "gender": "woman",
+      "currentCity": "Greater Noida",
+      "bio": "Architect by day, espresso enthusiast by night.",
+      "photos": [
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800"
+      ],
+      "profileImageUrl": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800",
+      "online": true,
+      "lastSeen": "2026-10-03T10:15:00Z",
+      "verifiedSelfie": true
+    }
+  ]
+  ```
+  *(Note: Spring `Page<UserSearchResponse>` format with `content` array is also supported by client).*
+
+### 4.3 Live Presence / Active Now
+
+The `online` value represents recent app activity, not a permanent profile flag.
+The mobile client sends an online heartbeat when the app becomes active and
+every 60 seconds while active. It sends an offline update when it enters the
+background. The server MUST also expire presence after 2–3 minutes without a
+heartbeat to cover force-close, crashes, and network loss.
+
+#### Mark user online / heartbeat
+
+* **Endpoint**: `PUT /status/online?userId={userId}`
+* **Access**: Authenticated (`Authorization: Bearer <token>`)
+* **Rules**: Validate `userId` against the authenticated JWT, set `online=true`,
+  and update `lastSeen` using the server timestamp. Repeated calls are idempotent.
+* **Response (200 OK)**:
+  ```json
+  {
+    "status": "online",
+    "userId": "usr_man_101",
+    "online": true,
+    "lastSeen": "2026-10-03T10:15:00Z"
+  }
+  ```
+
+#### Mark user offline
+
+* **Endpoint**: `PUT /status/offline?userId={userId}`
+* **Access**: Authenticated (`Authorization: Bearer <token>`)
+* **Rules**: Validate `userId` against the authenticated JWT, set `online=false`,
+  and preserve the latest `lastSeen`. This endpoint is best-effort; timeout
+  expiry remains mandatory.
+* **Response (200 OK)**:
+  ```json
+  {
+    "status": "offline",
+    "userId": "usr_man_101",
+    "online": false,
+    "lastSeen": "2026-10-03T10:16:00Z"
+  }
+  ```
+
+#### Presence filtering rules
+
+* `GET /dashboard/online` MUST return only profiles with `online=true` and
+  `lastSeen` within the active-presence timeout.
+* `POST /search` with `onlyOnline=true` MUST apply the same rule.
+* Discovery, search, profile, request, and message user objects SHOULD include
+  `online` and `lastSeen` when allowed by privacy rules.
+* Missing `online` values MUST be treated as `false`, never as online.
 
 ---
 
@@ -1164,6 +1312,8 @@ The following endpoints are release-scope and must be implemented with the reque
 | Profile setup/edit | `POST /profile/{userId}/setup`, `PUT /profile/update-basic`, `PUT /profile/update-details`, `PUT /profile/update-preferences` | Updated profile |
 | Photos | `POST /profile/upload-image`, `GET /users/{userId}/images`, `PUT /users/{userId}/profile-photo/{imageId}`, `DELETE /users/images/{imageId}` | Immediate image list/URL updates |
 | Browse | `GET /dashboard/recent` | Women-only paginated profiles for men |
+| Active presence | `PUT /status/online`, `PUT /status/offline` | Heartbeat/offline state with `online` and `lastSeen`; automatic expiry required |
+| Search & Filters | `POST /search` | Women-only filtered discovery profiles supporting all 19 criteria |
 | Requests | `POST /connections/send`, `GET /connections/sent`, `GET /connections/received`, `PUT /connections/accept`, `GET /connections/status` | Request objects with only `PENDING`/`APPROVED` |
 | Telegram | `POST /telegram/connect`, `GET /telegram/link` | Username/link only for owner or approved pair |
 | Payments | `POST /razorpay/create-order`, `POST /razorpay/verify`, `GET /subscriber/status`, `GET /subscriber/remaining-days` | Razorpay order/payment verification and normalized subscription |
@@ -1236,6 +1386,7 @@ Backend release acceptance MUST include:
 6. Subscription expiry checked on every gated request, not only when the profile screen loads.
 7. Multipart image upload returns an absolute CDN URL and the updated image record immediately.
 8. All destructive account/report operations remain confirmation-safe on the client and ownership-checked on the server.
+9. Presence is heartbeat-based: expire users after 2–3 minutes without an online heartbeat, and never treat missing presence data as online.
 
 The backend team should validate at minimum: registration/OTP, login/session expiry, 18+ validation, 2-photo profile completion, women-only discovery, duplicate request rejection, pending privacy, approval unlock, Telegram persistence after restart, report submission, two-step deletion, subscription activation/expiry, payment cancellation/retry, and remaining-days countdown (the PRD test cases TC-01 through TC-30).
 

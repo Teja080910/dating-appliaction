@@ -4,9 +4,16 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
 const ethnicityOptions = [
-  'Asian', 'Black / African Descent', 'Latin / Hispanic', 'East Indian',
-  'Middle Eastern', 'Mixed', 'Native American', 'Pacific Islander',
-  'White / Caucasian', 'Other',
+  'Asian',
+  'Black/African descent',
+  'South Asian',
+  'Middle Eastern',
+  'Pacific Islander',
+  'White/Caucasian',
+  'Latin/Hispanic',
+  'Mixed',
+  'Indigenous',
+  'Other',
 ];
 
 interface EthnicityProps {

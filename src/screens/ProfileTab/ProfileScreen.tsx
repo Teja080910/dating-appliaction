@@ -62,42 +62,38 @@ const ProfileScreen = () => {
   };
 
   const handleDeleteProfile = async () => {
-    alert('Delete Profile', 'Are you sure you want to permanently delete your profile?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete My Profile',
-        onPress: () => {
-          alert('Final Warning', 'All your matches, photos, and messages will be lost forever. Still proceed?', [
-            { text: 'No', style: 'cancel' },
-            {
-              text: 'Yes, Delete Everything',
-              onPress: async () => {
-                try {
-                  const userId = await getUserId();
-                  if (userId) {
-                    deleteAccount.mutate(userId, {
-                      onSuccess: async () => {
-                        await clearFullSession();
-                        alert('Profile Deleted', 'Your account has been successfully removed.');
-                        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
-                      },
-                      onError: async () => {
-                        await clearFullSession();
-                        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
-                      },
-                    });
-                  }
-                } catch (error) {
+    alert(
+      'Delete Profile',
+      'Are you sure you want to permanently delete your profile? All your matches, photos, and messages will be lost forever.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete My Profile',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const resolvedUserId = (await getUserId()) || myProfile?.userId || myProfile?.id;
+              deleteAccount.mutate(resolvedUserId, {
+                onSuccess: async () => {
+                  await clearFullSession();
+                  alert('Profile Deleted', 'Your account has been successfully removed.');
+                  navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+                },
+                onError: async (error: any) => {
                   console.error('Delete error:', error);
-                }
-              },
-              style: 'destructive',
-            },
-          ]);
+                  await clearFullSession();
+                  navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+                },
+              });
+            } catch (error) {
+              console.error('Delete error:', error);
+              await clearFullSession();
+              navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+            }
+          },
         },
-        style: 'destructive',
-      },
-    ]);
+      ]
+    );
   };
 
   const isSubscribed = Boolean(subscriptionStatus?.active);

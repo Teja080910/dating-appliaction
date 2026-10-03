@@ -56,23 +56,31 @@ const resolveProfilePayload = (payload: any) => {
 
 const normalizeProfile = (payload: any) => {
   const payloadSource = resolveProfilePayload(payload);
-  const source = payloadSource?.profile && typeof payloadSource.profile === 'object'
-    ? { ...payloadSource.profile, ...payloadSource }
-    : payloadSource;
+  // The API may return a flat profile, { profile }, or { user: { profile } }.
+  // Flatten those compatible shapes so persisted values are not lost in the UI.
+  const nestedUser = payloadSource?.user && typeof payloadSource.user === 'object'
+    ? payloadSource.user
+    : {};
+  const nestedProfile = payloadSource?.profile && typeof payloadSource.profile === 'object'
+    ? payloadSource.profile
+    : (nestedUser?.profile && typeof nestedUser.profile === 'object'
+      ? nestedUser.profile
+      : {});
+  const source = { ...nestedUser, ...nestedProfile, ...payloadSource };
   const numberOrZero = (value: unknown) => {
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : 0;
   };
 
   return {
-    id: typeof source?.id === 'number' ? source.id : null,
+    id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
     userId: source?.userId !== undefined && source?.userId !== null
       ? String(source.userId)
-      : '',
+      : (nestedUser?.id !== undefined && nestedUser?.id !== null ? String(nestedUser.id) : ''),
     name: source?.name ? String(source.name) : '',
     displayName: source?.displayName ? String(source.displayName) : '',
     email: source?.email ? String(source.email) : '',
-    bio: source?.bio ? String(source.bio) : '',
+    bio: source?.bio ? String(source.bio) : (source?.description ? String(source.description) : ''),
     dob: source?.dob ? String(source.dob) : null,
     age: source?.age !== undefined && source?.age !== null && source?.age !== ''
       ? numberOrZero(source.age)
@@ -88,6 +96,7 @@ const normalizeProfile = (payload: any) => {
     lookingFor: source?.lookingFor ? String(source.lookingFor) : '',
     smoke: source?.smoke ? String(source.smoke) : '',
     drink: source?.drink ? String(source.drink) : '',
+    currentCity: source?.currentCity ? String(source.currentCity) : '',
     telegramUsername: source?.telegramUsername ? String(source.telegramUsername) : '',
     verifiedSelfie: Boolean(source?.verifiedSelfie ?? source?.selfieVerified),
     selfieVerified: Boolean(source?.selfieVerified ?? source?.verifiedSelfie),

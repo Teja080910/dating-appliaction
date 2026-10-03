@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const appearanceOptions = ['Very attractive', 'Attractive', 'Average', 'Below Average'];
+const appearanceOptions = ['Very attractive', 'Attractive', 'Average', 'Below average'];
 
 interface AppearanceProps {
   onChange?: (val: string[]) => void;

@@ -3,7 +3,13 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const options = ['Hookup', 'Casual AMARA', 'Relationship', 'Marriage', 'Online relationship'];
+const options = [
+  'Hookup',
+  'Casual dating',
+  'Online relationship',
+  'Relationship',
+  'Marriage',
+];
 
 interface LookingForProps {
   onChange?: (val: string[]) => void;

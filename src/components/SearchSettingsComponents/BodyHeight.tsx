@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
@@ -9,30 +9,58 @@ interface BodyHeightProps {
 }
 
 const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
-  const { bodyHeight } = useContext(AppContext);
+  const { bodyHeight, setBodyHeight } = useContext(AppContext);
+  const [sliderWidth, setSliderWidth] = useState<number>(260);
+
+  const safeMin = Math.min(Math.max(bodyHeight?.[0] ?? 120, 120), 200);
+  const safeMax = Math.min(Math.max(bodyHeight?.[1] ?? 200, safeMin), 200);
+  const currentValues = [safeMin, safeMax];
+
   const handleValuesChange = (values: number[]) => {
-    if (onChange) onChange(values[0], values[1]);
+    const min = Math.round(values[0]);
+    const max = Math.round(values[1]);
+    setBodyHeight([min, max]);
+    if (onChange) onChange(min, max);
+  };
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const availableWidth = e.nativeEvent.layout.width;
+    if (availableWidth > 60) {
+      setSliderWidth(Math.max(180, availableWidth - 26));
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handleLayout}>
       <Text style={styles.label}>
-        Body height: <Text style={styles.value}>{bodyHeight[0]} cm - {bodyHeight[1]} cm</Text>
+        Height range: <Text style={styles.value}>{currentValues[0]} cm - {currentValues[1]} cm</Text>
       </Text>
 
-      <MultiSlider
-        values={bodyHeight}
-        sliderLength={330}
-        min={120}
-        max={200}
-        onValuesChange={handleValuesChange}
-        step={1}
-        selectedStyle={{ backgroundColor: Colors.primary }}
-        unselectedStyle={{ backgroundColor: Colors.surfaceLight }}
-        markerStyle={styles.marker}
-        containerStyle={styles.sliderContainer}
-        trackStyle={styles.track}
-      />
+      <View style={styles.sliderWrapper} onLayout={handleLayout}>
+        <MultiSlider
+          values={currentValues}
+          sliderLength={sliderWidth}
+          min={120}
+          max={200}
+          onValuesChange={handleValuesChange}
+          step={1}
+          allowOverlap={false}
+          minMarkerOverlapDistance={1}
+          snapped={true}
+          touchDimensions={{
+            height: 50,
+            width: 50,
+            borderRadius: 25,
+            slipDisplacement: 200,
+          }}
+          selectedStyle={{ backgroundColor: Colors.primary }}
+          unselectedStyle={{ backgroundColor: Colors.surfaceLight }}
+          markerStyle={styles.marker}
+          pressedMarkerStyle={styles.markerPressed}
+          containerStyle={styles.sliderContainer}
+          trackStyle={styles.track}
+        />
+      </View>
     </View>
   );
 };
@@ -57,6 +85,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
+  sliderWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   marker: {
     height: 26,
     width: 26,
@@ -74,9 +107,14 @@ const styles = StyleSheet.create({
       android: { elevation: 4 },
     }),
   },
+  markerPressed: {
+    height: 30,
+    width: 30,
+    borderRadius: 15,
+  },
   sliderContainer: {
-    marginLeft: 10,
-    height: 40,
+    height: 48,
+    justifyContent: 'center',
   },
   track: {
     height: 4,

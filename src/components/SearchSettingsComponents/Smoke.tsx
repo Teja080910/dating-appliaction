@@ -3,33 +3,53 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Spacing } from '../../theme';
 
 const options = [
-  { label: 'Any', value: undefined },
-  { label: 'Yes', value: true },
-  { label: 'No', value: false },
+  { label: 'Yes', value: 'Yes' },
+  { label: 'No', value: 'No' },
+  { label: 'Sometimes', value: 'Sometimes' },
 ];
 
 interface SmokeProps {
-  value?: boolean;
-  onChange?: (val: boolean | undefined) => void;
+  value?: string | boolean;
+  onChange?: (val: string | undefined) => void;
 }
 
+const isOptionSelected = (currentVal: string | boolean | undefined, optionVal: string) => {
+  if (currentVal === undefined || currentVal === null) return false;
+  if (typeof currentVal === 'boolean') {
+    if (optionVal === 'Yes') return currentVal === true;
+    if (optionVal === 'No') return currentVal === false;
+    return false;
+  }
+  return String(currentVal).toLowerCase() === optionVal.toLowerCase();
+};
+
 const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
+  const handlePress = (optVal: string) => {
+    if (isOptionSelected(value, optVal)) {
+      onChange?.(undefined);
+    } else {
+      onChange?.(optVal);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Smoker?</Text>
       <View style={styles.optionsWrapper}>
-        {options.map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={[styles.option, value === item.value && styles.optionSelected]}
-            onPress={() => onChange?.(item.value)}
-          >
-            <Text style={[styles.optionText, value === item.value && styles.optionTextSelected]}>
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {options.map((item) => {
+          const selected = isOptionSelected(value, item.value);
+          return (
+            <TouchableOpacity
+              key={item.label}
+              style={[styles.option, selected && styles.optionSelected]}
+              onPress={() => handlePress(item.value)}
+            >
+              <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );

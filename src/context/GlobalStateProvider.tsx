@@ -52,7 +52,7 @@ const GlobalStateProvider = ({ children }: any) => {
 
   // ================= SEARCH FILTER =================
   const [ageRange, setAgeRange] = useState([18, 55]);
-  const [distanceRange, setDistanceRange] = useState(1000);
+  const [distanceRange, setDistanceRange] = useState(50);
   const [bodyHeight, setBodyHeight] = useState([120, 200]);
 
   const [searchLanguages, setSearchLanguages] = useState<string[]>([]);
@@ -60,8 +60,8 @@ const GlobalStateProvider = ({ children }: any) => {
   const [ethnicity, setEthnicity] = useState<string[]>([]);
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [smoke, setSmoke] = useState<string[]>([]);
-  const [smokeFilter, setSmokeFilter] = useState<boolean | undefined>(undefined);
-  const [drinkFilter, setDrinkFilter] = useState<boolean | undefined>(undefined);
+  const [smokeFilter, setSmokeFilter] = useState<string | boolean | undefined>(undefined);
+  const [drinkFilter, setDrinkFilter] = useState<string | boolean | undefined>(undefined);
   const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
 
   // Missing properties from components
@@ -142,7 +142,8 @@ const GlobalStateProvider = ({ children }: any) => {
             setAgeRange([savedFilters.minAge, savedFilters.maxAge]);
           }
           if (savedFilters.maxDistanceKm !== undefined) {
-            setDistanceRange(savedFilters.maxDistanceKm);
+            const rawDist = Number(savedFilters.maxDistanceKm);
+            setDistanceRange(Number.isFinite(rawDist) ? Math.min(Math.max(rawDist, 5), 100) : 50);
           }
           if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
             setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);

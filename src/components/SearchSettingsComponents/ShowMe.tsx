@@ -46,20 +46,20 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
       <Text style={styles.label}>Show me:</Text>
       <View style={styles.buttonGroup}>
         <TouchableOpacity
-          style={[styles.button, isMenSelected && styles.selectedButton]}
-          onPress={() => handleSelect('straight_man')}
-        >
-          <Text style={[styles.buttonText, isMenSelected && styles.selectedText]}>
-            Only men
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[styles.button, isWomenSelected && styles.selectedButton]}
           onPress={() => handleSelect('straight_woman')}
         >
           <Text style={[styles.buttonText, isWomenSelected && styles.selectedText]}>
-            Only women
+            Women
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, isMenSelected && styles.selectedButton]}
+          onPress={() => handleSelect('straight_man')}
+        >
+          <Text style={[styles.buttonText, isMenSelected && styles.selectedText]}>
+            Men
           </Text>
         </TouchableOpacity>
       </View>

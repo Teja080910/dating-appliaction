@@ -86,11 +86,14 @@ export const markFirstImageUploaded = async (): Promise<void> => {
 };
 
 export interface SavedSearchFilters {
+  isFilterActive?: boolean;
   minAge?: number;
   maxAge?: number;
   maxDistanceKm?: number;
+  searchRadius?: number;
   worldwide?: boolean;
   location?: string;
+  city?: string;
   minHeight?: number;
   maxHeight?: number;
   bodyType?: string[];
@@ -101,9 +104,10 @@ export interface SavedSearchFilters {
   lookingFor?: string[];
   gender?: string[];
   showMe?: 'straight_man' | 'straight_woman' | null;
-  smoke?: boolean;
-  drink?: boolean;
+  smoke?: string | boolean;
+  drink?: string | boolean;
   onlyOnline?: boolean;
+  sortBy?: string;
 }
 
 export const saveSearchFilters = async (

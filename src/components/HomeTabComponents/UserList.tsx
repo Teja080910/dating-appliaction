@@ -5,6 +5,7 @@ import { useDiscovery } from '../../api/useDiscovery';
 import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
+import { getSavedSearchFilters } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing } from '../../theme';
 import { useResponsive } from '../../utils/responsive';
 
@@ -16,6 +17,26 @@ interface HomeUserListProps {
 }
 
 const normalizeText = (value: unknown) => String(value || '').trim().toLowerCase();
+
+const hasActiveSearchFilters = (saved: any): boolean => {
+  if (!saved || typeof saved !== 'object') return false;
+  return Boolean(
+    saved.isFilterActive === true ||
+    (saved.minAge !== undefined && (saved.minAge !== 18 || saved.maxAge !== 40)) ||
+    (saved.minHeight !== undefined && (saved.minHeight !== 120 || saved.maxHeight !== 200)) ||
+    (Array.isArray(saved.bodyType) && saved.bodyType.length > 0) ||
+    (Array.isArray(saved.appearance) && saved.appearance.length > 0) ||
+    (Array.isArray(saved.language) && saved.language.length > 0) ||
+    (Array.isArray(saved.englishLevel) && saved.englishLevel.length > 0) ||
+    (Array.isArray(saved.ethnicity) && saved.ethnicity.length > 0) ||
+    (Array.isArray(saved.lookingFor) && saved.lookingFor.length > 0) ||
+    saved.smoke !== undefined ||
+    saved.drink !== undefined ||
+    (saved.location && saved.location !== 'My current location' && saved.location !== 'Mumbai, India') ||
+    saved.worldwide === true ||
+    (saved.maxDistanceKm !== undefined && saved.maxDistanceKm < 50)
+  );
+};
 
 const extractFirstImagePath = (value: unknown): string | null => {
   if (typeof value === 'string') return value.trim() || null;
@@ -124,12 +145,32 @@ const UserList = ({
     const fetchMatches = async () => {
       try {
         setLoading(true);
+        setLoadingMore(false);
         // Men browsing always target women ('straight_woman') per PRD FR-12 / BR-04
         const selectedGender = filterByGender || 'straight_woman';
         let items: any[] = [];
 
+        const resolvedUserId = resolvedBackendUserId || (await getUserId());
+        const savedFilters = await getSavedSearchFilters(resolvedUserId);
+        const hasFilters = hasActiveSearchFilters(savedFilters);
+
         try {
-          if (filteredProfiles !== null) {
+          if (hasFilters) {
+            // Apply saved filters across both tabs:
+            // "Active now" -> filters + onlyOnline: true & sortBy: 'active'
+            // "Just joined" -> filters + onlyOnline: false & sortBy: 'createdAt'
+            const searchPayload: Record<string, any> = {
+              ...savedFilters,
+              userId: resolvedUserId || undefined,
+              gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
+              onlyOnline: mode === 'online',
+              sortBy: mode === 'online' ? 'active' : 'createdAt',
+              page: 0,
+              size: 20,
+            };
+            const searchRes = await filterUsersMutationRef.current(searchPayload);
+            items = parseUserCollection(searchRes);
+          } else if (filteredProfiles !== null && filteredProfiles.length > 0) {
             items = filteredProfiles;
           } else if (mode === 'online') {
             try {
@@ -138,17 +179,12 @@ const UserList = ({
               });
               items = parseUserCollection(res.data);
             } catch (onlineError) {
-              console.log('[UserList] online failed → trying recent');
-              try {
-                const res = await apiClient.get('/dashboard/recent', {
-                  params: { page: 0, size: 20 },
-                });
-                items = parseUserCollection(res.data);
-              } catch (recentError) {
-                console.log('[UserList] recent also failed → using search');
-                const searchRes = await searchUsersMutationRef.current({ sortBy: 'active' });
-                items = parseUserCollection(searchRes);
-              }
+              console.log('[UserList] online failed → using online-only search');
+              const searchRes = await searchUsersMutationRef.current({
+                onlyOnline: true,
+                sortBy: 'active',
+              });
+              items = parseUserCollection(searchRes);
             }
           } else {
             try {
@@ -168,7 +204,7 @@ const UserList = ({
         }
 
         // Demo / fallback safeguard: if empty and not explicitly filtered, load from mock store
-        if (filteredProfiles === null && (!items || items.length === 0)) {
+        if (!hasFilters && filteredProfiles === null && (!items || items.length === 0)) {
           try {
             const { mockStore } = require('../../mock/mockStore');
             items = await mockStore.getProfiles(selectedGender === 'straight_man' ? 'man' : 'woman');
@@ -176,7 +212,8 @@ const UserList = ({
         }
 
         const genderMatched = items.filter((item) =>
-          matchesGenderSelection(item, selectedGender)
+          matchesGenderSelection(item, selectedGender) &&
+          (mode !== 'online' || item?.online === true || item?.profile?.online === true)
         );
         const invitable = keepInvitableProfiles(genderMatched);
         const finalItems = resolvedBackendUserId
@@ -189,13 +226,21 @@ const UserList = ({
         if (isMounted) {
           setProfiles(finalItems);
           setPage(0);
-          setHasMore(true);
+          setHasMore(finalItems.length >= 10);
+          setLoadingMore(false);
         }
       } catch (error) {
         console.warn('Home load failed:', error);
-        if (isMounted) setProfiles([]);
+        if (isMounted) {
+          setProfiles([]);
+          setHasMore(false);
+          setLoadingMore(false);
+        }
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
     };
 
@@ -204,15 +249,35 @@ const UserList = ({
   }, [mode, filterByGender, showMe, resolvedBackendUserId, filteredProfiles]);
 
   const handleLoadMore = async () => {
-    if (loading || loadingMore || !hasMore || filteredProfiles !== null) return;
+    if (loading || loadingMore || !hasMore || profiles.length < 10) return;
     try {
       setLoadingMore(true);
       const nextPage = page + 1;
-      const endpoint = mode === 'online' ? '/dashboard/online' : '/dashboard/recent';
-      const res = await apiClient.get(endpoint, {
-        params: { page: nextPage, size: 10 },
-      });
-      const newItems = parseUserCollection(res.data);
+      const selectedGender = filterByGender || 'straight_woman';
+      const resolvedUserId = resolvedBackendUserId || (await getUserId());
+      const savedFilters = await getSavedSearchFilters(resolvedUserId);
+      const hasFilters = hasActiveSearchFilters(savedFilters);
+
+      let newItems: any[] = [];
+      if (hasFilters) {
+        const searchPayload: Record<string, any> = {
+          ...savedFilters,
+          userId: resolvedUserId || undefined,
+          gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
+          onlyOnline: mode === 'online',
+          sortBy: mode === 'online' ? 'active' : 'createdAt',
+          page: nextPage,
+          size: 10,
+        };
+        const searchRes = await filterUsersMutationRef.current(searchPayload);
+        newItems = parseUserCollection(searchRes);
+      } else {
+        const endpoint = mode === 'online' ? '/dashboard/online' : '/dashboard/recent';
+        const res = await apiClient.get(endpoint, {
+          params: { page: nextPage, size: 10 },
+        });
+        newItems = parseUserCollection(res.data);
+      }
       if (!newItems || newItems.length === 0) {
         setHasMore(false);
       } else {
@@ -237,6 +302,9 @@ const UserList = ({
             return [...prev, ...uniqueNew];
           });
           setPage(nextPage);
+          if (newItems.length < 10 || finalItems.length < 10) {
+            setHasMore(false);
+          }
         }
       }
     } catch {
@@ -267,10 +335,10 @@ const UserList = ({
       keyExtractor={(item, index) => item?.userId || item?.id?.toString() || index.toString()}
       columnWrapperStyle={columns > 1 ? styles.row : undefined}
       contentContainerStyle={styles.container}
-      onEndReached={handleLoadMore}
-      onEndReachedThreshold={0.4}
+      onEndReached={hasMore && profiles.length >= 10 ? handleLoadMore : null}
+      onEndReachedThreshold={0.2}
       ListFooterComponent={
-        loadingMore ? (
+        loadingMore && hasMore && profiles.length >= 10 ? (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
             <ActivityIndicator size="small" color={Colors.primary} />
           </View>
@@ -288,7 +356,7 @@ const UserList = ({
             age={safeAge}
             image={resolveHomeCardImage(item)}
             distance={profile?.currentCity || profile?.city || 'Nearby'}
-            isOnline={profile?.online !== false}
+            isOnline={profile?.online === true}
             isNew={mode === 'newest'}
             profileData={item}
             cardWidth={cardWidth}

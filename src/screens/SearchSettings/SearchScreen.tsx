@@ -73,9 +73,9 @@ const SearchScreen = ({ navigation }: any) => {
   const [filters, setFilters] = React.useState<any>(() => ({
     minAge: ageRange?.[0] ?? 18,
     maxAge: ageRange?.[1] ?? 40,
-    maxDistanceKm: distanceRange ?? 50,
+    maxDistanceKm: Math.min(Math.max(Number(distanceRange) || 50, 5), 100),
     worldwide: isChecked || false,
-    gender: ['Male'],
+    gender: ['Female'],
     minHeight: bodyHeight?.[0] ?? 120,
     maxHeight: bodyHeight?.[1] ?? 200,
     bodyType: selectBodyTypes || [],
@@ -131,7 +131,9 @@ const SearchScreen = ({ navigation }: any) => {
             setAgeRange([saved.minAge, saved.maxAge]);
           }
           if (saved.maxDistanceKm !== undefined) {
-            setDistanceRange(saved.maxDistanceKm);
+            const normDist = Math.min(Math.max(Number(saved.maxDistanceKm) || 50, 5), 100);
+            setDistanceRange(normDist);
+            setFilters((prev: any) => ({ ...prev, maxDistanceKm: normDist }));
           }
           if (saved.worldwide !== undefined) setIsChecked(saved.worldwide);
           if (saved.location) setLocation(saved.location);
@@ -167,9 +169,14 @@ const SearchScreen = ({ navigation }: any) => {
         smoke: filters.smoke,
         drink: filters.drink,
         maxDistanceKm: filters.maxDistanceKm,
+        searchRadius: filters.maxDistanceKm,
         worldwide: filters.worldwide,
         gender: filters.gender,
+        showMe: showMe,
+        city: location,
+        location: location,
         onlyOnline: filters.onlyOnline,
+        sortBy: 'createdAt',
         page: 0,
         size: 20,
       };
@@ -177,11 +184,14 @@ const SearchScreen = ({ navigation }: any) => {
       // Persist filters to AsyncStorage
       await saveSearchFilters(
         {
+          isFilterActive: true,
           minAge: filters.minAge,
           maxAge: filters.maxAge,
           maxDistanceKm: filters.maxDistanceKm,
+          searchRadius: filters.maxDistanceKm,
           worldwide: filters.worldwide,
           location: location,
+          city: location,
           minHeight: filters.minHeight,
           maxHeight: filters.maxHeight,
           bodyType: filters.bodyType,
@@ -200,7 +210,8 @@ const SearchScreen = ({ navigation }: any) => {
       );
 
       const result = await filterUsers.mutateAsync(payload);
-      setFilteredProfiles(result.content || []);
+      const profiles = Array.isArray(result) ? result : (result?.content || []);
+      setFilteredProfiles(profiles);
       setFilter(filters.onlyOnline ? 'online' : 'newest');
       alert('Filters Applied', 'Matches updated successfully.');
       navigation.goBack();
@@ -231,16 +242,14 @@ const SearchScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleReset = async () => {
-    const resolvedUserId = await getUserId();
-    await clearSavedSearchFilters(resolvedUserId);
-
+  const handleReset = () => {
+    // Synchronously reset all filter states on first click
     setFilters({
       minAge: 18,
       maxAge: 40,
       maxDistanceKm: 50,
       worldwide: false,
-      gender: ['Male'],
+      gender: ['Female'],
       minHeight: 120,
       maxHeight: 200,
       bodyType: [],
@@ -266,9 +275,15 @@ const SearchScreen = ({ navigation }: any) => {
     setLookingFor([]);
     setSmokeFilter(undefined);
     setDrinkFilter(undefined);
-    setShowMe('straight_man');
+    setShowMe('straight_woman');
     setIsChecked(false);
     setLocation('My current location');
+    setFilteredProfiles(null);
+
+    // Clear saved storage in background
+    getUserId()
+      .then((resolvedUserId) => clearSavedSearchFilters(resolvedUserId))
+      .catch((err) => console.warn('Failed to clear saved filters:', err));
   };
 
   return (
@@ -278,6 +293,7 @@ const SearchScreen = ({ navigation }: any) => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
           <AgeRangeSlider

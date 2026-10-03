@@ -62,8 +62,8 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
   }, [visible, onDismiss]);
 
   const handlePress = (btn: AlertButton) => {
-    btn.onPress?.();
     onDismiss?.();
+    btn.onPress?.();
   };
 
   const useActionList = Boolean(

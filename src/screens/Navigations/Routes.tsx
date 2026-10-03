@@ -32,11 +32,13 @@ import SubscriptionModal from '../../components/SubscriptionModal';
 import RequestsInboxScreen from '../RequestsTab/RequestsInboxScreen';
 import SentRequestsScreen from '../SentTab/SentRequestsScreen';
 import { Colors } from '../../theme';
+import { usePresence } from '../../api/usePresence';
 
 
 const Stack = createNativeStackNavigator();
 
 const Routes = () => {
+  usePresence();
   const {
     initialScreen,
     setInitialScreen,
@@ -139,5 +141,4 @@ const styles = {
     backgroundColor: Colors.background,
   },
 };
-
 

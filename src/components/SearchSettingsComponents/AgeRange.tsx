@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
@@ -9,31 +9,60 @@ interface AgeRangeSliderProps {
 }
 
 const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
-  const { ageRange } = useContext(AppContext);
+  const { ageRange, setAgeRange } = useContext(AppContext);
+  const [sliderWidth, setSliderWidth] = useState<number>(260);
+
+  const safeMin = Math.min(Math.max(ageRange?.[0] ?? 18, 18), 55);
+  const safeMax = Math.min(Math.max(ageRange?.[1] ?? 40, safeMin), 55);
+  const currentValues = [safeMin, safeMax];
+
   const handleValuesChange = (values: number[]) => {
-    if (onChange) onChange(values[0], values[1]);
+    const min = Math.round(values[0]);
+    const max = Math.round(values[1]);
+    setAgeRange([min, max]);
+    if (onChange) onChange(min, max);
+  };
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const availableWidth = e.nativeEvent.layout.width;
+    if (availableWidth > 60) {
+      // sliderLength is the distance between the marker centres. Keep the
+      // markers inside the measured content area and avoid a fixed 300px bar.
+      setSliderWidth(Math.max(180, availableWidth - 26));
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handleLayout}>
       <Text style={styles.label}>
-        Age Range: <Text style={styles.value}>{ageRange[0]} - {ageRange[1]}{ageRange[1] === 55 ? '+' : ''}</Text>
+        Age range: <Text style={styles.value}>{currentValues[0]} - {currentValues[1]}{currentValues[1] === 55 ? '+' : ''}</Text>
       </Text>
 
-      <MultiSlider
-        values={ageRange}
-        sliderLength={330}
-        onValuesChange={handleValuesChange}
-        min={18}
-        max={55}
-        step={1}
-        selectedStyle={{ backgroundColor: Colors.primary }}
-        unselectedStyle={{ backgroundColor: Colors.surfaceLight }}
-        markerStyle={styles.marker}
-        pressedMarkerStyle={styles.markerPressed}
-        containerStyle={styles.sliderContainer}
-        trackStyle={styles.track}
-      />
+      <View style={styles.sliderWrapper} onLayout={handleLayout}>
+        <MultiSlider
+          values={currentValues}
+          sliderLength={sliderWidth}
+          onValuesChange={handleValuesChange}
+          min={18}
+          max={55}
+          step={1}
+          allowOverlap={false}
+          minMarkerOverlapDistance={1}
+          snapped={true}
+          touchDimensions={{
+            height: 50,
+            width: 50,
+            borderRadius: 25,
+            slipDisplacement: 200,
+          }}
+          selectedStyle={{ backgroundColor: Colors.primary }}
+          unselectedStyle={{ backgroundColor: Colors.surfaceLight }}
+          markerStyle={styles.marker}
+          pressedMarkerStyle={styles.markerPressed}
+          containerStyle={styles.sliderContainer}
+          trackStyle={styles.track}
+        />
+      </View>
     </View>
   );
 };
@@ -58,6 +87,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
+  sliderWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   marker: {
     height: 26,
     width: 26,
@@ -81,8 +115,8 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   sliderContainer: {
-    marginLeft: 10,
-    height: 40,
+    height: 48,
+    justifyContent: 'center',
   },
   track: {
     height: 4,

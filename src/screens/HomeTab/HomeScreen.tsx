@@ -137,7 +137,6 @@ const HomeScreen = () => {
   };
 
   const handleFilterChange = (nextFilter: 'online' | 'newest') => {
-    setFilteredProfiles(null);
     setFilter(nextFilter);
   };
 

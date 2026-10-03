@@ -3,7 +3,15 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const bodyTypes = ['Slim', 'Curvy', 'Athletic', 'Average', 'Overweight', 'Other'];
+const bodyTypes = [
+  'Slim',
+  'Curvy',
+  'Muscular',
+  'Athletic',
+  'Average',
+  'A few extra pounds',
+  'Other',
+];
 
 interface BodyTypeProps {
   onChange?: (val: string[]) => void;

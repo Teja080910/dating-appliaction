@@ -515,10 +515,13 @@ export const handleMockRequest = async (
   if (method === 'GET' && (url.includes('/dashboard/recent') || url.includes('/dashboard/online') || url.includes('/dashboard'))) {
     // Only return women profiles as mandated by PRD FR-12 / BR-04
     const womenProfiles = await mockStore.getProfiles('woman');
+    const visibleProfiles = url.includes('/dashboard/online')
+      ? womenProfiles.filter((profile) => profile.online === true)
+      : womenProfiles;
     const page = Number(queryParams?.page ?? 0);
     const size = Number(queryParams?.size ?? 20);
     const start = page * size;
-    const paged = womenProfiles.slice(start, start + size);
+    const paged = visibleProfiles.slice(start, start + size);
     return createMockResponse(config, 200, paged.map(hideTelegramFromPublicProfile));
   }
 
@@ -1036,17 +1039,21 @@ export const handleMockRequest = async (
 
   // PUT /status/online
   if (method === 'PUT' && url.includes('/status/online')) {
+    const userId = String(queryParams.userId || '');
+    if (userId) await mockStore.saveProfile({ userId, online: true });
     return createMockResponse(config, 200, {
       status: 'online',
-      userId: queryParams.userId,
+      userId,
     });
   }
 
   // PUT /status/offline
   if (method === 'PUT' && url.includes('/status/offline')) {
+    const userId = String(queryParams.userId || '');
+    if (userId) await mockStore.saveProfile({ userId, online: false });
     return createMockResponse(config, 200, {
       status: 'offline',
-      userId: queryParams.userId,
+      userId,
     });
   }
 

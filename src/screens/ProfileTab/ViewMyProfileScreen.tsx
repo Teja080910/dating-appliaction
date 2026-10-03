@@ -120,7 +120,6 @@ const ViewMyProfileScreen = () => {
   const route = useRoute<any>();
   const { alert, AlertComponent } = useAlert();
   const {
-    viewMyProfile,
     name,
     displayName,
     date,
@@ -210,7 +209,10 @@ const ViewMyProfileScreen = () => {
     routeTargetId &&
     String(myId).trim().toLowerCase() === String(routeTargetId).trim().toLowerCase()
   );
-  const isViewingSelf = Boolean(!hasRouteTarget || isTargetSameAsMe || viewMyProfile);
+  // Route params are authoritative. `viewMyProfile` is a UI flag and can stay
+  // true after opening this screen, which otherwise makes another user's
+  // profile render as the signed-in user's profile.
+  const isViewingSelf = Boolean(!hasRouteTarget || isTargetSameAsMe);
   const targetId = isViewingSelf ? myId : routeTargetId;
   const hasValidTargetId =
     typeof targetId === 'number' ||
@@ -556,7 +558,7 @@ const ViewMyProfileScreen = () => {
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, !viewMyProfile && numericTargetId ? styles.scrollContentWithFooter : null]}
+        contentContainerStyle={[styles.scrollContent, !isViewingSelf && numericTargetId ? styles.scrollContentWithFooter : null]}
       >
         <View style={styles.sliderWrapper}>
           {sliderImages.length > 0 ? (
@@ -650,7 +652,7 @@ const ViewMyProfileScreen = () => {
       </ScrollView>
 
       {/* 🔥 ACTION BUTTONS */}
-      {!isViewingSelf && !viewMyProfile && numericTargetId && requestRole !== 'received' && (
+      {!isViewingSelf && numericTargetId && requestRole !== 'received' && (
         <View style={styles.actionFooter}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleDislike}>
             <Icon name="x" size={28} color="red" />
