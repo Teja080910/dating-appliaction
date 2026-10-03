@@ -1,5 +1,14 @@
 import React, { useContext, useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import Feather from 'react-native-vector-icons/Feather';
@@ -84,6 +93,44 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         alert("Couldn't approve invitation", getUserFriendlyMessage(error, 'We could not approve this invitation right now.'));
       },
     });
+  };
+
+  const handleOpenTelegram = (username?: string) => {
+    if (!username) {
+      alert('Telegram not connected', 'They have not connected Telegram yet. You can still keep in touch here.');
+      return;
+    }
+    const cleanUsername = username.replace('@', '');
+    const url = `https://t.me/${cleanUsername}`;
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          alert('Open Link', `Open in browser: ${url}`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open', onPress: () => Linking.openURL(url) },
+          ]);
+        }
+      })
+      .catch(() => {
+        Linking.openURL(url);
+      });
+  };
+
+  const handleShareTelegram = async (username?: string) => {
+    if (!username) {
+      alert('Telegram not connected', 'No username available to share.');
+      return;
+    }
+    const cleanUsername = username.replace('@', '');
+    try {
+      await Share.share({
+        message: `@${cleanUsername} (https://t.me/${cleanUsername})`,
+      });
+    } catch {
+      // User dismissed share dialog
+    }
   };
 
   const normalizeTextValue = (value: unknown, fallback: string) => {
@@ -196,15 +243,33 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge || 25))
     : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, '24');
 
-  // Check if this user is already invited (from sent connections API)
+  // Check if this user is already invited (from sent or received connections API)
   const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
   const matchingInvitation = sentConnections.find((inv: any) => {
     const receiverId = inv?.receiver?.id ?? inv?.receiver?.userId ?? inv?.receiverId ?? inv?.id;
     if (!receiverId || !resolvedTargetUserId) return false;
     return String(receiverId).trim().toLowerCase() === String(resolvedTargetUserId).trim().toLowerCase();
   });
+  const receivedConnections = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
+  const matchingReceived = receivedConnections.find((inv: any) => {
+    const senderId = inv?.sender?.id ?? inv?.sender?.userId ?? inv?.senderId ?? inv?.id;
+    if (!senderId || !resolvedTargetUserId) return false;
+    return String(senderId).trim().toLowerCase() === String(resolvedTargetUserId).trim().toLowerCase();
+  });
   const isAlreadyInvited = Boolean(matchingInvitation);
-  const isApprovedInvitation = matchingInvitation?.status === 'APPROVED';
+  const isApprovedInvitation =
+    matchingInvitation?.status === 'APPROVED' ||
+    matchingReceived?.status === 'APPROVED' ||
+    String(requestStatus || '').toUpperCase() === 'APPROVED';
+
+  const targetTelegramUsername =
+    resolvedProfile?.telegramUsername ||
+    profile?.telegramUsername ||
+    matchingInvitation?.receiver?.telegramUsername ||
+    matchingInvitation?.sender?.telegramUsername ||
+    matchingReceived?.sender?.telegramUsername ||
+    matchingReceived?.receiver?.telegramUsername ||
+    '';
 
   const resolvedLanguages = (isOwnProfile || propProfile)
     ? normalizeTextValue(resolvedProfile?.language || profile.language, '')
@@ -496,8 +561,44 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
             {isAlreadyInvited && !isApprovedInvitation ? (
               <Text style={styles.pendingInvitationText}>Invitation pending approval</Text>
+            ) : isApprovedInvitation ? (
+              <View style={styles.approvedTelegramContainer}>
+                <View style={styles.approvedTelegramInfoBox}>
+                  <Text style={styles.approvedTelegramLabel}>TELEGRAM CONTACT</Text>
+                  <Text selectable={true} style={styles.approvedTelegramHandle}>
+                    {targetTelegramUsername ? `@${targetTelegramUsername.replace('@', '')}` : 'Not connected'}
+                  </Text>
+                </View>
+                <View style={styles.approvedTelegramBtnRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={styles.openTelegramBtn}
+                    onPress={() => handleOpenTelegram(targetTelegramUsername)}
+                  >
+                    <LinearGradient
+                      colors={[Colors.primary, Colors.secondary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.telegramGradient}
+                    >
+                      <Icon name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={styles.openTelegramBtnText}>Open Telegram</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                  {targetTelegramUsername ? (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      style={styles.shareTelegramBtn}
+                      onPress={() => handleShareTelegram(targetTelegramUsername)}
+                      accessibilityLabel="Share Telegram Handle"
+                    >
+                      <Icon name="share-variant-outline" size={20} color={Colors.primary} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
             ) : (
-            <TouchableOpacity
+              <TouchableOpacity
                 activeOpacity={0.9}
                 style={styles.inviteBtnWrapper}
                 onPress={handleInvite}
@@ -744,5 +845,61 @@ const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  approvedTelegramContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(124, 58, 237, 0.06)',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.15)',
+    marginBottom: 8,
+  },
+  approvedTelegramInfoBox: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  approvedTelegramLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  approvedTelegramHandle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  approvedTelegramBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  openTelegramBtn: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  telegramGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  openTelegramBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  shareTelegramBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.25)',
   },
 });

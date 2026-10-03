@@ -12,6 +12,7 @@ import {
   RefreshControl,
   TextInput,
   Dimensions,
+  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -80,6 +81,21 @@ const SentRequestsScreen: React.FC = () => {
       .catch(() => {
         Linking.openURL(url);
       });
+  };
+
+  const handleShareTelegram = async (username?: string) => {
+    if (!username) {
+      Alert.alert('Telegram not connected', 'No username available to share.');
+      return;
+    }
+    const cleanUsername = username.replace('@', '');
+    try {
+      await Share.share({
+        message: `@${cleanUsername} (https://t.me/${cleanUsername})`,
+      });
+    } catch {
+      // User dismissed share dialog
+    }
   };
 
   const handleOpenProfile = (item: ConnectionRequest) => {
@@ -154,22 +170,43 @@ const SentRequestsScreen: React.FC = () => {
             </Text>
 
             {isApproved ? (
-              <TouchableOpacity
-                style={styles.smallActionWrapper}
-                activeOpacity={0.8}
-                onPress={() => handleOpenTelegram(receiver.telegramUsername)}
-              >
-                <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.smallActionGradient}
+              <View style={styles.approvedActionRow}>
+                <TouchableOpacity
+                  style={styles.smallActionWrapper}
+                  activeOpacity={0.8}
+                  onPress={() => handleOpenTelegram(receiver.telegramUsername)}
                 >
-                  <Text style={styles.smallActionText}>Open Telegram</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={[Colors.primary, Colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.smallActionGradient}
+                  >
+                    <Text style={styles.smallActionText}>Open Telegram</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                {receiver.telegramUsername ? (
+                  <TouchableOpacity
+                    style={styles.shareIconButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleShareTelegram(receiver.telegramUsername)}
+                    accessibilityLabel="Share Telegram Handle"
+                  >
+                    <Icon name="share-variant-outline" size={17} color={Colors.primary} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             ) : null}
           </View>
+
+          {isApproved && receiver.telegramUsername ? (
+            <View style={styles.itemHandleRow}>
+              <Text style={styles.itemHandleLabel}>Telegram: </Text>
+              <Text selectable={true} style={styles.itemHandleText}>
+                @{receiver.telegramUsername.replace('@', '')}
+              </Text>
+            </View>
+          ) : null}
 
           {receiver.city ? (
             <Text style={styles.cityText} numberOfLines={1}>
@@ -629,6 +666,37 @@ const styles = StyleSheet.create({
   modalRecallBtnText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  approvedActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shareIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.2)',
+  },
+  itemHandleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  itemHandleLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  itemHandleText: {
+    fontSize: 12,
+    color: Colors.primary,
     fontWeight: '700',
   },
 });

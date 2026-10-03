@@ -476,15 +476,6 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                 <Text style={styles.buttonText}>Next</Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            {!(showCamera && !!frontCamera) && (
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={() => navigation.navigate('MoreDetails')}
-              >
-                <Text style={styles.skipButtonText}>Skip for now</Text>
-              </TouchableOpacity>
-            )}
           </ScrollView>
         </SafeAreaView>
         {AlertComponent}
@@ -610,17 +601,6 @@ const styles = StyleSheet.create({
   successText: { color: Colors.success, fontWeight: 'bold', fontSize: 16, marginVertical: Spacing.sm },
   syncText: { color: Colors.primary, fontWeight: 'bold', textAlign: 'center', marginVertical: Spacing.sm },
   errorText: { color: Colors.error, textAlign: 'center', lineHeight: 20, marginVertical: Spacing.sm },
-  skipButton: {
-    marginTop: Spacing.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skipButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
   loadingText: { marginTop: Spacing.sm + 2, color: Colors.textSecondary },
 });

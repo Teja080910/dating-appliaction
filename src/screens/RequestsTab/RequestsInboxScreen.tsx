@@ -13,6 +13,7 @@ import {
   Modal,
   TextInput,
   Dimensions,
+  Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -108,9 +109,21 @@ const RequestsInboxScreen: React.FC = () => {
           ]);
         }
       })
-      .catch(() => {
-        Linking.openURL(url);
+  };
+
+  const handleShareTelegram = async (username?: string) => {
+    if (!username) {
+      Alert.alert('Telegram not connected', 'No username available to share.');
+      return;
+    }
+    const cleanUsername = username.replace('@', '');
+    try {
+      await Share.share({
+        message: `@${cleanUsername} (https://t.me/${cleanUsername})`,
       });
+    } catch {
+      // User dismissed share dialog
+    }
   };
 
   const cleanDisplayName = (name?: string) => {
@@ -213,22 +226,43 @@ const RequestsInboxScreen: React.FC = () => {
                 </LinearGradient>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={styles.smallActionWrapper}
-                activeOpacity={0.8}
-                onPress={() => handleOpenTelegram(sender.telegramUsername)}
-              >
-                <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.smallActionGradient}
+              <View style={styles.approvedActionRow}>
+                <TouchableOpacity
+                  style={styles.smallActionWrapper}
+                  activeOpacity={0.8}
+                  onPress={() => handleOpenTelegram(sender.telegramUsername)}
                 >
-                  <Text style={styles.smallActionText}>Open Telegram</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={[Colors.primary, Colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.smallActionGradient}
+                  >
+                    <Text style={styles.smallActionText}>Open Telegram</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                {sender.telegramUsername ? (
+                  <TouchableOpacity
+                    style={styles.shareIconButton}
+                    activeOpacity={0.7}
+                    onPress={() => handleShareTelegram(sender.telegramUsername)}
+                    accessibilityLabel="Share Telegram Handle"
+                  >
+                    <Icon name="share-variant-outline" size={17} color={Colors.primary} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             )}
           </View>
+
+          {isApproved && sender.telegramUsername ? (
+            <View style={styles.itemHandleRow}>
+              <Text style={styles.itemHandleLabel}>Telegram: </Text>
+              <Text selectable={true} style={styles.itemHandleText}>
+                @{sender.telegramUsername.replace('@', '')}
+              </Text>
+            </View>
+          ) : null}
 
           {sender.city ? (
             <Text style={styles.cityText} numberOfLines={1}>
@@ -440,11 +474,21 @@ const RequestsInboxScreen: React.FC = () => {
             </Text>
 
             <View style={styles.simpleTelegramRow}>
-              <Text style={styles.simpleTelegramHandle}>
+              <Text selectable={true} style={styles.simpleTelegramHandle}>
                 {approvedMatch?.username
                   ? `@${approvedMatch.username.replace('@', '')}`
                   : 'Telegram not connected'}
               </Text>
+              {approvedMatch?.username ? (
+                <TouchableOpacity
+                  style={styles.modalShareBtn}
+                  activeOpacity={0.7}
+                  onPress={() => handleShareTelegram(approvedMatch.username)}
+                >
+                  <Icon name="share-variant-outline" size={15} color={Colors.primary} />
+                  <Text style={styles.modalShareText}>Share</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             <TouchableOpacity
@@ -942,6 +986,52 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
+  },
+  modalShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginLeft: Spacing.sm,
+  },
+  modalShareText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginLeft: 4,
+  },
+  approvedActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shareIconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.2)',
+  },
+  itemHandleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  itemHandleLabel: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  itemHandleText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '700',
   },
   simplePrimaryBtnWrapper: {
     width: '100%',

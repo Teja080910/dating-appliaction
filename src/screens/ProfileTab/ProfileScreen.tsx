@@ -196,7 +196,11 @@ const ProfileScreen = () => {
             }}
           />
           <ProfileRow
-            title="Connect Telegram"
+            title={
+              myProfile?.telegramUsername
+                ? `Telegram (@${myProfile.telegramUsername.replace(/^@/, '')})`
+                : 'Connect Telegram'
+            }
             iconName="send"
             color={Colors.primaryLight}
             onPress={() => navigation.navigate('ConnectTelegram', { fromProfile: true } as any)}
