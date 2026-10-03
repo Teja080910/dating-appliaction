@@ -25,7 +25,7 @@ const EthnicitySelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Your ethnicity</Text>
+      <Text style={styles.label}>Race/ethnicity</Text>
       <View style={styles.optionsContainer}>
         {ETHNICITIES.map(item => (
           <Pressable

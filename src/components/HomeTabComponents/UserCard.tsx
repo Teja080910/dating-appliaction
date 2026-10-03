@@ -5,7 +5,7 @@ import {
   Image,
   ImageSourcePropType,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   Pressable,
 } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -28,9 +28,9 @@ interface UserCardProps {
   isOnline?: boolean;
   isNew?: boolean;
   id?: string | number;
+  cardWidth?: number;
+  cardHeight?: number;
 }
-
-const CARD_WIDTH = (Dimensions.get('window').width - 45) / 2;
 
 const FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/girl1.webp'),
@@ -53,7 +53,13 @@ const UserCard = ({
   isOnline,
   isNew,
   id,
+  cardWidth,
+  cardHeight,
 }: UserCardProps) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const resolvedWidth = cardWidth || Math.floor((windowWidth - 45) / 2);
+  const resolvedHeight = cardHeight || Math.round(Math.min(Math.max(resolvedWidth * 1.34, 220), 340));
+
   const navigation =
     useNavigation<StackNavigationProp<RootParamList, 'ViewMyProfileScreen'>>();
 
@@ -147,7 +153,7 @@ const UserCard = ({
 
   return (
     <Pressable onPress={handleUserCard} style={styles.cardOuter}>
-      <View style={styles.card}>
+      <View style={[styles.card, { width: resolvedWidth, height: resolvedHeight }]}>
         <LinearGradient
           colors={[Colors.gradientCard[0], Colors.gradientCard[1]]}
           style={styles.cardBorder}
@@ -210,8 +216,6 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   card: {
-    width: CARD_WIDTH,
-    height: 250,
     borderRadius: Spacing.radiusLg,
     overflow: 'hidden',
   },

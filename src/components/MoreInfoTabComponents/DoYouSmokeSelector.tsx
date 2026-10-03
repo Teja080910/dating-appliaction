@@ -14,7 +14,7 @@ const DoYouSmokeSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Do you smoke?</Text>
+      <Text style={styles.label}>Smoker</Text>
       <View style={styles.optionsContainer}>
         {OPTIONS.map(option => (
           <Pressable

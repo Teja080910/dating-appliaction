@@ -14,7 +14,7 @@ const DrinkingSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Do you drink?</Text>
+      <Text style={styles.label}>Drinker</Text>
       <View style={styles.optionsContainer}>
         {OPTIONS.map(option => (
           <Pressable

@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import { Colors } from '../../theme';
 
 const PhotoVerifiedBadge = () => {
   return (
     <View style={styles.badgeContainer}>
-      <Icon name="check-circle" solid size={20} color="#d76d7c" style={styles.icon} />
+      <Icon name="check-circle" solid size={20} color={Colors.success} style={styles.icon} />
       <Text style={styles.text}>You’re verified by photo!</Text>
     </View>
   );

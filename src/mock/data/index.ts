@@ -37,8 +37,6 @@ export interface MockProfile {
   englishLevel?: string;
   ethnicity?: string;
   lookingFor?: string;
-  kidCount?: string;
-  netWorth?: string;
 }
 
 export interface MockRequest {

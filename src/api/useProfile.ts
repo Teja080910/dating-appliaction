@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from './apiClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
 
 const allowedFields = [
@@ -54,7 +55,14 @@ const resolveProfilePayload = (payload: any) => {
 };
 
 const normalizeProfile = (payload: any) => {
-  const source = resolveProfilePayload(payload);
+  const payloadSource = resolveProfilePayload(payload);
+  const source = payloadSource?.profile && typeof payloadSource.profile === 'object'
+    ? { ...payloadSource.profile, ...payloadSource }
+    : payloadSource;
+  const numberOrZero = (value: unknown) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
 
   return {
     id: typeof source?.id === 'number' ? source.id : null,
@@ -66,13 +74,15 @@ const normalizeProfile = (payload: any) => {
     email: source?.email ? String(source.email) : '',
     bio: source?.bio ? String(source.bio) : '',
     dob: source?.dob ? String(source.dob) : null,
-    age: typeof source?.age === 'number' ? source.age : null,
+    age: source?.age !== undefined && source?.age !== null && source?.age !== ''
+      ? numberOrZero(source.age)
+      : null,
     gender: source?.gender ? String(source.gender) : null,
     orientation: source?.orientation ? String(source.orientation) : null,
     language: source?.language ? String(source.language) : '',
     appearance: source?.appearance ? String(source.appearance) : '',
     bodyType: source?.bodyType ? String(source.bodyType) : '',
-    height: typeof source?.height === 'number' ? source.height : 0,
+    height: numberOrZero(source?.height),
     englishLevel: source?.englishLevel ? String(source.englishLevel) : '',
     ethnicity: source?.ethnicity ? String(source.ethnicity) : '',
     lookingFor: source?.lookingFor ? String(source.lookingFor) : '',
@@ -228,6 +238,20 @@ export const useProfile = () => {
   const setupProfile = useMutation<any, Error, SetupProfileInput>({
     mutationFn: async ({uid, dto, photo}) => {
       const normalizedDto = sanitizeProfileDto(dto);
+
+      let resolvedName = normalizedDto.name || normalizedDto.displayName;
+      if (!resolvedName) {
+        resolvedName =
+          (await AsyncStorage.getItem('name')) ||
+          (await AsyncStorage.getItem('displayName')) ||
+          (await AsyncStorage.getItem('userName')) ||
+          'User';
+      }
+      normalizedDto.name = resolvedName;
+      if (!normalizedDto.displayName) {
+        normalizedDto.displayName = resolvedName;
+      }
+
       const resolvedUserId = await resolveNumericUserId(uid);
       console.log('📡 API userId:', resolvedUserId);
 
@@ -286,8 +310,6 @@ export const useProfile = () => {
     height: number;
     englishLevel?: string;
     ethnicity?: string;
-    kidCount?: string;
-    netWorth?: string;
   };
 
   const updateDetails = useMutation<any, Error, UpdateDetailsInput>({
@@ -302,13 +324,12 @@ export const useProfile = () => {
         height: data.height,
         englishLevel: data.englishLevel || '',
         ethnicity: data.ethnicity || '',
-        kidCount: data.kidCount || '',
-        netWorth: data.netWorth || '',
       };
 
-      const res = await apiClient.put('/profile/update', payload).catch(() =>
-        apiClient.put('/profile/update-details', payload)
-      );
+      // More Info is a partial details update. The general /profile/update
+      // endpoint validates profile basics such as name, which should not be
+      // required when editing only these fields.
+      const res = await apiClient.put('/profile/update-details', payload);
       return res.data;
     },
     onSuccess: async () => {
@@ -329,8 +350,6 @@ export const useProfile = () => {
     height?: number;
     englishLevel?: string;
     ethnicity?: string;
-    kidCount?: string;
-    netWorth?: string;
     lookingFor?: string;
     smoke?: string;
     drink?: string;

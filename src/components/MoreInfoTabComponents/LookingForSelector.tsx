@@ -24,7 +24,7 @@ const LookingForSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Looking for</Text>
+      <Text style={styles.label}>What are you looking for?</Text>
       <View style={styles.optionsContainer}>
         {options.map((item: string) => (
           <TouchableOpacity

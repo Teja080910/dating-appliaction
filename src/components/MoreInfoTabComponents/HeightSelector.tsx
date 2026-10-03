@@ -9,7 +9,7 @@ const HeightSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Your height: {tempHeight} cm</Text>
+      <Text style={styles.label}>Height: {tempHeight} cm</Text>
       <Slider
         style={styles.slider}
         minimumValue={120}

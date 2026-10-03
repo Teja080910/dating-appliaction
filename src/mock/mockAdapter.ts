@@ -348,8 +348,6 @@ export const handleMockRequest = async (
       englishLevel: profile?.englishLevel || 'advanced',
       ethnicity: profile?.ethnicity || 'Asian',
       lookingFor: profile?.lookingFor || 'Long-term, Marriage',
-      kidCount: profile?.kidCount || 'No kids',
-      netWorth: profile?.netWorth || '₹10L-₹25L',
       completion: 100,
     };
 

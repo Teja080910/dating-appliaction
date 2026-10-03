@@ -16,7 +16,7 @@ const EnglishSkillSelector = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
-        How good is your English: <Text style={styles.levelText}>{englishLevels[localValue]}</Text>
+        English level: <Text style={styles.levelText}>{englishLevels[localValue]}</Text>
       </Text>
       <Slider
         style={styles.slider}

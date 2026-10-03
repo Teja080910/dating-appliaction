@@ -75,6 +75,8 @@ const OTPScreen = ({ navigation, route }: any) => {
 
   const {
     name: contextName,
+    setName,
+    setDisplayName,
     password: contextPassword,
     phoneNumber: contextPhoneNumber,
   } = useContext(AppContext);
@@ -185,6 +187,13 @@ const OTPScreen = ({ navigation, route }: any) => {
         "firstImageUploaded",
         "onboardingStep",
       ]);
+
+      if (effectiveName) {
+        await AsyncStorage.setItem("name", effectiveName);
+        await AsyncStorage.setItem("displayName", effectiveName);
+        if (setName) setName(effectiveName);
+        if (setDisplayName) setDisplayName(effectiveName);
+      }
 
       // Navigate to Privacy screen to continue onboarding
       navigation.replace("Privacy");
@@ -316,6 +325,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.radiusXxl,
     padding: Spacing.xl,
     width: '100%',
+    maxWidth: 480,
     alignSelf: 'center',
     alignItems: 'center',
     borderWidth: 1,

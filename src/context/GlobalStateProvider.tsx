@@ -32,9 +32,7 @@ const GlobalStateProvider = ({ children }: any) => {
   const [selectedEthnicity, setSelectedEthnicity] = useState<string | null>(null);
   const [selectedSmoking, setSelectedSmoking] = useState<string | null>(null);
   const [selectedDrinking, setSelectedDrinking] = useState<string | null>(null);
-  const [selectedKidCount, setSelectedKidCount] = useState<string | null>(null);
   const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
-  const [selectedNetWorth, setSelectedNetWorth] = useState<string | null>(null);
   const [englishSkillLevel, setEnglishSkillLevel] = useState(0);
 
   const [profileText, setProfileText] = useState('');
@@ -103,16 +101,37 @@ const GlobalStateProvider = ({ children }: any) => {
         const id = await getUserId();
         if (id) setAuthUserId(id);
 
-        const [storedName, storedDisplayName, storedGender, storedUserGender] = await Promise.all([
+        const [
+          storedName,
+          storedDisplayName,
+          storedGender,
+          storedUserGender,
+          storedImages,
+          storedProfileImage,
+        ] = await Promise.all([
           AsyncStorage.getItem('name'),
           AsyncStorage.getItem('displayName'),
           AsyncStorage.getItem('selectedGender'),
           AsyncStorage.getItem('userGender'),
+          AsyncStorage.getItem('onboardingImages'),
+          AsyncStorage.getItem('profileImage'),
         ]);
         if (storedName) setName(storedName);
         if (storedDisplayName) setDisplayName(storedDisplayName);
         const resolvedGender = storedGender || storedUserGender;
         if (resolvedGender) setGender(resolvedGender);
+        if (storedImages) {
+          try {
+            const parsed = JSON.parse(storedImages);
+            if (Array.isArray(parsed) && parsed.some(Boolean)) {
+              setImages(parsed);
+            }
+          } catch (e) {}
+        }
+        if (storedProfileImage) {
+          setProfileImage(storedProfileImage);
+          setProfileImageUrl(storedProfileImage);
+        }
 
         const subStatus = await AsyncStorage.getItem('isSubscribed');
         if (subStatus === 'true') setIsSubscribed(true);
@@ -165,7 +184,6 @@ const GlobalStateProvider = ({ children }: any) => {
     if (prefs.englishSkill !== undefined) setEnglishSkillLevel(prefs.englishSkill);
     if (prefs.ethnicity) setSelectedEthnicity(prefs.ethnicity);
     if (prefs.height) setHeight(prefs.height);
-    if (prefs.kidCount) setSelectedKidCount(prefs.kidCount);
     if (prefs.languages) setSelectedLanguages(prefs.languages);
     if (prefs.lookingFor) setSelectedLookingFor(prefs.lookingFor);
   };
@@ -226,9 +244,7 @@ const GlobalStateProvider = ({ children }: any) => {
         selectedEthnicity, setSelectedEthnicity,
         selectedSmoking, setSelectedSmoking,
         selectedDrinking, setSelectedDrinking,
-        selectedKidCount, setSelectedKidCount,
         selectedLookingFor, setSelectedLookingFor,
-        selectedNetWorth, setSelectedNetWorth,
         englishSkillLevel, setEnglishSkillLevel,
         profileText, setProfileText,
         profileImage, setProfileImage,
@@ -292,11 +308,6 @@ const GlobalStateProvider = ({ children }: any) => {
         selectedEthinicity: selectedEthnicity,
         setSelectedEthinicity: setSelectedEthnicity,
 
-        // Aliases for shorter names
-        kidsCount: selectedKidCount || '',
-        setKidsCount: setSelectedKidCount,
-        netWorth: selectedNetWorth || '',
-        setNetWorth: setSelectedNetWorth,
       }}
     >
       {children}

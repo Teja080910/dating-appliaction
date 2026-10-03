@@ -12,6 +12,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Asset, launchCamera } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,6 +63,8 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   const isScreenFocused = useIsFocused();
   const cameraRef = useRef<Camera>(null);
   const frontCamera = useCameraDevice('front');
+  const { height: screenHeight } = useWindowDimensions();
+  const cameraHeight = Math.min(Math.max(screenHeight * 0.42, 260), 380);
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const [loadingSession, setLoadingSession] = useState(true);
@@ -374,7 +377,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               <View style={styles.cameraWrapper}>
                 <Camera
                   ref={cameraRef}
-                  style={styles.cameraPreview}
+                  style={[styles.cameraPreview, { height: cameraHeight }]}
                   device={frontCamera}
                   isActive={showCamera && isScreenFocused}
                   photo={true}
@@ -561,7 +564,6 @@ const styles = StyleSheet.create({
   },
   cameraPreview: {
     width: '100%',
-    height: 420,
   },
   cameraActions: {
     flexDirection: 'row',

@@ -18,6 +18,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -35,6 +36,9 @@ import {Colors, Spacing, Shadows} from '../../theme';
 
 const RegisterScreen = ({navigation}: any) => {
   const {alert, AlertComponent} = useAlert();
+  const {height: screenHeight} = useWindowDimensions();
+  const isSmall = screenHeight < 700;
+  const isCompact = screenHeight < 640;
   const {name, setName, password, setPassword, phoneNumber, setPhoneNumber} =
     useContext(AppContext);
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -147,27 +151,27 @@ const RegisterScreen = ({navigation}: any) => {
                   style={styles.backFab}>
                   <Icon name="chevron-left" size={28} color={Colors.text} />
                 </TouchableOpacity>
-                <View style={styles.logoGlow}>
-                  <AttractiveLogo size={48} />
+                <View style={[styles.logoGlow, isSmall && { width: 56, height: 56, borderRadius: 28, marginBottom: 4 }]}>
+                  <AttractiveLogo size={isSmall ? 36 : 48} />
                 </View>
-                <Text style={styles.branding}>AMARA</Text>
-                <Text style={styles.slogan}>
+                <Text style={[styles.branding, isSmall && { fontSize: 22, marginTop: 4, letterSpacing: 3 }]}>AMARA</Text>
+                <Text style={[styles.slogan, isSmall && { fontSize: 11, marginTop: 2 }]}>
                   The exclusive space for real chemistry.
                 </Text>
               </View>
 
-              <View style={styles.card}>
+              <View style={[styles.card, isSmall && { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.lg }]}>
                 <Text style={styles.eyebrow}>GET STARTED</Text>
-                <Text style={styles.cardTitle}>
+                <Text style={[styles.cardTitle, isSmall && { fontSize: 20 }]}>
                   Create Your Elegant Profile
                 </Text>
-                <Text style={styles.cardSubtitle}>
+                <Text style={[styles.cardSubtitle, isSmall && { marginBottom: Spacing.md }]}>
                   Join a community of intentional individuals seeking genuine
                   connections.
                 </Text>
 
-                <View style={styles.inputGroup}>
-                  <View style={styles.inputBox}>
+                <View style={[styles.inputGroup, isCompact && { marginBottom: Spacing.sm }]}>
+                  <View style={[styles.inputBox, isCompact && { height: 46, marginBottom: Spacing.sm }]}>
                     <Icon
                       name="account-outline"
                       size={20}
@@ -182,7 +186,7 @@ const RegisterScreen = ({navigation}: any) => {
                     />
                   </View>
 
-                  <View style={styles.inputBox}>
+                  <View style={[styles.inputBox, isCompact && { height: 46, marginBottom: Spacing.sm }]}>
                     <Icon
                       name="phone-outline"
                       size={20}
@@ -198,7 +202,7 @@ const RegisterScreen = ({navigation}: any) => {
                     />
                   </View>
 
-                  <View style={styles.inputBox}>
+                  <View style={[styles.inputBox, isCompact && { height: 46, marginBottom: Spacing.sm }]}>
                     <Icon
                       name="lock-outline"
                       size={20}
@@ -223,7 +227,7 @@ const RegisterScreen = ({navigation}: any) => {
                     </TouchableOpacity>
                   </View>
 
-                  <View style={styles.inputBox}>
+                  <View style={[styles.inputBox, isCompact && { height: 46, marginBottom: Spacing.sm }]}>
                     <Icon
                       name="lock-check-outline"
                       size={20}
@@ -241,7 +245,11 @@ const RegisterScreen = ({navigation}: any) => {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.registerBtn, loading && styles.buttonDisabled]}
+                  style={[
+                    styles.registerBtn,
+                    loading && styles.buttonDisabled,
+                    isCompact && { height: 46, marginBottom: Spacing.md },
+                  ]}
                   onPress={handleRegister}
                   disabled={loading}>
                   <LinearGradient
@@ -335,6 +343,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.xl,
     width: '100%',
+    maxWidth: 480,
     alignSelf: 'center',
     borderWidth: 1,
     borderColor: Colors.glassBorder,

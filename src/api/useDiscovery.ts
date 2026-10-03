@@ -4,7 +4,8 @@ import { getUserId } from '../utils/sessionHelper';
 
 const normalizeArrayFilter = (value: unknown) => {
   if (Array.isArray(value)) {
-    return value.filter((item) => item !== null && item !== undefined && String(item).trim() !== '');
+    const items = value.filter((item) => item !== null && item !== undefined && String(item).trim() !== '');
+    return items.length > 0 ? items : undefined;
   }
 
   if (value === null || value === undefined || String(value).trim() === '') {

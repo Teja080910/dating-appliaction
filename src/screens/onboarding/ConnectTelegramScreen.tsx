@@ -10,6 +10,9 @@ import {
   BackHandler,
   ActivityIndicator,
   TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -144,82 +147,91 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
             )}
           </View>
 
-          <View style={styles.content}>
-            <View style={styles.card}>
-              <Image
-                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png' }}
-                style={styles.telegramIcon}
-              />
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.card}>
+                <Image
+                  source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png' }}
+                  style={styles.telegramIcon}
+                />
 
-              <Text style={styles.heading}>
-                {connectedUsername ? 'Telegram Connected' : 'Connect Your Telegram'}
-              </Text>
+                <Text style={styles.heading}>
+                  {connectedUsername ? 'Telegram Connected' : 'Connect Your Telegram'}
+                </Text>
 
-              {connectedUsername ? (
-                <View style={styles.connectedBadgeBox}>
-                  <Text style={styles.connectedBadgeLabel}>ACTIVE HANDLE</Text>
-                  <Text style={styles.connectedBadgeText}>
-                    @{connectedUsername.replace('@', '')}
+                {connectedUsername ? (
+                  <View style={styles.connectedBadgeBox}>
+                    <Text style={styles.connectedBadgeLabel}>ACTIVE HANDLE</Text>
+                    <Text style={styles.connectedBadgeText}>
+                      @{connectedUsername.replace('@', '')}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <TextInput
+                  style={styles.usernameInput}
+                  value={telegramUsername}
+                  onChangeText={setTelegramUsername}
+                  placeholder="Telegram username (e.g. @yourname)"
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+
+                <Text style={styles.description}>
+                  {connectedUsername
+                    ? 'Your profile is connected to Telegram. Approved matches can reach you directly.'
+                    : 'Add your Telegram username so approved matches can contact you safely.'}
+                </Text>
+
+                <View style={styles.bulletRow}>
+                  <Text style={styles.bullet}>💙</Text>
+                  <Text style={styles.bulletText}>Receive accepted invitations instantly on Telegram.</Text>
+                </View>
+
+                <View style={styles.bulletRow}>
+                  <Text style={styles.bullet}>🔔</Text>
+                  <Text style={styles.bulletText}>
+                    Safe contact handoff only after request approval.
                   </Text>
                 </View>
-              ) : null}
 
-              <TextInput
-                style={styles.usernameInput}
-                value={telegramUsername}
-                onChangeText={setTelegramUsername}
-                placeholder="Telegram username (e.g. @yourname)"
-                placeholderTextColor={Colors.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+                <TouchableOpacity style={styles.connectBtn} onPress={handleConnectTelegram} disabled={loading}>
+                  <LinearGradient
+                    colors={[Colors.primary, Colors.secondary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.connectGradient}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color={Colors.white} />
+                    ) : (
+                      <Text style={styles.connectBtnText}>
+                        {connectedUsername ? 'Update Telegram Username' : 'Connect Telegram'}
+                      </Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
 
-              <Text style={styles.description}>
-                {connectedUsername
-                  ? 'Your profile is connected to Telegram. Approved matches can reach you directly.'
-                  : 'Add your Telegram username so approved matches can contact you safely.'}
-              </Text>
-
-              <View style={styles.bulletRow}>
-                <Text style={styles.bullet}>💙</Text>
-                <Text style={styles.bulletText}>Receive accepted invitations instantly on Telegram.</Text>
-              </View>
-
-              <View style={styles.bulletRow}>
-                <Text style={styles.bullet}>🔔</Text>
-                <Text style={styles.bulletText}>
-                  Safe contact handoff only after request approval.
+                <Text style={styles.footerText}>
+                  Your Telegram information is private—we never reveal it before request approval.
                 </Text>
               </View>
 
-              <TouchableOpacity style={styles.connectBtn} onPress={handleConnectTelegram} disabled={loading}>
-                <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.connectGradient}
-                >
-                  {loading ? (
-                    <ActivityIndicator color={Colors.white} />
-                  ) : (
-                    <Text style={styles.connectBtnText}>
-                      {connectedUsername ? 'Update Telegram Username' : 'Connect Telegram'}
-                    </Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <Text style={styles.footerText}>
-                Your Telegram information is private—we never reveal it before request approval.
-              </Text>
-            </View>
-
-            {!fromProfile && (
-              <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
-                <Text style={styles.bottomSkipText}>Keep it for later</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              {!fromProfile && (
+                <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
+                  <Text style={styles.bottomSkipText}>Keep it for later</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
       {AlertComponent}
@@ -275,10 +287,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    paddingBottom: Spacing.xl + 16,
+    paddingBottom: Spacing.xl + 24,
   },
   card: {
     padding: Spacing.xl,

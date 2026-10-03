@@ -6,6 +6,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
 import { Colors, Spacing } from '../../theme';
+import { useResponsive } from '../../utils/responsive';
 
 interface HomeUserListProps {
   filterByGender: string | null;
@@ -92,6 +93,7 @@ const UserList = ({
   filteredProfiles = null,
 }: HomeUserListProps) => {
   const { filterUsers, searchUsers } = useDiscovery();
+  const { width, columns, getCardWidth } = useResponsive();
   const {
     showMe,
     authUserId,
@@ -252,12 +254,18 @@ const UserList = ({
     );
   }
 
+  const screenPadding = Spacing.screenPaddingHorizontal * 2;
+  const gap = 12;
+  const cardWidth = getCardWidth(columns, screenPadding, gap);
+  const cardHeight = Math.round(Math.min(Math.max(cardWidth * 1.34, 220), width >= 600 ? 360 : 340));
+
   return (
     <FlatList
+      key={`userlist-cols-${columns}`}
       data={profiles}
-      numColumns={2}
+      numColumns={columns}
       keyExtractor={(item, index) => item?.userId || item?.id?.toString() || index.toString()}
-      columnWrapperStyle={styles.row}
+      columnWrapperStyle={columns > 1 ? styles.row : undefined}
       contentContainerStyle={styles.container}
       onEndReached={handleLoadMore}
       onEndReachedThreshold={0.4}
@@ -283,6 +291,8 @@ const UserList = ({
             isOnline={profile?.online !== false}
             isNew={mode === 'newest'}
             profileData={item}
+            cardWidth={cardWidth}
+            cardHeight={cardHeight}
           />
         );
       }}
@@ -301,7 +311,8 @@ export default UserList;
 
 const styles = StyleSheet.create({
   row: {
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: 12,
     paddingHorizontal: Spacing.screenPaddingHorizontal,
   },
   container: {

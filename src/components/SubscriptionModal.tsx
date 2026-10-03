@@ -6,8 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,11 +17,8 @@ import { useSubscription } from '../api/useSubscription';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import RazorpayCheckout from 'react-native-razorpay';
-import { Image } from 'react-native';
 import { useAlert } from './AlertModal';
 import { USE_MOCK } from '../environment/ApiConfig';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface SubscriptionModalProps {
   visible: boolean;
@@ -315,6 +313,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   visible,
   onClose,
 }) => {
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const isCompact = screenHeight < 720;
   const { alert, AlertComponent } = useAlert();
   const { setIsSubscribed, displayName, name, email, phoneNumber } =
     useContext(AppContext);
@@ -461,16 +461,27 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View
+          style={[
+            styles.container,
+            {
+              height: Math.min(screenHeight * (isCompact ? 0.92 : 0.85), 750),
+              maxWidth: Math.min(screenWidth, 520),
+            },
+          ]}
+        >
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Icon name="close" size={24} color="#FFF" />
           </TouchableOpacity>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={styles.header}>
-              <Icon name="diamond-stone" size={50} color="#FFD700" />
-              <Text style={styles.title}>SUBSCRIBE TO INVITE</Text>
-              <Text style={styles.subtitle}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <View style={[styles.header, isCompact && styles.headerCompact]}>
+              <Icon name="diamond-stone" size={isCompact ? 38 : 50} color="#FFD700" />
+              <Text style={[styles.title, isCompact && styles.titleCompact]}>SUBSCRIBE TO INVITE</Text>
+              <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
                 Take a subscription to send invites and connect with profiles. Choose a plan to unlock invites:
               </Text>
             </View>
@@ -490,7 +501,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                     colors={plan.color}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={styles.planGradient}
+                    style={[styles.planGradient, isCompact && styles.planGradientCompact]}
                   >
                     {plan.recommended && (
                       <View style={styles.recommendedBadge}>
@@ -498,7 +509,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                       </View>
                     )}
                     <View style={styles.planHeader}>
-                      <Icon name={plan.icon} size={28} color="#FFF" />
+                      <Icon name={plan.icon} size={isCompact ? 24 : 28} color="#FFF" />
                       <View>
                         <Text style={styles.planName}>{plan.name}</Text>
                         <Text style={styles.planDuration}>{plan.duration}</Text>
@@ -508,12 +519,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   </LinearGradient>
 
                   {selectedPlanId === plan.id && (
-                    <View style={styles.featuresContainer}>
+                    <View style={[styles.featuresContainer, isCompact && styles.featuresContainerCompact]}>
                       {plan.features.map((feature, idx) => (
                         <View key={idx} style={styles.featureRow}>
                           <Icon
                             name="check-circle"
-                            size={18}
+                            size={16}
                             color="#FF5A79"
                           />
                           <Text style={styles.featureText}>{feature}</Text>
@@ -537,7 +548,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               </View>
               <Text style={styles.trustText}>100% Secure • PCI-DSS Compliant • SSL Encrypted</Text>
             </View>
+          </ScrollView>
 
+          <View style={styles.bottomCtaContainer}>
             <TouchableOpacity
               style={styles.upgradeButton}
               onPress={handleUpgradePress}
@@ -553,7 +566,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <View style={styles.payButtonContent}>
-                    <Icon name="shield-check" size={24} color="#FFF" />
+                    <Icon name="shield-check" size={22} color="#FFF" />
                     <Text style={styles.upgradeText}>PAY SECURELY</Text>
                   </View>
                 )}
@@ -563,7 +576,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             <Text style={styles.footerText}>
               You will be redirected to Razorpay checkout
             </Text>
-          </ScrollView>
+          </View>
         </View>
       </View>
       {AlertComponent}
@@ -581,8 +594,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#121212',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    height: SCREEN_HEIGHT * 0.85,
+    width: '100%',
+    alignSelf: 'center',
     padding: 20,
+    paddingBottom: 12,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 10,
+  },
+  bottomCtaContainer: {
+    paddingTop: 10,
+    paddingBottom: 6,
+    backgroundColor: '#121212',
   },
   closeButton: {
     alignSelf: 'flex-end',
@@ -593,12 +617,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
+  headerCompact: {
+    marginBottom: 16,
+  },
   title: {
     fontSize: 28,
     fontWeight: '900',
     color: '#FFF',
     letterSpacing: 2,
     marginTop: 10,
+  },
+  titleCompact: {
+    fontSize: 22,
+    marginTop: 4,
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: 14,
@@ -607,6 +639,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 20,
     lineHeight: 20,
+  },
+  subtitleCompact: {
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 16,
+    paddingHorizontal: 10,
   },
   plansContainer: {
     gap: 15,
@@ -624,6 +662,17 @@ const styles = StyleSheet.create({
   },
   planGradient: {
     padding: 20,
+  },
+  planGradientCompact: {
+    padding: 14,
+  },
+  featuresContainer: {
+    padding: 20,
+    gap: 10,
+  },
+  featuresContainerCompact: {
+    padding: 14,
+    gap: 6,
   },
   recommendedBadge: {
     position: 'absolute',
@@ -659,10 +708,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     color: '#FFF',
-  },
-  featuresContainer: {
-    padding: 20,
-    gap: 10,
   },
   paymentSection: {
     marginBottom: 24,

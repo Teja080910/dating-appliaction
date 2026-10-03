@@ -21,8 +21,6 @@ import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const SentRequestsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
@@ -117,8 +115,6 @@ const SentRequestsScreen: React.FC = () => {
       englishLevel: receiver.englishLevel,
       ethnicity: receiver.ethnicity,
       lookingFor: receiver.lookingFor,
-      kidCount: receiver.kidCount,
-      netWorth: receiver.netWorth,
     };
 
     setCardUserName(fullProfileData.name);
@@ -457,14 +453,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   photoContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 1.25,
+    width: '100%',
+    maxWidth: 480,
+    aspectRatio: 0.8,
+    maxHeight: 520,
+    alignSelf: 'center',
     backgroundColor: Colors.surfaceLight,
     position: 'relative',
   },
   modalPhoto: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 1.25,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
     backgroundColor: Colors.surfaceLight,
   },
   storyBarsContainer: {

@@ -6,7 +6,7 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
   ImageSourcePropType,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,9 +18,6 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
-
-const { width } = Dimensions.get('window');
-const avatarSize = Math.min(width * 0.34, 140);
 
 const FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/girl1.webp'),
@@ -67,6 +64,10 @@ const MatchScreen = () => {
   const route = useRoute();
   const { requireSubscription } = useSubscriptionGate();
   const { profileImageUrl, profileImage, images } = useContext(AppContext);
+  const { width, height } = useWindowDimensions();
+
+  const isCompact = height < 740;
+  const avatarSize = Math.min(width * (isCompact ? 0.28 : 0.34), isCompact ? 110 : 140);
 
   const [myImageFailed, setMyImageFailed] = useState(false);
   const [theirImageFailed, setTheirImageFailed] = useState(false);
@@ -161,41 +162,41 @@ const MatchScreen = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            <View style={styles.sparkleContainer}>
+            <View style={[styles.sparkleContainer, isCompact && styles.sparkleContainerCompact]}>
               <Icon
                 name="heart"
-                size={24}
+                size={isCompact ? 20 : 24}
                 color={Colors.white}
                 style={styles.sparkleIcon}
               />
             </View>
-            <Text style={styles.title}>Invitation Sent! 💌</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, isCompact && styles.titleCompact]}>Invitation Sent! 💌</Text>
+            <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
               We've notified {theirName}. Once she accepts, her Telegram handle will appear in your Sent Invitations.
             </Text>
 
-            <View style={styles.avatarContainer}>
-              <View style={[styles.avatarWrapper, styles.myAvatar]}>
+            <View style={[styles.avatarContainer, { minHeight: avatarSize + 20, marginBottom: isCompact ? 32 : 48 }]}>
+              <View style={[styles.avatarWrapper, styles.myAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
                 <LinearGradient
                   colors={[Colors.primary, Colors.secondary]}
-                  style={styles.avatarBorder}
+                  style={[styles.avatarBorder, { borderRadius: avatarSize / 2 }]}
                 >
                   <Image
                     source={mySource}
-                    style={styles.avatar}
+                    style={[styles.avatar, { borderRadius: avatarSize / 2 - 3 }]}
                     onError={() => setMyImageFailed(true)}
                   />
                 </LinearGradient>
               </View>
-              <View style={[styles.avatarWrapper, styles.theirAvatar]}>
+              <View style={[styles.avatarWrapper, styles.theirAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
                 <LinearGradient
                   colors={[Colors.primary, Colors.secondary]}
-                  style={styles.avatarBorder}
+                  style={[styles.avatarBorder, { borderRadius: avatarSize / 2 }]}
                 >
                   <Image
                     source={theirSource}
-                    style={styles.avatar}
-                    onError={() => setTheirImageFailed(true)}
+                    style={[styles.avatar, { borderRadius: avatarSize / 2 - 3 }]}
+                    onError={() => setMyImageFailed(true)}
                   />
                 </LinearGradient>
               </View>
@@ -203,7 +204,7 @@ const MatchScreen = () => {
 
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
-                style={styles.primaryButton}
+                style={[styles.primaryButton, isCompact && styles.primaryButtonCompact]}
                 onPress={() => {
                   try {
                     (navigation as any).navigate('BottomTabs', { screen: 'Sent' });
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: '8%',
-    paddingVertical: Spacing.xxl,
+    paddingVertical: Spacing.xl,
   },
   sparkleContainer: {
     width: 56,
@@ -259,41 +260,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.lg,
   },
+  sparkleContainerCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginBottom: Spacing.sm,
+  },
   sparkleIcon: {
     opacity: 0.9,
   },
   title: {
-    fontSize: 40,
+    fontSize: 38,
     fontWeight: '800',
     color: Colors.white,
     fontStyle: 'italic',
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
+  titleCompact: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
   subtitle: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.85)',
-    marginBottom: 50,
+    marginBottom: 44,
     textAlign: 'center',
+    lineHeight: 22,
+  },
+  subtitleCompact: {
+    fontSize: 14,
+    marginBottom: 20,
+    lineHeight: 19,
   },
   avatarContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: avatarSize + 40,
     width: '100%',
-    marginBottom: 60,
   },
   avatarWrapper: {
-    width: avatarSize,
-    height: avatarSize,
-    borderRadius: avatarSize / 2,
     overflow: 'hidden',
     ...Shadows.xl,
   },
   avatarBorder: {
     flex: 1,
-    borderRadius: avatarSize / 2,
     padding: 3,
     justifyContent: 'center',
     alignItems: 'center',
@@ -310,13 +321,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: avatarSize / 2 - 3,
     resizeMode: 'cover',
   },
   buttonsContainer: {
     width: '100%',
     alignItems: 'center',
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   primaryButton: {
     backgroundColor: Colors.white,
@@ -328,20 +338,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Shadows.lg,
   },
+  primaryButtonCompact: {
+    paddingVertical: Spacing.md,
+  },
   icon: {
     marginRight: Spacing.md,
   },
   primaryButtonText: {
     color: Colors.primary,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
   },
   secondaryButton: {
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   secondaryButtonText: {
     color: Colors.white,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

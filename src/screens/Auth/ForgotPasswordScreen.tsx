@@ -327,6 +327,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.radiusXxl,
     padding: Spacing.xl,
     width: '100%',
+    maxWidth: 480,
     alignSelf: 'center',
     alignItems: 'center',
     borderWidth: 1,

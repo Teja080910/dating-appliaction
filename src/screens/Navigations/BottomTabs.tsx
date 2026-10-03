@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, Image, StyleSheet, View, Platform, Dimensions } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import HomeScreen from '../HomeTab/HomeScreen';
@@ -12,8 +13,6 @@ import apiClient from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
 
 const Tab = createBottomTabNavigator();
-const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
-const isCompactDevice = windowWidth < 380 || windowHeight < 760;
 
 const TabIcon = ({ source, focused }: { source: any; focused: boolean }) => (
   <View style={[styles.iconWrapper, focused && styles.activeIconWrapper]}>
@@ -37,6 +36,7 @@ const TabIcon = ({ source, focused }: { source: any; focused: boolean }) => (
 
 const BottomTabs = () => {
   const [isWoman, setIsWoman] = useState<boolean | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let isMounted = true;
@@ -89,7 +89,13 @@ const BottomTabs = () => {
       screenOptions={{
         tabBarShowLabel: false,
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: (Platform.OS === 'ios' ? 56 : 52) + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 6),
+          },
+        ],
         tabBarHideOnKeyboard: true,
       }}
     >
@@ -136,13 +142,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   tabBar: {
-    height: Platform.OS === 'ios' ? (isCompactDevice ? 80 : 88) : (isCompactDevice ? 64 : 72),
     backgroundColor: Colors.tabBarBackground,
     borderTopWidth: 0,
     borderTopLeftRadius: Spacing.radiusXxl,
     borderTopRightRadius: Spacing.radiusXxl,
     position: 'absolute',
-    paddingBottom: Platform.OS === 'ios' ? (isCompactDevice ? 20 : 28) : (isCompactDevice ? 8 : 12),
     paddingTop: Spacing.sm,
     ...Shadows.lg,
   },
@@ -166,8 +170,8 @@ const styles = StyleSheet.create({
     opacity: 0.2,
   },
   icon: {
-    width: isCompactDevice ? 22 : 24,
-    height: isCompactDevice ? 22 : 24,
+    width: 24,
+    height: 24,
     zIndex: 1,
   },
 });

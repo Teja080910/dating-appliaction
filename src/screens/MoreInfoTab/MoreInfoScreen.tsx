@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
@@ -10,10 +11,8 @@ import EnglishSkillSelector from '../../components/MoreInfoTabComponents/English
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
 import Header from '../../components/MoreInfoTabComponents/Header';
 import HeightSelector from '../../components/MoreInfoTabComponents/HeightSelector';
-import KidsCountSelector from '../../components/MoreInfoTabComponents/KidsCountSelector';
 import LanguagesSelector from '../../components/MoreInfoTabComponents/LanguagesSelector';
 import LookingForSelector from '../../components/MoreInfoTabComponents/LookingForSelector';
-import NetWorthSelector from '../../components/MoreInfoTabComponents/NetWorthSelector';
 import SaveButton from '../../components/MoreInfoTabComponents/SaveButton';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { getAuthSession } from '../../utils/session';
@@ -21,9 +20,13 @@ import { Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 
+const HIDDEN_PROFILE_LANGUAGES = new Set(['telugu']);
+const HIDDEN_LOOKING_FOR_VALUES = new Set(['long-term relationship']);
+
 const MoreInfoScreen = () => {
   const { alert, AlertComponent } = useAlert();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const {
     height,
     setHeight,
@@ -43,13 +46,9 @@ const MoreInfoScreen = () => {
     setSelectedDrinking,
     selectedLookingFor,
     setSelectedLookingFor,
-    selectedKidCount,
-    setSelectedKidCount,
-    selectedNetWorth,
-    setSelectedNetWorth,
   } = useContext(AppContext);
   const [loading, setLoading] = useState(false);
-  const { setupProfile, updateDetails, updatePreferences, useMyProfile } = useProfile();
+  const { updateDetails, updatePreferences, useMyProfile } = useProfile();
   const profileQuery = useMyProfile(undefined);
 
   useEffect(() => {
@@ -63,8 +62,6 @@ const MoreInfoScreen = () => {
       lookingFor: profile.lookingFor,
       smoke: profile.smoke,
       drink: profile.drink,
-      kidCount: profile.kidCount,
-      netWorth: profile.netWorth,
     }));
 
     const splitValues = (value?: string) =>
@@ -72,6 +69,13 @@ const MoreInfoScreen = () => {
         .split(',')
         .map((item) => item.trim())
         .filter(Boolean);
+
+    const visibleLanguages = splitValues(profile.language).filter(
+      (item) => !HIDDEN_PROFILE_LANGUAGES.has(item.toLowerCase()),
+    );
+    const visibleLookingFor = splitValues(profile.lookingFor).filter(
+      (item) => !HIDDEN_LOOKING_FOR_VALUES.has(item.toLowerCase()),
+    );
 
     const englishLevelMap = ['beginner', 'intermediate', 'advanced', 'native'];
     const englishIndex = englishLevelMap.indexOf(String(profile.englishLevel || '').toLowerCase());
@@ -81,21 +85,15 @@ const MoreInfoScreen = () => {
     }
     setSelectedAppearance(profile.appearance || null);
     setSelectedBodyType(profile.bodyType || null);
-    setSelectedLanguages(splitValues(profile.language));
+    setSelectedLanguages(visibleLanguages);
     setSelectedEthinicity(profile.ethnicity || null);
     setSelectedSmoking(profile.smoke || null);
     setSelectedDrinking(profile.drink || null);
-    setSelectedLookingFor(splitValues(profile.lookingFor));
-    if (profile.kidCount) {
-      setSelectedKidCount(profile.kidCount);
-    }
-    if (profile.netWorth) {
-      setSelectedNetWorth(profile.netWorth);
-    }
+    setSelectedLookingFor(visibleLookingFor);
     if (englishIndex >= 0) {
       setEnglishSkillLevel(englishIndex);
     }
-  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor, setSelectedSmoking, setSelectedKidCount, setSelectedNetWorth]);
+  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor, setSelectedSmoking]);
 
   const handleSave = async () => {
     const authSession = await getAuthSession();
@@ -120,8 +118,6 @@ const MoreInfoScreen = () => {
         height: Number(height) || 0,
         englishLevel: englishLevelStr,
         ethnicity: selectedEthinicity || '',
-        kidCount: selectedKidCount || '',
-        netWorth: selectedNetWorth || '',
       };
 
       const prefsPayload = {
@@ -131,26 +127,16 @@ const MoreInfoScreen = () => {
         ethnicity: selectedEthinicity || '',
       };
 
-      const fullDto = {
-        language: languageStr,
-        appearance: selectedAppearance || '',
-        bodyType: selectedBodyType || '',
-        height: Number(height) || 0,
-        englishLevel: englishLevelStr,
-        ethnicity: selectedEthinicity || '',
-        lookingFor: lookingForStr,
-        smoke: selectedSmoking || '',
-        drink: selectedDrinking || '',
-      };
-
-      await Promise.allSettled([
-        setupProfile.mutateAsync({ dto: fullDto }),
-        updateDetails.mutateAsync(detailsPayload),
-        updatePreferences.mutateAsync(prefsPayload),
-      ]);
+      // Save these partial profile updates in order. Sending both requests at
+      // the same time can cause the slower response to overwrite fields saved
+      // by the other request on APIs that persist the full profile row.
+      await updateDetails.mutateAsync(detailsPayload);
+      await updatePreferences.mutateAsync(prefsPayload);
 
       await profileQuery.refetch();
-      alert('Saved', 'Your profile details have been updated.');
+      alert('Saved', 'Your profile details have been updated.', [
+        { text: 'Close', style: 'default' },
+      ]);
     } catch (error: any) {
       console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
       alert(
@@ -179,9 +165,7 @@ const MoreInfoScreen = () => {
           <EthnicitySelector />
           <DoYouSmokeSelector />
           <DrinkingSelector />
-          <KidsCountSelector />
           <LookingForSelector />
-          <NetWorthSelector />
         </View>
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
@@ -214,5 +198,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.glassBorder,
     paddingTop: 12,
+  },
+  closeButton: {
+    marginHorizontal: 24,
+    marginBottom: 12,
+    paddingVertical: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

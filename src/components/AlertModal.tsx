@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Colors, Spacing, Typography } from '../theme';
+import { Colors, Spacing, Typography, Shadows } from '../theme';
 import { getUserFriendlyMessage, getUserFriendlyTitle } from '../utils/userFriendlyMessages';
 
 interface AlertButton {
@@ -66,6 +66,21 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
     onDismiss?.();
   };
 
+  const useActionList = Boolean(
+    buttons &&
+      (buttons.length > 2 ||
+        buttons.some((b) => (b.text?.length || 0) > 14) ||
+        (buttons.length === 2 && buttons.reduce((acc, b) => acc + (b.text?.length || 0), 0) > 22))
+  );
+
+  const sortedButtons = React.useMemo(() => {
+    if (!buttons || buttons.length <= 1) return buttons || [];
+    if (!useActionList) return buttons;
+    const nonCancel = buttons.filter((b) => b.style !== 'cancel');
+    const cancel = buttons.filter((b) => b.style === 'cancel');
+    return [...nonCancel, ...cancel];
+  }, [buttons, useActionList]);
+
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onDismiss}>
       <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
@@ -77,7 +92,7 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
         >
           <LinearGradient
             colors={[Colors.surface, Colors.surfaceLight]}
-            style={styles.gradient}
+            style={[styles.gradient, useActionList && styles.gradientActionList]}
           >
             <TouchableOpacity
               style={styles.closeButton}
@@ -87,57 +102,83 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
               accessibilityRole="button"
               accessibilityLabel="Close"
             >
-              <Icon name="close" size={20} color={Colors.textMuted} />
+              <Icon name="close" size={18} color={Colors.textMuted} />
             </TouchableOpacity>
 
-            {title && <Text style={styles.title}>{title}</Text>}
-            <Text style={[styles.message, !title && styles.messageNoTitle]}>{message}</Text>
+            <View style={useActionList ? styles.headerArea : styles.standardHeaderArea}>
+              {title && <Text style={styles.title}>{title}</Text>}
+              <Text style={[styles.message, !title && styles.messageNoTitle, useActionList && styles.messageActionList]}>
+                {message}
+              </Text>
+            </View>
 
-            {buttons && buttons.length > 0 && (
-              <View
-                style={[
-                  styles.buttonRow,
-                  buttons.length === 1 && styles.singleButton,
-                  buttons.length > 2 && styles.multiButtonRow,
-                ]}
-              >
-                {buttons.map((btn, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.button,
-                      buttons.length > 2 && styles.multiButton,
-                      btn.style === 'destructive' && { backgroundColor: Colors.error },
-                      btn.style === 'cancel' && { backgroundColor: Colors.surfaceLighter },
-                      index === 0 && buttons.length > 1 && styles.buttonFirst,
-                      index === buttons.length - 1 && buttons.length > 1 && styles.buttonLast,
-                    ]}
-                    onPress={() => handlePress(btn)}
-                    activeOpacity={0.8}
-                  >
-                    {btn.style === 'cancel' ? (
-                      <View style={[styles.buttonInner, { backgroundColor: Colors.surfaceLighter }]}>
-                        <Text style={[styles.buttonText, { color: Colors.textSecondary }]}>
+            {sortedButtons && sortedButtons.length > 0 && (
+              useActionList ? (
+                <View style={styles.actionList}>
+                  {sortedButtons.map((btn, index) => {
+                    const isCancel = btn.style === 'cancel';
+                    const isDestructive = btn.style === 'destructive';
+
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.actionItem,
+                          index > 0 && styles.actionDivider,
+                        ]}
+                        onPress={() => handlePress(btn)}
+                        activeOpacity={0.6}
+                      >
+                        <Text
+                          style={[
+                            styles.actionText,
+                            isDestructive && styles.actionTextDestructive,
+                            isCancel && styles.actionTextCancel,
+                          ]}
+                        >
                           {btn.text}
                         </Text>
-                      </View>
-                    ) : btn.style === 'destructive' ? (
-                      <View style={[styles.buttonInner, { backgroundColor: Colors.error }]}>
-                        <Text style={styles.buttonText}>{btn.text}</Text>
-                      </View>
-                    ) : (
-                      <LinearGradient
-                        colors={[Colors.primary, Colors.secondary]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.buttonInner}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.buttonRow,
+                    sortedButtons.length === 1 && styles.singleButtonRow,
+                  ]}
+                >
+                  {sortedButtons.map((btn, index) => {
+                    const isCancel = btn.style === 'cancel';
+                    const isDestructive = btn.style === 'destructive';
+
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.button,
+                          sortedButtons.length === 1 && styles.singleButton,
+                          isCancel && styles.buttonCancel,
+                          isDestructive && styles.buttonDestructive,
+                          !isCancel && !isDestructive && styles.buttonPrimary,
+                        ]}
+                        onPress={() => handlePress(btn)}
+                        activeOpacity={0.8}
                       >
-                        <Text style={styles.buttonText}>{btn.text}</Text>
-                      </LinearGradient>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+                        <Text
+                          style={[
+                            styles.buttonText,
+                            isCancel && styles.buttonCancelText,
+                          ]}
+                        >
+                          {btn.text}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )
             )}
           </LinearGradient>
         </Animated.View>
@@ -207,31 +248,48 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: Spacing.radiusXl,
+    maxHeight: '85%',
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.glassBorder,
+    ...Shadows.xl,
   },
   gradient: {
-    padding: Spacing.xxl,
+    padding: Spacing.xl,
     alignItems: 'center',
+  },
+  gradientActionList: {
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    paddingTop: Spacing.xl,
   },
   closeButton: {
     position: 'absolute',
     top: Spacing.sm,
     right: Spacing.sm,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.glass,
+    zIndex: 10,
+  },
+  standardHeaderArea: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  headerArea: {
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: Spacing.xl,
   },
   title: {
     fontSize: 18,
     fontWeight: '800',
     color: Colors.text,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   message: {
@@ -239,58 +297,79 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   messageNoTitle: {
     marginTop: Spacing.sm,
   },
+  messageActionList: {
+    marginBottom: Spacing.md,
+  },
+  actionList: {
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: Colors.glassBorder,
+  },
+  actionItem: {
+    width: '100%',
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionDivider: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.glassBorder,
+  },
+  actionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  actionTextDestructive: {
+    color: Colors.error,
+    fontWeight: '600',
+  },
+  actionTextCancel: {
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
   buttonRow: {
     flexDirection: 'row',
     width: '100%',
-    gap: Spacing.sm,
+    gap: 12,
   },
-  multiButtonRow: {
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  singleButton: {
+  singleButtonRow: {
     justifyContent: 'center',
   },
   button: {
     flex: 1,
-    height: 48,
-    borderRadius: Spacing.radiusMd,
-    overflow: 'hidden',
+    height: 46,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  multiButton: {
-    flexBasis: '47%',
-    flexGrow: 0,
-    flexShrink: 0,
-    minHeight: 48,
+  singleButton: {
+    flex: 0,
+    minWidth: 140,
   },
-  buttonFirst: {
-    marginRight: 0,
+  buttonPrimary: {
+    backgroundColor: Colors.primary,
   },
-  buttonLast: {
-    marginLeft: 0,
+  buttonDestructive: {
+    backgroundColor: Colors.error,
   },
-  gradientButton: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonInner: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
+  buttonCancel: {
+    backgroundColor: Colors.surfaceLighter,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
   },
   buttonText: {
     fontSize: 15,
     fontWeight: '700',
     color: Colors.white,
+  },
+  buttonCancelText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
   },
 });

@@ -42,12 +42,8 @@ interface AppContextType {
   setSelectedSmoking: Dispatch<SetStateAction<string | null>>;
   selectedDrinking: string | null;
   setSelectedDrinking: Dispatch<SetStateAction<string | null>>;
-  selectedKidCount: string | null;
-  setSelectedKidCount: Dispatch<SetStateAction<string | null>>;
   selectedLookingFor: string[];
   setSelectedLookingFor: Dispatch<SetStateAction<string[]>>;
-  selectedNetWorth: string | null;
-  setSelectedNetWorth: Dispatch<SetStateAction<string | null>>;
   englishSkillLevel: number;
   setEnglishSkillLevel: Dispatch<SetStateAction<number>>;
   profileText: string;
@@ -60,12 +56,6 @@ interface AppContextType {
   setVerifiedSelfie: Dispatch<SetStateAction<boolean>>;
   images: (string | null)[];
   setImages: Dispatch<SetStateAction<(string | null)[]>>;
-
-  // missing properties
-  kidsCount: string | null;
-  setKidsCount: Dispatch<SetStateAction<string | null>>;
-  netWorth: string | null;
-  setNetWorth: Dispatch<SetStateAction<string | null>>;
 
   // discovery
   filter: 'online' | 'newest';

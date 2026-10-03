@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 import { getAuthToken } from '../../utils/sessionHelper';
 import { mapImagesToSlots, useUserImages } from '../../api/useImages';
+import { useMyProfile } from '../../api/useProfile';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors } from '../../theme';
 import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
@@ -33,9 +34,14 @@ const AdditionalUploadSection = () => {
     setImages,
     authUserId,
     setAuthUserId,
+    verifiedSelfie,
   } = useContext(AppContext);
 
   const { uploadImage, getAllImages, deleteImage, setProfilePhoto } = useUserImages();
+  const { data: profile } = useMyProfile(undefined);
+  const isPhotoVerified = Boolean(
+    profile?.verifiedSelfie || profile?.selfieVerified || verifiedSelfie,
+  );
   const [localUserId, setLocalUserId] = useState<string | null>(null);
   const [imageMap, setImageMap] = useState<Record<number, number>>({}); // index -> imageId
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -133,13 +139,12 @@ const AdditionalUploadSection = () => {
 
     if (currentImage && currentImage.trim() !== '') {
       // EXISTING PHOTO OPTIONS (Set as Primary or Remove)
-      const options: any[] = [
-        { text: 'Cancel', style: 'cancel' },
-      ];
+      const options: any[] = [];
 
       if (index !== 0) {
         options.push({
           text: 'Set as Primary Photo',
+          style: 'default',
           onPress: async () => {
             if (imageId && localUserId) {
               setProfilePhoto.mutate(
@@ -185,6 +190,11 @@ const AdditionalUploadSection = () => {
             setImages(newImages);
           }
         },
+      });
+
+      options.push({
+        text: 'Cancel',
+        style: 'cancel',
       });
 
       alert('Photo Options', index === 0 ? 'This is currently your primary photo.' : 'Choose an action for this photo:', options);
@@ -318,9 +328,11 @@ const AdditionalUploadSection = () => {
         })}
       </View>
 
-      <View style={styles.badgeWrapper}>
-        <PhotoVerifiedBadge />
-      </View>
+      {isPhotoVerified && (
+        <View style={styles.badgeWrapper}>
+          <PhotoVerifiedBadge />
+        </View>
+      )}
       {AlertComponent}
     </View>
   );

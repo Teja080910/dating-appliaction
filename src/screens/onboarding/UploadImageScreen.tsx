@@ -71,6 +71,9 @@ const UploadPhotosScreen = ({ navigation }: any) => {
 
   const handleConfirm = () => {
     setShowFaceAlert(false);
+    if (Array.isArray(images) && images.some(Boolean)) {
+      AsyncStorage.setItem('onboardingImages', JSON.stringify(images)).catch(() => {});
+    }
     navigation.navigate('SelfieVerification');
   };
 

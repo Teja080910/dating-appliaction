@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useContext, useMemo } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import Feather from 'react-native-vector-icons/Feather';
@@ -23,9 +23,6 @@ interface UserDetailsProps {
   requestStatus?: string | null;
 }
 
-const { width: windowWidth } = Dimensions.get('window');
-const isCompactDevice = windowWidth < 380;
-
 const UserDetails: React.FC<UserDetailsProps> = ({
   profile: propProfile,
   currentUserId,
@@ -34,7 +31,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   requestRole,
   requestStatus,
 }) => {
+  const hiddenLanguages = new Set(['telugu']);
+  const hiddenLookingForValues = new Set(['long-term relationship']);
+  const capitalizeLabel = (value: string) =>
+    value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
   const navigation = useNavigation<any>();
+  const { width: windowWidth } = useWindowDimensions();
+  const isCompactDevice = windowWidth < 380;
+  const styles = useMemo(() => createStyles(isCompactDevice), [isCompactDevice]);
   const { 
     name, 
     displayName,
@@ -206,8 +210,19 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     ? normalizeTextValue(resolvedProfile?.language || profile.language, '')
         .split(',')
         .map((lang) => lang.trim())
-        .filter(Boolean)
+        .filter((lang) => lang && !hiddenLanguages.has(lang.toLowerCase()))
     : selectedLanguages;
+  const visibleLookingFor = normalizeTextValue(
+    resolvedProfile?.lookingFor || profile?.lookingFor,
+    isOwnProfile
+      ? (Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || 'Relationship'))
+      : 'Long-term',
+  )
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value && !hiddenLookingForValues.has(value.toLowerCase()))
+    .map(capitalizeLabel)
+    .join(', ');
   const locationText = normalizeTextValue(
     resolvedProfile?.currentCity || profile?.currentCity,
     isOwnProfile ? 'Your location' : 'Nearby'
@@ -420,14 +435,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           )}
         </View>
         <View style={styles.pillsContainer}>
-          <DetailPill icon="emoticon-happy-outline" text={normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || "Natural") : "Natural")} />
+          <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || "Natural") : "Natural"))} />
           <DetailPill icon="ruler" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '---') : '165')} cm`} />
-          <DetailPill icon="human-handsup" text={normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || "Average") : "Fit")} />
-          <DetailPill icon="ear-hearing" text={normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Beginner') : 'Advanced')} />
-          <DetailPill icon="account-outline" text={normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || "Not specified") : "Asian")} />
-          <DetailPill icon="smoking" text={`Smoke: ${normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || 'No') : 'Never')}`} />
-          <DetailPill icon="glass-cocktail" text={`Drink: ${normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || 'No') : 'Socially')}`} />
-          <DetailPill icon="baby-face-outline" text={`Soon: ${normalizeTextValue(resolvedProfile?.lookingFor || profile?.lookingFor, isOwnProfile ? (Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || "Relationship")) : "Long-term")}`} />
+          <DetailPill icon="human-handsup" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || "Average") : "Fit"))} />
+          <DetailPill icon="ear-hearing" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Beginner') : 'Advanced'))} />
+          <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || "Not specified") : "Asian"))} />
+          <DetailPill icon="smoking" text={`Smoke: ${capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || 'No') : 'Never'))}`} />
+          <DetailPill icon="glass-cocktail" text={`Drink: ${capitalizeLabel(normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || 'No') : 'Socially'))}`} />
+          <DetailPill icon="baby-face-outline" text={`Looking for: ${visibleLookingFor || 'Not specified'}`} />
         </View>
       </View>
 
@@ -439,7 +454,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             {resolvedLanguages.map((lang: string) => (
               <View key={lang} style={styles.pill}>
                 <Icon name="translate" size={16} color={Colors.primary} style={{ marginRight: 8 }} />
-                <Text style={styles.pillText}>{lang}</Text>
+                <Text style={styles.pillText}>{capitalizeLabel(lang)}</Text>
               </View>
             ))}
           </View>
@@ -523,7 +538,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
 export default UserDetails;
 
-const styles = StyleSheet.create({
+const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
   container: {
     paddingHorizontal: 25,
     backgroundColor: Colors.surface,
@@ -544,14 +559,17 @@ const styles = StyleSheet.create({
     fontSize: isCompactDevice ? 24 : 28,
     fontWeight: '900',
     color: Colors.text,
+    flexShrink: 1,
   },
   verifiedIcon: {
     marginLeft: 12,
   },
   statusRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       gap: 18,
+      rowGap: 8,
   },
   statusItem: {
       flexDirection: 'row',
@@ -603,6 +621,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    width: '100%',
   },
   interestsContainer: {
     flexDirection: 'row',
@@ -623,6 +642,10 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minWidth: 0,
+    flexShrink: 1,
     borderWidth: 1.5,
     borderColor: Colors.primary,
     borderRadius: 25,
@@ -642,6 +665,9 @@ const styles = StyleSheet.create({
     fontSize: isCompactDevice ? 14 : 15,
     color: Colors.text,
     fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
+    lineHeight: isCompactDevice ? 20 : 22,
   },
   actionSection: {
       gap: 18,

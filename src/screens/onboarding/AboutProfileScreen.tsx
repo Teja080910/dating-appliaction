@@ -23,6 +23,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import {Colors, Spacing, Shadows} from '../../theme';
 import {useProfile} from '../../api/useProfile';
+import {useUserImages, mapImagesToSlots} from '../../api/useImages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {getAuthSession} from '../../utils/session';
 import {useAlert} from '../../components/AlertModal';
@@ -41,6 +42,12 @@ const AboutProfileScreen = ({navigation}: any) => {
     selectedDrinking,
     selectedLookingFor,
     images,
+    setImages,
+    profileImage,
+    setProfileImage,
+    profileImageUrl,
+    setProfileImageUrl,
+    authUserId,
     selected,
     selectedAppearance,
     selectedBodyType,
@@ -51,6 +58,7 @@ const AboutProfileScreen = ({navigation}: any) => {
   const [isResolving, setIsResolving] = useState(true);
   const [identityPending, setIdentityPending] = useState(false);
   const {updateUser, uploadImage} = useProfile();
+  const {getAllImages} = useUserImages();
   const resolveAttemptsRef = useRef(0);
   const {alert, AlertComponent} = useAlert();
 
@@ -162,6 +170,47 @@ const AboutProfileScreen = ({navigation}: any) => {
     };
   }, [navigation]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const preloadImages = async () => {
+      const hasImagesInContext =
+        Array.isArray(images) && images.some(img => Boolean(img));
+      if (hasImagesInContext) return;
+
+      try {
+        const stored = await AsyncStorage.getItem('onboardingImages');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.some(Boolean)) {
+            if (isMounted) setImages?.(parsed);
+            return;
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const authSession = await getAuthSession();
+        const uid = authSession?.userId || authUserId;
+        if (uid) {
+          const res = await getAllImages.mutateAsync(String(uid));
+          const mapped = mapImagesToSlots(res);
+          if (mapped.slots.some(Boolean) && isMounted) {
+            setImages?.(mapped.slots);
+            if (mapped.profileImageUrl) {
+              setProfileImage?.(mapped.profileImageUrl);
+              setProfileImageUrl?.(mapped.profileImageUrl);
+            }
+          }
+        }
+      } catch (e) {}
+    };
+
+    preloadImages();
+    return () => {
+      isMounted = false;
+    };
+  }, [authUserId, getAllImages, images, setImages, setProfileImage, setProfileImageUrl]);
+
   const handleFinishOnboarding = async (retryCount = 0): Promise<void> => {
     if (retryCount > 2) {
       setLoading(false);
@@ -196,13 +245,91 @@ const AboutProfileScreen = ({navigation}: any) => {
       }
 
       const {gender, orientation} = resolveGenderOrientation(selected);
-      const uploadableImages = (Array.isArray(images) ? images : []).filter(
+      let availableImages = (Array.isArray(images) ? images : []).filter(
+        (img): img is string => typeof img === 'string' && img.trim().length > 0,
+      );
+
+      if (availableImages.length === 0) {
+        try {
+          const stored = await AsyncStorage.getItem('onboardingImages');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              availableImages = parsed.filter(
+                (img): img is string =>
+                  typeof img === 'string' && img.trim().length > 0,
+              );
+              if (availableImages.length > 0) {
+                setImages?.(parsed);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (availableImages.length === 0) {
+        try {
+          const uid = authSession?.userId || authUserId;
+          if (uid) {
+            const res = await getAllImages.mutateAsync(String(uid));
+            const mapped = mapImagesToSlots(res);
+            if (mapped.slots.some(Boolean)) {
+              availableImages = mapped.slots.filter(
+                (img): img is string =>
+                  typeof img === 'string' && img.trim().length > 0,
+              );
+              setImages?.(mapped.slots);
+              if (mapped.profileImageUrl) {
+                setProfileImage?.(mapped.profileImageUrl);
+                setProfileImageUrl?.(mapped.profileImageUrl);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[AboutProfile] Failed to fetch server images:', e);
+        }
+      }
+
+      const uploadableImages = availableImages.filter(
         (image): image is string =>
           Boolean(image) && !String(image).startsWith('http'),
       );
 
+      const firstImage =
+        uploadableImages[0] ||
+        availableImages[0] ||
+        profileImage ||
+        profileImageUrl ||
+        null;
+
+      if (!firstImage) {
+        setLoading(false);
+        alert(
+          'Photo Required',
+          'Please go back and add your profile photo first.',
+        );
+        return;
+      }
+
+      const profilePhoto = !String(firstImage).startsWith('http')
+        ? {
+            uri: firstImage,
+            type: 'image/jpeg',
+            name: 'profile.jpg',
+          }
+        : undefined;
+      const storedName =
+        (await AsyncStorage.getItem('name')) ||
+        (await AsyncStorage.getItem('displayName')) ||
+        (await AsyncStorage.getItem('userName'));
+      const effectiveName = normalizeTextValue(
+        displayName || name || storedName,
+        'User',
+      );
+
       const profileData = {
-        displayName: normalizeTextValue(displayName || name, 'User'),
+        name: effectiveName,
+        displayName: effectiveName,
         gender,
         orientation,
         age: calculatedAge,
@@ -225,29 +352,6 @@ const AboutProfileScreen = ({navigation}: any) => {
         drink: normalizeTextValue(selectedDrinking, 'No'),
       };
 
-      const firstImage =
-        uploadableImages[0] ||
-        (Array.isArray(images) && typeof images[0] === 'string'
-          ? images[0]
-          : null);
-
-      if (!firstImage) {
-        setLoading(false);
-        alert(
-          'Photo Required',
-          'Please go back and add your profile photo first.',
-        );
-        return;
-      }
-
-      const profilePhoto = !String(firstImage).startsWith('http')
-        ? {
-            uri: firstImage,
-            type: 'image/jpeg',
-            name: 'profile.jpg',
-          }
-        : undefined;
-
       try {
         const res = await updateUser.mutateAsync({
           uid: '',
@@ -257,7 +361,7 @@ const AboutProfileScreen = ({navigation}: any) => {
 
         console.log('[AboutProfile] Profile setup success:', res);
 
-        const remainingImages = uploadableImages.slice(firstImage ? 1 : 0);
+        const remainingImages = uploadableImages.slice(profilePhoto ? 1 : 0);
         if (remainingImages.length > 0) {
           await Promise.allSettled(
             remainingImages.map((uri, i) =>

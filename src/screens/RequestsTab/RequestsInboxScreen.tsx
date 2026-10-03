@@ -23,8 +23,6 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const RequestsInboxScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
@@ -153,8 +151,6 @@ const RequestsInboxScreen: React.FC = () => {
       englishLevel: sender.englishLevel,
       ethnicity: sender.ethnicity,
       lookingFor: sender.lookingFor,
-      kidCount: sender.kidCount,
-      netWorth: sender.netWorth,
     };
 
     setCardUserName(fullProfileData.name);
@@ -750,14 +746,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   photoContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 1.25,
+    width: '100%',
+    maxWidth: 480,
+    aspectRatio: 0.8,
+    maxHeight: 520,
+    alignSelf: 'center',
     backgroundColor: Colors.surfaceLight,
     position: 'relative',
   },
   modalPhoto: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 1.25,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
     backgroundColor: Colors.surfaceLight,
   },
   storyBarsContainer: {

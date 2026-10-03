@@ -1,15 +1,15 @@
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Image,
   ImageSourcePropType,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,9 +26,6 @@ import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/se
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
 import { RootParamList } from "../../utils/types/navigation.types";
-
-const { width: screenWidth } = Dimensions.get("window");
-const heroHeight = Math.min(Math.max(screenWidth * 1.15, 360), 520);
 
 const normalizeTextValue = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -117,6 +114,8 @@ const resolveNumericIdentifier = (...values: unknown[]) => {
 };
 
 const ViewMyProfileScreen = () => {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const heroHeight = Math.min(Math.max(screenWidth * 1.15, 320), Math.min(screenHeight * 0.58, 540));
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route = useRoute<any>();
   const { alert, AlertComponent } = useAlert();
@@ -218,10 +217,18 @@ const ViewMyProfileScreen = () => {
     (typeof targetId === 'string' &&
       (/^\d+$/.test(targetId) ||
         (/^[A-Za-z0-9_-]+$/.test(targetId) && /[A-Za-z]/.test(targetId))));
-  const { data: fetchedProfile, isLoading: loading } = useMyProfile(
+  const { data: fetchedProfile, isLoading: loading, refetch: refetchProfile } = useMyProfile(
     hasValidTargetId ? targetId : (isViewingSelf ? undefined : null)
   );
   const numericTargetId = hasValidTargetId ? String(targetId) : null;
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isViewingSelf) {
+        void refetchProfile();
+      }
+    }, [isViewingSelf, refetchProfile]),
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -491,7 +498,7 @@ const ViewMyProfileScreen = () => {
         : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(fetched?.currentCity) || 'Nearby'),
       verifiedSelfie: isViewingSelf
         ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
-        : Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? routed?.verifiedSelfie ?? true),
+        : Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
       profileImageUrl: isViewingSelf
         ? (normalizeTextValue(fetched?.profileImageUrl) || contextPrimaryImage)
         : (normalizeTextValue(routed?.profileImageUrl) || normalizeTextValue(fetched?.profileImageUrl) || routeImage || (targetImages[0] || null)),
@@ -571,7 +578,7 @@ const ViewMyProfileScreen = () => {
                 }
                 style={[styles.image, { height: heroHeight }]}
                 resizeMode="cover"
-              />
+                />
 
               {sliderImages.length > 1 && (
                 <>
@@ -694,7 +701,7 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   image: {
-    width: screenWidth,
+    width: "100%",
     resizeMode: "cover",
   },
   heroTapLeft: {
@@ -714,7 +721,7 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   emptyHero: {
-    width: screenWidth,
+    width: "100%",
     backgroundColor: Colors.surface,
     justifyContent: "center",
     alignItems: "center",

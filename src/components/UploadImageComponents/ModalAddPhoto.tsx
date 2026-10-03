@@ -8,6 +8,7 @@ import { requestPermissions } from '../../utils/types/permission';
 import { mapImagesToSlots, MAX_PROFILE_IMAGES, useUserImages } from '../../api/useImages';
 import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
 import { getUserId } from '../../utils/sessionHelper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAlert } from '../AlertModal';
 
 const ModalAddPhoto = () => {
@@ -53,6 +54,10 @@ const ModalAddPhoto = () => {
     setImages(mapped.slots);
     setProfileImage(mapped.profileImageUrl);
     setProfileImageUrl(mapped.profileImageUrl);
+    AsyncStorage.setItem('onboardingImages', JSON.stringify(mapped.slots)).catch(() => {});
+    if (mapped.profileImageUrl) {
+      AsyncStorage.setItem('profileImage', mapped.profileImageUrl).catch(() => {});
+    }
   };
 
   const onPickImage = async (type: 'camera' | 'gallery') => {
