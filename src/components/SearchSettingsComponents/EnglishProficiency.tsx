@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const englishLevels = ['Bad', 'Medium', 'Good', 'Very good'];
+const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
 
 interface EnglishProficiencyProps {
   onChange?: (val: string[]) => void;

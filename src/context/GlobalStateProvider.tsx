@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
 import { clearFullSession } from '../utils/session';
 import { MAX_PROFILE_IMAGES } from '../api/useImages';
+import { getSavedSearchFilters } from '../utils/types/AsyncStorage';
 
 const GlobalStateProvider = ({ children }: any) => {
 
@@ -31,9 +32,7 @@ const GlobalStateProvider = ({ children }: any) => {
   const [selectedEthnicity, setSelectedEthnicity] = useState<string | null>(null);
   const [selectedSmoking, setSelectedSmoking] = useState<string | null>(null);
   const [selectedDrinking, setSelectedDrinking] = useState<string | null>(null);
-  const [selectedKidCount, setSelectedKidCount] = useState<string | null>(null);
   const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
-  const [selectedNetWorth, setSelectedNetWorth] = useState<string | null>(null);
   const [englishSkillLevel, setEnglishSkillLevel] = useState(0);
 
   const [profileText, setProfileText] = useState('');
@@ -47,10 +46,13 @@ const GlobalStateProvider = ({ children }: any) => {
   // ================= DISCOVERY =================
   const [filter, setFilter] = useState<'online' | 'newest'>('online');
   const [oppositeGender, setOppositeGender] = useState<string | null>(null);
+  // Results from the Search Settings screen. They are cleared when the user
+  // switches back to one of the dashboard feeds.
+  const [filteredProfiles, setFilteredProfiles] = useState<any[] | null>(null);
 
   // ================= SEARCH FILTER =================
   const [ageRange, setAgeRange] = useState([18, 55]);
-  const [distanceRange, setDistanceRange] = useState(1000);
+  const [distanceRange, setDistanceRange] = useState(50);
   const [bodyHeight, setBodyHeight] = useState([120, 200]);
 
   const [searchLanguages, setSearchLanguages] = useState<string[]>([]);
@@ -58,6 +60,8 @@ const GlobalStateProvider = ({ children }: any) => {
   const [ethnicity, setEthnicity] = useState<string[]>([]);
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [smoke, setSmoke] = useState<string[]>([]);
+  const [smokeFilter, setSmokeFilter] = useState<string | boolean | undefined>(undefined);
+  const [drinkFilter, setDrinkFilter] = useState<string | boolean | undefined>(undefined);
   const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
 
   // Missing properties from components
@@ -97,8 +101,76 @@ const GlobalStateProvider = ({ children }: any) => {
         const id = await getUserId();
         if (id) setAuthUserId(id);
 
+        const [
+          storedName,
+          storedDisplayName,
+          storedGender,
+          storedUserGender,
+          storedImages,
+          storedProfileImage,
+          storedIsLoggedIn,
+        ] = await Promise.all([
+          AsyncStorage.getItem('name'),
+          AsyncStorage.getItem('displayName'),
+          AsyncStorage.getItem('selectedGender'),
+          AsyncStorage.getItem('userGender'),
+          AsyncStorage.getItem('onboardingImages'),
+          AsyncStorage.getItem('profileImage'),
+          AsyncStorage.getItem('isLoggedIn'),
+        ]);
+        // Generic name/profile keys belong to the active account only. During
+        // a fresh registration they may still be present briefly while the
+        // previous session is being cleared, so never hydrate them as a draft.
+        if (storedIsLoggedIn === 'true') {
+          if (storedName) setName(storedName);
+          if (storedDisplayName) setDisplayName(storedDisplayName);
+          const resolvedGender = storedGender || storedUserGender;
+          if (resolvedGender) setGender(resolvedGender);
+        }
+        if (storedImages) {
+          try {
+            const parsed = JSON.parse(storedImages);
+            if (Array.isArray(parsed) && parsed.some(Boolean)) {
+              setImages(parsed);
+            }
+          } catch (e) {}
+        }
+        if (storedProfileImage) {
+          setProfileImage(storedProfileImage);
+          setProfileImageUrl(storedProfileImage);
+        }
+
         const subStatus = await AsyncStorage.getItem('isSubscribed');
         if (subStatus === 'true') setIsSubscribed(true);
+
+        const savedFilters = await getSavedSearchFilters(id);
+        if (savedFilters) {
+          if (savedFilters.minAge !== undefined && savedFilters.maxAge !== undefined) {
+            setAgeRange([savedFilters.minAge, savedFilters.maxAge]);
+          }
+          if (savedFilters.maxDistanceKm !== undefined) {
+            const rawDist = Number(savedFilters.maxDistanceKm);
+            setDistanceRange(Number.isFinite(rawDist) ? Math.min(Math.max(rawDist, 5), 100) : 50);
+          }
+          if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
+            setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);
+          }
+          if (savedFilters.bodyType) setSelectBodyTypes(savedFilters.bodyType);
+          if (savedFilters.appearance) setSelectedOptions(savedFilters.appearance);
+          if (savedFilters.language) setSearchLanguages(savedFilters.language);
+          if (savedFilters.englishLevel) setEnglishProficiency(savedFilters.englishLevel);
+          if (savedFilters.ethnicity) setEthnicity(savedFilters.ethnicity);
+          if (savedFilters.lookingFor) setLookingFor(savedFilters.lookingFor);
+          if (savedFilters.showMe !== undefined) {
+            setShowMe(savedFilters.showMe);
+          } else if (savedFilters.gender?.length) {
+            setShowMe(savedFilters.gender[0] === 'Male' ? 'straight_man' : 'straight_woman');
+          }
+          if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
+          if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
+          if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
+          if (savedFilters.location) setLocation(savedFilters.location);
+        }
       } catch (e) {
         console.error('Init Error:', e);
       }
@@ -120,7 +192,6 @@ const GlobalStateProvider = ({ children }: any) => {
     if (prefs.englishSkill !== undefined) setEnglishSkillLevel(prefs.englishSkill);
     if (prefs.ethnicity) setSelectedEthnicity(prefs.ethnicity);
     if (prefs.height) setHeight(prefs.height);
-    if (prefs.kidCount) setSelectedKidCount(prefs.kidCount);
     if (prefs.languages) setSelectedLanguages(prefs.languages);
     if (prefs.lookingFor) setSelectedLookingFor(prefs.lookingFor);
   };
@@ -130,10 +201,19 @@ const GlobalStateProvider = ({ children }: any) => {
       await clearFullSession();
 
       setName('');
+      setDisplayName('');
       setEmail('');
       setPassword('');
       setUsername('');
       setPhoneNumber('');
+      setDate(new Date());
+      setProfileText('');
+      setSelected(null);
+      setOppositeGender('straight_woman');
+      setShowMe('straight_woman');
+      setSelectedOptions([]);
+      setSelectBodyTypes([]);
+      setSearchLanguages([]);
       setImages(emptyImageSlots());
       setLogin(false);
       setIsSubscribed(false);
@@ -172,9 +252,7 @@ const GlobalStateProvider = ({ children }: any) => {
         selectedEthnicity, setSelectedEthnicity,
         selectedSmoking, setSelectedSmoking,
         selectedDrinking, setSelectedDrinking,
-        selectedKidCount, setSelectedKidCount,
         selectedLookingFor, setSelectedLookingFor,
-        selectedNetWorth, setSelectedNetWorth,
         englishSkillLevel, setEnglishSkillLevel,
         profileText, setProfileText,
         profileImage, setProfileImage,
@@ -185,6 +263,7 @@ const GlobalStateProvider = ({ children }: any) => {
         // discovery
         filter, setFilter,
         oppositeGender, setOppositeGender,
+        filteredProfiles, setFilteredProfiles,
 
         // search
         ageRange, setAgeRange,
@@ -195,6 +274,8 @@ const GlobalStateProvider = ({ children }: any) => {
         ethnicity, setEthnicity,
         lookingFor, setLookingFor,
         smoke, setSmoke,
+        smokeFilter, setSmokeFilter,
+        drinkFilter, setDrinkFilter,
         showMe, setShowMe,
 
         selectedOptions, setSelectedOptions,
@@ -235,11 +316,6 @@ const GlobalStateProvider = ({ children }: any) => {
         selectedEthinicity: selectedEthnicity,
         setSelectedEthinicity: setSelectedEthnicity,
 
-        // Aliases for shorter names
-        kidsCount: selectedKidCount || '',
-        setKidsCount: setSelectedKidCount,
-        netWorth: selectedNetWorth || '',
-        setNetWorth: setSelectedNetWorth,
       }}
     >
       {children}

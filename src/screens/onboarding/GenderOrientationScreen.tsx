@@ -20,8 +20,6 @@ import { useProfile } from '../../api/useProfile';
 import { getUserId } from '../../utils/sessionHelper';
 import { useAlert } from '../../components/AlertModal';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const GenderOrientationScreen = ({ navigation }: any) => {
   const { setSelected } = useContext(AppContext);
   const [selection, setSelection] = useState<string | null>(null);
@@ -183,7 +181,9 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    height: SCREEN_WIDTH * 0.45,
+    aspectRatio: 0.85,
+    minHeight: 120,
+    maxHeight: 180,
     borderRadius: Spacing.radiusXl,
     borderWidth: 1.5,
     borderColor: Colors.glassBorder,

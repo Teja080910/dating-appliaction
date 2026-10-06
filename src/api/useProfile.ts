@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from './apiClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
 
 const allowedFields = [
@@ -54,31 +55,54 @@ const resolveProfilePayload = (payload: any) => {
 };
 
 const normalizeProfile = (payload: any) => {
-  const source = resolveProfilePayload(payload);
+  const payloadSource = resolveProfilePayload(payload);
+  // The API may return a flat profile, { profile }, or { user: { profile } }.
+  // Flatten those compatible shapes so persisted values are not lost in the UI.
+  const nestedUser = payloadSource?.user && typeof payloadSource.user === 'object'
+    ? payloadSource.user
+    : {};
+  const nestedProfile = payloadSource?.profile && typeof payloadSource.profile === 'object'
+    ? payloadSource.profile
+    : (nestedUser?.profile && typeof nestedUser.profile === 'object'
+      ? nestedUser.profile
+      : {});
+  const source = { ...nestedUser, ...nestedProfile, ...payloadSource };
+  const numberOrZero = (value: unknown) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
 
   return {
-    id: typeof source?.id === 'number' ? source.id : null,
+    id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
+    userId: source?.userId !== undefined && source?.userId !== null
+      ? String(source.userId)
+      : (nestedUser?.id !== undefined && nestedUser?.id !== null ? String(nestedUser.id) : ''),
     name: source?.name ? String(source.name) : '',
     displayName: source?.displayName ? String(source.displayName) : '',
     email: source?.email ? String(source.email) : '',
-    bio: source?.bio ? String(source.bio) : '',
+    bio: source?.bio ? String(source.bio) : (source?.description ? String(source.description) : ''),
     dob: source?.dob ? String(source.dob) : null,
-    age: typeof source?.age === 'number' ? source.age : null,
+    age: source?.age !== undefined && source?.age !== null && source?.age !== ''
+      ? numberOrZero(source.age)
+      : null,
     gender: source?.gender ? String(source.gender) : null,
     orientation: source?.orientation ? String(source.orientation) : null,
     language: source?.language ? String(source.language) : '',
     appearance: source?.appearance ? String(source.appearance) : '',
     bodyType: source?.bodyType ? String(source.bodyType) : '',
-    height: typeof source?.height === 'number' ? source.height : 0,
+    height: numberOrZero(source?.height),
     englishLevel: source?.englishLevel ? String(source.englishLevel) : '',
     ethnicity: source?.ethnicity ? String(source.ethnicity) : '',
     lookingFor: source?.lookingFor ? String(source.lookingFor) : '',
     smoke: source?.smoke ? String(source.smoke) : '',
     drink: source?.drink ? String(source.drink) : '',
+    currentCity: source?.currentCity ? String(source.currentCity) : '',
+    telegramUsername: source?.telegramUsername ? String(source.telegramUsername) : '',
     verifiedSelfie: Boolean(source?.verifiedSelfie ?? source?.selfieVerified),
     selfieVerified: Boolean(source?.selfieVerified ?? source?.verifiedSelfie),
-    profileImageUrl: source?.profileImageUrl ? String(source.profileImageUrl) : null,
-    images: Array.isArray(source?.images) ? source.images : [],
+    profileImageUrl: source?.profileImageUrl ? String(source.profileImageUrl) : (Array.isArray(source?.photos) && source.photos[0] ? String(source.photos[0]) : null),
+    images: Array.isArray(source?.images) ? source.images : (Array.isArray(source?.photos) ? source.photos : []),
+    photos: Array.isArray(source?.photos) ? source.photos : (Array.isArray(source?.images) ? source.images : []),
     raw: payload,
   };
 };
@@ -93,6 +117,9 @@ const normalizeCompletion = (payload: any) => {
   const nestedNumeric = Number(source?.completion ?? source?.percentage ?? source?.progress);
   return Number.isFinite(nestedNumeric) ? nestedNumeric : 0;
 };
+
+const hasValidUid = (uid: any): boolean =>
+  uid !== undefined && uid !== null && String(uid).trim() !== '';
 
 const resolveBackendUserId = async () => {
   const userId = await getUserId();
@@ -117,30 +144,61 @@ const resolveNumericUserId = async (candidate?: any) => {
 export const useMyProfile = (uid?: any) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(
+    hasValidUid(uid) ? String(uid) : null,
+  );
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
-    if (!uid) return;
+    let cancelled = false;
+    if (hasValidUid(uid)) {
+      setResolvedUserId(String(uid));
+      return;
+    }
+
+    // No uid passed → fall back to the logged-in user's stored userId so the
+    // profile still loads after logout/login (in-memory context is reset).
+    getUserId()
+      .then((id) => {
+        if (!cancelled && id) setResolvedUserId(String(id));
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  useEffect(() => {
+    if (!resolvedUserId) return;
 
     setLoading(true);
+    setError(null);
     let cancelled = false;
     const fetch = async () => {
       try {
-        const resolvedUserId = String(uid);
         const res = await apiClient.post(`/profile/me`, null, { params: { userId: resolvedUserId } });
         if (!cancelled) {
           setData(normalizeProfile(res.data));
         }
-      } catch {
-        if (!cancelled) setData(null);
+      } catch (err: any) {
+        if (!cancelled) {
+          setData(null);
+          const message =
+            err?.response?.data?.message ||
+            (typeof err?.message === 'string' ? err.message : 'Failed to load profile');
+          setError(message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     fetch();
     return () => { cancelled = true; };
-  }, [uid]);
+  }, [resolvedUserId, refreshKey]);
 
-  return { data, isLoading: loading };
+  return { data, isLoading: loading, error, refetch };
 };
 
 export const useProfileCompletion = (uid: any) => {
@@ -189,6 +247,20 @@ export const useProfile = () => {
   const setupProfile = useMutation<any, Error, SetupProfileInput>({
     mutationFn: async ({uid, dto, photo}) => {
       const normalizedDto = sanitizeProfileDto(dto);
+
+      let resolvedName = normalizedDto.name || normalizedDto.displayName;
+      if (!resolvedName) {
+        resolvedName =
+          (await AsyncStorage.getItem('name')) ||
+          (await AsyncStorage.getItem('displayName')) ||
+          (await AsyncStorage.getItem('userName')) ||
+          'User';
+      }
+      normalizedDto.name = resolvedName;
+      if (!normalizedDto.displayName) {
+        normalizedDto.displayName = resolvedName;
+      }
+
       const resolvedUserId = await resolveNumericUserId(uid);
       console.log('📡 API userId:', resolvedUserId);
 
@@ -245,22 +317,76 @@ export const useProfile = () => {
     bodyType: string;
     appearance: string;
     height: number;
+    englishLevel?: string;
+    ethnicity?: string;
   };
 
   const updateDetails = useMutation<any, Error, UpdateDetailsInput>({
     mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
-      const payload = {
+      const payload: Record<string, any> = {
         userId: resolvedUserId,
         language: data.language,
         bodyType: data.bodyType,
         appearance: data.appearance,
         height: data.height,
+        englishLevel: data.englishLevel || '',
+        ethnicity: data.ethnicity || '',
       };
 
+      // More Info is a partial details update. The general /profile/update
+      // endpoint validates profile basics such as name, which should not be
+      // required when editing only these fields.
       const res = await apiClient.put('/profile/update-details', payload);
       return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
+    },
+  });
+
+  type UpdateProfileInput = {
+    userId?: any;
+    name?: string;
+    displayName?: string;
+    bio?: string;
+    dob?: string;
+    age?: number;
+    language?: string;
+    bodyType?: string;
+    appearance?: string;
+    height?: number;
+    englishLevel?: string;
+    ethnicity?: string;
+    lookingFor?: string;
+    smoke?: string;
+    drink?: string;
+    photos?: string[];
+    telegramUsername?: string;
+  };
+
+  const updateProfile = useMutation<any, Error, UpdateProfileInput>({
+    mutationFn: async data => {
+      const resolvedUserId = await resolveNumericUserId(data.userId);
+
+      const payload: Record<string, any> = {
+        userId: resolvedUserId,
+        ...data,
+      };
+
+      if (data.displayName || data.name) {
+        payload.name = data.name || data.displayName;
+        payload.displayName = data.displayName || data.name;
+      }
+
+      const res = await apiClient.put('/profile/update', payload).catch(() =>
+        apiClient.put('/profile/update-basic', payload)
+      );
+      return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
     },
   });
 
@@ -269,6 +395,7 @@ export const useProfile = () => {
     name?: string;
     displayName: string;
     bio: string;
+    dob?: string;
     age: number;
   };
 
@@ -281,11 +408,17 @@ export const useProfile = () => {
         name: data.name || data.displayName,
         displayName: data.displayName,
         bio: data.bio,
+        dob: data.dob,
         age: data.age,
       };
 
-      const res = await apiClient.put('/profile/update-basic', payload);
+      const res = await apiClient.put('/profile/update', payload).catch(() =>
+        apiClient.put('/profile/update-basic', payload)
+      );
       return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
     },
   });
 
@@ -378,6 +511,8 @@ export const useProfile = () => {
     getUser: useMyProfile,
     setupProfile,
     updateUser: setupProfile,
+    updateProfile,
+    useUpdateProfile: updateProfile,
     updatePreferences,
     updateDetails,
     useUpdateProfileDetails: updateDetails,

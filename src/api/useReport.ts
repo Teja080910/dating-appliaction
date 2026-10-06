@@ -3,9 +3,9 @@ import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 
 export interface ReportItem {
-  id: number;
-  reportedUserId: number | null;
-  reportedById: number | null;
+  id: number | string;
+  reportedUserId: number | string | null;
+  reportedById: number | string | null;
   reason: string;
   message: string;
   createdAt: string | null;
@@ -34,11 +34,11 @@ const resolveReportsArray = (payload: unknown): any[] => {
 
 const normalizeReports = (payload: unknown): ReportItem[] =>
   resolveReportsArray(payload).map((report) => ({
-    id: typeof report?.id === 'number' ? report.id : 0,
+    id: report?.id ?? '0',
     reportedUserId:
-      typeof report?.reportedUserId === 'number' ? report.reportedUserId : null,
+      report?.reportedUserId ?? null,
     reportedById:
-      typeof report?.reportedById === 'number' ? report.reportedById : null,
+      report?.reportedById ?? null,
     reason: String(report?.reason || '').trim(),
     message: String(report?.message || '').trim(),
     createdAt: report?.createdAt ? String(report.createdAt) : null,

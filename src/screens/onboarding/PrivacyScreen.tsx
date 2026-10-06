@@ -60,8 +60,7 @@ const PrivacyScreen = ({ navigation }: any) => {
   });
 
   const resolveNextRoute = async () => {
-    const hasGenderStep = await AsyncStorage.getItem('GenderOrientation');
-    return hasGenderStep === 'true' ? 'DisplayName' : 'GenderOrientation';
+    return 'GenderOrientation';
   };
 
   // ✅ Disable back + save step

@@ -21,7 +21,7 @@ const LanguagesSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Languages you speak</Text>
+      <Text style={styles.label}>Languages</Text>
       <View style={styles.optionsContainer}>
         {languages.map((lang) => (
           <TouchableOpacity

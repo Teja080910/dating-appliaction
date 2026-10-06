@@ -41,8 +41,16 @@ const COMPACT_HEIGHT = 640;
 
 const LoginScreen = ({navigation}: any) => {
   const {alert, AlertComponent} = useAlert();
-  const {password, setPassword, phoneNumber, setPhoneNumber} =
-    useContext(AppContext);
+  const {
+    password,
+    setPassword,
+    phoneNumber,
+    setPhoneNumber,
+    setName,
+    setDisplayName,
+    setGender,
+    setAuthUserId,
+  } = useContext(AppContext);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const {login} = useAuth();
@@ -210,6 +218,7 @@ const LoginScreen = ({navigation}: any) => {
     }
 
     setLoading(true);
+    Keyboard.dismiss();
     const payload = buildLoginPayload(normalizedMobile, password);
 
     login.mutate(payload, {
@@ -231,9 +240,51 @@ const LoginScreen = ({navigation}: any) => {
           );
           return;
         }
+
+        const user = data?.user || session.user || data?.data?.user || data?.data || {};
+        const userName = user.name || user.displayName || user.username || '';
+        const rawGender = String(user.gender || data?.gender || session.user?.gender || '').toLowerCase();
+        const userGender =
+          rawGender.includes('woman') || rawGender.includes('female')
+            ? 'straight_woman'
+            : 'straight_man';
+        const resolvedUid = String(session.userId || user.userId || user.id || '');
+
+        if (userName) {
+          setName(userName);
+          setDisplayName(userName);
+        }
+        if (userGender) {
+          setGender(userGender);
+        }
+        if (resolvedUid) {
+          setAuthUserId(resolvedUid);
+        }
+
+        const asyncStorageItems: [string, string][] = [
+          ['isLoggedIn', 'true'],
+          ['acceptedTerms', 'true'],
+        ];
+        if (userName) {
+          asyncStorageItems.push(['name', userName], ['displayName', userName]);
+        }
+        if (userGender) {
+          asyncStorageItems.push(
+            ['selectedGender', userGender],
+            ['userGender', userGender],
+          );
+        }
+        if (resolvedUid) {
+          asyncStorageItems.push(
+            ['userId', resolvedUid],
+            ['user_id', resolvedUid],
+          );
+        }
+
         setLoading(false);
+        await AsyncStorage.multiSet(asyncStorageItems);
         const nextRoute = await resolveInitialRoute();
-        navigation.replace(nextRoute);
+        navigation.replace(nextRoute as never);
       },
       onError: (error: any) => {
         setLoading(false);
@@ -316,6 +367,12 @@ const LoginScreen = ({navigation}: any) => {
         </View>
 
         <TouchableOpacity
+          style={styles.forgotBtn}
+          onPress={() => navigation.navigate('ForgotPassword')}>
+          <Text style={styles.forgotBtnText}>Forgot Password?</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[dynamicStyles.loginBtn, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}>
@@ -355,7 +412,7 @@ const LoginScreen = ({navigation}: any) => {
         backgroundColor="transparent"
       />
       <LinearGradient
-        colors={[Colors.background, '#1A1530', Colors.surface]}
+        colors={[Colors.background, Colors.surface, Colors.surface]}
         style={styles.gradient}>
         <SafeAreaView style={styles.safeArea}>
           <KeyboardAvoidingView
@@ -389,7 +446,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: Spacing.xs,
   },
-  inputGroup: {marginBottom: Spacing.md},
+  inputGroup: {marginBottom: Spacing.sm},
+  forgotBtn: {alignSelf: 'flex-end', marginBottom: Spacing.md},
+  forgotBtnText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   eyeToggle: {padding: Spacing.sm},
   loginGradient: {
     flex: 1,

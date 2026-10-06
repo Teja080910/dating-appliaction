@@ -21,6 +21,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../../api/useAuth';
 import { useAlert } from '../../components/AlertModal';
 import { buildRegisterPayload, normalizeMobileNumber } from '../../utils/authPayload';
+import { clearOnboardingState } from '../../utils/sessionState';
 
 const extractApiErrorMessage = (error: any, fallback: string) => {
   const responseData = error?.response?.data;
@@ -74,6 +75,8 @@ const OTPScreen = ({ navigation, route }: any) => {
 
   const {
     name: contextName,
+    setName,
+    setDisplayName,
     password: contextPassword,
     phoneNumber: contextPhoneNumber,
   } = useContext(AppContext);
@@ -173,8 +176,24 @@ const OTPScreen = ({ navigation, route }: any) => {
 
       console.log("VERIFY SUCCESS:", verifyData);
 
-      // ✅ CLEANUP
+      // ✅ CLEANUP PREVIOUS SESSION ONBOARDING & GENDER STATE
       await AsyncStorage.removeItem("registerSessionId");
+      await clearOnboardingState();
+      await AsyncStorage.multiRemove([
+        "GenderOrientation",
+        "selectedGender",
+        "userGender",
+        "userDob",
+        "firstImageUploaded",
+        "onboardingStep",
+      ]);
+
+      if (effectiveName) {
+        await AsyncStorage.setItem("name", effectiveName);
+        await AsyncStorage.setItem("displayName", effectiveName);
+        if (setName) setName(effectiveName);
+        if (setDisplayName) setDisplayName(effectiveName);
+      }
 
       // Navigate to Privacy screen to continue onboarding
       navigation.replace("Privacy");
@@ -306,6 +325,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.radiusXxl,
     padding: Spacing.xl,
     width: '100%',
+    maxWidth: 480,
     alignSelf: 'center',
     alignItems: 'center',
     borderWidth: 1,

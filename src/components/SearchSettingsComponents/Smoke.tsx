@@ -1,24 +1,34 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const options = ['Yes', 'No', 'Sometimes'];
+const options = [
+  { label: 'Yes', value: 'Yes' },
+  { label: 'No', value: 'No' },
+  { label: 'Sometimes', value: 'Sometimes' },
+];
 
 interface SmokeProps {
-  onChange?: (val: boolean) => void;
+  value?: string | boolean;
+  onChange?: (val: string | undefined) => void;
 }
 
-const Smoke: React.FC<SmokeProps> = ({ onChange }) => {
-  const { smoke, setSmoke } = useContext(AppContext);
+const isOptionSelected = (currentVal: string | boolean | undefined, optionVal: string) => {
+  if (currentVal === undefined || currentVal === null) return false;
+  if (typeof currentVal === 'boolean') {
+    if (optionVal === 'Yes') return currentVal === true;
+    if (optionVal === 'No') return currentVal === false;
+    return false;
+  }
+  return String(currentVal).toLowerCase() === optionVal.toLowerCase();
+};
 
-  const toggleOption = (option: string) => {
-    const nextSmoke = smoke.includes(option)
-      ? smoke.filter((item: string) => item !== option)
-      : [...smoke, option];
-    setSmoke(nextSmoke);
-    if (onChange) {
-      onChange(nextSmoke.includes('Yes') || nextSmoke.includes('Sometimes'));
+const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
+  const handlePress = (optVal: string) => {
+    if (isOptionSelected(value, optVal)) {
+      onChange?.(undefined);
+    } else {
+      onChange?.(optVal);
     }
   };
 
@@ -26,17 +36,20 @@ const Smoke: React.FC<SmokeProps> = ({ onChange }) => {
     <View style={styles.container}>
       <Text style={styles.label}>Smoker?</Text>
       <View style={styles.optionsWrapper}>
-        {options.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.option, smoke.includes(item) && styles.optionSelected]}
-            onPress={() => toggleOption(item)}
-          >
-            <Text style={[styles.optionText, smoke.includes(item) && styles.optionTextSelected]}>
-              {item}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {options.map((item) => {
+          const selected = isOptionSelected(value, item.value);
+          return (
+            <TouchableOpacity
+              key={item.label}
+              style={[styles.option, selected && styles.optionSelected]}
+              onPress={() => handlePress(item.value)}
+            >
+              <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );

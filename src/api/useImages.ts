@@ -39,16 +39,33 @@ const resolveImageArray = (payload: unknown): ServerUserImage[] => {
     }
 
     const nestedData = record.data as Record<string, unknown> | null;
-    if (nestedData && typeof nestedData === 'object' && Array.isArray(nestedData.images)) {
-      return nestedData.images as ServerUserImage[];
+    if (nestedData && typeof nestedData === 'object') {
+      if (Array.isArray(nestedData.images)) return nestedData.images as ServerUserImage[];
+      if (Array.isArray(nestedData.userImages)) return nestedData.userImages as ServerUserImage[];
+      if (Array.isArray(nestedData.photos)) return nestedData.photos as ServerUserImage[];
+      if (nestedData.imageUrl || nestedData.url || nestedData.profileImageUrl) {
+        return [nestedData as ServerUserImage];
+      }
     }
 
     if (Array.isArray(record.images)) {
       return record.images as ServerUserImage[];
     }
 
+    if (Array.isArray(record.userImages)) {
+      return record.userImages as ServerUserImage[];
+    }
+
+    if (Array.isArray(record.photos)) {
+      return record.photos as ServerUserImage[];
+    }
+
     if (Array.isArray(record.content)) {
       return record.content as ServerUserImage[];
+    }
+
+    if (record.imageUrl || record.url || record.uri || record.path || record.profileImageUrl) {
+      return [record as ServerUserImage];
     }
   }
 
@@ -59,9 +76,10 @@ export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserIma
   const images = resolveImageArray(payload)
     .map((image: any) => {
       if (typeof image === 'string') {
+        const url = image.trim();
         return {
           id: null,
-          imageUrl: getAbsoluteUrl(image),
+          imageUrl: url ? getAbsoluteUrl(url) : null,
           isProfile: false,
           fileName: null,
           fileType: null,
@@ -69,10 +87,20 @@ export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserIma
           uploadedAt: null,
         };
       }
+      const rawUrl =
+        image?.imageUrl ||
+        image?.url ||
+        image?.uri ||
+        image?.path ||
+        image?.photoUrl ||
+        image?.profileImageUrl ||
+        image?.image ||
+        null;
+      const cleanUrl = typeof rawUrl === 'string' ? rawUrl.trim() : null;
       return {
-        id: typeof image?.id === 'number' ? image.id : null,
-        imageUrl: image?.imageUrl ? getAbsoluteUrl(image.imageUrl) : null,
-        isProfile: Boolean(image?.profile),
+        id: typeof image?.id === 'number' ? image.id : (typeof image?.imageId === 'number' ? image.imageId : null),
+        imageUrl: cleanUrl ? getAbsoluteUrl(cleanUrl) : null,
+        isProfile: Boolean(image?.profile || image?.isProfile || image?.isPrimary),
         fileName: image?.fileName ?? null,
         fileType: image?.fileType ?? null,
         fileSize: typeof image?.fileSize === 'number' ? image.fileSize : null,

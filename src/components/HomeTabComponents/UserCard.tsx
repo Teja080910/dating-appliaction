@@ -5,7 +5,7 @@ import {
   Image,
   ImageSourcePropType,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   Pressable,
 } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -16,7 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
-import { isApiHostedUrl } from '../../api/apiClient';
+import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 
 interface UserCardProps {
   name?: string;
@@ -28,9 +28,9 @@ interface UserCardProps {
   isOnline?: boolean;
   isNew?: boolean;
   id?: string | number;
+  cardWidth?: number;
+  cardHeight?: number;
 }
-
-const CARD_WIDTH = (Dimensions.get('window').width - 45) / 2;
 
 const FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/girl1.webp'),
@@ -53,7 +53,13 @@ const UserCard = ({
   isOnline,
   isNew,
   id,
+  cardWidth,
+  cardHeight,
 }: UserCardProps) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const resolvedWidth = cardWidth || Math.floor((windowWidth - 45) / 2);
+  const resolvedHeight = cardHeight || Math.round(Math.min(Math.max(resolvedWidth * 1.34, 220), 340));
+
   const navigation =
     useNavigation<StackNavigationProp<RootParamList, 'ViewMyProfileScreen'>>();
 
@@ -67,7 +73,7 @@ const UserCard = ({
   const [imageFailed, setImageFailed] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
-  const safeName = name || 'User';
+  const safeName = (name ? String(name).replace(/,\s*\d+$/, '').trim() : '') || 'User';
   const safeAge = age || 'N/A';
   const normalizedImage =
     typeof image === 'string' && SUPPORTED_IMAGE_URI_REGEX.test(image.trim())
@@ -95,10 +101,17 @@ const UserCard = ({
     return FALLBACK_IMAGES[seedValue % FALLBACK_IMAGES.length];
   }, [fallbackAsset, id, safeName]);
 
-  const safeImage = !imageFailed ? normalizedImage : null;
+  const safeImage = !imageFailed && normalizedImage ? getAbsoluteUrl(normalizedImage) : null;
   const imageSource: ImageSourcePropType | null = safeImage
-    ? authToken && isApiHostedUrl(safeImage)
-      ? { uri: safeImage, headers: { Authorization: `Bearer ${authToken}` } }
+    ? isApiHostedUrl(safeImage)
+      ? {
+          uri: safeImage,
+          headers: {
+            'ngrok-skip-browser-warning': '69420',
+            'User-Agent': 'AMARA-App',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+        }
       : { uri: safeImage }
     : null;
 
@@ -107,14 +120,32 @@ const UserCard = ({
     setCardUserAge(safeAge);
     setViewMyProfile(false);
     setSelectedUserImage(safeImage);
+
+    const rawProfile = profileData?.profile || profileData || {};
+    const targetUserId = id || rawProfile?.userId || rawProfile?.id;
+    const fullProfileData = {
+      ...rawProfile,
+      id: targetUserId,
+      userId: targetUserId,
+      targetUserId: targetUserId,
+      name: safeName,
+      displayName: safeName,
+      age: safeAge,
+      gender: rawProfile?.gender || 'woman',
+      bio: rawProfile?.bio || '',
+      currentCity: safeDistance,
+      online: isOnline,
+      isNew,
+      profileImageUrl: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
+      image: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
+      photos: rawProfile?.photos || (safeImage ? [safeImage] : []),
+      images: rawProfile?.photos || rawProfile?.images || (safeImage ? [safeImage] : []),
+    };
+
     navigation.navigate('ViewMyProfileScreen', {
-      userId: id,
-      targetUserId: id,
-      profileData: profileData || {
-        id, targetUserId: id, displayName: safeName, age: safeAge,
-        currentCity: safeDistance, online: isOnline, isNew,
-        profileImageUrl: safeImage,
-      },
+      userId: targetUserId,
+      targetUserId: targetUserId,
+      profileData: fullProfileData,
       image: safeImage,
       fallbackImage: resolvedFallbackAsset,
     });
@@ -122,7 +153,7 @@ const UserCard = ({
 
   return (
     <Pressable onPress={handleUserCard} style={styles.cardOuter}>
-      <View style={styles.card}>
+      <View style={[styles.card, { width: resolvedWidth, height: resolvedHeight }]}>
         <LinearGradient
           colors={[Colors.gradientCard[0], Colors.gradientCard[1]]}
           style={styles.cardBorder}
@@ -185,8 +216,6 @@ const styles = StyleSheet.create({
     ...Shadows.card,
   },
   card: {
-    width: CARD_WIDTH,
-    height: 250,
     borderRadius: Spacing.radiusLg,
     overflow: 'hidden',
   },

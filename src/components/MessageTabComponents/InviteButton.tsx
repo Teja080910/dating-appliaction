@@ -14,13 +14,17 @@ const InviteButton = () => {
 
   const handlePress = () => {
     try {
-      console.log('Navigating to Home...');
-      
-      // ✅ SAFE NAVIGATION (Tab ya Stack dono handle karega)
-      navigation.navigate('Home' as never);
-      
-    } catch (error) {
-      console.error('Navigation Error:', error);
+      if (typeof (navigation as any).jumpTo === 'function') {
+        (navigation as any).jumpTo('Home');
+      } else {
+        (navigation as any).navigate('BottomTabs', { screen: 'Home' });
+      }
+    } catch {
+      try {
+        (navigation as any).navigate('BottomTabs', { screen: 'Home' });
+      } catch {
+        (navigation as any).navigate('Home');
+      }
     }
   };
 

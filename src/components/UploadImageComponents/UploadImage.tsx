@@ -7,6 +7,7 @@ import { getAuthSession } from '../../utils/session';
 import { isResolvedApiUserId } from '../../utils/sessionState';
 import { getAuthToken } from '../../utils/sessionHelper';
 import { getUserId } from '../../utils/sessionHelper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Spacing } from '../../theme';
 import { useAlert } from '../AlertModal';
 import { isApiHostedUrl } from '../../api/apiClient';
@@ -58,6 +59,10 @@ const UploadImage = () => {
         setImageMap(mapped.imageIdByIndex);
         setProfileImage(mapped.profileImageUrl);
         setProfileImageUrl(mapped.profileImageUrl);
+        AsyncStorage.setItem('onboardingImages', JSON.stringify(mapped.slots)).catch(() => {});
+        if (mapped.profileImageUrl) {
+          AsyncStorage.setItem('profileImage', mapped.profileImageUrl).catch(() => {});
+        }
       },
       onError: (error: any) => {
         const message =

@@ -1,43 +1,36 @@
 import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
-const options = [
-  '0-49k',
-  '50k to 249k',
-  '250-999k',
-  '1 Million-5 Million',
-  '5 Million+',
-  "I don't want to say",
-];
+const OPTIONS = ['Yes', 'No', 'Sometimes'];
 
-const NetWorthSelector = () => {
-  const { selectedNetWorth, setSelectedNetWorth } = useContext(AppContext);
+const DrinkingSelector = () => {
+  const { selectedDrinking, setSelectedDrinking } = useContext(AppContext);
+
+  const toggleSelect = (item: string) => {
+    setSelectedDrinking((prev: string | null) => (prev === item ? null : item));
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Net worth in USD</Text>
+      <Text style={styles.label}>Drinker</Text>
       <View style={styles.optionsContainer}>
-        {options.map(option => (
-          <TouchableOpacity
+        {OPTIONS.map(option => (
+          <Pressable
             key={option}
-            onPress={() =>
-              setSelectedNetWorth((prev: string | null) => (prev === option ? null : option))
-            }
-            style={[styles.option, selectedNetWorth === option && styles.optionSelected]}
+            onPress={() => toggleSelect(option)}
+            style={[styles.option, selectedDrinking === option && styles.optionSelected]}
           >
-            <Text style={[styles.optionText, selectedNetWorth === option && styles.optionTextSelected]}>
+            <Text style={[styles.optionText, selectedDrinking === option && styles.optionTextSelected]}>
               {option}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
     </View>
   );
 };
-
-export default NetWorthSelector;
 
 const styles = StyleSheet.create({
   container: {
@@ -57,7 +50,6 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.sm,
   },
   option: {
@@ -67,7 +59,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.glassBorder,
     backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
   },
   optionSelected: {
     backgroundColor: Colors.primary,
@@ -83,3 +74,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export default DrinkingSelector;

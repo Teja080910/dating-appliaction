@@ -24,6 +24,19 @@ export const getGender = async (): Promise<string | null> => {
 
 export class AsyncStorageService {
   static USER = 'user';
+  static TOKEN = 'auth_token';
+
+  static async setToken(token: string) {
+    await EncryptedStorage.setItem(AsyncStorageService.TOKEN, token);
+  }
+
+  static async getToken(): Promise<string | null> {
+    return EncryptedStorage.getItem(AsyncStorageService.TOKEN);
+  }
+
+  static async clearToken() {
+    await EncryptedStorage.removeItem(AsyncStorageService.TOKEN);
+  }
 
   // Encrypt and store user data securely
   static async setUser(data: any) {
@@ -70,4 +83,74 @@ export const isFirstImageUploaded = async (): Promise<boolean> => {
 
 export const markFirstImageUploaded = async (): Promise<void> => {
   await AsyncStorage.setItem('firstImageUploaded', 'true');
+};
+
+export interface SavedSearchFilters {
+  isFilterActive?: boolean;
+  minAge?: number;
+  maxAge?: number;
+  maxDistanceKm?: number;
+  searchRadius?: number;
+  worldwide?: boolean;
+  location?: string;
+  city?: string;
+  minHeight?: number;
+  maxHeight?: number;
+  bodyType?: string[];
+  appearance?: string[];
+  language?: string[];
+  englishLevel?: string[];
+  ethnicity?: string[];
+  lookingFor?: string[];
+  gender?: string[];
+  showMe?: 'straight_man' | 'straight_woman' | null;
+  smoke?: string | boolean;
+  drink?: string | boolean;
+  onlyOnline?: boolean;
+  sortBy?: string;
+}
+
+export const saveSearchFilters = async (
+  filters: SavedSearchFilters,
+  userId?: string | number | null
+): Promise<void> => {
+  try {
+    const key = userId ? `@search_filters_${userId}` : '@search_filters';
+    await AsyncStorage.setItem(key, JSON.stringify(filters));
+    // Also save under global key as fallback
+    await AsyncStorage.setItem('@search_filters', JSON.stringify(filters));
+  } catch (e) {
+    console.error('Error saving search filters:', e);
+  }
+};
+
+export const getSavedSearchFilters = async (
+  userId?: string | number | null
+): Promise<SavedSearchFilters | null> => {
+  try {
+    const key = userId ? `@search_filters_${userId}` : '@search_filters';
+    let raw = await AsyncStorage.getItem(key);
+    if (!raw) {
+      raw = await AsyncStorage.getItem('@search_filters');
+    }
+    if (raw) {
+      return JSON.parse(raw);
+    }
+    return null;
+  } catch (e) {
+    console.error('Error getting search filters:', e);
+    return null;
+  }
+};
+
+export const clearSavedSearchFilters = async (
+  userId?: string | number | null
+): Promise<void> => {
+  try {
+    const key = userId ? `@search_filters_${userId}` : '@search_filters';
+    await AsyncStorage.removeItem(key);
+    await AsyncStorage.removeItem('@search_filters');
+  } catch (e) {
+    console.error('Error clearing search filters:', e);
+  }
 };

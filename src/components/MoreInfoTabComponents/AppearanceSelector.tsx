@@ -18,7 +18,7 @@ const AppearanceSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Your appearance</Text>
+      <Text style={styles.label}>Appearance</Text>
       <View style={styles.optionsContainer}>
         {appearances.map((appearance) => (
           <TouchableOpacity

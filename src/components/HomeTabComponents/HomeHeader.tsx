@@ -16,15 +16,9 @@ interface Props {
   onMenuPress?: () => void;
 }
 
-type HomeHeaderNavigationProp = StackNavigationProp<RootParamList, 'SearchSettings'>;
-
 const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
-  const navigation = useNavigation<HomeHeaderNavigationProp>();
   const insets = useSafeAreaInsets();
-
-  const handleSearchSettingsPress = () => {
-    navigation.navigate('SearchSettings');
-  };
+  const navigation = useNavigation<any>();
 
   return (
     <View style={[styles.wrapper, { paddingTop: insets.top + Spacing.md }]}>
@@ -38,15 +32,15 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
         </View>
 
         <TouchableOpacity
-          onPress={handleSearchSettingsPress}
           style={styles.settingsButton}
-          activeOpacity={0.7}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('SearchSettings')}
         >
           <LinearGradient
-            colors={[Colors.glass, Colors.glassLight]}
+            colors={[Colors.surfaceLight, Colors.surface]}
             style={styles.settingsGradient}
           >
-            <Icon name="sliders" size={20} color={Colors.textSecondary} />
+            <Icon name="sliders" size={20} color={Colors.primaryLight} />
           </LinearGradient>
         </TouchableOpacity>
       </View>

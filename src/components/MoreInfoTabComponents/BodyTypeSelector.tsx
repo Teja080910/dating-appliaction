@@ -18,7 +18,7 @@ const BodyTypeSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Your body type</Text>
+      <Text style={styles.label}>Body type</Text>
       <View style={styles.optionsContainer}>
         {bodyTypes.map((type) => (
           <TouchableOpacity

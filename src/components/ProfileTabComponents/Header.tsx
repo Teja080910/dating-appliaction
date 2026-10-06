@@ -4,9 +4,13 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, Shadows } from '../../theme';
+import { useSubscription } from '../../api/useSubscription';
 
 const Header = () => {
   const { isSubscribed } = useContext(AppContext);
+  const { subscriptionStatus } = useSubscription();
+  const planCode = String(subscriptionStatus?.plan || '').toUpperCase();
+  const planLabel = planCode === 'PREMIUM' ? 'ELITE' : planCode === 'GOLD' ? 'PREMIUM' : 'STANDARD';
 
   return (
     <View style={styles.headerContainer}>
@@ -20,7 +24,7 @@ const Header = () => {
             end={{ x: 1, y: 0 }}
           >
             <Icon name="crown" size={12} color={Colors.white} style={{ marginRight: 4 }} />
-            <Text style={styles.badgeText}>PREMIUM</Text>
+            <Text style={styles.badgeText}>{planLabel}</Text>
           </LinearGradient>
         </View>
       )}

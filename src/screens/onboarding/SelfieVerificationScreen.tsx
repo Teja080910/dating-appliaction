@@ -12,6 +12,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Asset, launchCamera } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,6 +63,8 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   const isScreenFocused = useIsFocused();
   const cameraRef = useRef<Camera>(null);
   const frontCamera = useCameraDevice('front');
+  const { height: screenHeight } = useWindowDimensions();
+  const cameraHeight = Math.min(Math.max(screenHeight * 0.42, 260), 380);
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const [loadingSession, setLoadingSession] = useState(true);
@@ -173,20 +176,44 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
   const handleOpenCamera = async () => {
     if (!hasSessionToken) {
-      alert('Wait', 'User session loading...');
-      return;
+      const session = await getAuthSession();
+      if (session?.token) {
+        setHasSessionToken(true);
+      }
     }
 
-    const granted = hasPermission || (await requestPermission());
-    if (!granted) {
-      alert('Permission Required', 'Camera permission is required');
-      return;
-    }
+    try {
+      if (frontCamera) {
+        const granted = hasPermission || (await requestPermission());
+        if (granted) {
+          setError(null);
+          setIsVerified(false);
+          setCanContinue(false);
+          setShowCamera(true);
+          return;
+        }
+      }
 
-    setError(null);
-    setIsVerified(false);
-    setCanContinue(false);
-    setShowCamera(true);
+      // Universal camera fallback across all devices & emulators
+      const asset = await captureCompressedSelfie();
+      if (asset) {
+        setSelfieUri(asset.uri || null);
+        setSelfieSizeBytes(asset.fileSize || null);
+        await handleUploadAndVerify(asset as Asset);
+      }
+    } catch (err: any) {
+      console.warn('Camera Error:', err);
+      try {
+        const asset = await captureCompressedSelfie();
+        if (asset) {
+          setSelfieUri(asset.uri || null);
+          setSelfieSizeBytes(asset.fileSize || null);
+          await handleUploadAndVerify(asset as Asset);
+        }
+      } catch (fallbackErr: any) {
+        setError(fallbackErr?.message || 'Unable to open camera.');
+      }
+    }
   };
 
   const handleTakeSelfie = async () => {
@@ -350,7 +377,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               <View style={styles.cameraWrapper}>
                 <Camera
                   ref={cameraRef}
-                  style={styles.cameraPreview}
+                  style={[styles.cameraPreview, { height: cameraHeight }]}
                   device={frontCamera}
                   isActive={showCamera && isScreenFocused}
                   photo={true}
@@ -420,7 +447,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               <Text style={styles.errorText}>{error}</Text>
             ) : null}
 
-            {!isVerified && !showCamera && (
+            {!(showCamera && !!frontCamera) && (
               <TouchableOpacity style={styles.button} onPress={handleOpenCamera}>
                 <LinearGradient
                   colors={[Colors.primary, Colors.secondary]}
@@ -436,8 +463,8 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
             )}
 
             <TouchableOpacity
-              style={[styles.button, (!canContinue || showCamera) && { opacity: 0.5 }]}
-              disabled={!canContinue || showCamera}
+              style={[styles.button, (!canContinue || (showCamera && !!frontCamera)) && { opacity: 0.5 }]}
+              disabled={!canContinue || (showCamera && !!frontCamera)}
               onPress={() => navigation.navigate('MoreDetails')}
             >
               <LinearGradient
@@ -528,7 +555,6 @@ const styles = StyleSheet.create({
   },
   cameraPreview: {
     width: '100%',
-    height: 420,
   },
   cameraActions: {
     flexDirection: 'row',

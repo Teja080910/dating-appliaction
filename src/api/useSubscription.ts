@@ -14,6 +14,9 @@ export interface NormalizedSubscriptionStatus {
   plan: string | null;
   startDate: string | null;
   endDate: string | null;
+  priorityHandoff?: boolean;
+  eliteBadge?: boolean;
+  dailyRequestLimit?: number | null;
   raw: any;
 }
 
@@ -45,6 +48,9 @@ const normalizeSubscriptionStatus = (payload: any): NormalizedSubscriptionStatus
           : null,
     startDate: source?.startDate ? String(source.startDate) : null,
     endDate: source?.endDate ? String(source.endDate) : null,
+    priorityHandoff: Boolean(source?.priorityHandoff),
+    eliteBadge: Boolean(source?.eliteBadge),
+    dailyRequestLimit: source?.dailyRequestLimit == null ? null : Number(source.dailyRequestLimit),
     raw: payload,
   };
 };
@@ -102,7 +108,7 @@ export const useSubscription = (userId?: string | null) => {
       plan: string;
     }) => {
       const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
-      const response = await apiClient.post('/subscriber/activate', null, {
+      const response = await apiClient.post('/subscription/activate', null, {
         params: {
           userId: resolvedUserId,
           plan,
@@ -119,9 +125,15 @@ export const useSubscription = (userId?: string | null) => {
   });
 
   const verifyPayment = useMutation({
-    mutationFn: async ({ orderId, paymentId, signature }: { orderId: string; paymentId: string; signature: string }) => {
-      const response = await apiClient.post('/razorpay/verify', null, {
-        params: { orderId, paymentId, signature },
+    mutationFn: async ({ orderId, paymentId, signature, plan }: { orderId: string; paymentId: string; signature: string; plan?: string }) => {
+      // The backend expects Razorpay verification as a JSON body. Sending
+      // null with query params results in "Malformed or missing request body"
+      // and leaves a successfully captured payment unapplied.
+      const response = await apiClient.post('/razorpay/verify', {
+        orderId,
+        paymentId,
+        signature,
+        ...(plan ? { plan } : {}),
       });
       return response.data;
     },
@@ -204,7 +216,17 @@ export const useRemainingDays = () => {
       const res = await apiClient.get('/subscriber/remaining-days', {
         params: { userId: resolvedUserId },
       });
-      return typeof res.data === 'number' ? res.data : Number(res.data);
+      if (typeof res.data === 'number') {
+        return res.data;
+      }
+
+      if (res.data && typeof res.data === 'object') {
+        const value = Number((res.data as any).remainingDays);
+        return Number.isFinite(value) ? value : 0;
+      }
+
+      const value = Number(res.data);
+      return Number.isFinite(value) ? value : 0;
     },
   });
 

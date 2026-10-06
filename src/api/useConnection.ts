@@ -3,7 +3,7 @@ import apiClient, { toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 
 export interface ConnectionRequest {
-  id: number;
+  id: number | string;
   sender: any;
   receiver: any;
   status: string;
@@ -34,7 +34,7 @@ const resolveConnectionArray = (payload: unknown): any[] => {
 
 const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
   resolveConnectionArray(payload).map((item) => ({
-    id: typeof item?.id === 'number' ? item.id : 0,
+    id: item?.id ?? item?.requestId ?? '0',
     sender: item?.sender || null,
     receiver: item?.receiver || null,
     status: String(item?.status || 'PENDING').trim().toUpperCase(),
@@ -98,38 +98,10 @@ export const useConnection = (userId?: string | number) => {
   });
 
   const accept = useMutation({
-    mutationFn: async (requestId: number) => {
+    mutationFn: async (requestId: number | string) => {
       const resolvedUserId = await resolveBackendUserId();
       const res = await apiClient.put('/connections/accept', {
-        requestId: Number(requestId),
-        userId: resolvedUserId,
-      });
-      return res.data;
-    },
-    onSuccess: async () => {
-      await refreshQueries();
-    },
-  });
-
-  const decline = useMutation({
-    mutationFn: async (requestId: number) => {
-      const resolvedUserId = await resolveBackendUserId();
-      const res = await apiClient.put('/connections/decline', {
-        requestId: Number(requestId),
-        userId: resolvedUserId,
-      });
-      return res.data;
-    },
-    onSuccess: async () => {
-      await refreshQueries();
-    },
-  });
-
-  const cancel = useMutation({
-    mutationFn: async (requestId: number) => {
-      const resolvedUserId = await resolveBackendUserId();
-      const res = await apiClient.put('/connections/cancel', {
-        requestId: Number(requestId),
+        requestId,
         userId: resolvedUserId,
       });
       return res.data;
@@ -196,8 +168,6 @@ export const useConnection = (userId?: string | number) => {
   return {
     send,
     accept,
-    decline,
-    cancel,
     connectionList,
     sentList,
     receivedList,

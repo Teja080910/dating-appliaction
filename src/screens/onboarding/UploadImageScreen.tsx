@@ -55,14 +55,14 @@ const UploadPhotosScreen = ({ navigation }: any) => {
   );
 
   const uploadedImagesCount = images?.filter((img: any) => !!img)?.length || 0;
-  const isNextEnabled = uploadedImagesCount >= 3;
-  const remainingRequiredPhotos = Math.max(0, 3 - uploadedImagesCount);
+  const isNextEnabled = uploadedImagesCount >= 2;
+  const remainingRequiredPhotos = Math.max(0, 2 - uploadedImagesCount);
 
   const handleNext = () => {
-    if (uploadedImagesCount < 3) {
+    if (uploadedImagesCount < 2) {
       alert(
         'Upload Required',
-        'Please upload at least 3 photos before continuing.'
+        'Please upload at least 2 photos before continuing.'
       );
       return;
     }
@@ -71,6 +71,9 @@ const UploadPhotosScreen = ({ navigation }: any) => {
 
   const handleConfirm = () => {
     setShowFaceAlert(false);
+    if (Array.isArray(images) && images.some(Boolean)) {
+      AsyncStorage.setItem('onboardingImages', JSON.stringify(images)).catch(() => {});
+    }
     navigation.navigate('SelfieVerification');
   };
 
@@ -97,7 +100,7 @@ const UploadPhotosScreen = ({ navigation }: any) => {
               </Text>
 
               <Text style={styles.subtitle}>
-                Add at least <Text style={styles.bold}>3 photos</Text>, including one clear face photo.
+                Add at least <Text style={styles.bold}>2 photos</Text>, including one clear face photo.
               </Text>
 
               <Text style={styles.helperText}>

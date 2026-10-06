@@ -1,25 +1,60 @@
-import React, { useContext, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  useWindowDimensions,
+  ImageSourcePropType,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { getAbsoluteUrl } from '../../api/apiClient';
+import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 import { Colors, Spacing, Shadows } from '../../theme';
+import { getAuthToken } from '../../utils/sessionHelper';
 
-const { width } = Dimensions.get('window');
-const avatarSize = Math.min(width * 0.34, 140);
+const FALLBACK_IMAGES = [
+  require('../../assets/MessageTabImages/girl1.webp'),
+  require('../../assets/MessageTabImages/girl2.webp'),
+  require('../../assets/MessageTabImages/girl3.webp'),
+  require('../../assets/MessageTabImages/boy1.webp'),
+  require('../../assets/MessageTabImages/boy2.webp'),
+  require('../../assets/MessageTabImages/boy3.webp'),
+];
 
-const FALLBACK_MATCH_IMAGE = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop';
+const getFallbackAsset = (seed: string | number = 'user') => {
+  const seedNum = String(seed)
+    .split('')
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return FALLBACK_IMAGES[seedNum % FALLBACK_IMAGES.length];
+};
 
-const normalizeImageUri = (value: unknown): string | null => {
-  if (typeof value === 'string' && value.trim()) {
-    const trimmed = value.trim();
-    return /^(https?:\/\/|file:\/\/|content:\/\/|asset:\/\/|ph:\/\/|data:)/i.test(trimmed)
-      ? trimmed
-      : getAbsoluteUrl(trimmed);
+const extractFirstImagePath = (value: unknown): string | null => {
+  if (!value) return null;
+  if (typeof value === 'string') return value.trim() || null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const candidate = extractFirstImagePath(item);
+      if (candidate) return candidate;
+    }
+    return null;
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    return (
+      extractFirstImagePath(obj.imageUrl) ||
+      extractFirstImagePath(obj.profileImageUrl) ||
+      extractFirstImagePath(obj.url) ||
+      extractFirstImagePath(obj.uri) ||
+      extractFirstImagePath(obj.path) ||
+      null
+    );
   }
   return null;
 };
@@ -29,66 +64,139 @@ const MatchScreen = () => {
   const route = useRoute();
   const { requireSubscription } = useSubscriptionGate();
   const { profileImageUrl, profileImage, images } = useContext(AppContext);
+  const { width, height } = useWindowDimensions();
+
+  const isCompact = height < 740;
+  const avatarSize = Math.min(width * (isCompact ? 0.28 : 0.34), isCompact ? 110 : 140);
+
+  const [myImageFailed, setMyImageFailed] = useState(false);
+  const [theirImageFailed, setTheirImageFailed] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAuthToken()
+      .then((token) => {
+        if (isMounted) setAuthToken(token);
+      })
+      .catch(() => {
+        if (isMounted) setAuthToken(null);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const params = route.params as any;
   const matchedUser = params?.matchedUser || { name: 'User', image: null };
+  const theirName = matchedUser?.name || matchedUser?.displayName || 'User';
 
-  const matchedImage = useMemo(() => {
-    const image =
-      normalizeImageUri(matchedUser?.image) ||
-      normalizeImageUri(matchedUser?.profileImageUrl) ||
-      normalizeImageUri(matchedUser?.images) ||
-      FALLBACK_MATCH_IMAGE;
-    return image;
-  }, [matchedUser?.image, matchedUser?.profileImageUrl, matchedUser?.images]);
+  const rawTheirImage = useMemo(() => {
+    const candidate = [
+      matchedUser?.image,
+      matchedUser?.profileImageUrl,
+      matchedUser?.imageUrl,
+      matchedUser?.images,
+      matchedUser?.profile?.profileImageUrl,
+      matchedUser?.profile?.imageUrl,
+      matchedUser?.profile?.images,
+    ]
+      .map(extractFirstImagePath)
+      .find(Boolean);
 
-  const myImage = useMemo(() => {
-    const imageList = Array.isArray(images) ? images : [];
-    const firstImage = imageList.find((img) => typeof img === 'string' && img.trim());
-    return (
-      normalizeImageUri(profileImageUrl) ||
-      normalizeImageUri(profileImage) ||
-      normalizeImageUri(firstImage) ||
-      'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=200&auto=format&fit=crop'
-    );
+    return candidate ? getAbsoluteUrl(candidate) : null;
+  }, [matchedUser]);
+
+  const rawMyImage = useMemo(() => {
+    const candidate = [
+      profileImageUrl,
+      profileImage,
+      images,
+    ]
+      .map(extractFirstImagePath)
+      .find(Boolean);
+
+    return candidate ? getAbsoluteUrl(candidate) : null;
   }, [profileImageUrl, profileImage, images]);
 
-  const theirName = matchedUser?.name || 'User';
+  const myFallback = useMemo(() => getFallbackAsset('my-profile'), []);
+  const theirFallback = useMemo(
+    () => getFallbackAsset(matchedUser?.id || theirName),
+    [matchedUser?.id, theirName],
+  );
+
+  const mySource: ImageSourcePropType = useMemo(() => {
+    if (!myImageFailed && rawMyImage) {
+      if (isApiHostedUrl(rawMyImage) && authToken) {
+        return {
+          uri: rawMyImage,
+          headers: { Authorization: `Bearer ${authToken}` },
+        };
+      }
+      return { uri: rawMyImage };
+    }
+    return myFallback;
+  }, [myImageFailed, rawMyImage, authToken, myFallback]);
+
+  const theirSource: ImageSourcePropType = useMemo(() => {
+    if (!theirImageFailed && rawTheirImage) {
+      if (isApiHostedUrl(rawTheirImage) && authToken) {
+        return {
+          uri: rawTheirImage,
+          headers: { Authorization: `Bearer ${authToken}` },
+        };
+      }
+      return { uri: rawTheirImage };
+    }
+    return theirFallback;
+  }, [theirImageFailed, rawTheirImage, authToken, theirFallback]);
 
   return (
     <LinearGradient
-      colors={[Colors.primary, Colors.secondary, '#5B21B6']}
+      colors={[Colors.primary, Colors.secondary, Colors.primaryDark]}
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.content}>
-            <View style={styles.sparkleContainer}>
-              <Icon name="heart" size={24} color={Colors.white} style={styles.sparkleIcon} />
+            <View style={[styles.sparkleContainer, isCompact && styles.sparkleContainerCompact]}>
+              <Icon
+                name="heart"
+                size={isCompact ? 20 : 24}
+                color={Colors.white}
+                style={styles.sparkleIcon}
+              />
             </View>
-            <Text style={styles.title}>It's a Match!</Text>
-            <Text style={styles.subtitle}>You and {theirName} liked each other</Text>
+            <Text style={[styles.title, isCompact && styles.titleCompact]}>Invitation Sent! 💌</Text>
+            <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
+              We've notified {theirName}. Once she accepts, her Telegram handle will appear in your Sent Invitations.
+            </Text>
 
-            <View style={styles.avatarContainer}>
-              <View style={[styles.avatarWrapper, styles.myAvatar]}>
+            <View style={[styles.avatarContainer, { minHeight: avatarSize + 20, marginBottom: isCompact ? 32 : 48 }]}>
+              <View style={[styles.avatarWrapper, styles.myAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
                 <LinearGradient
                   colors={[Colors.primary, Colors.secondary]}
-                  style={styles.avatarBorder}
+                  style={[styles.avatarBorder, { borderRadius: avatarSize / 2 }]}
                 >
                   <Image
-                    source={{ uri: myImage }}
-                    style={styles.avatar}
+                    source={mySource}
+                    style={[styles.avatar, { borderRadius: avatarSize / 2 - 3 }]}
+                    onError={() => setMyImageFailed(true)}
                   />
                 </LinearGradient>
               </View>
-              <View style={[styles.avatarWrapper, styles.theirAvatar]}>
+              <View style={[styles.avatarWrapper, styles.theirAvatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
                 <LinearGradient
                   colors={[Colors.primary, Colors.secondary]}
-                  style={styles.avatarBorder}
+                  style={[styles.avatarBorder, { borderRadius: avatarSize / 2 }]}
                 >
                   <Image
-                    source={{ uri: matchedImage }}
-                    style={styles.avatar}
+                    source={theirSource}
+                    style={[styles.avatar, { borderRadius: avatarSize / 2 - 3 }]}
+                    onError={() => setMyImageFailed(true)}
                   />
                 </LinearGradient>
               </View>
@@ -96,18 +204,33 @@ const MatchScreen = () => {
 
             <View style={styles.buttonsContainer}>
               <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={() => requireSubscription(() => navigation.goBack())}
+                style={[styles.primaryButton, isCompact && styles.primaryButtonCompact]}
+                onPress={() => {
+                  try {
+                    (navigation as any).navigate('BottomTabs', { screen: 'Sent' });
+                  } catch {
+                    try {
+                      (navigation as any).navigate('SentRequestsScreen');
+                    } catch {
+                      (navigation as any).navigate('Sent');
+                    }
+                  }
+                }}
               >
-                <Icon name="message-circle" size={20} color={Colors.primary} style={styles.icon} />
-                <Text style={styles.primaryButtonText}>Say Hello</Text>
+                <Icon
+                  name="send"
+                  size={20}
+                  color={Colors.primary}
+                  style={styles.icon}
+                />
+                <Text style={styles.primaryButtonText}>View Sent Invitations</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => navigation.goBack()}
               >
-                <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
+                <Text style={styles.secondaryButtonText}>Keep Browsing</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -126,7 +249,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: '8%',
-    paddingVertical: Spacing.xxl,
+    paddingVertical: Spacing.xl,
   },
   sparkleContainer: {
     width: 56,
@@ -137,44 +260,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.lg,
   },
+  sparkleContainerCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginBottom: Spacing.sm,
+  },
   sparkleIcon: {
     opacity: 0.9,
   },
   title: {
-    fontSize: 40,
+    fontSize: 38,
     fontWeight: '800',
     color: Colors.white,
     fontStyle: 'italic',
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
+  titleCompact: {
+    fontSize: 28,
+    marginBottom: 4,
+  },
   subtitle: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.85)',
-    marginBottom: 50,
+    marginBottom: 44,
     textAlign: 'center',
+    lineHeight: 22,
+  },
+  subtitleCompact: {
+    fontSize: 14,
+    marginBottom: 20,
+    lineHeight: 19,
   },
   avatarContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: avatarSize + 40,
     width: '100%',
-    marginBottom: 60,
   },
   avatarWrapper: {
-    width: avatarSize,
-    height: avatarSize,
-    borderRadius: avatarSize / 2,
     overflow: 'hidden',
     ...Shadows.xl,
   },
   avatarBorder: {
     flex: 1,
-    borderRadius: avatarSize / 2,
     padding: 3,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.surface,
   },
   myAvatar: {
     zIndex: 1,
@@ -187,13 +321,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: avatarSize / 2 - 3,
     resizeMode: 'cover',
   },
   buttonsContainer: {
     width: '100%',
     alignItems: 'center',
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
   primaryButton: {
     backgroundColor: Colors.white,
@@ -205,20 +338,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Shadows.lg,
   },
+  primaryButtonCompact: {
+    paddingVertical: Spacing.md,
+  },
   icon: {
     marginRight: Spacing.md,
   },
   primaryButtonText: {
     color: Colors.primary,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
   },
   secondaryButton: {
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   secondaryButtonText: {
     color: Colors.white,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

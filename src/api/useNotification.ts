@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from './apiClient';
+import apiClient, { toApiUserId } from './apiClient';
+import { getUserId } from '../utils/sessionHelper';
 
 export interface NotificationItem {
   id: number;
@@ -60,16 +61,26 @@ const getNotificationErrorMessage = (error: any, fallback: string) =>
   error?.message ||
   fallback;
 
-export const useNotification = (userId?: string) => {
+export const useNotification = (userId?: string | number) => {
   const queryClient = useQueryClient();
-  void userId;
-  const queryKey = ['notifications'];
+
+  const resolveBackendUserId = async () => {
+    if (userId) return String(userId);
+    const stored = await getUserId();
+    if (!stored) throw new Error('Unable to resolve backend userId for notifications.');
+    return stored;
+  };
+
+  const queryKey = ['notifications', userId ? String(userId) : 'current'];
 
   const useNotificationList = () =>
     useQuery({
       queryKey,
       queryFn: async () => {
-        const response = await apiClient.get('/notification');
+        const resolvedUserId = await resolveBackendUserId();
+        const response = await apiClient.get('/notification', {
+          params: { userId: toApiUserId(resolvedUserId) },
+        });
 
         return normalizeNotifications(response.data);
       },
@@ -77,11 +88,17 @@ export const useNotification = (userId?: string) => {
 
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
-      const response = await apiClient.put(`/notification/read/${notificationId}`);
+      const response = await apiClient.put(
+        `/notification/read/${notificationId}`,
+        null,
+        {
+          params: { notificationId },
+        },
+      );
       return response.data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useSupport } from '../../api/useSupport';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 
 const SupportScreen = () => {
@@ -39,6 +40,21 @@ const SupportScreen = () => {
     () => [...tickets].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 5),
     [tickets],
   );
+
+  const handleOpenTelegramSupport = () => {
+    const url = 'https://t.me/AmaraSupportBot';
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Linking.openURL('https://t.me/AmaraDatingBot');
+        }
+      })
+      .catch(() => {
+        Linking.openURL('https://t.me/AmaraDatingBot');
+      });
+  };
 
   const handleSubmit = () => {
     if (!description.trim()) {
@@ -93,10 +109,10 @@ const SupportScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={28} color="#000" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Icon name="arrow-left" size={26} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Support Center</Text>
+        <Text style={styles.headerTitle}>Support & Chat</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -105,6 +121,30 @@ const SupportScreen = () => {
         style={styles.keyboardArea}
       >
         <ScrollView contentContainerStyle={styles.content}>
+          {/* Quick Telegram Support option */}
+          <TouchableOpacity
+            style={styles.telegramSupportCard}
+            activeOpacity={0.8}
+            onPress={handleOpenTelegramSupport}
+          >
+            <View style={styles.telegramIconBox}>
+              <Icon name="telegram" size={26} color="#fff" />
+            </View>
+            <View style={styles.telegramSupportContent}>
+              <Text style={styles.telegramSupportTitle}>Chat with Live Agent</Text>
+              <Text style={styles.telegramSupportSub}>
+                Instant support via our official Telegram bot
+              </Text>
+            </View>
+            <Icon name="chevron-right" size={22} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR SUBMIT A TICKET</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <Text style={styles.label}>Category</Text>
           <View style={styles.categoryContainer}>
             {categories.map((cat) => (
@@ -133,10 +173,10 @@ const SupportScreen = () => {
             style={styles.input}
             placeholder="Describe your issue in detail..."
             multiline
-            numberOfLines={6}
+            numberOfLines={5}
             value={description}
             onChangeText={setDescription}
-            placeholderTextColor="#999"
+            placeholderTextColor={Colors.textMuted}
           />
 
           <TouchableOpacity
@@ -153,7 +193,7 @@ const SupportScreen = () => {
 
           <View style={styles.ticketSection}>
             <View style={styles.ticketTitleRow}>
-              <Text style={styles.ticketTitle}>Recent tickets</Text>
+              <Text style={styles.ticketTitle}>Recent Tickets</Text>
               {isFetchingTickets ? <ActivityIndicator size="small" color={Colors.primary} /> : null}
             </View>
 
@@ -196,13 +236,6 @@ const SupportScreen = () => {
               })
             )}
           </View>
-
-          <View style={styles.infoBox}>
-            <Icon name="information-outline" size={20} color="#666" />
-            <Text style={styles.infoText}>
-              Our team usually responds within 24 hours. You'll receive a notification when we reply.
-            </Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
       {AlertComponent}
@@ -221,13 +254,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.borderLight,
+  },
+  backBtn: {
+    padding: 4,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.text,
   },
@@ -238,78 +274,123 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
+    padding: Spacing.lg,
     paddingBottom: 40,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
+  telegramSupportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 136, 204, 0.3)',
+    marginBottom: Spacing.lg,
+  },
+  telegramIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0088cc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  telegramSupportContent: {
+    flex: 1,
+  },
+  telegramSupportTitle: {
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 10,
-    marginTop: 10,
+  },
+  telegramSupportSub: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    gap: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.borderLight,
+  },
+  dividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
   },
   categoryContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
+    gap: 8,
+    marginBottom: Spacing.lg,
   },
   categoryBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: 10,
-    marginBottom: 10,
+    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
   },
   categoryBtnActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
   categoryText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
+    color: Colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
   },
   categoryTextActive: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   input: {
     backgroundColor: Colors.surface,
     borderRadius: 12,
-    padding: 15,
-    fontSize: 16,
+    padding: 14,
+    fontSize: 15,
     color: Colors.text,
     textAlignVertical: 'top',
-    height: 150,
+    height: 120,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
   },
   submitBtn: {
     backgroundColor: Colors.primary,
-    height: 56,
-    borderRadius: 28,
+    height: 50,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 30,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    marginTop: Spacing.lg,
   },
   submitBtnText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
   },
   ticketSection: {
-    marginTop: 28,
+    marginTop: Spacing.xxl,
   },
   ticketTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   ticketTitle: {
     fontSize: 16,
@@ -318,28 +399,31 @@ const styles = StyleSheet.create({
   },
   stateCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
+    borderColor: Colors.borderLight,
+    padding: Spacing.md,
     alignItems: 'center',
   },
   stateText: {
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
+    fontSize: 13,
     textAlign: 'center',
   },
   ticketCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 14,
+    borderColor: Colors.borderLight,
+    padding: Spacing.md,
     marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
   },
   ticketHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 6,
     gap: 12,
   },
   ticketSubject: {
@@ -351,44 +435,30 @@ const styles = StyleSheet.create({
   ticketStatus: {
     color: Colors.primary,
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 11,
     textTransform: 'uppercase',
   },
   ticketStatusClosed: {
-    color: '#4CAF50',
+    color: '#22c55e',
   },
   ticketMessage: {
     color: Colors.textSecondary,
-    lineHeight: 19,
+    fontSize: 13,
+    lineHeight: 18,
   },
   ticketFooter: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   ticketDate: {
-    color: Colors.grey,
-    fontSize: 12,
+    color: Colors.textMuted,
+    fontSize: 11,
   },
   closeLink: {
     color: Colors.primary,
     fontWeight: '700',
     fontSize: 12,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: Colors.lightGrey,
-    padding: 15,
-    borderRadius: 12,
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginLeft: 10,
-    lineHeight: 18,
   },
 });

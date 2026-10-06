@@ -42,12 +42,8 @@ interface AppContextType {
   setSelectedSmoking: Dispatch<SetStateAction<string | null>>;
   selectedDrinking: string | null;
   setSelectedDrinking: Dispatch<SetStateAction<string | null>>;
-  selectedKidCount: string | null;
-  setSelectedKidCount: Dispatch<SetStateAction<string | null>>;
   selectedLookingFor: string[];
   setSelectedLookingFor: Dispatch<SetStateAction<string[]>>;
-  selectedNetWorth: string | null;
-  setSelectedNetWorth: Dispatch<SetStateAction<string | null>>;
   englishSkillLevel: number;
   setEnglishSkillLevel: Dispatch<SetStateAction<number>>;
   profileText: string;
@@ -61,17 +57,13 @@ interface AppContextType {
   images: (string | null)[];
   setImages: Dispatch<SetStateAction<(string | null)[]>>;
 
-  // missing properties
-  kidsCount: string | null;
-  setKidsCount: Dispatch<SetStateAction<string | null>>;
-  netWorth: string | null;
-  setNetWorth: Dispatch<SetStateAction<string | null>>;
-
   // discovery
   filter: 'online' | 'newest';
   setFilter: Dispatch<SetStateAction<'online' | 'newest'>>;
   oppositeGender: string | null;
   setOppositeGender: Dispatch<SetStateAction<string | null>>;
+  filteredProfiles: any[] | null;
+  setFilteredProfiles: Dispatch<SetStateAction<any[] | null>>;
 
   // search
   ageRange: number[];
@@ -90,6 +82,10 @@ interface AppContextType {
   setLookingFor: Dispatch<SetStateAction<string[]>>;
   smoke: string[];
   setSmoke: Dispatch<SetStateAction<string[]>>;
+  smokeFilter?: string | boolean | undefined;
+  setSmokeFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
+  drinkFilter?: string | boolean | undefined;
+  setDrinkFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
   showMe: 'straight_man' | 'straight_woman' | null;
   setShowMe: Dispatch<SetStateAction<'straight_man' | 'straight_woman' | null>>;
 

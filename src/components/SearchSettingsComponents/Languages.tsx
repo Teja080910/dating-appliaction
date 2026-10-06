@@ -4,8 +4,16 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../theme';
 
 const languages = [
-  'English', 'Spanish', 'Portuguese', 'German',
-  'Romanian', 'Russian', 'French', 'Chinese', 'Japanese',
+  'English',
+  'Spanish',
+  'Portuguese',
+  'German',
+  'Romanian',
+  'Russian',
+  'French',
+  'Chinese',
+  'Japanese',
+  'Indonesian',
 ];
 
 interface LanguagesProps {
