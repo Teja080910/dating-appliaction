@@ -14,8 +14,9 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
-import { Colors, Spacing, Shadows } from '../../theme';
+import { Colors, Spacing, Shadows, useTheme } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
+
 import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 
 interface UserCardProps {
@@ -56,9 +57,11 @@ const UserCard = ({
   cardWidth,
   cardHeight,
 }: UserCardProps) => {
+  const { themeColors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const resolvedWidth = cardWidth || Math.floor((windowWidth - 45) / 2);
   const resolvedHeight = cardHeight || Math.round(Math.min(Math.max(resolvedWidth * 1.34, 220), 340));
+
 
   const navigation =
     useNavigation<StackNavigationProp<RootParamList, 'ViewMyProfileScreen'>>();
@@ -151,58 +154,51 @@ const UserCard = ({
     });
   };
 
+  const formatDistanceDisplay = (val: string) => {
+    if (!val || val === 'Nearby') return 'Nearby';
+    const trimmed = String(val).trim();
+    if (trimmed.toLowerCase().includes('away')) return trimmed;
+    if (/^\d+(\.\d+)?$/.test(trimmed)) return `${trimmed} km away`;
+    if (/^\d+(\.\d+)?\s*km$/i.test(trimmed)) return `${trimmed} away`;
+    return `${trimmed} away`;
+  };
+
+  const formattedDistance = formatDistanceDisplay(safeDistance);
+
   return (
     <Pressable onPress={handleUserCard} style={styles.cardOuter}>
-      <View style={[styles.card, { width: resolvedWidth, height: resolvedHeight }]}>
-        <LinearGradient
-          colors={[Colors.gradientCard[0], Colors.gradientCard[1]]}
-          style={styles.cardBorder}
-        >
-          <View style={styles.cardInner}>
-            {safeImage ? (
-              <Image
-                source={imageSource as ImageSourcePropType}
-                style={styles.image}
-                onError={() => setImageFailed(true)}
-              />
-            ) : (
-              <Image source={resolvedFallbackAsset} style={styles.image} />
-            )}
+      <View style={[styles.card, { width: resolvedWidth, height: resolvedHeight, backgroundColor: themeColors.surface }]}>
+        <View style={styles.cardInner}>
 
-            <LinearGradient
-              colors={['transparent', 'rgba(15, 13, 26, 0.95)']}
-              style={styles.gradient}
-            >
-              <View style={styles.infoContainer}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {safeName}, <Text style={styles.age}>{safeAge}</Text>
-                  </Text>
-                  <Icon name="check-circle" size={14} color={Colors.primaryLight} style={styles.verifiedIcon} />
-                </View>
+          {safeImage ? (
+            <Image
+              source={imageSource as ImageSourcePropType}
+              style={styles.image}
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <Image source={resolvedFallbackAsset} style={styles.image} />
+          )}
 
-                <View style={styles.statusRow}>
-                  {isOnline && (
-                    <View style={styles.onlineContainer}>
-                      <View style={styles.onlineDot} />
-                      <Text style={styles.statusText}>Online</Text>
-                    </View>
-                  )}
-                  {isNew && (
-                    <View style={styles.newContainer}>
-                      <Text style={styles.statusText}>New</Text>
-                    </View>
-                  )}
-                </View>
+          <LinearGradient
+            colors={['transparent', 'rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.85)']}
+            locations={[0, 0.5, 1]}
+            style={styles.gradient}
+          >
+            <View style={styles.infoContainer}>
+              <Text style={styles.name} numberOfLines={1}>
+                {safeName}, {safeAge}
+              </Text>
 
-                <View style={styles.distanceRow}>
-                  <Icon name="navigation" size={11} color={Colors.textSecondary} style={styles.navIcon} />
-                  <Text style={styles.distance}>{safeDistance}</Text>
-                </View>
+              <View style={styles.distanceRow}>
+                <Icon name="map-pin" size={11} color="rgba(255, 255, 255, 0.9)" style={styles.pinIcon} />
+                <Text style={styles.distance} numberOfLines={1}>
+                  {formattedDistance}
+                </Text>
               </View>
-            </LinearGradient>
-          </View>
-        </LinearGradient>
+            </View>
+          </LinearGradient>
+        </View>
       </View>
     </Pressable>
   );
@@ -212,23 +208,20 @@ export default UserCard;
 
 const styles = StyleSheet.create({
   cardOuter: {
-    marginBottom: Spacing.lg,
+    marginBottom: 14,
+    borderRadius: 16,
     ...Shadows.card,
   },
   card: {
-    borderRadius: Spacing.radiusLg,
+    borderRadius: 16,
     overflow: 'hidden',
-  },
-  cardBorder: {
-    flex: 1,
-    borderRadius: Spacing.radiusLg,
-    padding: 1,
+    backgroundColor: Colors.surface,
   },
   cardInner: {
     flex: 1,
-    borderRadius: Spacing.radiusLg - 1,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: Colors.surface,
+    position: 'relative',
   },
   image: {
     width: '100%',
@@ -240,78 +233,37 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 90,
     justifyContent: 'flex-end',
-    padding: Spacing.md,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   infoContainer: {
     flexDirection: 'column',
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
   name: {
-    color: Colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-  age: {
-    fontWeight: '400',
-    color: Colors.textSecondary,
-  },
-  verifiedIcon: {
-    marginLeft: 6,
-    marginTop: 2,
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   distanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
   },
-  navIcon: {
+  pinIcon: {
     marginRight: 4,
-    transform: [{ rotate: '45deg' }],
   },
   distance: {
-    color: Colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.92)',
     fontSize: 12,
     fontWeight: '500',
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    flexWrap: 'wrap',
-  },
-  onlineContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.glass,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: Spacing.radiusFull,
-    marginRight: 6,
-  },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.online,
-    marginRight: 4,
-  },
-  newContainer: {
-    backgroundColor: Colors.badge,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: Spacing.radiusFull,
-  },
-  statusText: {
-    color: Colors.text,
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
 });

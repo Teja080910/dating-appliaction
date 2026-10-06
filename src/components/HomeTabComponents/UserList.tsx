@@ -6,8 +6,9 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
 import { getSavedSearchFilters } from '../../utils/types/AsyncStorage';
-import { Colors, Spacing } from '../../theme';
+import { Colors, Spacing, useTheme } from '../../theme';
 import { useResponsive } from '../../utils/responsive';
+
 
 interface HomeUserListProps {
   filterByGender: string | null;
@@ -314,10 +315,13 @@ const UserList = ({
     }
   };
 
+  const { themeColors } = useTheme();
+  const styles = React.useMemo(() => createStyles(themeColors), [themeColors]);
+
   if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.loader, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
@@ -334,13 +338,13 @@ const UserList = ({
       numColumns={columns}
       keyExtractor={(item, index) => item?.userId || item?.id?.toString() || index.toString()}
       columnWrapperStyle={columns > 1 ? styles.row : undefined}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}
       onEndReached={hasMore && profiles.length >= 10 ? handleLoadMore : null}
       onEndReachedThreshold={0.2}
       ListFooterComponent={
         loadingMore && hasMore && profiles.length >= 10 ? (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={Colors.primary} />
+            <ActivityIndicator size="small" color={themeColors.primary} />
           </View>
         ) : null
       }
@@ -377,30 +381,32 @@ const UserList = ({
 
 export default UserList;
 
-const styles = StyleSheet.create({
-  row: {
-    justifyContent: 'flex-start',
-    gap: 12,
-    paddingHorizontal: Spacing.screenPaddingHorizontal,
-  },
-  container: {
-    paddingTop: Spacing.md,
-    paddingBottom: 100,
-    backgroundColor: Colors.background,
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-  },
-  emptyBox: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: Colors.textMuted,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    row: {
+      justifyContent: 'flex-start',
+      gap: 12,
+      paddingHorizontal: Spacing.screenPaddingHorizontal,
+    },
+    container: {
+      paddingTop: Spacing.md,
+      paddingBottom: 100,
+      backgroundColor: colors.background,
+    },
+    loader: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    emptyBox: {
+      padding: Spacing.xl,
+      alignItems: 'center',
+    },
+    emptyText: {
+      color: colors.textMuted,
+      fontWeight: '600',
+      fontSize: 15,
+    },
+  });
+

@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: 12,
-    color: '#FF5A79',
+    color: Colors.primary,
   },
   text: {
     fontSize: 16,

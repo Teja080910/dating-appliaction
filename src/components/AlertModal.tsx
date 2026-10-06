@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { Colors, Spacing, Typography, Shadows } from '../theme';
+import { Colors, Spacing, Typography, Shadows, useTheme } from '../theme';
 import { getUserFriendlyMessage, getUserFriendlyTitle } from '../utils/userFriendlyMessages';
 
 interface AlertButton {
@@ -28,6 +28,8 @@ interface AlertModalProps {
 }
 
 const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalProps) => {
+  const { themeColors, isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(themeColors), [themeColors]);
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -91,7 +93,7 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
           ]}
         >
           <LinearGradient
-            colors={[Colors.surface, Colors.surfaceLight]}
+            colors={[themeColors.surface, themeColors.surfaceLight]}
             style={[styles.gradient, useActionList && styles.gradientActionList]}
           >
             <TouchableOpacity
@@ -102,7 +104,7 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
               accessibilityRole="button"
               accessibilityLabel="Close"
             >
-              <Icon name="close" size={18} color={Colors.textMuted} />
+              <Icon name="close" size={18} color={themeColors.textMuted} />
             </TouchableOpacity>
 
             <View style={useActionList ? styles.headerArea : styles.standardHeaderArea}>
@@ -237,139 +239,140 @@ export const useAlert = () => {
 
 export default AlertModal;
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 340,
-    maxHeight: '85%',
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    ...Shadows.xl,
-  },
-  gradient: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-  gradientActionList: {
-    paddingHorizontal: 0,
-    paddingBottom: 0,
-    paddingTop: Spacing.xl,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.glass,
-    zIndex: 10,
-  },
-  standardHeaderArea: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  headerArea: {
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: Spacing.xl,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.xl,
-  },
-  messageNoTitle: {
-    marginTop: Spacing.sm,
-  },
-  messageActionList: {
-    marginBottom: Spacing.md,
-  },
-  actionList: {
-    width: '100%',
-    borderTopWidth: 1,
-    borderTopColor: Colors.glassBorder,
-  },
-  actionItem: {
-    width: '100%',
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionDivider: {
-    borderTopWidth: 1,
-    borderTopColor: Colors.glassBorder,
-  },
-  actionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  actionTextDestructive: {
-    color: Colors.error,
-    fontWeight: '600',
-  },
-  actionTextCancel: {
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    width: '100%',
-    gap: 12,
-  },
-  singleButtonRow: {
-    justifyContent: 'center',
-  },
-  button: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  singleButton: {
-    flex: 0,
-    minWidth: 140,
-  },
-  buttonPrimary: {
-    backgroundColor: Colors.primary,
-  },
-  buttonDestructive: {
-    backgroundColor: Colors.error,
-  },
-  buttonCancel: {
-    backgroundColor: Colors.surfaceLighter,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  buttonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  buttonCancelText: {
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-});
+const createStyles = (themeColors: any) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: themeColors.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.xl,
+    },
+    card: {
+      width: '100%',
+      maxWidth: 340,
+      maxHeight: '85%',
+      borderRadius: 20,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: themeColors.glassBorder,
+      ...Shadows.xl,
+    },
+    gradient: {
+      padding: Spacing.xl,
+      alignItems: 'center',
+    },
+    gradientActionList: {
+      paddingHorizontal: 0,
+      paddingBottom: 0,
+      paddingTop: Spacing.xl,
+    },
+    closeButton: {
+      position: 'absolute',
+      top: Spacing.sm,
+      right: Spacing.sm,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: themeColors.glass,
+      zIndex: 10,
+    },
+    standardHeaderArea: {
+      alignItems: 'center',
+      width: '100%',
+    },
+    headerArea: {
+      alignItems: 'center',
+      width: '100%',
+      paddingHorizontal: Spacing.xl,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: themeColors.text,
+      marginBottom: Spacing.xs,
+      textAlign: 'center',
+    },
+    message: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: Spacing.xl,
+    },
+    messageNoTitle: {
+      marginTop: Spacing.sm,
+    },
+    messageActionList: {
+      marginBottom: Spacing.md,
+    },
+    actionList: {
+      width: '100%',
+      borderTopWidth: 1,
+      borderTopColor: themeColors.glassBorder,
+    },
+    actionItem: {
+      width: '100%',
+      height: 50,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    actionDivider: {
+      borderTopWidth: 1,
+      borderTopColor: themeColors.glassBorder,
+    },
+    actionText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: themeColors.text,
+    },
+    actionTextDestructive: {
+      color: themeColors.error,
+      fontWeight: '600',
+    },
+    actionTextCancel: {
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+    buttonRow: {
+      flexDirection: 'row',
+      width: '100%',
+      gap: 12,
+    },
+    singleButtonRow: {
+      justifyContent: 'center',
+    },
+    button: {
+      flex: 1,
+      height: 46,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    singleButton: {
+      flex: 0,
+      minWidth: 140,
+    },
+    buttonPrimary: {
+      backgroundColor: themeColors.primary,
+    },
+    buttonDestructive: {
+      backgroundColor: themeColors.error,
+    },
+    buttonCancel: {
+      backgroundColor: themeColors.surfaceLight,
+      borderWidth: 1,
+      borderColor: themeColors.glassBorder,
+    },
+    buttonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    buttonCancelText: {
+      color: themeColors.textSecondary,
+      fontWeight: '600',
+    },
+  });

@@ -6,15 +6,17 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { getGender } from '../../utils/types/AsyncStorage';
 import UserList from '../../components/HomeTabComponents/UserList';
 import HomeHeader from '../../components/HomeTabComponents/HomeHeader';
-import { Colors } from '../../theme';
+import { Colors, useTheme } from '../../theme';
 import { getCurrentLocation } from '../../utils/geolocation';
 import RequestsInboxScreen from '../RequestsTab/RequestsInboxScreen';
 import apiClient from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
 
 const HomeScreen = () => {
+  const { themeColors } = useTheme();
   const {
     oppositeGender,
+
     setOppositeGender,
     filter,
     setFilter,
@@ -143,8 +145,8 @@ const HomeScreen = () => {
   // While resolving gender, show loading to prevent flashing browse screen to women
   if (currentUserGender === null) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
       </View>
     );
   }
@@ -157,7 +159,7 @@ const HomeScreen = () => {
 
   // PRD FR-12: The home screen for men shall show a list/grid of women's profiles only.
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <HomeHeader
         selectedFilter={filter}
         onFilterChange={handleFilterChange}
@@ -171,11 +173,12 @@ const HomeScreen = () => {
           userLocation={userLocation}
         />
       ) : (
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={themeColors.primary} />
       )}
     </View>
   );
 };
+
 
 export default HomeScreen;
 

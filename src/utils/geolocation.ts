@@ -1,10 +1,35 @@
 import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid, Platform } from 'react-native';
 
+export const checkLocationPermission = async (): Promise<boolean> => {
+  if (Platform.OS === 'ios') {
+    return true;
+  }
+
+  if (Platform.OS === 'android') {
+    try {
+      const fine = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      );
+      const coarse = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+      );
+      return fine || coarse;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+};
+
 export const requestLocationPermission = async () => {
   if (Platform.OS === 'ios') {
-    Geolocation.requestAuthorization('whenInUse');
-    return true;
+    try {
+      const auth = await Geolocation.requestAuthorization('whenInUse');
+      return auth === 'granted';
+    } catch {
+      return false;
+    }
   }
 
   if (Platform.OS === 'android') {
@@ -19,25 +44,25 @@ export const requestLocationPermission = async () => {
           buttonPositive: 'OK',
         },
       );
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        return true;
-      } else {
-        console.log('Location permission denied');
-        return false;
-      }
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
       console.warn(err);
       return false;
     }
   }
+  return false;
 };
 
-export const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
+export const getCurrentLocation = (
+  promptUser = false
+): Promise<{ latitude: number; longitude: number }> => {
   return new Promise(async (resolve, reject) => {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) {
-      reject(new Error('Location permission not granted'));
-      return;
+    if (promptUser) {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        reject(new Error('Location permission not granted'));
+        return;
+      }
     }
 
     Geolocation.getCurrentPosition(
@@ -48,10 +73,15 @@ export const getCurrentLocation = (): Promise<{ latitude: number; longitude: num
         });
       },
       (error: any) => {
-        console.error('Error getting location:', error);
         reject(error);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      {
+        enableHighAccuracy: promptUser,
+        timeout: promptUser ? 15000 : 5000,
+        maximumAge: promptUser ? 10000 : 60000,
+        showLocationDialog: promptUser,
+        forceRequestLocation: promptUser,
+      }
     );
   });
 };

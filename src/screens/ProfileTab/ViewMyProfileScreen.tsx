@@ -8,6 +8,7 @@ import {
   ImageSourcePropType,
   ScrollView,
   StyleSheet,
+  Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -20,9 +21,10 @@ import { useUserImages } from "../../api/useImages";
 import { useMyProfile } from "../../api/useProfile";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
 import AppContext from "../../context/CreateGlobalStateContext";
-import { Colors } from "../../theme";
+import { Colors, useTheme } from "../../theme";
 import { useAlert } from "../../components/AlertModal";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
+
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
 import { RootParamList } from "../../utils/types/navigation.types";
@@ -151,11 +153,15 @@ const ViewMyProfileScreen = () => {
     requestId,
     requestRole,
     requestStatus,
-  } = route.params || {};
+  } = (route.params as any) || {};
 
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [myId, setMyId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
+
+
 
   useEffect(() => {
     let isMounted = true;
@@ -555,14 +561,42 @@ const ViewMyProfileScreen = () => {
         : [];
 
   return (
-    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      {/* Top Header Bar */}
+      <View style={styles.topNavBar}>
+        <TouchableOpacity
+          style={styles.navBackBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Icon name="chevron-left" size={26} color={Colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>
+          {isViewingSelf ? 'My Profile' : (mergedProfile?.displayName || mergedProfile?.name || 'Profile')}
+        </Text>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, !isViewingSelf && numericTargetId ? styles.scrollContentWithFooter : null]}
       >
+        {/* Top Edit Button row when viewing own profile */}
+        {isViewingSelf && (
+          <View style={styles.topEditRow}>
+            <TouchableOpacity
+              style={styles.pillEditBtn}
+              onPress={() => navigation.navigate('ProfileSettingsScreen')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pillEditBtnText}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Hero Photo Carousel */}
         <View style={styles.sliderWrapper}>
           {sliderImages.length > 0 ? (
-            <View style={{ width: screenWidth, height: heroHeight, position: 'relative' }}>
+            <View style={styles.imageCard}>
               <Image
                 source={
                   typeof sliderImages[activeIndex] === 'string'
@@ -578,9 +612,9 @@ const ViewMyProfileScreen = () => {
                       : { uri: getAbsoluteUrl(sliderImages[activeIndex])! }
                     : sliderImages[activeIndex]
                 }
-                style={[styles.image, { height: heroHeight }]}
+                style={styles.image}
                 resizeMode="cover"
-                />
+              />
 
               {sliderImages.length > 1 && (
                 <>
@@ -604,39 +638,31 @@ const ViewMyProfileScreen = () => {
                   />
                 </>
               )}
+
+              {/* Dots Indicator */}
+              {sliderImages.length > 1 && (
+                <View style={styles.dotsContainer} pointerEvents="none">
+                  {sliderImages.map((_: any, index: number) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dot,
+                        {
+                          backgroundColor:
+                            index === activeIndex
+                              ? Colors.primaryLight
+                              : 'rgba(255, 255, 255, 0.35)',
+                          width: index === activeIndex ? 22 : 6,
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
             </View>
           ) : (
-            <View style={[styles.emptyHero, { height: heroHeight }]}>
+            <View style={styles.emptyHero}>
               <Icon name="image" size={42} color={Colors.textMuted} />
-            </View>
-          )}
-
-          {/* Back */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="chevron-left" size={28} color={Colors.white} />
-          </TouchableOpacity>
-
-          {/* Dots */}
-          {sliderImages.length > 1 && (
-            <View style={styles.dotsContainer} pointerEvents="none">
-              {sliderImages.map((_: any, index: number) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.dot,
-                    {
-                      backgroundColor:
-                        index === activeIndex
-                          ? Colors.primary
-                          : 'rgba(255,255,255,0.7)',
-                      width: index === activeIndex ? 18 : 6,
-                    },
-                  ]}
-                />
-              ))}
             </View>
           )}
         </View>
@@ -651,17 +677,17 @@ const ViewMyProfileScreen = () => {
         />
       </ScrollView>
 
-      {/* 🔥 ACTION BUTTONS */}
+      {/* 🔥 ACTION BUTTONS FOR OTHER USERS */}
       {!isViewingSelf && numericTargetId && requestRole !== 'received' && (
         <View style={styles.actionFooter}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleDislike}>
-            <Icon name="x" size={28} color="red" />
+            <Icon name="x" size={28} color={Colors.error} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.actionBtn,
-              { borderColor: isAlreadyInvited ? '#4CAF50' : Colors.secondary },
+              { borderColor: isAlreadyInvited ? Colors.success : Colors.primaryLight },
               (isAlreadyInvited || likeMutation.isPending) && styles.disabledActionBtn,
             ]}
             onPress={handleLike}
@@ -670,7 +696,7 @@ const ViewMyProfileScreen = () => {
             <Icon
               name={isAlreadyInvited ? "check" : "heart"}
               size={28}
-              color={isAlreadyInvited ? '#4CAF50' : Colors.secondary}
+              color={isAlreadyInvited ? Colors.success : Colors.primaryLight}
             />
           </TouchableOpacity>
         </View>
@@ -682,99 +708,147 @@ const ViewMyProfileScreen = () => {
 
 export default ViewMyProfileScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  loader: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.background
-  },
-  sliderWrapper: {
-    position: "relative",
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  scrollContentWithFooter: {
-    paddingBottom: 110,
-  },
-  image: {
-    width: "100%",
-    resizeMode: "cover",
-  },
-  heroTapLeft: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    bottom: 0,
-    width: '45%',
-    zIndex: 5,
-  },
-  heroTapRight: {
-    position: 'absolute',
-    top: 50,
-    right: 0,
-    bottom: 0,
-    width: '55%',
-    zIndex: 5,
-  },
-  emptyHero: {
-    width: "100%",
-    backgroundColor: Colors.surface,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backButton: {
-    position: "absolute",
-    top: 40,
-    left: 20,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderRadius: 20,
-    padding: 5,
-    zIndex: 10
-  },
-  dotsContainer: {
-    flexDirection: "row",
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-    gap: 8,
-    zIndex: 1
-  },
-  dot: {
-    height: 6,
-    borderRadius: 3,
-  },
-  actionFooter: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.surface,
-    position: 'absolute',
-    bottom: 0,
-    width: '100%'
-  },
-  actionBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.surface,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5
-  },
-  disabledActionBtn: {
-    opacity: 0.6,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    topNavBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.background,
+    },
+    navBackBtn: {
+      paddingRight: 12,
+      paddingVertical: 4,
+    },
+    navTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      letterSpacing: 0.2,
+    },
+    topEditRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      paddingBottom: 12,
+    },
+    pillEditBtn: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 22,
+      paddingVertical: 7,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    pillEditBtnText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    loader: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.background,
+    },
+    sliderWrapper: {
+      width: '100%',
+      paddingHorizontal: 16,
+    },
+    imageCard: {
+      width: '100%',
+      height: 440,
+      borderRadius: 14,
+      overflow: 'hidden',
+      position: 'relative',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: 30,
+    },
+    scrollContentWithFooter: {
+      paddingBottom: 110,
+    },
+    image: {
+      width: "100%",
+      height: "100%",
+      resizeMode: "cover",
+    },
+    heroTapLeft: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      width: '45%',
+      zIndex: 5,
+    },
+    heroTapRight: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: '55%',
+      zIndex: 5,
+    },
+    emptyHero: {
+      width: "100%",
+      height: 380,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      position: "absolute",
+      bottom: 14,
+      alignSelf: "center",
+      gap: 6,
+      zIndex: 6,
+    },
+    dot: {
+      height: 6,
+      borderRadius: 3,
+    },
+    actionFooter: {
+      flexDirection: "row",
+      justifyContent: "space-evenly",
+      paddingVertical: 18,
+      borderTopWidth: 1,
+      borderColor: colors.glassBorder,
+      backgroundColor: colors.surface,
+      position: 'absolute',
+      bottom: 0,
+      width: '100%',
+    },
+    actionBtn: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.surfaceLight,
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+    },
+    disabledActionBtn: {
+      opacity: 0.6,
+    },
+  });
+
+

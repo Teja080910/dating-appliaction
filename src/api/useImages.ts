@@ -4,7 +4,7 @@ import { getUserId } from '../utils/sessionHelper';
 import { isResolvedApiUserId } from '../utils/sessionState';
 import { repairStoredSessionIdentity } from '../utils/session';
 
-export const MAX_PROFILE_IMAGES = 5;
+export const MAX_PROFILE_IMAGES = 6;
 
 export interface ServerUserImage {
   id?: number;
@@ -97,8 +97,16 @@ export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserIma
         image?.image ||
         null;
       const cleanUrl = typeof rawUrl === 'string' ? rawUrl.trim() : null;
+      const rawId = image?.id ?? image?.imageId;
+      const parsedId =
+        typeof rawId === 'number'
+          ? rawId
+          : rawId && !isNaN(Number(rawId))
+          ? Number(rawId)
+          : null;
+
       return {
-        id: typeof image?.id === 'number' ? image.id : (typeof image?.imageId === 'number' ? image.imageId : null),
+        id: parsedId,
         imageUrl: cleanUrl ? getAbsoluteUrl(cleanUrl) : null,
         isProfile: Boolean(image?.profile || image?.isProfile || image?.isPrimary),
         fileName: image?.fileName ?? null,
@@ -122,8 +130,8 @@ export const mapImagesToSlots = (payload: unknown, slotCount = MAX_PROFILE_IMAGE
 
   normalized.slice(0, slotCount).forEach((image, index) => {
     slots[index] = image.imageUrl;
-    if (typeof image.id === 'number') {
-      imageIdByIndex[index] = image.id;
+    if (image.id !== null && image.id !== undefined && !isNaN(Number(image.id))) {
+      imageIdByIndex[index] = Number(image.id);
     }
   });
 
@@ -209,13 +217,25 @@ export const useUserImages = (userId?: string) => {
 
 
   const deleteImage = useMutation({
-    mutationFn: async (imageId: number) => {
-      const res = await apiClient.delete(`/users/images/${imageId}`);
-      return res.data;
+    mutationFn: async (imageId: number | string) => {
+      try {
+        const res = await apiClient.delete(`/users/images/${imageId}`);
+        return res.data;
+      } catch (err) {
+        const normalizedUserId = await resolveUserId();
+        if (normalizedUserId) {
+          const res = await apiClient.delete(`/users/${normalizedUserId}/images/${imageId}`);
+          return res.data;
+        }
+        throw err;
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['userImages', userId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['myProfile'],
       });
     },
   });

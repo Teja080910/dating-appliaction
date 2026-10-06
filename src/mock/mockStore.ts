@@ -405,8 +405,26 @@ class MockStore {
     await this.init();
     const index = this.images.findIndex((i) => i.id === imageId);
     if (index >= 0) {
+      const removed = this.images[index];
       this.images.splice(index, 1);
       await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
+
+      if (removed?.imageUrl) {
+        let profilesChanged = false;
+        this.profiles.forEach((p) => {
+          if (Array.isArray(p.photos) && p.photos.includes(removed.imageUrl)) {
+            p.photos = p.photos.filter((url: string) => url !== removed.imageUrl);
+            profilesChanged = true;
+          }
+          if ((p as any).profileImageUrl === removed.imageUrl) {
+            (p as any).profileImageUrl = p.photos?.[0] || null;
+            profilesChanged = true;
+          }
+        });
+        if (profilesChanged) {
+          await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
+        }
+      }
       return true;
     }
     return false;

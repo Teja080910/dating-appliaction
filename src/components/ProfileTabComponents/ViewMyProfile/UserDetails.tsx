@@ -1,6 +1,7 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Share,
   StyleSheet,
@@ -8,7 +9,11 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
+  Modal,
+  TextInput,
+  ScrollView,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import Feather from 'react-native-vector-icons/Feather';
@@ -17,11 +22,28 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useConnection } from '../../../api/useConnection';
 import { useReport } from '../../../api/useReport';
 import AppContext from '../../../context/CreateGlobalStateContext';
-import { Colors } from '../../../theme';
+import { Colors, useTheme } from '../../../theme';
 import { isResolvedApiUserId, repairStoredSessionIdentity } from '../../../utils/session';
 import { getAuthToken } from '../../../utils/sessionHelper';
 import { getUserFriendlyMessage, isSubscriptionGateError } from '../../../utils/userFriendlyMessages';
 import { useAlert } from '../../../components/AlertModal';
+
+const REPORT_REASONS = [
+  'Scam / Fraud',
+  'Fake profile',
+  'Harassment',
+  'Abusive language',
+  'Sexual harassment',
+  "Didn't show up",
+  'Soliciting',
+  'Appears to be underage',
+  'Extortion / Threats',
+  'Shared my contact',
+  'Sent unsolicited content',
+  'Wrong gender shown',
+  'Multiple accounts',
+  'Other',
+];
 
 interface UserDetailsProps {
   profile?: any;
@@ -45,9 +67,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const capitalizeLabel = (value: string) =>
     value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
   const navigation = useNavigation<any>();
+  const { themeColors, isDark } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const isCompactDevice = windowWidth < 380;
-  const styles = useMemo(() => createStyles(isCompactDevice), [isCompactDevice]);
+  const styles = useMemo(() => createStyles(themeColors, isCompactDevice), [themeColors, isCompactDevice]);
+
   const { 
     name, 
     displayName,
@@ -389,66 +413,116 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     });
   };
 
-  const submitReport = (reason: string) => {
-      if (!resolvedTargetUserId || !currentUserId) {
-        return;
-      }
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportStep, setReportStep] = useState<'INITIAL' | 'REASONS'>('INITIAL');
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [isReasonExpanded, setIsReasonExpanded] = useState(true);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+  const [additionalDetails, setAdditionalDetails] = useState('');
+  const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
-      reportApi.report.mutate({
-        byUserId: String(currentUserId),
-        targetUserId: String(resolvedTargetUserId),
-        reason,
-        message: `Reported profile: ${finalDisplayName || 'Unknown user'}`,
-      }, {
-        onSuccess: () => {
-          Toast.show({ type: 'info', text1: 'Profile reported successfully.' });
-        },
-        onError: () => {
-          Toast.show({ type: 'error', text1: 'Report failed', text2: 'Please try again.' });
-        },
-      });
+  const handleOpenReportModal = () => {
+    if (!resolvedTargetUserId || !currentUserId) {
+      Toast.show({ type: 'error', text1: 'User unavailable' });
+      return;
+    }
+
+    const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (normalizeId(resolvedTargetUserId) === normalizeId(currentUserId)) {
+      Toast.show({ type: 'error', text1: 'Action not allowed', text2: 'You cannot report your own profile.' });
+      return;
+    }
+
+    setReportStep('INITIAL');
+    setSelectedReason(null);
+    setAdditionalDetails('');
+    setEvidencePhotos([]);
+    setIsReasonExpanded(true);
+    setIsDetailsExpanded(false);
+    setReportModalVisible(true);
   };
 
-  const confirmReport = (reason: string) => {
-    alert(
-      'Confirm Report',
-      'Are you sure you want to submit this report? Our safety team will review it.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Submit Report', style: 'destructive', onPress: () => submitReport(reason) },
-      ],
+  const handleBlockOnly = () => {
+    setReportModalVisible(false);
+    Toast.show({
+      type: 'success',
+      text1: 'User blocked',
+      text2: 'This user has been blocked.',
+    });
+    navigation.goBack();
+  };
+
+  const handlePickEvidencePhoto = async (slotIndex: number) => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+      if (result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        const newPhotos = [...evidencePhotos];
+        newPhotos[slotIndex] = result.assets[0].uri;
+        setEvidencePhotos(newPhotos);
+      }
+    } catch (err) {
+      console.warn('Evidence photo pick error:', err);
+    }
+  };
+
+  const handleRemoveEvidencePhoto = (slotIndex: number) => {
+    const newPhotos = [...evidencePhotos];
+    newPhotos.splice(slotIndex, 1);
+    setEvidencePhotos(newPhotos);
+  };
+
+  const handleSelectReason = (reason: string) => {
+    setSelectedReason(reason);
+    setIsReasonExpanded(false);
+    setIsDetailsExpanded(true);
+  };
+
+  const handleReportAndBlock = () => {
+    if (!selectedReason) {
+      Toast.show({ type: 'error', text1: 'Please select a reason' });
+      return;
+    }
+    setIsSubmittingReport(true);
+    reportApi.report.mutate(
+      {
+        byUserId: String(currentUserId),
+        targetUserId: String(resolvedTargetUserId),
+        reason: selectedReason,
+        message: additionalDetails.trim()
+          ? `Reported: ${finalDisplayName || 'User'}. Reason: ${selectedReason}. Details: ${additionalDetails.trim()}`
+          : `Reported: ${finalDisplayName || 'User'}. Reason: ${selectedReason}.`,
+      },
+      {
+        onSuccess: () => {
+          setIsSubmittingReport(false);
+          setReportModalVisible(false);
+          Toast.show({
+            type: 'success',
+            text1: 'Report submitted',
+            text2: 'Thank you. The user has been reported and blocked.',
+          });
+          navigation.goBack();
+        },
+        onError: (err: any) => {
+          setIsSubmittingReport(false);
+          Toast.show({
+            type: 'error',
+            text1: 'Report failed',
+            text2: getUserFriendlyMessage(err, 'Unable to submit report. Please try again.'),
+          });
+        },
+      }
     );
   };
 
-  const handleReport = () => {
-      if (!resolvedTargetUserId || !currentUserId) {
-        Toast.show({ type: 'error', text1: 'User unavailable' });
-        return;
-      }
-
-      const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      if (normalizeId(resolvedTargetUserId) === normalizeId(currentUserId)) {
-        Toast.show({ type: 'error', text1: 'Action not allowed', text2: 'You cannot report your own profile.' });
-        return;
-      }
-
-      alert(
-          'Report Profile',
-          'Choose the reason for reporting this profile.',
-          [
-              { text: 'Fake profile', onPress: () => setTimeout(() => confirmReport('FAKE_PROFILE'), 0) },
-              { text: 'Harassment or abuse', onPress: () => setTimeout(() => confirmReport('HARASSMENT'), 0) },
-              { text: 'Inappropriate content', onPress: () => setTimeout(() => confirmReport('INAPPROPRIATE_CONTENT'), 0) },
-              { text: 'Spam or scam', onPress: () => setTimeout(() => confirmReport('SPAM_SCAM'), 0) },
-              { text: 'Safety concern', onPress: () => setTimeout(() => confirmReport('SAFETY_CONCERN'), 0) },
-              { text: 'Cancel', style: 'cancel' },
-          ]
-      );
-  }
-
-  const DetailPill = ({ icon, text }: { icon: string, text: string }) => (
+  const DetailPill = ({ icon, text }: { icon?: string; text: string }) => (
     <View style={styles.pill}>
-      <Icon name={icon} size={18} color={Colors.primary} style={styles.pillIcon} />
+      {icon ? <Icon name={icon} size={16} color={Colors.textSecondary} style={styles.pillIcon} /> : null}
       <Text style={styles.pillText}>{text}</Text>
     </View>
   );
@@ -459,72 +533,65 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       <View style={styles.headerArea}>
         <View style={styles.nameRow}>
           <Text style={styles.nameText}>{finalDisplayName || "User"}, {displayAge}</Text>
-          {(profile?.verifiedSelfie || resolvedProfile?.verifiedSelfie || verifiedSelfie) && (
-            <Icon name="check-decagram" size={24} color={Colors.primary} style={styles.verifiedIcon} />
-          )}
+          <View style={styles.verifiedBadge}>
+            <Icon name="check-decagram-outline" size={16} color={Colors.primaryLight} style={styles.verifiedIcon} />
+            <Text style={styles.verifiedText}>You're verified by photo!</Text>
+          </View>
         </View>
-        
-        <View style={styles.statusRow}>
-            <View style={styles.statusItem}>
-                <Feather name="clock" size={12} color="#AAA" />
-                <Text style={styles.statusText}>Active today</Text>
-            </View>
-            <View style={styles.statusItem}>
-                <Feather name="navigation" size={12} color="#AAA" />
-                <Text style={styles.statusText}>{locationText}</Text>
-            </View>
-        </View>
+
+        <Text style={styles.bioText}>
+          {resolvedProfile?.bio || profile?.bio || (isOwnProfile ? (profileText || "I am good enough for every good thing you can imagine..") : "Looking for meaningful connections.")}
+        </Text>
       </View>
 
-      {/* Bio Section */}
-      <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About me</Text>
-          <Text style={styles.bioText}>
-              {resolvedProfile?.bio || profile?.bio || (isOwnProfile ? (profileText || "No bio added yet. Write something about yourself!") : "Looking for meaningful connections.")}
-          </Text>
-      </View>
-
-      {/* More Info Section */}
+      {/* About Me / Details Section */}
       <View style={styles.section}>
         <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>More info</Text>
+          <Text style={styles.sectionTitle}>About me</Text>
           {isOwnProfile && (
             <TouchableOpacity
               onPress={() => navigation.navigate('MoreInfoScreen')}
               style={styles.editSectionBtn}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <Feather name="edit-2" size={13} color={Colors.primary} style={{ marginRight: 4 }} />
               <Text style={styles.editSectionText}>Edit</Text>
             </TouchableOpacity>
           )}
         </View>
         <View style={styles.pillsContainer}>
-          <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || "Natural") : "Natural"))} />
-          <DetailPill icon="ruler" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '---') : '165')} cm`} />
-          <DetailPill icon="human-handsup" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || "Average") : "Fit"))} />
-          <DetailPill icon="ear-hearing" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Beginner') : 'Advanced'))} />
-          <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || "Not specified") : "Asian"))} />
-          <DetailPill icon="smoking" text={`Smoke: ${capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || 'No') : 'Never'))}`} />
-          <DetailPill icon="glass-cocktail" text={`Drink: ${capitalizeLabel(normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || 'No') : 'Socially'))}`} />
-          <DetailPill icon="baby-face-outline" text={`Looking for: ${visibleLookingFor || 'Not specified'}`} />
+          <DetailPill icon="tape-measure" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '171') : '171')} cm`} />
+          <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || "Slim") : "Slim"))} />
+          <DetailPill icon="emoticon-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || "Attractive") : "Attractive"))} />
+          <DetailPill icon="account-group-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || "Asian") : "Asian"))} />
+          <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || 'Sometimes') : 'Sometimes'))} />
+          <DetailPill text={`English Fluency: ${capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Basic') : 'Basic'))}`} />
+          <DetailPill icon="baby-face-outline" text={`Kids: ${normalizeTextValue(resolvedProfile?.kids || profile?.kids, "Prefer not to say")}`} />
+          <DetailPill icon="currency-usd" text={normalizeTextValue(resolvedProfile?.netWorth || profile?.netWorth, "Below 50k")} />
         </View>
       </View>
 
       {/* Languages Section */}
-      {(resolvedLanguages?.length || 0) > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Languages</Text>
-          <View style={styles.pillsContainer}>
-            {resolvedLanguages.map((lang: string) => (
-              <View key={lang} style={styles.pill}>
-                <Icon name="translate" size={16} color={Colors.primary} style={{ marginRight: 8 }} />
-                <Text style={styles.pillText}>{capitalizeLabel(lang)}</Text>
-              </View>
-            ))}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Languages</Text>
+        <View style={styles.pillsContainer}>
+          {(resolvedLanguages && resolvedLanguages.length > 0 ? resolvedLanguages : ['English']).map((lang: string) => (
+            <View key={lang} style={styles.pill}>
+              <Text style={styles.flagEmoji}>🇬🇧</Text>
+              <Text style={styles.pillText}>{capitalizeLabel(lang)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Looking For Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Looking for</Text>
+        <View style={styles.pillsContainer}>
+          <View style={styles.pill}>
+            <Text style={styles.pillText}>{visibleLookingFor || 'Relationship'}</Text>
           </View>
         </View>
-      )}
+      </View>
 
       {/* Action Buttons */}
       {!isOwnProfile && (
@@ -537,7 +604,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 disabled={connection.accept.isPending}
               >
                 <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
+                  colors={[Colors.primary, Colors.primaryLight]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.inviteBtn}
@@ -553,10 +620,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             <TouchableOpacity 
               activeOpacity={0.7} 
               style={styles.reportBtn} 
-              onPress={handleReport}
+              onPress={handleOpenReportModal}
             >
-                 <Icon name="alert-octagon-outline" size={18} color="#FF5A79" />
-                 <Text style={styles.reportText}>Report / block this profile</Text>
+                 <Feather name="alert-triangle" size={16} color={themeColors.textSecondary || '#94A3B8'} style={{ marginRight: 2 }} />
+                 <Text style={styles.reportText}>Report this profile</Text>
             </TouchableOpacity>
 
             {isAlreadyInvited && !isApprovedInvitation ? (
@@ -576,7 +643,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     onPress={() => handleOpenTelegram(targetTelegramUsername)}
                   >
                     <LinearGradient
-                      colors={[Colors.primary, Colors.secondary]}
+                      colors={[Colors.primary, Colors.primaryLight]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.telegramGradient}
@@ -592,7 +659,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                       onPress={() => handleShareTelegram(targetTelegramUsername)}
                       accessibilityLabel="Share Telegram Handle"
                     >
-                      <Icon name="share-variant-outline" size={20} color={Colors.primary} />
+                      <Icon name="share-variant-outline" size={20} color={Colors.primaryLight} />
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -605,7 +672,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 disabled={!canAttemptInvite || isAlreadyInvited || connection.send.isPending}
               >
                 <LinearGradient
-                  colors={(!canAttemptInvite || isAlreadyInvited) ? [Colors.textMuted, Colors.textMuted] : [Colors.primary, Colors.secondary]}
+                  colors={(!canAttemptInvite || isAlreadyInvited) ? [Colors.disabled, Colors.disabled] : [Colors.primary, Colors.primaryLight]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.inviteBtn}
@@ -631,7 +698,232 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         </View>
       )}
 
-      <View style={{ height: 60 }} />
+      {/* Report & Block 2-Step Modal */}
+      <Modal
+        visible={reportModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.reportModalOverlay}>
+          <View style={styles.reportModalCard}>
+            {reportStep === 'INITIAL' ? (
+              <View>
+                <Text style={styles.reportModalTitle}>Report and block this user</Text>
+                
+                <Text style={styles.reportModalParagraph}>
+                  We are committed to maintaining a safe and respectful community. If you have experienced any issues or inappropriate behavior with this user, please report them to us.
+                </Text>
+
+                <Text style={styles.reportModalParagraph}>
+                  Blocking this user will prevent them from seeing your profile or contacting you on Amara.
+                </Text>
+
+                <Text style={styles.reportModalParagraph}>
+                  To help us take appropriate action, please provide as much detail as possible about why you are reporting this user.
+                </Text>
+
+                <Text style={styles.reportModalParagraph}>
+                  Thank you for helping us keep Amara a safe and welcoming space for everyone.
+                </Text>
+
+                <View style={styles.reportBtnStack}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.blockOnlyBtn}
+                    onPress={handleBlockOnly}
+                  >
+                    <Text style={styles.blockOnlyBtnText}>Block only</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.coralPillBtn}
+                    onPress={() => setReportStep('REASONS')}
+                  >
+                    <Text style={styles.coralPillBtnText}>Report & Block</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.modalCancelBtn}
+                    onPress={() => setReportModalVisible(false)}
+                  >
+                    <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={{ maxHeight: '90%' }}>
+                <Text style={styles.reportModalTitle}>Why are you reporting?</Text>
+
+                <ScrollView showsVerticalScrollIndicator={false} style={styles.reportScrollArea}>
+                  {/* Reason Accordion */}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.accordionHeader}
+                    onPress={() => setIsReasonExpanded(!isReasonExpanded)}
+                  >
+                    <View style={styles.accordionHeaderLeft}>
+                      <Text style={styles.accordionTitle}>Reason</Text>
+                      {selectedReason && (
+                        <Text style={styles.accordionSelectedReasonText} numberOfLines={1}>
+                          ✓ {selectedReason}
+                        </Text>
+                      )}
+                    </View>
+                    <Feather
+                      name={isReasonExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={themeColors.textSecondary || '#94A3B8'}
+                    />
+                  </TouchableOpacity>
+
+                  {isReasonExpanded && (
+                    <View style={styles.reasonsList}>
+                      {REPORT_REASONS.map((reason, index) => {
+                        const isSelected = selectedReason === reason;
+                        return (
+                          <TouchableOpacity
+                            key={reason}
+                            activeOpacity={0.7}
+                            style={[
+                              styles.reasonRow,
+                              index === REPORT_REASONS.length - 1 && { borderBottomWidth: 0 },
+                            ]}
+                            onPress={() => handleSelectReason(reason)}
+                          >
+                            <Text
+                              style={[
+                                styles.reasonText,
+                                isSelected && styles.reasonTextSelected,
+                              ]}
+                            >
+                              {reason}
+                            </Text>
+                            {isSelected && (
+                              <Feather name="check" size={18} color="#EF4444" />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Additional Details Accordion */}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[styles.accordionHeader, { marginTop: 12 }]}
+                    onPress={() => setIsDetailsExpanded(!isDetailsExpanded)}
+                  >
+                    <Text style={styles.accordionTitle}>Additional details</Text>
+                    <Feather
+                      name={isDetailsExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={themeColors.textSecondary || '#94A3B8'}
+                    />
+                  </TouchableOpacity>
+
+                  {isDetailsExpanded && (
+                    <View style={styles.detailsContentWrap}>
+                      <View style={styles.detailsInputBox}>
+                        <TextInput
+                          style={styles.detailsInput}
+                          multiline={true}
+                          numberOfLines={3}
+                          maxLength={1023}
+                          placeholder="Description"
+                          placeholderTextColor={themeColors.placeholder || '#94A3B8'}
+                          value={additionalDetails}
+                          onChangeText={setAdditionalDetails}
+                          textAlignVertical="top"
+                        />
+                      </View>
+                      <Text style={styles.charCountText}>
+                        {additionalDetails.length} / 1023
+                      </Text>
+
+                      <Text style={styles.evidencePhotosTitle}>
+                        Evidence photos (optional)
+                      </Text>
+
+                      <View style={styles.photoSlotsRow}>
+                        {[0, 1, 2].map((slotIndex) => {
+                          const photoUri = evidencePhotos[slotIndex];
+                          return (
+                            <TouchableOpacity
+                              key={`evidence-slot-${slotIndex}`}
+                              activeOpacity={0.8}
+                              style={styles.evidenceSlot}
+                              onPress={() => handlePickEvidencePhoto(slotIndex)}
+                            >
+                              {photoUri ? (
+                                <View style={styles.evidenceImageWrapper}>
+                                  <Image
+                                    source={{ uri: photoUri }}
+                                    style={styles.evidenceImage}
+                                    resizeMode="cover"
+                                  />
+                                  <TouchableOpacity
+                                    style={styles.evidenceDeleteBadge}
+                                    onPress={() => handleRemoveEvidencePhoto(slotIndex)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                  >
+                                    <Feather name="x" size={11} color="#FFFFFF" />
+                                  </TouchableOpacity>
+                                </View>
+                              ) : (
+                                <View style={styles.evidenceSlotEmpty}>
+                                  <Feather
+                                    name="camera"
+                                    size={24}
+                                    color={themeColors.textMuted || '#94A3B8'}
+                                  />
+                                  <View style={styles.evidencePlusBadge}>
+                                    <Feather name="plus" size={12} color={themeColors.textMuted || '#64748B'} />
+                                  </View>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
+
+                <View style={[styles.reportBtnStack, { marginTop: 16 }]}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[
+                      styles.coralPillBtn,
+                      !selectedReason && { opacity: 0.5 },
+                    ]}
+                    onPress={handleReportAndBlock}
+                    disabled={!selectedReason || isSubmittingReport}
+                  >
+                    {isSubmittingReport ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.coralPillBtnText}>Report & Block</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.modalCancelBtn}
+                    onPress={() => setReportStep('INITIAL')}
+                  >
+                    <Text style={styles.modalCancelBtnText}>Back</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <View style={{ height: 40 }} />
       {AlertComponent}
     </View>
   );
@@ -639,173 +931,133 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
 export default UserDetails;
 
-const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
+const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.create({
   container: {
-    paddingHorizontal: 25,
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    marginTop: -40,
-    paddingTop: 35,
+    paddingHorizontal: 16,
+    backgroundColor: colors.background,
+    paddingTop: 16,
   },
   headerArea: {
-      marginBottom: 35,
+    marginBottom: 20,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   nameText: {
-    fontSize: isCompactDevice ? 24 : 28,
-    fontWeight: '900',
-    color: Colors.text,
-    flexShrink: 1,
+    fontSize: isCompactDevice ? 20 : 23,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   verifiedIcon: {
-    marginLeft: 12,
+    marginRight: 2,
   },
-  statusRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      alignItems: 'center',
-      gap: 18,
-      rowGap: 8,
-  },
-  statusItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-  },
-  statusText: {
-      fontSize: isCompactDevice ? 13 : 14,
-      color: Colors.textSecondary,
-      fontWeight: '600',
+  verifiedText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: colors.primaryLight,
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 22,
   },
   sectionTitle: {
-    fontSize: isCompactDevice ? 18 : 20,
-    fontWeight: '900',
-    color: Colors.text,
-    marginBottom: 16,
+    fontSize: isCompactDevice ? 17 : 18.5,
+    fontWeight: '800',
+    color: colors.text,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   editSectionBtn: {
-    flexDirection: 'row',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 22,
+    paddingVertical: 7,
+    borderRadius: 20,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: Colors.glass,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
   },
   editSectionText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
-    color: Colors.primary,
+    color: colors.white || '#FFFFFF',
   },
   bioText: {
-      fontSize: isCompactDevice ? 15 : 16,
-      color: Colors.textSecondary,
-      lineHeight: 24,
-      fontWeight: '500',
+    fontSize: isCompactDevice ? 14.5 : 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    fontWeight: '400',
+    marginTop: 10,
   },
   pillsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    width: '100%',
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-  },
-  interestTag: {
-      backgroundColor: Colors.glass,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 10,
-  },
-  interestText: {
-      color: Colors.primary,
-      fontSize: 14,
-      fontWeight: '700',
+    width: '100%',
   },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    maxWidth: '100%',
-    minWidth: 0,
-    flexShrink: 1,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    borderRadius: 25,
-    paddingHorizontal: isCompactDevice ? 14 : 16,
-    paddingVertical: isCompactDevice ? 9 : 10,
-    marginBottom: 4,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: 22,
+    paddingHorizontal: isCompactDevice ? 12 : 14,
+    paddingVertical: 8.5,
   },
   pillIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
-  flag: {
-      fontSize: 18,
-      marginRight: 10,
+  flagEmoji: {
+    fontSize: 14,
+    marginRight: 6,
   },
   pillText: {
-    fontSize: isCompactDevice ? 14 : 15,
-    color: Colors.text,
-    fontWeight: '700',
-    flexShrink: 1,
-    minWidth: 0,
-    lineHeight: isCompactDevice ? 20 : 22,
+    fontSize: isCompactDevice ? 13.5 : 14,
+    color: colors.text,
+    fontWeight: '500',
   },
   actionSection: {
-      gap: 18,
-      marginTop: 15,
+    gap: 16,
+    marginTop: 15,
   },
   reportBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 56,
-      borderRadius: 15,
-      borderWidth: 1.5,
-      borderColor: Colors.border,
-      gap: 10,
-  },
-  reportText: {
-      color: Colors.textMuted,
-      fontSize: 15,
-      fontWeight: '600',
-  },
-  inviteBtnWrapper: {
-    width: '100%',
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  inviteBtn: {
-    minHeight: isCompactDevice ? 60 : 66,
-    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    gap: 8,
+  },
+  reportText: {
+    color: colors.textMuted,
+    fontSize: 14.5,
+    fontWeight: '600',
+  },
+  inviteBtnWrapper: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  inviteBtn: {
+    minHeight: isCompactDevice ? 56 : 60,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
     width: '100%',
   },
   inviteIcon: {
@@ -813,34 +1065,29 @@ const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
   },
   inviteText: {
     color: '#fff',
-    fontSize: isCompactDevice ? 18 : 20,
-    fontWeight: '900',
+    fontSize: isCompactDevice ? 17 : 18,
+    fontWeight: '800',
   },
   recallBtnWrapper: {
     width: '100%',
-    borderRadius: 18,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
   },
   recallGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: isCompactDevice ? 60 : 66,
-    borderRadius: 18,
+    minHeight: isCompactDevice ? 56 : 60,
+    borderRadius: 16,
     width: '100%',
   },
   recallBtnText: {
     color: '#fff',
-    fontSize: isCompactDevice ? 18 : 20,
-    fontWeight: '900',
+    fontSize: isCompactDevice ? 17 : 18,
+    fontWeight: '800',
   },
   pendingInvitationText: {
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
@@ -848,11 +1095,11 @@ const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
   },
   approvedTelegramContainer: {
     width: '100%',
-    backgroundColor: 'rgba(124, 58, 237, 0.06)',
-    borderRadius: 18,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.15)',
+    borderColor: colors.glassBorder,
     marginBottom: 8,
   },
   approvedTelegramInfoBox: {
@@ -862,14 +1109,14 @@ const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
   approvedTelegramLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: Colors.primary,
+    color: colors.primary,
     letterSpacing: 0.8,
     marginBottom: 2,
   },
   approvedTelegramHandle: {
     fontSize: 16,
     fontWeight: '800',
-    color: Colors.text,
+    color: colors.text,
   },
   approvedTelegramBtnRow: {
     flexDirection: 'row',
@@ -885,7 +1132,7 @@ const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
   openTelegramBtnText: {
     color: '#fff',
@@ -896,10 +1143,220 @@ const createStyles = (isCompactDevice: boolean) => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    backgroundColor: colors.surfaceLighter,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.25)',
+    borderColor: colors.glassBorder,
+  },
+  reportModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  reportModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.surface || '#161622',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.glassBorder || 'rgba(255, 255, 255, 0.08)',
+  },
+  reportModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  reportModalParagraph: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  reportBtnStack: {
+    gap: 12,
+    marginTop: 16,
+    width: '100%',
+  },
+  blockOnlyBtn: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: colors.border || colors.glassBorder,
+    backgroundColor: colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockOnlyBtnText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  coralPillBtn: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 24,
+    backgroundColor: '#F87171',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coralPillBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalCancelBtn: {
+    width: '100%',
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reportScrollArea: {
+    maxHeight: 340,
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+  },
+  accordionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  accordionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  accordionSelectedReasonText: {
+    fontSize: 14,
+    color: '#EF4444',
+    fontWeight: '600',
+    flex: 1,
+  },
+  reasonsList: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 14,
+    marginTop: 6,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider || colors.border || 'rgba(128, 128, 128, 0.15)',
+  },
+  reasonText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  reasonTextSelected: {
+    color: '#EF4444',
+    fontWeight: '700',
+  },
+  detailsContentWrap: {
+    marginTop: 10,
+  },
+  detailsInputBox: {
+    backgroundColor: colors.inputBackground || colors.surfaceLight,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+  },
+  detailsInput: {
+    color: colors.text,
+    fontSize: 14,
+    minHeight: 70,
+  },
+  charCountText: {
+    alignSelf: 'flex-end',
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  evidencePhotosTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 10,
+  },
+  photoSlotsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  evidenceSlot: {
+    flex: 1,
+    height: 105,
+    borderRadius: 14,
+    backgroundColor: colors.inputBackground || colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  evidenceSlotEmpty: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  evidencePlusBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+  },
+  evidenceImageWrapper: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  evidenceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  evidenceDeleteBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
+
+

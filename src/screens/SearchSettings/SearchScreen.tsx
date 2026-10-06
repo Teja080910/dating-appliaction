@@ -1,6 +1,9 @@
-import { ScrollView, StyleSheet, View, Keyboard } from 'react-native';
-import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View, Keyboard, Text, TouchableOpacity, Linking } from 'react-native';
+import React, { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import SearchSettingsHeader from '../../components/SearchSettingsComponents/SearchSettingHeader';
 import AgeRangeSlider from '../../components/SearchSettingsComponents/AgeRange';
@@ -21,21 +24,24 @@ import ShowMe from '../../components/SearchSettingsComponents/ShowMe';
 import SaveResetButtons from '../../components/SearchSettingsComponents/SaveResetButtons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors } from '../../theme';
+import { useTheme, ThemeColors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { useDiscovery } from '../../api/useDiscovery';
 import { getUserId } from '../../utils/sessionHelper';
 import { clearAuthSession } from '../../utils/session';
+import { checkLocationPermission, requestLocationPermission, getCurrentLocation } from '../../utils/geolocation';
 import {
   getSavedSearchFilters,
   saveSearchFilters,
   clearSavedSearchFilters,
 } from '../../utils/types/AsyncStorage';
-import { CommonActions } from '@react-navigation/native';
 
 const SearchScreen = ({ navigation }: any) => {
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { alert, AlertComponent } = useAlert();
   const [saving, setSaving] = useState(false);
+  const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
   const { filterUsers } = useDiscovery();
   const {
     ageRange,
@@ -286,6 +292,63 @@ const SearchScreen = ({ navigation }: any) => {
       .catch((err) => console.warn('Failed to clear saved filters:', err));
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+      const verifyPermission = async () => {
+        try {
+          const granted = await checkLocationPermission();
+          if (isMounted) {
+            setHasLocationPermission(granted);
+          }
+        } catch {
+          if (isMounted) {
+            setHasLocationPermission(false);
+          }
+        }
+      };
+      verifyPermission();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
+
+  const handleEnableLocation = async () => {
+    try {
+      const granted = await requestLocationPermission();
+      if (granted) {
+        setHasLocationPermission(true);
+        getCurrentLocation(true).catch(() => {});
+      } else {
+        Linking.openSettings();
+      }
+    } catch {
+      Linking.openSettings();
+    }
+  };
+
+  if (hasLocationPermission === false) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <SearchSettingsHeader onClose={() => navigation.goBack()} />
+        <View style={styles.disabledLocationContainer}>
+          <Icon name="map-marker-off-outline" size={68} color="#8E8E93" style={styles.disabledIcon} />
+          <Text style={styles.disabledLocationText}>
+            Please enable location access so we can show you people nearby.
+          </Text>
+          <TouchableOpacity
+            style={styles.enableLocationBtn}
+            onPress={handleEnableLocation}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.enableLocationBtnText}>Enable Location</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <SearchSettingsHeader onClose={() => navigation.goBack()} />
@@ -361,19 +424,59 @@ const SearchScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 40,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    flex: 1,
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: 40,
+      backgroundColor: themeColors.background,
+    },
+    content: {
+      flex: 1,
+    },
+    disabledLocationContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 36,
+      paddingBottom: 80,
+    },
+    disabledIcon: {
+      marginBottom: 24,
+    },
+    disabledLocationText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 24,
+      marginBottom: 28,
+      maxWidth: 290,
+    },
+    enableLocationBtn: {
+      width: '72%',
+      maxWidth: 260,
+      backgroundColor: themeColors.primary,
+      borderRadius: 25,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+    },
+    enableLocationBtnText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+      letterSpacing: 0.2,
+    },
+  });
 
 export default SearchScreen;

@@ -1,12 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useColorScheme } from "react-native";
 import AppContext from "./CreateGlobalStateContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
 import { clearFullSession } from '../utils/session';
 import { MAX_PROFILE_IMAGES } from '../api/useImages';
 import { getSavedSearchFilters } from '../utils/types/AsyncStorage';
+import { getThemeColors, Colors } from '../theme/colors';
 
 const GlobalStateProvider = ({ children }: any) => {
+  const systemColorScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState<'light' | 'system' | 'dark'>('dark');
+  const themeColors = useMemo(() => getThemeColors(themeMode, systemColorScheme), [themeMode, systemColorScheme]);
+
+  useEffect(() => {
+    Object.assign(Colors, themeColors);
+  }, [themeColors]);
+
 
   // ================= BASIC USER =================
   const [initialScreen, setInitialScreen] = useState<string | null>(null);
@@ -33,6 +43,8 @@ const GlobalStateProvider = ({ children }: any) => {
   const [selectedSmoking, setSelectedSmoking] = useState<string | null>(null);
   const [selectedDrinking, setSelectedDrinking] = useState<string | null>(null);
   const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
+  const [selectedKids, setSelectedKids] = useState<string | null>(null);
+  const [selectedNetWorth, setSelectedNetWorth] = useState<string | null>(null);
   const [englishSkillLevel, setEnglishSkillLevel] = useState(0);
 
   const [profileText, setProfileText] = useState('');
@@ -109,6 +121,7 @@ const GlobalStateProvider = ({ children }: any) => {
           storedImages,
           storedProfileImage,
           storedIsLoggedIn,
+          storedTheme,
         ] = await Promise.all([
           AsyncStorage.getItem('name'),
           AsyncStorage.getItem('displayName'),
@@ -117,7 +130,11 @@ const GlobalStateProvider = ({ children }: any) => {
           AsyncStorage.getItem('onboardingImages'),
           AsyncStorage.getItem('profileImage'),
           AsyncStorage.getItem('isLoggedIn'),
+          AsyncStorage.getItem('@app_appearance_theme'),
         ]);
+        if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
+          setThemeMode(storedTheme);
+        }
         // Generic name/profile keys belong to the active account only. During
         // a fresh registration they may still be present briefly while the
         // previous session is being cleared, so never hydrate them as a draft.
@@ -253,6 +270,8 @@ const GlobalStateProvider = ({ children }: any) => {
         selectedSmoking, setSelectedSmoking,
         selectedDrinking, setSelectedDrinking,
         selectedLookingFor, setSelectedLookingFor,
+        selectedKids, setSelectedKids,
+        selectedNetWorth, setSelectedNetWorth,
         englishSkillLevel, setEnglishSkillLevel,
         profileText, setProfileText,
         profileImage, setProfileImage,
@@ -315,6 +334,11 @@ const GlobalStateProvider = ({ children }: any) => {
         // Aliases for misspelled versions used in codebase
         selectedEthinicity: selectedEthnicity,
         setSelectedEthinicity: setSelectedEthnicity,
+
+        // theme & appearance
+        themeMode,
+        setThemeMode,
+        themeColors,
 
       }}
     >

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Colors, Spacing } from '../../../theme';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import DatePicker from 'react-native-date-picker';
+import { Colors, useTheme } from '../../../theme';
 
 interface YourBirthdayProps {
   value: string;
@@ -9,74 +9,107 @@ interface YourBirthdayProps {
 }
 
 const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
-  const [showPicker, setShowPicker] = useState(false);
+  const { themeColors, isDark } = useTheme();
+  const [open, setOpen] = useState(false);
 
-  const dateObj = value ? new Date(value) : new Date();
+  const dateObj = value ? new Date(value) : new Date(2000, 0, 1);
+  const safeDate = isNaN(dateObj.getTime()) ? new Date(2000, 0, 1) : dateObj;
 
-  const handleChange = (event: any, selectedDate: Date | undefined) => {
-    setShowPicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      const yr = selectedDate.getFullYear();
-      const mo = ('0' + (selectedDate.getMonth() + 1)).slice(-2);
-      const dy = ('0' + selectedDate.getDate()).slice(-2);
-      onChange(`${yr}-${mo}-${dy}`);
-    }
-  };
+  const day = String(safeDate.getDate());
+  const month = String(safeDate.getMonth() + 1);
+  const year = String(safeDate.getFullYear());
 
-  const formatDate = (val: string) => {
-    if (!val) return 'Select date';
-    const [y, m, d] = val.split('-');
-    return `${d}/${m}/${y}`;
+  const handleConfirm = (date: Date) => {
+    setOpen(false);
+    const yr = date.getFullYear();
+    const mo = ('0' + (date.getMonth() + 1)).slice(-2);
+    const dy = ('0' + date.getDate()).slice(-2);
+    onChange(`${yr}-${mo}-${dy}`);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Your birthday</Text>
-      <Text style={styles.subtitle}>When were you born?</Text>
+      <Text style={[styles.title, { color: themeColors.text }]}>Select your birthday</Text>
 
-      <TouchableOpacity style={styles.inputBox} onPress={() => setShowPicker(true)}>
-        <Text style={styles.dateText}>{formatDate(value)}</Text>
-      </TouchableOpacity>
+      <View style={styles.boxesRow}>
+        <TouchableOpacity
+          style={[styles.box, { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.borderLight }]}
+          onPress={() => setOpen(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.boxText, { color: themeColors.text }]}>{day}</Text>
+        </TouchableOpacity>
 
-      {showPicker && (
-        <DateTimePicker
-          value={dateObj}
-          mode="date"
-          display="calendar"
-          onChange={handleChange}
-        />
-      )}
+        <Text style={[styles.slash, { color: themeColors.textSecondary }]}>/</Text>
+
+        <TouchableOpacity
+          style={[styles.box, { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.borderLight }]}
+          onPress={() => setOpen(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.boxText, { color: themeColors.text }]}>{month}</Text>
+        </TouchableOpacity>
+
+        <Text style={[styles.slash, { color: themeColors.textSecondary }]}>/</Text>
+
+        <TouchableOpacity
+          style={[styles.box, styles.yearBox, { backgroundColor: themeColors.surfaceLight, borderColor: themeColors.borderLight }]}
+          onPress={() => setOpen(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.boxText, { color: themeColors.text }]}>{year}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <DatePicker
+        modal
+        open={open}
+        date={safeDate}
+        mode="date"
+        theme={isDark ? 'dark' : 'light'}
+        maximumDate={new Date()}
+        onConfirm={handleConfirm}
+        onCancel={() => setOpen(false)}
+      />
     </View>
   );
 };
 
+export default YourBirthday;
+
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.lg,
+    paddingHorizontal: 20,
+    marginTop: 22,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginTop: 4,
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 12,
   },
-  inputBox: {
-    backgroundColor: Colors.inputBackground,
-    padding: 14,
-    borderRadius: Spacing.radiusMd,
-    borderColor: Colors.glassBorder,
-    borderWidth: 1,
+  boxesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  dateText: {
+  box: {
+    minWidth: 56,
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yearBox: {
+    minWidth: 76,
+  },
+  boxText: {
     fontSize: 16,
-    color: Colors.text,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  slash: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginHorizontal: 12,
   },
 });
-
-export default YourBirthday;

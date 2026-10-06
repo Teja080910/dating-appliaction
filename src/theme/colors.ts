@@ -18,6 +18,10 @@ export const Colors = {
   surface: '#1A1730',
   surfaceLight: '#242140',
   surfaceLighter: '#2D2950',
+  cardBackground: '#1A1730',
+  inputBackground: 'rgba(255, 255, 255, 0.06)',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  tabBarBackground: 'rgba(15, 13, 26, 0.95)',
 
   // Glass
   glass: 'rgba(255, 255, 255, 0.08)',
@@ -38,7 +42,10 @@ export const Colors = {
   success: '#10B981',
   warning: '#F59E0B',
   error: '#EF4444',
+  danger: '#EF4444',
   info: '#3B82F6',
+  online: '#10B981',
+  badge: '#EC4899',
 
   // Neutrals
   border: 'rgba(255, 255, 255, 0.1)',
@@ -56,13 +63,52 @@ export const Colors = {
   shadowDark: 'rgba(0, 0, 0, 0.4)',
   glow: 'rgba(124, 58, 237, 0.15)',
   glowPink: 'rgba(236, 72, 153, 0.15)',
+};
 
-  // Specific
-  cardBackground: 'rgba(26, 23, 48, 0.8)',
-  inputBackground: 'rgba(255, 255, 255, 0.06)',
-  overlay: 'rgba(0, 0, 0, 0.6)',
-  tabBarBackground: 'rgba(15, 13, 26, 0.95)',
-  badge: '#EC4899',
-  online: '#10B981',
-  offline: '#6B6980',
+export const DarkColors = {
+  ...Colors,
+};
+
+export type ThemeColors = typeof Colors;
+
+export const LightColors = {
+  ...Colors,
+  background: '#F8F9FA',
+  surface: '#FFFFFF',
+  surfaceLight: '#F3F4F6',
+  surfaceLighter: '#E5E7EB',
+
+  cardBackground: '#FFFFFF',
+  inputBackground: '#F3F4F6',
+  overlay: 'rgba(0, 0, 0, 0.4)',
+  tabBarBackground: 'rgba(255, 255, 255, 0.95)',
+
+  text: '#111827',
+  textPrimary: '#111827',
+  textSecondary: '#4B5563',
+  textMuted: '#6B7280',
+  textInverse: '#FFFFFF',
+
+  border: '#E5E7EB',
+  borderLight: '#D1D5DB',
+  divider: '#E5E7EB',
+  placeholder: '#9CA3AF',
+  disabled: '#E5E7EB',
+  disabledText: '#9CA3AF',
+  grey: '#9CA3AF',
+  lightGrey: '#F3F4F6',
+
+  glass: '#FFFFFF',
+  glassLight: '#F9FAFB',
+  glassBorder: '#E5E7EB',
+  glassBorderLight: '#D1D5DB',
+};
+
+export const getThemeColors = (
+  mode: 'light' | 'dark' | 'system' = 'dark',
+  systemScheme?: string | null
+) => {
+  if (mode === 'light') return LightColors;
+  if (mode === 'system') return systemScheme === 'light' ? LightColors : DarkColors;
+  return DarkColors;
 };

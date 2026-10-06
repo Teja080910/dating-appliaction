@@ -1,362 +1,512 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, StatusBar, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Header from '../../components/ProfileTabComponents/Header';
-import AdditionalUploadSection from '../../components/ProfileTabComponents/AdditionalUploadSection';
-import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
-import ProfileRow from '../../components/ProfileTabComponents/ProfileRow';
 import { useNavigation, CommonActions } from '@react-navigation/native';
-import { RootParamList } from '../../utils/types/navigation.types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootParamList } from '../../utils/types/navigation.types';
 import { useAuth } from '../../api/useAuth';
 import { clearFullSession } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { getUserId } from '../../utils/sessionHelper';
-import { Colors, Spacing, Shadows, Typography } from '../../theme';
+import { Colors, Spacing, useTheme } from '../../theme';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { useSubscription, useRemainingDays } from '../../api/useSubscription';
 import { useMyProfile } from '../../api/useProfile';
+import AttractiveLogo from '../../components/AttractiveLogo';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
+interface SettingsRowProps {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  isDestructive?: boolean;
+  iconSize?: number;
+  themeColors: any;
+  styles: any;
+}
+
+const SettingsRow: React.FC<SettingsRowProps> = ({
+  icon,
+  label,
+  onPress,
+  isDestructive = false,
+  iconSize = 22,
+  themeColors,
+  styles,
+}) => (
+  <TouchableOpacity
+    style={styles.menuRow}
+    onPress={onPress}
+    activeOpacity={0.65}
+  >
+    <View style={styles.iconContainer}>
+      <Icon
+        name={icon}
+        size={iconSize}
+        color={isDestructive ? themeColors.error : themeColors.text}
+      />
+    </View>
+    <Text style={[styles.menuLabel, isDestructive && styles.destructiveLabel]}>
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
+
+
 const ProfileScreen = () => {
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const { setViewMyProfile, setPaywallVisible } = useContext(AppContext);
+  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId } =
+    useContext(AppContext);
   const { logout, deleteAccount } = useAuth();
   const { alert, AlertComponent } = useAlert();
-  const { subscriptionStatus } = useSubscription();
-  const { remainingDays } = useRemainingDays();
   const { data: myProfile } = useMyProfile();
-  const [storedGender, setStoredGender] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    AsyncStorage.getItem('userGender').then((g) => {
-      if (isMounted && g) setStoredGender(g);
-    });
+    const loadEmail = async () => {
+      try {
+        const storedEmail = await AsyncStorage.getItem('userEmail');
+        const u = await AsyncStorage.getItem('user');
+        const userData = await AsyncStorage.getItem('userData');
+        let emailFound = storedEmail || contextEmail || '';
+        if (!emailFound && u) {
+          try {
+            const parsed = JSON.parse(u);
+            emailFound = parsed?.email || parsed?.user?.email || '';
+          } catch {}
+        }
+        if (!emailFound && userData) {
+          try {
+            const parsed = JSON.parse(userData);
+            emailFound = parsed?.email || parsed?.user?.email || '';
+          } catch {}
+        }
+        if (!emailFound && myProfile?.email) {
+          emailFound = myProfile.email;
+        }
+        if (isMounted && emailFound) {
+          setUserEmail(emailFound);
+        }
+      } catch {}
+    };
+    void loadEmail();
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  const cleanGender = (myProfile?.gender || storedGender || '').toLowerCase();
-  const isWoman = cleanGender.includes('woman') || cleanGender.includes('female');
+  }, [myProfile, contextEmail]);
 
   const handleLogout = async () => {
-    alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        onPress: async () => {
-          try {
-            await logout();
-            navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
-          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        },
-        style: 'destructive',
-      },
-    ]);
+    try {
+      await logout();
+      setLogin?.(false);
+      setAuthUserId?.(null);
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
-  const handleDeleteProfile = async () => {
-    alert(
-      'Delete Profile',
-      'Are you sure you want to permanently delete your profile? All your matches, photos, and messages will be lost forever.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete My Profile',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const resolvedUserId = (await getUserId()) || myProfile?.userId || myProfile?.id;
-              deleteAccount.mutate(resolvedUserId, {
-                onSuccess: async () => {
-                  await clearFullSession();
-                  alert('Profile Deleted', 'Your account has been successfully removed.');
-                  navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
-                },
-                onError: async (error: any) => {
-                  console.error('Delete error:', error);
-                  await clearFullSession();
-                  navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
-                },
-              });
-            } catch (error) {
-              console.error('Delete error:', error);
-              await clearFullSession();
-              navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
-            }
-          },
+  const confirmDeleteProfile = async () => {
+    try {
+      setIsDeleting(true);
+      const resolvedUserId = (await getUserId()) || myProfile?.userId || myProfile?.id;
+      deleteAccount.mutate(resolvedUserId, {
+        onSuccess: async () => {
+          setDeleteModalVisible(false);
+          await clearFullSession();
+          setLogin?.(false);
+          setAuthUserId?.(null);
+          navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
         },
-      ]
-    );
+        onError: async (error: any) => {
+          console.error('Delete error:', error);
+          setDeleteModalVisible(false);
+          await clearFullSession();
+          setLogin?.(false);
+          setAuthUserId?.(null);
+          navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+        },
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      setDeleteModalVisible(false);
+      await clearFullSession();
+      setLogin?.(false);
+      setAuthUserId?.(null);
+      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+    } finally {
+      setIsDeleting(false);
+    }
   };
-
-  const isSubscribed = Boolean(subscriptionStatus?.active);
-  const planCode = String(subscriptionStatus?.plan || '').toUpperCase();
-  const planName = planCode === 'PREMIUM' ? 'Elite' : planCode === 'GOLD' ? 'Premium' : planCode === 'BASIC' ? 'Standard' : 'Standard';
-  const daysLeft = typeof remainingDays === 'number' ? remainingDays : 0;
-  const isElite = Boolean(subscriptionStatus?.eliteBadge || planCode === 'PREMIUM');
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <Header />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={themeColors.background}
+      />
+
+      {/* Brand Header */}
+      <View style={styles.brandHeader}>
+        <View style={styles.logoRow}>
+          <AttractiveLogo size={28} />
+          <Text style={styles.logoText}>AMARA</Text>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* PRD FR-35 & TC-30: Active membership plan badge, remaining days countdown, and renew/upgrade button (Men only) */}
-        {!isWoman && (
-          <View style={styles.membershipCardWrapper}>
-            <LinearGradient
-              colors={isSubscribed ? [Colors.primary, Colors.secondary] : ['#374151', '#1f2937']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.membershipCard}
-            >
-              <View style={styles.membershipHeader}>
-                <View style={styles.membershipBadgeRow}>
-                  <Icon
-                    name={isSubscribed ? 'crown' : 'shield-account-outline'}
-                    size={20}
-                    color={Colors.white}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={styles.membershipPlanTitle}>
-                    {isSubscribed ? `${planName.toUpperCase()} MEMBER` : 'FREE PLAN'}
-                  </Text>
-                </View>
-                <View style={styles.membershipStatusRow}>
-                  {isSubscribed && (
-                    <View style={styles.daysBadge}>
-                      <Text style={styles.daysBadgeText}>
-                        {daysLeft > 0 ? `${daysLeft} days left` : 'Active'}
-                      </Text>
-                    </View>
-                  )}
-                  {isElite && (
-                    <View style={styles.eliteBadge}>
-                      <Icon name="crown" size={13} color="#4A3200" style={styles.eliteBadgeIcon} />
-                      <Text style={styles.eliteBadgeText}>Elite member</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
+        <Text style={styles.sectionHeader}>SETTINGS</Text>
 
-              <Text style={styles.membershipSubtitle}>
-                {isSubscribed
-                  ? planCode === 'PREMIUM'
-                    ? 'Enjoy unlimited invitations, priority Telegram handoff, and your Elite badge.'
-                    : planCode === 'GOLD'
-                      ? 'Enjoy 20 invitations per day and priority Telegram handoff.'
-                      : 'Enjoy 10 invitations per day with Telegram handoff after approval.'
-                  : 'Upgrade to send requests, connect on Telegram, and unlock all features.'}
-              </Text>
-
-              <TouchableOpacity
-                style={styles.upgradeBtn}
-                activeOpacity={0.8}
-                onPress={() => setPaywallVisible(true)}
-              >
-                <Text style={styles.upgradeBtnText}>
-                  {isSubscribed ? 'Renew / Upgrade Plan' : 'View Membership Plans'}
-                </Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        )}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Photos</Text>
-          <AdditionalUploadSection />
-          <ModalAddPhoto />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <ProfileRow
-            title="Profile Settings"
-            iconName="user"
-            onPress={() => navigation.navigate('ProfileSettingsScreen')}
-          />
-          <ProfileRow
-            title="View My Profile"
-            iconName="eye"
+        {/* Group 1: Profile & Features */}
+        <View style={styles.groupContainer}>
+          <SettingsRow
+            icon="account-outline"
+            label="My Profile"
+            themeColors={themeColors}
+            styles={styles}
             onPress={() => {
               setViewMyProfile(true);
               navigation.navigate('ViewMyProfileScreen', { userId: undefined });
             }}
           />
-          <ProfileRow
-            title={
-              myProfile?.telegramUsername
-                ? `Telegram (@${myProfile.telegramUsername.replace(/^@/, '')})`
-                : 'Connect Telegram'
-            }
-            iconName="send"
-            color={Colors.primaryLight}
+          <SettingsRow
+            icon="cog-outline"
+            label="Edit Profile"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => navigation.navigate('ProfileSettingsScreen')}
+          />
+          <SettingsRow
+            icon="information-outline"
+            label="About me"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => navigation.navigate('MoreInfoScreen')}
+          />
+          <SettingsRow
+            icon="tune-variant"
+            label="Search Settings"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => navigation.navigate('SearchSettings')}
+          />
+          <SettingsRow
+            icon="crown-outline"
+            label="Get Premium"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => setPaywallVisible(true)}
+          />
+          <SettingsRow
+            icon="send-outline"
+            label="Telegram"
+            themeColors={themeColors}
+            styles={styles}
             onPress={() => navigation.navigate('ConnectTelegram', { fromProfile: true } as any)}
           />
+          <SettingsRow
+            icon="palette-outline"
+            label="Preferences"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => navigation.navigate('PreferencesScreen')}
+          />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Legal</Text>
-          <ProfileRow
-            title="Privacy Policy"
-            iconName="shield"
-            color={Colors.info}
+        <View style={styles.divider} />
+
+        {/* Group 2: Support & Legal */}
+        <View style={styles.groupContainer}>
+          <SettingsRow
+            icon="help-circle-outline"
+            label="How To Use Amara"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => navigation.navigate('SupportScreen')}
+          />
+          <SettingsRow
+            icon="shield-outline"
+            label="Privacy Policy"
+            themeColors={themeColors}
+            styles={styles}
             onPress={() => navigation.navigate('PrivacyPolicy', { type: 'privacy' })}
           />
-          <ProfileRow
-            title="Terms & Conditions"
-            iconName="file-text"
-            color={Colors.info}
+          <SettingsRow
+            icon="file-document-outline"
+            label="Terms and Conditions"
+            themeColors={themeColors}
+            styles={styles}
             onPress={() => navigation.navigate('PrivacyPolicy', { type: 'terms' })}
           />
+          <SettingsRow
+            icon="chat-outline"
+            label="Chat With Us"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => navigation.navigate('SupportScreen')}
+          />
         </View>
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: Colors.error }]}>Danger Zone</Text>
-          <ProfileRow
-            title="Logout"
-            iconName="log-out"
-            color={Colors.error}
+        <View style={styles.divider} />
+
+        {/* Group 3: Account Actions */}
+        <View style={styles.groupContainer}>
+          <SettingsRow
+            icon="logout"
+            label="Log Out"
+            themeColors={themeColors}
+            styles={styles}
             onPress={handleLogout}
           />
-          <ProfileRow
-            title="Delete My Profile"
-            iconName="trash-2"
-            color={Colors.textMuted}
-            onPress={handleDeleteProfile}
+          <SettingsRow
+            icon="trash-can-outline"
+            label="Delete My Profile"
+            isDestructive={true}
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => setDeleteModalVisible(true)}
           />
         </View>
 
-        <Text style={styles.footerText}>AMARA - All Rights Reserved</Text>
+        {/* Footer info */}
+        <View style={styles.footerContainer}>
+          {userEmail ? (
+            <Text style={styles.userEmailText}>{userEmail}</Text>
+          ) : null}
+          <Text style={styles.versionText}>Amara v5.1.10</Text>
+        </View>
       </ScrollView>
+
+      {/* Custom Delete Profile Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isDeleting) setDeleteModalVisible(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setDeleteModalVisible(false)}
+              disabled={isDeleting}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Icon name="close" size={20} color={themeColors.textSecondary} />
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>Delete My Profile</Text>
+
+            <Text style={styles.modalBodyText}>
+              Your profile will be hidden immediately and permanently deleted after 30 days. You can recover your account by logging in again within that period.
+            </Text>
+
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setDeleteModalVisible(false)}
+                disabled={isDeleting}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={confirmDeleteProfile}
+                disabled={isDeleting}
+                activeOpacity={0.8}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {AlertComponent}
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 120,
-  },
-  section: {
-    marginTop: Spacing.lg,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: Colors.divider,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.surfaceLight,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  footerText: {
-    textAlign: 'center',
-    color: Colors.textMuted,
-    fontSize: 12,
-    marginTop: Spacing.xxl,
-    marginBottom: Spacing.xl,
-    letterSpacing: 1,
-  },
-  membershipCardWrapper: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-  },
-  membershipCard: {
-    borderRadius: Spacing.radiusLg,
-    padding: Spacing.lg,
-    ...Shadows.md,
-  },
-  membershipHeader: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    marginBottom: Spacing.xs,
-  },
-  membershipBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
-  },
-  membershipStatusRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  membershipPlanTitle: {
-    ...Typography.h3,
-    color: Colors.white,
-    fontWeight: '800',
-    flexShrink: 1,
-  },
-  daysBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Spacing.radiusSm,
-  },
-  daysBadgeText: {
-    ...Typography.caption,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  eliteBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFD700',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: Spacing.radiusSm,
-    maxWidth: '100%',
-  },
-  eliteBadgeIcon: {
-    marginRight: 4,
-  },
-  eliteBadgeText: {
-    ...Typography.caption,
-    fontWeight: '800',
-    color: '#4A3200',
-    flexShrink: 1,
-  },
-  membershipSubtitle: {
-    ...Typography.bodySmall,
-    color: 'rgba(255, 255, 255, 0.85)',
-    marginVertical: Spacing.sm,
-    lineHeight: 18,
-  },
-  upgradeBtn: {
-    backgroundColor: Colors.white,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Spacing.radiusMd,
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-  },
-  upgradeBtnText: {
-    ...Typography.button,
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    brandHeader: {
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+      backgroundColor: colors.background,
+    },
+    logoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    logoText: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.primary,
+      letterSpacing: 0.5,
+      marginLeft: 8,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingBottom: 120,
+    },
+    sectionHeader: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      paddingHorizontal: 20,
+      marginTop: 18,
+      marginBottom: 8,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+    groupContainer: {
+      paddingHorizontal: 0,
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 20,
+    },
+    iconContainer: {
+      width: 28,
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+      marginRight: 16,
+    },
+    menuLabel: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: '400',
+    },
+    destructiveLabel: {
+      color: colors.error,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.divider,
+      marginHorizontal: 20,
+      marginVertical: 6,
+    },
+    footerContainer: {
+      alignItems: 'center',
+      marginTop: 28,
+      marginBottom: 20,
+    },
+    userEmailText: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    versionText: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.72)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: colors.surface,
+      borderRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      paddingBottom: 22,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 16,
+      elevation: 10,
+      position: 'relative',
+    },
+    modalCloseBtn: {
+      position: 'absolute',
+      top: 18,
+      right: 18,
+      padding: 4,
+      zIndex: 10,
+    },
+    modalTitle: {
+      fontSize: 21,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 16,
+      paddingRight: 28,
+      letterSpacing: -0.2,
+    },
+    modalBodyText: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.textSecondary,
+      marginBottom: 24,
+    },
+    modalButtonsRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      gap: 12,
+    },
+    cancelBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 22,
+      borderRadius: 22,
+      backgroundColor: colors.surfaceLight,
+      borderWidth: 1,
+      borderColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    cancelBtnText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    deleteBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 24,
+      borderRadius: 22,
+      backgroundColor: '#F87171',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minWidth: 84,
+    },
+    deleteBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+  });
 
 export default ProfileScreen;
+

@@ -18,7 +18,7 @@ const Header = () => {
       {isSubscribed && (
         <View style={styles.premiumBadge}>
           <LinearGradient
-            colors={[Colors.primary, Colors.secondary]}
+            colors={[Colors.primary, Colors.primaryLight]}
             style={styles.badgeGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}

@@ -5,34 +5,30 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
 
-const appearances = ['Very attractive', 'Attractive', 'Average', 'Below average'];
+const OPTIONS = ['0', '1', '2', '3+', 'Prefer not to say'];
 
-const AppearanceSelector = () => {
+const KidsSelector = () => {
   const { themeColors } = useTheme();
-  const { selectedAppearance, setSelectedAppearance } = useContext(AppContext);
+  const { selectedKids, setSelectedKids } = useContext(AppContext);
 
-  const toggleAppearance = (appearance: string) => {
-    if (selectedAppearance?.toLowerCase() === appearance.toLowerCase()) {
-      setSelectedAppearance(null);
-    } else {
-      setSelectedAppearance(appearance);
-    }
+  const toggleSelect = (item: string) => {
+    setSelectedKids((prev: string | null) => (prev === item ? null : item));
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Icon name="emoticon-happy-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Your appearance</Text>
+        <Icon name="baby-face-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
+        <Text style={[styles.title, { color: themeColors.text }]}>How many kids do you have?</Text>
       </View>
       <View style={styles.optionsWrap}>
-        {appearances.map((appearance) => {
-          const isSelected = selectedAppearance?.toLowerCase() === appearance.toLowerCase();
+        {OPTIONS.map((option) => {
+          const isSelected = selectedKids === option;
           return isSelected ? (
             <TouchableOpacity
-              key={appearance}
+              key={option}
               activeOpacity={0.8}
-              onPress={() => toggleAppearance(appearance)}
+              onPress={() => toggleSelect(option)}
               style={styles.pillActiveWrapper}
             >
               <LinearGradient
@@ -41,14 +37,14 @@ const AppearanceSelector = () => {
                 end={{ x: 1, y: 1 }}
                 style={styles.pillActiveGradient}
               >
-                <Text style={styles.pillTextActive}>{appearance}</Text>
+                <Text style={styles.pillTextActive}>{option}</Text>
               </LinearGradient>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              key={appearance}
+              key={option}
               activeOpacity={0.7}
-              onPress={() => toggleAppearance(appearance)}
+              onPress={() => toggleSelect(option)}
               style={[
                 styles.pillInactive,
                 {
@@ -57,7 +53,7 @@ const AppearanceSelector = () => {
                 },
               ]}
             >
-              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{appearance}</Text>
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{option}</Text>
             </TouchableOpacity>
           );
         })}
@@ -66,7 +62,7 @@ const AppearanceSelector = () => {
   );
 };
 
-export default AppearanceSelector;
+export default KidsSelector;
 
 const styles = StyleSheet.create({
   container: {

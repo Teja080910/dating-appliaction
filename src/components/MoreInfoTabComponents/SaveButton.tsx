@@ -1,24 +1,33 @@
-import { StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import React from 'react';
-import { Colors, Spacing } from '../../theme';
+import { StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { Colors } from '../../theme';
 
 interface SaveButtonProps {
-    onPress?: () => void;
-    loading?: boolean;
+  onPress?: () => void;
+  loading?: boolean;
 }
 
 const SaveButton: React.FC<SaveButtonProps> = ({ onPress, loading }) => {
   return (
     <TouchableOpacity
-      style={[styles.saveButton, loading && { opacity: 0.7 }]}
+      activeOpacity={0.85}
       onPress={onPress}
       disabled={loading}
+      style={[styles.wrapper, loading && { opacity: 0.7 }]}
     >
-      {loading ? (
-          <ActivityIndicator color={Colors.white} />
-      ) : (
-          <Text style={styles.saveButtonText}>Save Details</Text>
-      )}
+      <LinearGradient
+        colors={[Colors.primary, Colors.primaryLight]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.gradient}
+      >
+        {loading ? (
+          <ActivityIndicator color={Colors.white} size="small" />
+        ) : (
+          <Text style={styles.text}>Save</Text>
+        )}
+      </LinearGradient>
     </TouchableOpacity>
   );
 };
@@ -26,23 +35,26 @@ const SaveButton: React.FC<SaveButtonProps> = ({ onPress, loading }) => {
 export default SaveButton;
 
 const styles = StyleSheet.create({
-  saveButton: {
-    paddingVertical: Spacing.lg,
-    borderRadius: Spacing.radiusFull,
-    backgroundColor: Colors.primary,
+  wrapper: {
+    width: '100%',
+    borderRadius: 26,
+    overflow: 'hidden',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  gradient: {
+    paddingVertical: 14,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: Spacing.xl,
-    marginVertical: Spacing.xl,
-    elevation: 4,
-    shadowColor: Colors.shadow,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
   },
-  saveButtonText: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: 'bold',
+  text: {
+    color: '#FFFFFF',
+    fontSize: 16.5,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

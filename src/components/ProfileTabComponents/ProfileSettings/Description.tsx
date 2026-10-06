@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { Colors, Spacing } from '../../../theme';
+import { Colors, useTheme } from '../../../theme';
 
-const MAX_LENGTH = 500;
+const MAX_LENGTH = 150;
 
 interface DescriptionProps {
   value: string;
@@ -10,65 +10,70 @@ interface DescriptionProps {
 }
 
 const DescriptionInput: React.FC<DescriptionProps> = ({ value, onChange }) => {
+  const { themeColors } = useTheme();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Your description</Text>
-      <Text style={styles.subtitle}>
-        Write about yourself: What's your profession?{'\n'}Which hobbies do you pursue?
+      <Text style={[styles.prompt, { color: themeColors.textSecondary }]}>
+        Tell us something about yourself. You can write about your hobbies, values and visions in life.
       </Text>
 
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={onChange}
-        placeholder="Write something..."
-        placeholderTextColor={Colors.textMuted}
-        multiline
-        maxLength={MAX_LENGTH}
-      />
+      <View
+        style={[
+          styles.inputCard,
+          {
+            backgroundColor: themeColors.surfaceLight,
+            borderColor: themeColors.borderLight,
+          },
+        ]}
+      >
+        <TextInput
+          style={[styles.input, { color: themeColors.text }]}
+          value={value}
+          onChangeText={onChange}
+          placeholder="Tell us about yourself..."
+          placeholderTextColor={themeColors.textMuted}
+          multiline
+          maxLength={MAX_LENGTH}
+        />
+      </View>
 
-      <Text style={styles.charCount}>{value?.length || 0} / {MAX_LENGTH}</Text>
+      <Text style={[styles.charCount, { color: themeColors.textSecondary }]}>
+        {value?.length || 0} / {MAX_LENGTH}
+      </Text>
     </View>
   );
 };
 
+export default DescriptionInput;
+
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
+    paddingHorizontal: 20,
+    marginTop: 22,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 6,
+  prompt: {
+    fontSize: 14.5,
+    lineHeight: 20,
+    marginBottom: 12,
   },
-  subtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 22,
+  inputCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    minHeight: 120,
   },
   input: {
-    backgroundColor: Colors.inputBackground,
-    borderRadius: Spacing.radiusMd,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
+    fontSize: 15,
+    fontWeight: '400',
     textAlignVertical: 'top',
-    minHeight: 100,
+    padding: 0,
+    minHeight: 92,
   },
   charCount: {
-    marginTop: 8,
+    marginTop: 6,
     textAlign: 'right',
-    fontSize: 14,
-    color: Colors.textMuted,
+    fontSize: 13,
     fontWeight: '500',
   },
 });
-
-export default DescriptionInput;

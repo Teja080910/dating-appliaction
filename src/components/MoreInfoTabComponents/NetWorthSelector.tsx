@@ -5,44 +5,38 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors } from '../../theme';
 
-const options = [
-  'Hookup',
-  'Casual dating',
-  'Online relationship',
-  'Relationship',
-  'Marriage',
+const OPTIONS = [
+  'Below 50k',
+  '50k+',
+  '250k+',
+  '1 Million+',
+  '5 Million+',
+  'Prefer not to say',
 ];
 
-const LookingForSelector = () => {
+const NetWorthSelector = () => {
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
-  const { selectedLookingFor, setSelectedLookingFor } = useContext(AppContext);
+  const { selectedNetWorth, setSelectedNetWorth } = useContext(AppContext);
 
-  const toggleOption = (option: string) => {
-    const list = Array.isArray(selectedLookingFor) ? selectedLookingFor : [];
-    const exists = list.some((item) => item.toLowerCase() === option.toLowerCase());
-    if (exists) {
-      setSelectedLookingFor(list.filter((item) => item.toLowerCase() !== option.toLowerCase()));
-    } else {
-      setSelectedLookingFor([...list, option]);
-    }
+  const toggleSelect = (item: string) => {
+    setSelectedNetWorth((prev: string | null) => (prev === item ? null : item));
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Icon name="heart-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={styles.title}>What are you looking for?</Text>
+        <Icon name="currency-usd" size={22} color={themeColors.text} style={styles.headerIcon} />
+        <Text style={styles.title}>Net Worth (USD)</Text>
       </View>
       <View style={styles.optionsWrap}>
-        {options.map((item) => {
-          const list = Array.isArray(selectedLookingFor) ? selectedLookingFor : [];
-          const isSelected = list.some((val) => val.toLowerCase() === item.toLowerCase());
+        {OPTIONS.map((option) => {
+          const isSelected = selectedNetWorth === option;
           return isSelected ? (
             <TouchableOpacity
-              key={item}
+              key={option}
               activeOpacity={0.8}
-              onPress={() => toggleOption(item)}
+              onPress={() => toggleSelect(option)}
               style={styles.pillActiveWrapper}
             >
               <LinearGradient
@@ -51,17 +45,17 @@ const LookingForSelector = () => {
                 end={{ x: 1, y: 1 }}
                 style={styles.pillActiveGradient}
               >
-                <Text style={styles.pillTextActive}>{item}</Text>
+                <Text style={styles.pillTextActive}>{option}</Text>
               </LinearGradient>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              key={item}
+              key={option}
               activeOpacity={0.7}
-              onPress={() => toggleOption(item)}
+              onPress={() => toggleSelect(option)}
               style={styles.pillInactive}
             >
-              <Text style={styles.pillTextInactive}>{item}</Text>
+              <Text style={styles.pillTextInactive}>{option}</Text>
             </TouchableOpacity>
           );
         })}
@@ -70,7 +64,7 @@ const LookingForSelector = () => {
   );
 };
 
-export default LookingForSelector;
+export default NetWorthSelector;
 
 const createStyles = (themeColors: ThemeColors) =>
   StyleSheet.create({

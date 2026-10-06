@@ -1,22 +1,23 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
 import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
-import DrinkingSelector from '../../components/MoreInfoTabComponents/DrinkingSelector';
 import EnglishSkillSelector from '../../components/MoreInfoTabComponents/EnglishSkillSelector';
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
 import Header from '../../components/MoreInfoTabComponents/Header';
 import HeightSelector from '../../components/MoreInfoTabComponents/HeightSelector';
+import KidsSelector from '../../components/MoreInfoTabComponents/KidsSelector';
 import LanguagesSelector from '../../components/MoreInfoTabComponents/LanguagesSelector';
 import LookingForSelector from '../../components/MoreInfoTabComponents/LookingForSelector';
+import NetWorthSelector from '../../components/MoreInfoTabComponents/NetWorthSelector';
 import SaveButton from '../../components/MoreInfoTabComponents/SaveButton';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { getAuthSession } from '../../utils/session';
-import { Colors } from '../../theme';
+import { Colors, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 
@@ -24,9 +25,10 @@ const HIDDEN_PROFILE_LANGUAGES = new Set(['telugu']);
 const HIDDEN_LOOKING_FOR_VALUES = new Set(['long-term relationship']);
 
 const MoreInfoScreen = () => {
+  const { themeColors } = useTheme();
   const { alert, AlertComponent } = useAlert();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<any>();
+
   const {
     height,
     setHeight,
@@ -43,13 +45,26 @@ const MoreInfoScreen = () => {
     selectedSmoking,
     setSelectedSmoking,
     selectedDrinking,
-    setSelectedDrinking,
     selectedLookingFor,
     setSelectedLookingFor,
+    selectedKids,
+    setSelectedKids,
+    selectedNetWorth,
+    setSelectedNetWorth,
   } = useContext(AppContext);
   const [loading, setLoading] = useState(false);
   const { updateDetails, updatePreferences, useMyProfile } = useProfile();
   const profileQuery = useMyProfile(undefined);
+
+  useEffect(() => {
+    // Check local storage for kids & net worth in case backend doesn't store them yet
+    AsyncStorage.getItem('@amara_kid_count').then((val) => {
+      if (val) setSelectedKids(val);
+    });
+    AsyncStorage.getItem('@amara_net_worth').then((val) => {
+      if (val) setSelectedNetWorth(val);
+    });
+  }, [setSelectedKids, setSelectedNetWorth]);
 
   useEffect(() => {
     const profile = profileQuery.data;
@@ -61,7 +76,8 @@ const MoreInfoScreen = () => {
       ethnicity: profile.ethnicity,
       lookingFor: profile.lookingFor,
       smoke: profile.smoke,
-      drink: profile.drink,
+      kidCount: profile.kidCount,
+      netWorth: profile.netWorth,
     }));
 
     const splitValues = (value?: string) =>
@@ -77,8 +93,13 @@ const MoreInfoScreen = () => {
       (item) => !HIDDEN_LOOKING_FOR_VALUES.has(item.toLowerCase()),
     );
 
-    const englishLevelMap = ['beginner', 'intermediate', 'advanced', 'native'];
-    const englishIndex = englishLevelMap.indexOf(String(profile.englishLevel || '').toLowerCase());
+    const englishLevelMap = ['basic', 'medium', 'good', 'very good'];
+    const legacyEnglishMap = ['beginner', 'intermediate', 'advanced', 'native'];
+    const levelStr = String(profile.englishLevel || '').toLowerCase();
+    let englishIndex = englishLevelMap.indexOf(levelStr);
+    if (englishIndex === -1) {
+      englishIndex = legacyEnglishMap.indexOf(levelStr);
+    }
 
     if (profile.height) {
       setHeight(Number(profile.height));
@@ -88,12 +109,17 @@ const MoreInfoScreen = () => {
     setSelectedLanguages(visibleLanguages);
     setSelectedEthinicity(profile.ethnicity || null);
     setSelectedSmoking(profile.smoke || null);
-    setSelectedDrinking(profile.drink || null);
     setSelectedLookingFor(visibleLookingFor);
+    if (profile.kidCount || profile.kids) {
+      setSelectedKids(profile.kidCount || profile.kids);
+    }
+    if (profile.netWorth) {
+      setSelectedNetWorth(profile.netWorth);
+    }
     if (englishIndex >= 0) {
       setEnglishSkillLevel(englishIndex);
     }
-  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedLanguages, setSelectedLookingFor, setSelectedSmoking]);
+  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
 
   const handleSave = async () => {
     const authSession = await getAuthSession();
@@ -107,7 +133,8 @@ const MoreInfoScreen = () => {
     try {
       setLoading(true);
 
-      const englishLevelStr = ['beginner', 'intermediate', 'advanced', 'native'][englishSkillLevel] || '';
+      const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
+      const englishLevelStr = englishLevels[englishSkillLevel] || '';
       const languageStr = Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '';
       const lookingForStr = Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '';
 
@@ -118,6 +145,8 @@ const MoreInfoScreen = () => {
         height: Number(height) || 0,
         englishLevel: englishLevelStr,
         ethnicity: selectedEthinicity || '',
+        kidCount: selectedKids || '',
+        netWorth: selectedNetWorth || '',
       };
 
       const prefsPayload = {
@@ -127,9 +156,13 @@ const MoreInfoScreen = () => {
         ethnicity: selectedEthinicity || '',
       };
 
-      // Save these partial profile updates in order. Sending both requests at
-      // the same time can cause the slower response to overwrite fields saved
-      // by the other request on APIs that persist the full profile row.
+      if (selectedKids) {
+        await AsyncStorage.setItem('@amara_kid_count', selectedKids);
+      }
+      if (selectedNetWorth) {
+        await AsyncStorage.setItem('@amara_net_worth', selectedNetWorth);
+      }
+
       await updateDetails.mutateAsync(detailsPayload);
       await updatePreferences.mutateAsync(prefsPayload);
 
@@ -149,10 +182,10 @@ const MoreInfoScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Header />
       <ScrollView
-        style={styles.scrollView}
+        style={[styles.scrollView, { backgroundColor: themeColors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -164,11 +197,21 @@ const MoreInfoScreen = () => {
           <EnglishSkillSelector />
           <EthnicitySelector />
           <DoYouSmokeSelector />
-          <DrinkingSelector />
+          <KidsSelector />
           <LookingForSelector />
+          <NetWorthSelector />
         </View>
       </ScrollView>
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: themeColors.background,
+            borderTopColor: themeColors.divider,
+            paddingBottom: insets.bottom > 0 ? insets.bottom + 6 : 14,
+          },
+        ]}
+      >
         <SaveButton onPress={handleSave} loading={loading} />
       </View>
       {AlertComponent}
@@ -188,30 +231,19 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 24,
+    paddingBottom: 32,
   },
   content: {
     flex: 1,
+    paddingBottom: 10,
   },
   footer: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderTopWidth: 1,
-    borderTopColor: Colors.glassBorder,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: 12,
-  },
-  closeButton: {
-    marginHorizontal: 24,
-    marginBottom: 12,
-    paddingVertical: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeButtonText: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '600',
+    paddingHorizontal: 16,
   },
 });
+
+

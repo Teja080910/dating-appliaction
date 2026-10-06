@@ -17,10 +17,12 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useSupport } from '../../api/useSupport';
-import { Colors, Spacing } from '../../theme';
+import { Colors, Spacing, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 
 const SupportScreen = () => {
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Technical');
 
@@ -110,7 +112,7 @@ const SupportScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Icon name="arrow-left" size={26} color={Colors.text} />
+          <Icon name="arrow-left" size={26} color={themeColors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Support & Chat</Text>
         <View style={styles.headerSpacer} />
@@ -245,220 +247,222 @@ const SupportScreen = () => {
 
 export default SupportScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  backBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  keyboardArea: {
-    flex: 1,
-  },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: 40,
-  },
-  telegramSupportCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 136, 204, 0.3)',
-    marginBottom: Spacing.lg,
-  },
-  telegramIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#0088cc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-  telegramSupportContent: {
-    flex: 1,
-  },
-  telegramSupportTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  telegramSupportSub: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-    gap: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.borderLight,
-  },
-  dividerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textMuted,
-    letterSpacing: 0.5,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: Spacing.lg,
-  },
-  categoryBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    backgroundColor: Colors.surface,
-  },
-  categoryBtnActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  categoryText: {
-    color: Colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  categoryTextActive: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  input: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: Colors.text,
-    textAlignVertical: 'top',
-    height: 120,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  submitBtn: {
-    backgroundColor: Colors.primary,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  ticketSection: {
-    marginTop: Spacing.xxl,
-  },
-  ticketTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  ticketTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  stateCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    padding: Spacing.md,
-    alignItems: 'center',
-  },
-  stateText: {
-    color: Colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  ticketCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    padding: Spacing.md,
-    marginBottom: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.primary,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-    gap: 12,
-  },
-  ticketSubject: {
-    color: Colors.text,
-    fontWeight: '700',
-    fontSize: 14,
-    flex: 1,
-  },
-  ticketStatus: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 11,
-    textTransform: 'uppercase',
-  },
-  ticketStatusClosed: {
-    color: '#22c55e',
-  },
-  ticketMessage: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  ticketFooter: {
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ticketDate: {
-    color: Colors.textMuted,
-    fontSize: 11,
-  },
-  closeLink: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-});
+const createStyles = (themeColors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    backBtn: {
+      padding: 4,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    headerSpacer: {
+      width: 28,
+    },
+    keyboardArea: {
+      flex: 1,
+    },
+    content: {
+      padding: Spacing.lg,
+      paddingBottom: 40,
+    },
+    telegramSupportCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: themeColors.surface,
+      padding: Spacing.md,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 136, 204, 0.3)',
+      marginBottom: Spacing.lg,
+    },
+    telegramIconBox: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#0088cc',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: Spacing.md,
+    },
+    telegramSupportContent: {
+      flex: 1,
+    },
+    telegramSupportTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    telegramSupportSub: {
+      fontSize: 12,
+      color: themeColors.textMuted,
+      marginTop: 2,
+    },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: Spacing.lg,
+      gap: 8,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: themeColors.borderLight,
+    },
+    dividerText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: themeColors.textMuted,
+      letterSpacing: 0.5,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: themeColors.text,
+      marginBottom: 8,
+    },
+    categoryContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: Spacing.lg,
+    },
+    categoryBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    categoryBtnActive: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    categoryText: {
+      color: themeColors.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    categoryTextActive: {
+      color: '#fff',
+      fontWeight: '700',
+    },
+    input: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 15,
+      color: themeColors.text,
+      textAlignVertical: 'top',
+      height: 120,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    submitBtn: {
+      backgroundColor: themeColors.primary,
+      height: 50,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: Spacing.lg,
+    },
+    submitBtnText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    ticketSection: {
+      marginTop: Spacing.xxl,
+    },
+    ticketTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    ticketTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    stateCard: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      padding: Spacing.md,
+      alignItems: 'center',
+    },
+    stateText: {
+      color: themeColors.textMuted,
+      fontSize: 13,
+      textAlign: 'center',
+    },
+    ticketCard: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      padding: Spacing.md,
+      marginBottom: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: themeColors.primary,
+    },
+    ticketHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+      gap: 12,
+    },
+    ticketSubject: {
+      color: themeColors.text,
+      fontWeight: '700',
+      fontSize: 14,
+      flex: 1,
+    },
+    ticketStatus: {
+      color: themeColors.primary,
+      fontWeight: '700',
+      fontSize: 11,
+      textTransform: 'uppercase',
+    },
+    ticketStatusClosed: {
+      color: '#22c55e',
+    },
+    ticketMessage: {
+      color: themeColors.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    ticketFooter: {
+      marginTop: 8,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    ticketDate: {
+      color: themeColors.textMuted,
+      fontSize: 11,
+    },
+    closeLink: {
+      color: themeColors.primary,
+      fontWeight: '700',
+      fontSize: 12,
+    },
+  });

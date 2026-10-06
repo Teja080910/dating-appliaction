@@ -20,9 +20,11 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { Colors, Spacing, useTheme } from '../../theme';
 
 const SentRequestsScreen: React.FC = () => {
+  const { themeColors, isDark } = useTheme();
+  const styles = React.useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const canGoBack = Boolean(navigation?.canGoBack?.());
@@ -30,6 +32,7 @@ const SentRequestsScreen: React.FC = () => {
     useContext(AppContext);
   const { sentList, refreshAll } = useConnection();
   const [searchQuery, setSearchQuery] = useState('');
+
 
   const { data: requests = [], isLoading, isRefetching } = sentList;
 
@@ -314,389 +317,391 @@ const SentRequestsScreen: React.FC = () => {
 
 export default SentRequestsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginRight: 10,
-    padding: 4,
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  screenSubtitle: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 22,
-    height: 42,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  searchInput: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: 14,
-    marginLeft: 8,
-    paddingVertical: 0,
-  },
-  clearSearchBtn: {
-    marginTop: Spacing.md,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: Colors.surfaceLight,
-  },
-  clearSearchBtnText: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  listContent: {
-    padding: Spacing.md,
-    paddingBottom: 90,
-  },
-  card: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.surfaceLight,
-  },
-  cardContent: {
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  nameText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    flex: 1,
-    marginRight: 8,
-  },
-  smallActionWrapper: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  smallActionGradient: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  smallActionText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  cityText: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  bioText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  metaText: {
-    fontSize: 11,
-    color: Colors.textMuted,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginTop: Spacing.md,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 18,
-  },
-  // Full Profile Modal
-  modalContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  modalBackBtn: {
-    padding: Spacing.xs,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  modalScroll: {
-    paddingBottom: 80,
-    flexGrow: 1,
-  },
-  photoContainer: {
-    width: '100%',
-    maxWidth: 480,
-    aspectRatio: 0.8,
-    maxHeight: 520,
-    alignSelf: 'center',
-    backgroundColor: Colors.surfaceLight,
-    position: 'relative',
-  },
-  modalPhoto: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-    backgroundColor: Colors.surfaceLight,
-  },
-  storyBarsContainer: {
-    position: 'absolute',
-    top: 10,
-    left: 12,
-    right: 12,
-    flexDirection: 'row',
-    gap: 5,
-    zIndex: 10,
-  },
-  storyBarTrack: {
-    flex: 1,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    overflow: 'hidden',
-  },
-  storyBarFill: {
-    flex: 1,
-    borderRadius: 2,
-  },
-  tapZoneLeft: {
-    position: 'absolute',
-    top: 25,
-    left: 0,
-    bottom: 25,
-    width: '45%',
-    zIndex: 5,
-  },
-  tapZoneRight: {
-    position: 'absolute',
-    top: 25,
-    right: 0,
-    bottom: 25,
-    width: '55%',
-    zIndex: 5,
-  },
-  photoCountBadge: {
-    position: 'absolute',
-    bottom: 12,
-    right: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    zIndex: 10,
-  },
-  photoCountText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  modalInfo: {
-    padding: Spacing.lg,
-  },
-  modalNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  modalCity: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginTop: 4,
-  },
-  modalSection: {
-    marginTop: Spacing.lg,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  modalBio: {
-    fontSize: 15,
-    color: Colors.text,
-    lineHeight: 22,
-  },
-  modalActionBox: {
-    marginTop: Spacing.xl,
-  },
-  modalConnectedBox: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    alignItems: 'center',
-  },
-  connectedLabel: {
-    fontSize: 12,
-    color: '#22c55e',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  connectedHandle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    marginVertical: 4,
-  },
-  modalTelegramBtnWrapper: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 10,
-    width: '100%',
-  },
-  modalTelegramGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  modalTelegramBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  modalPendingBox: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    alignItems: 'center',
-  },
-  modalPendingTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#eab308',
-  },
-  modalPendingSub: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  modalRecallBtnWrapper: {
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginTop: 14,
-    width: '100%',
-  },
-  modalRecallGradient: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    width: '100%',
-  },
-  modalRecallBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  approvedActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  shareIconButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.2)',
-  },
-  itemHandleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  itemHandleLabel: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  itemHandleText: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.md,
+      paddingBottom: Spacing.sm,
+    },
+    headerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    backButton: {
+      marginRight: 10,
+      padding: 4,
+    },
+    screenTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    screenSubtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      marginHorizontal: Spacing.lg,
+      marginTop: Spacing.sm,
+      marginBottom: Spacing.xs,
+      paddingHorizontal: Spacing.md,
+      borderRadius: 22,
+      height: 42,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    searchInput: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 14,
+      marginLeft: 8,
+      paddingVertical: 0,
+    },
+    clearSearchBtn: {
+      marginTop: Spacing.md,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceLight,
+    },
+    clearSearchBtnText: {
+      color: colors.primary,
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    listContent: {
+      padding: Spacing.md,
+      paddingBottom: 90,
+    },
+    card: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: Spacing.md,
+      marginBottom: Spacing.sm,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    avatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.surfaceLight,
+    },
+    cardContent: {
+      flex: 1,
+      marginLeft: Spacing.md,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    nameText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      flex: 1,
+      marginRight: 8,
+    },
+    smallActionWrapper: {
+      borderRadius: 14,
+      overflow: 'hidden',
+    },
+    smallActionGradient: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    smallActionText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    cityText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    bioText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    metaText: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.xl,
+    },
+    loadingText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: Spacing.md,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    emptySubtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 6,
+      lineHeight: 18,
+    },
+    // Full Profile Modal
+    modalContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    modalBackBtn: {
+      padding: Spacing.xs,
+    },
+    modalTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    modalScroll: {
+      paddingBottom: 80,
+      flexGrow: 1,
+    },
+    photoContainer: {
+      width: '100%',
+      maxWidth: 480,
+      aspectRatio: 0.8,
+      maxHeight: 520,
+      alignSelf: 'center',
+      backgroundColor: colors.surfaceLight,
+      position: 'relative',
+    },
+    modalPhoto: {
+      width: '100%',
+      height: '100%',
+      resizeMode: 'cover',
+      backgroundColor: colors.surfaceLight,
+    },
+    storyBarsContainer: {
+      position: 'absolute',
+      top: 10,
+      left: 12,
+      right: 12,
+      flexDirection: 'row',
+      gap: 5,
+      zIndex: 10,
+    },
+    storyBarTrack: {
+      flex: 1,
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      overflow: 'hidden',
+    },
+    storyBarFill: {
+      flex: 1,
+      borderRadius: 2,
+    },
+    tapZoneLeft: {
+      position: 'absolute',
+      top: 25,
+      left: 0,
+      bottom: 25,
+      width: '45%',
+      zIndex: 5,
+    },
+    tapZoneRight: {
+      position: 'absolute',
+      top: 25,
+      right: 0,
+      bottom: 25,
+      width: '55%',
+      zIndex: 5,
+    },
+    photoCountBadge: {
+      position: 'absolute',
+      bottom: 12,
+      right: 14,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+      zIndex: 10,
+    },
+    photoCountText: {
+      color: '#fff',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    modalInfo: {
+      padding: Spacing.lg,
+    },
+    modalNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    modalName: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    modalCity: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    modalSection: {
+      marginTop: Spacing.lg,
+    },
+    sectionLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      marginBottom: 4,
+    },
+    modalBio: {
+      fontSize: 15,
+      color: colors.text,
+      lineHeight: 22,
+    },
+    modalActionBox: {
+      marginTop: Spacing.xl,
+    },
+    modalConnectedBox: {
+      backgroundColor: colors.surface,
+      padding: Spacing.md,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      alignItems: 'center',
+    },
+    connectedLabel: {
+      fontSize: 12,
+      color: '#22c55e',
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    connectedHandle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginVertical: 4,
+    },
+    modalTelegramBtnWrapper: {
+      borderRadius: 12,
+      overflow: 'hidden',
+      marginTop: 10,
+      width: '100%',
+    },
+    modalTelegramGradient: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    modalTelegramBtnText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    modalPendingBox: {
+      backgroundColor: colors.surface,
+      padding: Spacing.md,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      alignItems: 'center',
+    },
+    modalPendingTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#eab308',
+    },
+    modalPendingSub: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+    modalRecallBtnWrapper: {
+      borderRadius: 10,
+      overflow: 'hidden',
+      marginTop: 14,
+      width: '100%',
+    },
+    modalRecallGradient: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 10,
+      width: '100%',
+    },
+    modalRecallBtnText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    approvedActionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    shareIconButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: 'rgba(124, 58, 237, 0.1)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+      borderWidth: 1,
+      borderColor: 'rgba(124, 58, 237, 0.2)',
+    },
+    itemHandleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+      marginBottom: 4,
+    },
+    itemHandleLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    itemHandleText: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '700',
+    },
+  });
+

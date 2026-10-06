@@ -1,48 +1,33 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useContext } from 'react';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, CommonActions } from '@react-navigation/native';
-import { clearAuthSession } from '../../../utils/session';
-import { useAlert } from '../../../components/AlertModal';
+import { useAuth } from '../../../api/useAuth';
+import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../../theme';
 
 const Logout = () => {
   const navigation = useNavigation();
-  const { alert, AlertComponent } = useAlert();
+  const { logout } = useAuth();
+  const { setLogin, setAuthUserId } = useContext(AppContext);
 
   const handleLogout = async () => {
-    alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Logout",
-          onPress: async () => {
-            try {
-              await clearAuthSession();
-              
-              navigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                })
-              );
-            } catch (error) {
-              console.error('Error logging out:', error);
-            }
-          },
-          style: "destructive"
-        }
-      ]
-    );
+    try {
+      await logout();
+      setLogin?.(false);
+      setAuthUserId?.(null);
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        })
+      );
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   return (
-    <>
     <TouchableOpacity 
       style={styles.container} 
       activeOpacity={0.6}
@@ -51,8 +36,7 @@ const Logout = () => {
       <Ionicons name="log-out-outline" size={24} color={Colors.error} />
       <Text style={styles.text}>Log out</Text>
     </TouchableOpacity>
-      {AlertComponent}
-    </>);
+  );
 };
 
 const styles = StyleSheet.create({

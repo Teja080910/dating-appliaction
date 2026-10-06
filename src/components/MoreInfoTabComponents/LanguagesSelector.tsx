@@ -1,39 +1,80 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { Colors, useTheme } from '../../theme';
 
 const languages = [
-  'English', 'Spanish', 'Portuguese', 'German',
-  'Romanian', 'Russian', 'French', 'Chinese', 'Japanese',
+  'English',
+  'Spanish',
+  'Portuguese',
+  'German',
+  'Romanian',
+  'Russian',
+  'French',
+  'Chinese',
+  'Japanese',
+  'Indonesian',
 ];
 
 const LanguagesSelector = () => {
+  const { themeColors } = useTheme();
   const { selectedLanguages, setSelectedLanguages } = useContext(AppContext);
 
   const toggleLanguage = (lang: string) => {
-    if (selectedLanguages.includes(lang)) {
-      setSelectedLanguages(selectedLanguages.filter((item: string) => item !== lang));
+    const list = Array.isArray(selectedLanguages) ? selectedLanguages : [];
+    const exists = list.some((item) => item.toLowerCase() === lang.toLowerCase());
+    if (exists) {
+      setSelectedLanguages(list.filter((item) => item.toLowerCase() !== lang.toLowerCase()));
     } else {
-      setSelectedLanguages([...selectedLanguages, lang]);
+      setSelectedLanguages([...list, lang]);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Languages</Text>
-      <View style={styles.optionsContainer}>
-        {languages.map((lang) => (
-          <TouchableOpacity
-            key={lang}
-            style={[styles.option, selectedLanguages.includes(lang) && styles.optionSelected]}
-            onPress={() => toggleLanguage(lang)}
-          >
-            <Text style={[styles.optionText, selectedLanguages.includes(lang) && styles.optionTextSelected]}>
-              {lang}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.headerRow}>
+        <Icon name="translate" size={22} color={themeColors.text} style={styles.headerIcon} />
+        <Text style={[styles.title, { color: themeColors.text }]}>Languages you speak</Text>
+      </View>
+      <View style={styles.optionsWrap}>
+        {languages.map((lang) => {
+          const list = Array.isArray(selectedLanguages) ? selectedLanguages : [];
+          const isSelected = list.some((item) => item.toLowerCase() === lang.toLowerCase());
+          return isSelected ? (
+            <TouchableOpacity
+              key={lang}
+              activeOpacity={0.8}
+              onPress={() => toggleLanguage(lang)}
+              style={styles.pillActiveWrapper}
+            >
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.primaryLight]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.pillActiveGradient}
+              >
+                <Text style={styles.pillTextActive}>{lang}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={lang}
+              activeOpacity={0.7}
+              onPress={() => toggleLanguage(lang)}
+              style={[
+                styles.pillInactive,
+                {
+                  backgroundColor: themeColors.surfaceLight,
+                  borderColor: themeColors.borderLight,
+                },
+              ]}
+            >
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{lang}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -43,45 +84,52 @@ export default LanguagesSelector;
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
+    paddingHorizontal: 20,
+    marginTop: 22,
   },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  optionsContainer: {
+  headerIcon: {
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: 8,
   },
-  option: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
+  pillInactive: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  optionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  optionText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+  pillTextInactive: {
+    fontSize: 14.5,
     fontWeight: '500',
   },
-  optionTextSelected: {
-    color: Colors.white,
-    fontWeight: '600',
+  pillActiveWrapper: {
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  pillActiveGradient: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillTextActive: {
+    fontSize: 14.5,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

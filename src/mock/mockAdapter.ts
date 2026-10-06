@@ -458,9 +458,9 @@ export const handleMockRequest = async (
     });
   }
 
-  // DELETE /users/images/{imageId}
-  if (method === 'DELETE' && url.includes('/users/images/')) {
-    const match = url.match(/\/users\/images\/([^/?]+)/);
+  // DELETE /users/images/{imageId} or /users/{userId}/images/{imageId}
+  if (method === 'DELETE' && url.includes('/images/')) {
+    const match = url.match(/\/images\/([^/?]+)/);
     if (match) {
       await mockStore.deleteUserImage(Number(match[1]));
     }

@@ -1,4 +1,5 @@
 import { createContext, Dispatch, SetStateAction } from 'react';
+import { Colors } from '../theme/colors';
 
 interface AppContextType {
   // basic user
@@ -44,6 +45,10 @@ interface AppContextType {
   setSelectedDrinking: Dispatch<SetStateAction<string | null>>;
   selectedLookingFor: string[];
   setSelectedLookingFor: Dispatch<SetStateAction<string[]>>;
+  selectedKids: string | null;
+  setSelectedKids: Dispatch<SetStateAction<string | null>>;
+  selectedNetWorth: string | null;
+  setSelectedNetWorth: Dispatch<SetStateAction<string | null>>;
   englishSkillLevel: number;
   setEnglishSkillLevel: Dispatch<SetStateAction<number>>;
   profileText: string;
@@ -141,6 +146,11 @@ interface AppContextType {
   resetApp: () => Promise<void>;
   logout: () => Promise<void>;
   setProfilePreferences: (prefs: any) => void;
+
+  // theme & appearance
+  themeMode: 'light' | 'system' | 'dark';
+  setThemeMode: Dispatch<SetStateAction<'light' | 'system' | 'dark'>>;
+  themeColors: typeof Colors;
 
   // aliases
   selectedEthinicity: string | null;

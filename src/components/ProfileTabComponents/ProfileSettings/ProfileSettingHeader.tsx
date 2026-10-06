@@ -1,60 +1,49 @@
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
-import LinearGradient from 'react-native-linear-gradient';
-import { Colors, Spacing } from '../../../theme';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { Colors, useTheme } from '../../../theme';
 
 interface ProfileSettingsHeaderProps {
-  onSave: () => void;
-  loading: boolean;
+  onSave?: () => void;
+  loading?: boolean;
 }
 
-const ProfileSettingsHeader: React.FC<ProfileSettingsHeaderProps> = ({ onSave, loading }) => {
+const ProfileSettingsHeader: React.FC<ProfileSettingsHeaderProps> = () => {
   const navigation = useNavigation();
-  const onCancel = () => {
-    navigation.goBack()
-  }
+  const { themeColors } = useTheme();
 
   return (
-    <SafeAreaView>
-      <LinearGradient
-        colors={[Colors.surface, Colors.surfaceLight]}
-        style={styles.header}
+    <View style={[styles.header, { backgroundColor: themeColors.background, borderBottomColor: themeColors.borderLight }]}>
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        style={styles.backButton}
+        activeOpacity={0.7}
       >
-        <TouchableOpacity onPress={onCancel}>
-          <Icon name="x" size={28} color={Colors.text} />
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Profile settings</Text>
-
-        <TouchableOpacity onPress={onSave} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color={Colors.primary} />
-          ) : (
-            <Icon name="check" size={28} color={Colors.primary} />
-          )}
-        </TouchableOpacity>
-      </LinearGradient>
-    </SafeAreaView>
+        <Icon name="chevron-left" size={32} color={themeColors.text} />
+      </TouchableOpacity>
+      <Text style={[styles.title, { color: themeColors.text }]}>Edit Profile</Text>
+    </View>
   );
 };
+
+export default ProfileSettingsHeader;
 
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    height: 60,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.glassBorder,
+  },
+  backButton: {
+    padding: 4,
+    marginRight: 6,
   },
   title: {
-    color: Colors.text,
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
 });
-
-export default ProfileSettingsHeader;

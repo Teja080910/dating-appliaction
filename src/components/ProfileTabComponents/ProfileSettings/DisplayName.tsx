@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { Colors, Spacing, Typography } from '../../../theme';
+import { Colors, useTheme } from '../../../theme';
 
 interface DisplayNameProps {
   value: string;
@@ -8,47 +8,54 @@ interface DisplayNameProps {
 }
 
 const DisplayName: React.FC<DisplayNameProps> = ({ value, onChange }) => {
+  const { themeColors } = useTheme();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Your display name</Text>
-      <Text style={styles.subtitle}>You can write your real name or a nickname</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={onChange}
-        placeholderTextColor={Colors.textMuted}
-      />
+      <View
+        style={[
+          styles.inputCard,
+          {
+            backgroundColor: themeColors.surfaceLight,
+            borderBottomColor: themeColors.borderLight,
+          },
+        ]}
+      >
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>Nickname / First name</Text>
+        <TextInput
+          style={[styles.input, { color: themeColors.text }]}
+          value={value}
+          onChangeText={onChange}
+          placeholder="Enter nickname"
+          placeholderTextColor={themeColors.textMuted}
+        />
+      </View>
     </View>
   );
 };
 
+export default DisplayName;
+
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
+    paddingHorizontal: 20,
+    marginTop: 20,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 6,
+  inputCard: {
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1.5,
   },
-  subtitle: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: 16,
+  label: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   input: {
-    backgroundColor: Colors.inputBackground,
-    borderRadius: Spacing.radiusMd,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     fontSize: 16,
     fontWeight: '500',
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
+    marginTop: 4,
+    padding: 0,
   },
 });
-
-export default DisplayName;

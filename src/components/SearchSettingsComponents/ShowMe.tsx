@@ -1,14 +1,16 @@
-import React, { useContext, useEffect, useRef } from 'react';
+import React, { useContext, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { getGender } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
 
 interface ShowMeProps {
   onChange?: (val: string[]) => void;
 }
 
 const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { showMe, setShowMe } = useContext(AppContext);
   const initialized = useRef(false);
 
@@ -67,46 +69,47 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-  },
-  button: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: Spacing.radiusFull,
-    borderWidth: 1.5,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginRight: Spacing.md,
-  },
-  selectedButton: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  buttonText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  selectedText: {
-    color: Colors.white,
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      padding: Spacing.xl,
+      backgroundColor: themeColors.surface,
+      marginHorizontal: Spacing.screenPaddingHorizontal,
+      marginTop: Spacing.lg,
+      borderRadius: Spacing.radiusXl,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    label: {
+      fontSize: 15,
+      marginBottom: Spacing.md,
+      fontWeight: '600',
+      color: themeColors.textSecondary,
+    },
+    buttonGroup: {
+      flexDirection: 'row',
+    },
+    button: {
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.xl,
+      borderRadius: Spacing.radiusFull,
+      borderWidth: 1.5,
+      borderColor: themeColors.borderLight,
+      backgroundColor: themeColors.surfaceLight,
+      marginRight: Spacing.md,
+    },
+    selectedButton: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    buttonText: {
+      color: themeColors.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    selectedText: {
+      color: '#FFFFFF',
+    },
+  });
 
 export default ShowMe;

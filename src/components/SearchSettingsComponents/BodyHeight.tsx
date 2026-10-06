@@ -1,14 +1,16 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Platform, LayoutChangeEvent } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
 
 interface BodyHeightProps {
   onChange?: (min: number, max: number) => void;
 }
 
 const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { bodyHeight, setBodyHeight } = useContext(AppContext);
   const [sliderWidth, setSliderWidth] = useState<number>(260);
 
@@ -53,8 +55,8 @@ const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
             borderRadius: 25,
             slipDisplacement: 200,
           }}
-          selectedStyle={{ backgroundColor: Colors.primary }}
-          unselectedStyle={{ backgroundColor: Colors.surfaceLight }}
+          selectedStyle={{ backgroundColor: themeColors.primary }}
+          unselectedStyle={{ backgroundColor: themeColors.surfaceLight }}
           markerStyle={styles.marker}
           pressedMarkerStyle={styles.markerPressed}
           containerStyle={styles.sliderContainer}
@@ -65,61 +67,62 @@ const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontSize: 15,
-    marginBottom: Spacing.lg,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  value: {
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  sliderWrapper: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  marker: {
-    height: 26,
-    width: 26,
-    borderRadius: 13,
-    borderWidth: 3,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.white,
-    ...Platform.select({
-      ios: {
-        shadowColor: Colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-      },
-      android: { elevation: 4 },
-    }),
-  },
-  markerPressed: {
-    height: 30,
-    width: 30,
-    borderRadius: 15,
-  },
-  sliderContainer: {
-    height: 48,
-    justifyContent: 'center',
-  },
-  track: {
-    height: 4,
-    borderRadius: 2,
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      padding: Spacing.xl,
+      backgroundColor: themeColors.surface,
+      marginHorizontal: Spacing.screenPaddingHorizontal,
+      marginTop: Spacing.lg,
+      borderRadius: Spacing.radiusXl,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    label: {
+      fontSize: 15,
+      marginBottom: Spacing.lg,
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+    value: {
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    sliderWrapper: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    marker: {
+      height: 26,
+      width: 26,
+      borderRadius: 13,
+      borderWidth: 3,
+      borderColor: themeColors.primary,
+      backgroundColor: '#FFFFFF',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+        },
+        android: { elevation: 4 },
+      }),
+    },
+    markerPressed: {
+      height: 30,
+      width: 30,
+      borderRadius: 15,
+    },
+    sliderContainer: {
+      height: 48,
+      justifyContent: 'center',
+    },
+    track: {
+      height: 4,
+      borderRadius: 2,
+    },
+  });
 
 export default BodyHeight;

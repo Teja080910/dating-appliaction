@@ -22,6 +22,9 @@ const allowedFields = [
   'lookingFor',
   'smoke',
   'drink',
+  'kidCount',
+  'kids',
+  'netWorth',
 ];
 
 const sanitizeProfileDto = (dto: Record<string, any>) =>
@@ -96,6 +99,8 @@ const normalizeProfile = (payload: any) => {
     lookingFor: source?.lookingFor ? String(source.lookingFor) : '',
     smoke: source?.smoke ? String(source.smoke) : '',
     drink: source?.drink ? String(source.drink) : '',
+    kidCount: source?.kidCount ? String(source.kidCount) : (source?.kids ? String(source.kids) : ''),
+    netWorth: source?.netWorth ? String(source.netWorth) : '',
     currentCity: source?.currentCity ? String(source.currentCity) : '',
     telegramUsername: source?.telegramUsername ? String(source.telegramUsername) : '',
     verifiedSelfie: Boolean(source?.verifiedSelfie ?? source?.selfieVerified),
@@ -319,6 +324,8 @@ export const useProfile = () => {
     height: number;
     englishLevel?: string;
     ethnicity?: string;
+    kidCount?: string;
+    netWorth?: string;
   };
 
   const updateDetails = useMutation<any, Error, UpdateDetailsInput>({
@@ -333,6 +340,8 @@ export const useProfile = () => {
         height: data.height,
         englishLevel: data.englishLevel || '',
         ethnicity: data.ethnicity || '',
+        kidCount: data.kidCount || '',
+        netWorth: data.netWorth || '',
       };
 
       // More Info is a partial details update. The general /profile/update

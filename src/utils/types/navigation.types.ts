@@ -27,6 +27,8 @@ export type RootParamList = {
   MoreInfoScreen: undefined;
   SupportScreen: undefined;
   NotificationsScreen: undefined;
+  PreferencesScreen: undefined;
+  Preferences: undefined;
   UploadImage: undefined;
   SelfieVerification: undefined;
   Sent: undefined;

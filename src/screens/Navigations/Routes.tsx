@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RegisterScreen from '../Auth/RegisterScreen';
 import LoginScreen from '../Auth/LoginScreen';
@@ -26,6 +26,7 @@ import MoreDetailsScreen from '../onboarding/MoreDetailsScreen';
 import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
 import SupportScreen from '../ProfileTab/SupportScreen';
 import NotificationsScreen from '../ProfileTab/NotificationsScreen';
+import PreferencesScreen from '../ProfileTab/PreferencesScreen';
 import { SESSION_EXPIRED_EVENT } from '../../api/apiClient';
 import { resolveInitialRoute } from '../../utils/session';
 import SubscriptionModal from '../../components/SubscriptionModal';
@@ -33,7 +34,7 @@ import RequestsInboxScreen from '../RequestsTab/RequestsInboxScreen';
 import SentRequestsScreen from '../SentTab/SentRequestsScreen';
 import { Colors } from '../../theme';
 import { usePresence } from '../../api/usePresence';
-
+import { StatusBar } from 'react-native';
 
 const Stack = createNativeStackNavigator();
 
@@ -44,7 +45,27 @@ const Routes = () => {
     setInitialScreen,
     paywallVisible,
     setPaywallVisible,
+    themeColors,
   } = useContext(AppContext);
+
+  const activeColors = themeColors || Colors;
+  const isDark = activeColors.background !== '#F8F9FA' && activeColors.background !== '#FFFFFF';
+  const baseTheme = isDark ? DarkTheme : DefaultTheme;
+
+  const navTheme = {
+    ...baseTheme,
+    dark: isDark,
+    colors: {
+      ...baseTheme.colors,
+      primary: activeColors.primary,
+      background: activeColors.background,
+      card: activeColors.surface,
+      text: activeColors.text,
+      border: activeColors.border,
+      notification: activeColors.secondary,
+    },
+  };
+
 
   useEffect(() => {
     // Listener for global session expiry
@@ -83,15 +104,24 @@ const Routes = () => {
 
   if (!initialScreen) {
     return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.loadingScreen, { backgroundColor: activeColors.background }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={activeColors.background}
+        />
+        <ActivityIndicator size="large" color={activeColors.primary} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={activeColors.background}
+      />
       <Stack.Navigator
+
         key={initialScreen}
         initialRouteName={initialScreen}
         screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
@@ -119,6 +149,8 @@ const Routes = () => {
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="SupportScreen" component={SupportScreen} />
         <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
+        <Stack.Screen name="PreferencesScreen" component={PreferencesScreen} />
+        <Stack.Screen name="Preferences" component={PreferencesScreen} />
         <Stack.Screen name="RequestsInboxScreen" component={RequestsInboxScreen} />
         <Stack.Screen name="SentRequestsScreen" component={SentRequestsScreen} />
         <Stack.Screen name="Sent" component={SentRequestsScreen} />

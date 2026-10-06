@@ -24,10 +24,12 @@ import { getUserId } from '../../utils/sessionHelper';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
 import { useConnection } from '../../api/useConnection';
 import { getAbsoluteUrl } from '../../api/apiClient';
-import { Colors, Spacing, Shadows, Typography } from '../../theme';
+import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 
 export default function MessageScreen() {
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { alert, AlertComponent } = useAlert();
   const navigation = useNavigation<any>();
   const [userId, setUserId] = useState<string | null>(null);
@@ -403,240 +405,241 @@ export default function MessageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  mainNav: {
-    flexDirection: 'row',
-    height: 64,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.sm,
-    borderRadius: Spacing.radiusXl,
-    overflow: 'hidden',
-  },
-  navBtn: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 2,
-    position: 'relative',
-  },
-  navText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textMuted,
-  },
-  activeNavText: {
-    color: Colors.text,
-  },
-  navIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    width: '50%',
-    height: 3,
-    backgroundColor: Colors.primary,
-    borderRadius: 3,
-  },
-  activeNavBtn: {},
-  content: {
-    flex: 1,
-  },
-  subTabs: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.screenPaddingHorizontal,
-    paddingTop: Spacing.md,
-    gap: Spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  subTab: {
-    paddingBottom: Spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeSubTab: {
-    borderBottomColor: Colors.primary,
-  },
-  subTabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textMuted,
-  },
-  activeSubTabText: {
-    color: Colors.text,
-    fontWeight: '800',
-  },
-  listContainer: {
-    paddingHorizontal: Spacing.screenPaddingHorizontal,
-    paddingTop: Spacing.sm,
-    paddingBottom: 120,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-  },
-  avatarBox: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.surface,
-    borderWidth: 2,
-    borderColor: Colors.glassBorder,
-  },
-  placeholderAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.surfaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.glassBorder,
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.online,
-    borderWidth: 2,
-    borderColor: Colors.background,
-  },
-  itemContent: {
-    flex: 1,
-    marginLeft: Spacing.md,
-    marginRight: Spacing.sm,
-    justifyContent: 'center',
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  itemTime: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    fontWeight: '500',
-  },
-  itemStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  inviteDateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemStatusLabel: {
-    fontSize: 13,
-    color: Colors.secondary,
-    fontWeight: '600',
-  },
-  dotSeparator: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginHorizontal: 3,
-  },
-  itemDateText: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    fontWeight: '500',
-  },
-  lastMsg: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  unreadMsg: {
-    color: Colors.text,
-    fontWeight: '700',
-  },
-  unreadBadge: {
-    backgroundColor: Colors.badge,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadCount: {
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  actionPill: {
-    borderRadius: Spacing.radiusFull,
-    overflow: 'hidden',
-    marginLeft: Spacing.xs,
-  },
-  actionGradient: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Spacing.radiusFull,
-    minWidth: 78,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionPillText: {
-    fontSize: 13,
-    color: Colors.white,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.inputBackground,
-    margin: Spacing.screenPaddingHorizontal,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    height: 48,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: Spacing.md,
-    fontSize: 15,
-    color: Colors.text,
-  },
-  emptyView: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 60,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginTop: Spacing.xl,
-  },
-  emptyDesc: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 50,
-    marginTop: Spacing.sm,
-  },
-});
+const createStyles = (themeColors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    mainNav: {
+      flexDirection: 'row',
+      height: 64,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.divider,
+      backgroundColor: themeColors.surface,
+      marginHorizontal: Spacing.screenPaddingHorizontal,
+      marginTop: Spacing.sm,
+      borderRadius: Spacing.radiusXl,
+      overflow: 'hidden',
+    },
+    navBtn: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 2,
+      position: 'relative',
+    },
+    navText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: themeColors.textMuted,
+    },
+    activeNavText: {
+      color: themeColors.text,
+    },
+    navIndicator: {
+      position: 'absolute',
+      bottom: 0,
+      width: '50%',
+      height: 3,
+      backgroundColor: themeColors.primary,
+      borderRadius: 3,
+    },
+    activeNavBtn: {},
+    content: {
+      flex: 1,
+    },
+    subTabs: {
+      flexDirection: 'row',
+      paddingHorizontal: Spacing.screenPaddingHorizontal,
+      paddingTop: Spacing.md,
+      gap: Spacing.xl,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.divider,
+    },
+    subTab: {
+      paddingBottom: Spacing.md,
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    activeSubTab: {
+      borderBottomColor: themeColors.primary,
+    },
+    subTabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: themeColors.textMuted,
+    },
+    activeSubTabText: {
+      color: themeColors.text,
+      fontWeight: '800',
+    },
+    listContainer: {
+      paddingHorizontal: Spacing.screenPaddingHorizontal,
+      paddingTop: Spacing.sm,
+      paddingBottom: 120,
+    },
+    listItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.divider,
+    },
+    avatarBox: {
+      position: 'relative',
+    },
+    avatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: themeColors.surface,
+      borderWidth: 2,
+      borderColor: themeColors.glassBorder,
+    },
+    placeholderAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: themeColors.surfaceLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: themeColors.glassBorder,
+    },
+    onlineDot: {
+      position: 'absolute',
+      bottom: 2,
+      right: 2,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      backgroundColor: themeColors.online,
+      borderWidth: 2,
+      borderColor: themeColors.background,
+    },
+    itemContent: {
+      flex: 1,
+      marginLeft: Spacing.md,
+      marginRight: Spacing.sm,
+      justifyContent: 'center',
+    },
+    itemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 3,
+    },
+    itemName: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: themeColors.text,
+      marginBottom: 2,
+    },
+    itemTime: {
+      fontSize: 12,
+      color: themeColors.textMuted,
+      fontWeight: '500',
+    },
+    itemStatusRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    inviteDateContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    itemStatusLabel: {
+      fontSize: 13,
+      color: themeColors.secondary,
+      fontWeight: '600',
+    },
+    dotSeparator: {
+      fontSize: 12,
+      color: themeColors.textMuted,
+      marginHorizontal: 3,
+    },
+    itemDateText: {
+      fontSize: 12,
+      color: themeColors.textMuted,
+      fontWeight: '500',
+    },
+    lastMsg: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      marginTop: 2,
+    },
+    unreadMsg: {
+      color: themeColors.text,
+      fontWeight: '700',
+    },
+    unreadBadge: {
+      backgroundColor: themeColors.badge,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    unreadCount: {
+      color: themeColors.white,
+      fontSize: 11,
+      fontWeight: 'bold',
+    },
+    actionPill: {
+      borderRadius: Spacing.radiusFull,
+      overflow: 'hidden',
+      marginLeft: Spacing.xs,
+    },
+    actionGradient: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.sm,
+      borderRadius: Spacing.radiusFull,
+      minWidth: 78,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionPillText: {
+      fontSize: 13,
+      color: themeColors.white,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: themeColors.inputBackground,
+      margin: Spacing.screenPaddingHorizontal,
+      paddingHorizontal: Spacing.lg,
+      borderRadius: Spacing.radiusXl,
+      height: 48,
+      borderWidth: 1,
+      borderColor: themeColors.glassBorder,
+    },
+    searchInput: {
+      flex: 1,
+      marginLeft: Spacing.md,
+      fontSize: 15,
+      color: themeColors.text,
+    },
+    emptyView: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingBottom: 60,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: themeColors.text,
+      marginTop: Spacing.xl,
+    },
+    emptyDesc: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 50,
+      marginTop: Spacing.sm,
+    },
+  });

@@ -20,7 +20,7 @@ import MapView, { Marker } from "react-native-maps";
 import AppContext from "../../context/CreateGlobalStateContext";
 import { getCurrentLocation } from "../../utils/geolocation";
 import { useLocation } from "../../api/useLocation";
-import { Colors, Spacing } from "../../theme";
+import { useTheme, ThemeColors, Spacing } from "../../theme";
 import { useAlert } from "../AlertModal";
 
 export interface CityItem {
@@ -154,6 +154,8 @@ const buildLocationLabel = (payload: any, latitude: number, longitude: number) =
 };
 
 const Location = () => {
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { alert, AlertComponent } = useAlert();
   const {
     location,
@@ -269,10 +271,10 @@ const Location = () => {
         onPress={() => setLocationModalVisible(true)}
       >
         <View style={styles.dropdownLeft}>
-          <FontAwesome5 name="map-marker-alt" size={16} color={Colors.primary} style={{ marginRight: 10 }} />
+          <FontAwesome5 name="map-marker-alt" size={16} color={themeColors.primary} style={{ marginRight: 10 }} />
           <Text style={styles.text} numberOfLines={1}>{location || "My current location"}</Text>
         </View>
-        <MaterialIcons name="keyboard-arrow-down" size={24} color={Colors.textSecondary} />
+        <MaterialIcons name="keyboard-arrow-down" size={24} color={themeColors.textSecondary} />
       </TouchableOpacity>
 
       <Modal visible={locationModalVisible} animationType="slide" transparent={false}>
@@ -289,7 +291,7 @@ const Location = () => {
                   style={styles.headerIconBtn}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
-                  <Ionicons name="close" size={26} color={Colors.text} />
+                  <Ionicons name="close" size={26} color={themeColors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Change Location</Text>
                 <View style={{ width: 36 }} />
@@ -309,9 +311,9 @@ const Location = () => {
                 >
                   <View style={styles.gpsIconCircle}>
                     {isResolvingLocation ? (
-                      <ActivityIndicator size="small" color={Colors.white} />
+                      <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Ionicons name="navigate" size={20} color={Colors.white} />
+                      <Ionicons name="navigate" size={20} color="#FFFFFF" />
                     )}
                   </View>
                   <View style={styles.gpsTextWrapper}>
@@ -320,7 +322,7 @@ const Location = () => {
                       {location || "Detect your GPS position automatically"}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+                  <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
                 </TouchableOpacity>
 
                 {/* Popular Cities Section (Glambu Style Chips) */}
@@ -341,7 +343,7 @@ const Location = () => {
                         <FontAwesome5
                           name="fire"
                           size={11}
-                          color={isSelected ? Colors.white : Colors.primary}
+                          color={isSelected ? '#FFFFFF' : themeColors.primary}
                           style={{ marginRight: 6 }}
                         />
                         <Text style={[styles.cityChipText, isSelected && styles.cityChipTextActive]}>
@@ -364,10 +366,10 @@ const Location = () => {
                         onPress={() => handleSelect(prev)}
                       >
                         <View style={styles.historyLeft}>
-                          <Ionicons name="time-outline" size={18} color={Colors.textMuted} style={{ marginRight: 12 }} />
+                          <Ionicons name="time-outline" size={18} color={themeColors.textSecondary} style={{ marginRight: 12 }} />
                           <Text style={styles.historyText} numberOfLines={1}>{prev}</Text>
                         </View>
-                        <Ionicons name="arrow-forward" size={16} color={Colors.textMuted} />
+                        <Ionicons name="arrow-forward" size={16} color={themeColors.textSecondary} />
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -385,7 +387,7 @@ const Location = () => {
                     setSearchQuery("");
                   }}
                 >
-                  <Ionicons name="search" size={18} color={Colors.white} style={{ marginRight: 8 }} />
+                  <Ionicons name="search" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
                   <Text style={styles.primaryActionText}>Search or Add New Location</Text>
                 </TouchableOpacity>
               </View>
@@ -407,15 +409,15 @@ const Location = () => {
                   }}
                   style={styles.headerIconBtn}
                 >
-                  <Ionicons name="arrow-back" size={24} color={Colors.text} />
+                  <Ionicons name="arrow-back" size={24} color={themeColors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.searchBarBox}>
-                  <Ionicons name="search" size={18} color={Colors.textMuted} style={{ marginRight: 8 }} />
+                  <Ionicons name="search" size={18} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search city, state, or country..."
-                    placeholderTextColor={Colors.textMuted}
+                    placeholderTextColor={themeColors.textSecondary}
                     value={searchQuery}
                     onChangeText={(text) => {
                       setSearchQuery(text);
@@ -429,7 +431,7 @@ const Location = () => {
                       onPress={() => setSearchQuery("")}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="close-circle" size={18} color={Colors.textMuted} />
+                      <Ionicons name="close-circle" size={18} color={themeColors.textSecondary} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -442,7 +444,7 @@ const Location = () => {
                   <FontAwesome5
                     name={isMapVisible ? "list" : "map-marked-alt"}
                     size={16}
-                    color={isMapVisible ? Colors.white : Colors.primary}
+                    color={isMapVisible ? '#FFFFFF' : themeColors.primary}
                   />
                 </TouchableOpacity>
               </View>
@@ -481,7 +483,7 @@ const Location = () => {
                         onPress={() => handleCityPick(item)}
                       >
                         <View style={styles.cityIconCircle}>
-                          <FontAwesome5 name="map-marker-alt" size={15} color={Colors.primary} />
+                          <FontAwesome5 name="map-marker-alt" size={15} color={themeColors.primary} />
                         </View>
                         <View style={styles.cityInfo}>
                           <Text style={styles.cityNameText}>{item.name}</Text>
@@ -489,12 +491,12 @@ const Location = () => {
                             {item.state ? `${item.state}, ` : ""}{item.country}
                           </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                        <Ionicons name="chevron-forward" size={18} color={themeColors.textSecondary} />
                       </TouchableOpacity>
                     )}
                     ListEmptyComponent={
                       <View style={styles.emptySearchContainer}>
-                        <FontAwesome5 name="search-location" size={48} color={Colors.textMuted} style={{ marginBottom: 16 }} />
+                        <FontAwesome5 name="search-location" size={48} color={themeColors.textSecondary} style={{ marginBottom: 16 }} />
                         <Text style={styles.emptySearchTitle}>No matching city found</Text>
                         <Text style={styles.emptySearchDesc}>
                           Try checking spelling or tap below to set "{searchQuery}" as custom location.
@@ -512,17 +514,17 @@ const Location = () => {
                   />
                 </View>
               ) : (
-                // View 2: Interactive Dark Map with Confirmation Card
+                // View 2: Interactive Map with Confirmation Card
                 <View style={{ flex: 1 }}>
                   <MapView
                     style={styles.map}
                     region={mapRegion}
                     onRegionChangeComplete={setMapRegion}
-                    customMapStyle={DARK_MAP_STYLE}
+                    customMapStyle={isDark ? DARK_MAP_STYLE : []}
                   >
                     <Marker coordinate={markerCoordinate}>
                       <View style={styles.customMarker}>
-                        <FontAwesome5 name="map-marker-alt" size={32} color={Colors.primary} />
+                        <FontAwesome5 name="map-marker-alt" size={32} color={themeColors.primary} />
                       </View>
                     </Marker>
                   </MapView>
@@ -531,7 +533,7 @@ const Location = () => {
                   <View style={styles.floatingConfirmationCard}>
                     <View style={styles.cardHeaderRow}>
                       <View style={styles.cardPinCircle}>
-                        <FontAwesome5 name="map-marker-alt" size={18} color={Colors.primary} />
+                        <FontAwesome5 name="map-marker-alt" size={18} color={themeColors.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.confirmLocationTitle} numberOfLines={1}>
@@ -555,7 +557,7 @@ const Location = () => {
                         handleSelect(finalLabel, { lat: mapRegion.latitude, lng: mapRegion.longitude });
                       }}
                     >
-                      <Ionicons name="checkmark-circle" size={20} color={Colors.white} style={{ marginRight: 8 }} />
+                      <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
                       <Text style={styles.primaryActionText}>Confirm & Set Location</Text>
                     </TouchableOpacity>
                   </View>
@@ -570,386 +572,388 @@ const Location = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontWeight: "600",
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
-  },
-  dropdown: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md + 2,
-    backgroundColor: Colors.inputBackground,
-    borderRadius: Spacing.radiusLg,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  dropdownLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  text: {
-    fontSize: 15,
-    color: Colors.text,
-    fontWeight: "500",
-  },
-  modalSafeArea: {
-    flex: 1,
-    backgroundColor: "#0D0D12",
-  },
-  fullScreen: {
-    flex: 1,
-    backgroundColor: "#0D0D12",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    height: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1F202E",
-  },
-  headerIconBtn: {
-    padding: 6,
-  },
-  headerTitle: {
-    fontSize: 18,
-    color: Colors.text,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-  scrollBody: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
-    paddingBottom: 100,
-  },
-  gpsCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#161722",
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    borderRadius: Spacing.radiusXl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.xl,
-  },
-  gpsIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.md,
-  },
-  gpsTextWrapper: {
-    flex: 1,
-  },
-  gpsTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  gpsSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: Spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text,
-  },
-  sectionBadge: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.primary,
-    backgroundColor: "rgba(255, 90, 121, 0.12)",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  chipsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: Spacing.xxl,
-  },
-  cityChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: "#191B26",
-    borderWidth: 1,
-    borderColor: "#26293A",
-  },
-  cityChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  cityChipText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: Colors.textSecondary,
-  },
-  cityChipTextActive: {
-    color: Colors.white,
-  },
-  historySection: {
-    marginTop: Spacing.sm,
-  },
-  historyItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1A1C28",
-  },
-  historyLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  historyText: {
-    fontSize: 15,
-    color: Colors.textSecondary,
-    fontWeight: "500",
-  },
-  bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#0D0D12",
-    borderTopWidth: 1,
-    borderTopColor: "#1F202E",
-    padding: Spacing.xl,
-    paddingBottom: Platform.OS === "ios" ? 34 : Spacing.xl,
-  },
-  primaryActionButton: {
-    backgroundColor: Colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: Spacing.radiusLg,
-  },
-  primaryActionText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  searchHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: "#1F202E",
-    backgroundColor: "#12131C",
-  },
-  searchBarBox: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1D1F2D",
-    borderRadius: Spacing.radiusLg,
-    paddingHorizontal: Spacing.md,
-    marginHorizontal: 8,
-    height: 44,
-    borderWidth: 1,
-    borderColor: "#2D3044",
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.text,
-    paddingVertical: 4,
-  },
-  mapToggleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Spacing.radiusLg,
-    backgroundColor: "#1D1F2D",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#2D3044",
-  },
-  mapToggleBtnActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  quickPillsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 10,
-    backgroundColor: "#10111A",
-    borderBottomWidth: 1,
-    borderBottomColor: "#1B1C27",
-  },
-  quickPillTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.textMuted,
-    marginRight: 8,
-  },
-  quickPillsScroll: {
-    gap: 8,
-  },
-  microChip: {
-    backgroundColor: "#1C1E2B",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#2A2D3F",
-  },
-  microChipText: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  cityListContent: {
-    paddingVertical: Spacing.sm,
-  },
-  cityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#171822",
-  },
-  cityIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#1D1F2D",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-  cityInfo: {
-    flex: 1,
-  },
-  cityNameText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  cityMetaText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  emptySearchContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 60,
-    paddingHorizontal: Spacing.xxl,
-  },
-  emptySearchTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  emptySearchDesc: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  customAddButton: {
-    backgroundColor: "#1F2130",
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  customAddButtonText: {
-    color: Colors.primary,
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  map: {
-    flex: 1,
-  },
-  customMarker: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  floatingConfirmationCard: {
-    position: "absolute",
-    bottom: Platform.OS === "ios" ? 36 : 20,
-    left: 16,
-    right: 16,
-    backgroundColor: "#151722",
-    borderRadius: Spacing.radiusXl,
-    padding: Spacing.xl,
-    borderWidth: 1,
-    borderColor: "#292C3D",
-    elevation: 12,
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-  },
-  cardHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.lg,
-  },
-  cardPinCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#202333",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  confirmLocationTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: Colors.text,
-  },
-  confirmLocationCoords: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      padding: Spacing.xl,
+      backgroundColor: themeColors.surface,
+      marginHorizontal: Spacing.screenPaddingHorizontal,
+      marginTop: Spacing.lg,
+      borderRadius: Spacing.radiusXl,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    label: {
+      fontWeight: "600",
+      fontSize: 15,
+      marginBottom: Spacing.md,
+      color: themeColors.textSecondary,
+    },
+    dropdown: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md + 2,
+      backgroundColor: themeColors.surfaceLight,
+      borderRadius: Spacing.radiusLg,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    dropdownLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    text: {
+      fontSize: 15,
+      color: themeColors.text,
+      fontWeight: "500",
+    },
+    modalSafeArea: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    fullScreen: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: Spacing.lg,
+      height: 60,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    headerIconBtn: {
+      padding: 6,
+    },
+    headerTitle: {
+      fontSize: 18,
+      color: themeColors.text,
+      fontWeight: "700",
+      letterSpacing: 0.3,
+    },
+    scrollBody: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.lg,
+      paddingBottom: 100,
+    },
+    gpsCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: themeColors.surface,
+      borderWidth: 1.5,
+      borderColor: themeColors.primary,
+      borderRadius: Spacing.radiusXl,
+      padding: Spacing.lg,
+      marginBottom: Spacing.xl,
+    },
+    gpsIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: themeColors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: Spacing.md,
+    },
+    gpsTextWrapper: {
+      flex: 1,
+    },
+    gpsTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: themeColors.text,
+      marginBottom: 2,
+    },
+    gpsSubtitle: {
+      fontSize: 13,
+      color: themeColors.textSecondary,
+    },
+    sectionHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: Spacing.md,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: themeColors.text,
+    },
+    sectionBadge: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: themeColors.primary,
+      backgroundColor: "rgba(124, 58, 237, 0.12)",
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 6,
+    },
+    chipsGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+      marginBottom: Spacing.xxl,
+    },
+    cityChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 20,
+      backgroundColor: themeColors.surfaceLight,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    cityChipActive: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    cityChipText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: themeColors.text,
+    },
+    cityChipTextActive: {
+      color: "#FFFFFF",
+    },
+    historySection: {
+      marginTop: Spacing.sm,
+    },
+    historyItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.borderLight,
+    },
+    historyLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    historyText: {
+      fontSize: 15,
+      color: themeColors.text,
+      fontWeight: "500",
+    },
+    bottomBar: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: themeColors.surface,
+      borderTopWidth: 1,
+      borderTopColor: themeColors.borderLight,
+      padding: Spacing.xl,
+      paddingBottom: Platform.OS === "ios" ? 34 : Spacing.xl,
+    },
+    primaryActionButton: {
+      backgroundColor: themeColors.primary,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 16,
+      borderRadius: Spacing.radiusLg,
+    },
+    primaryActionText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "700",
+    },
+    searchHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    searchBarBox: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: themeColors.surfaceLight,
+      borderRadius: Spacing.radiusLg,
+      paddingHorizontal: Spacing.md,
+      marginHorizontal: 8,
+      height: 44,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: themeColors.text,
+      paddingVertical: 4,
+    },
+    mapToggleBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: Spacing.radiusLg,
+      backgroundColor: themeColors.surfaceLight,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    mapToggleBtnActive: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    quickPillsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 10,
+      backgroundColor: themeColors.surfaceLight,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.borderLight,
+    },
+    quickPillTitle: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: themeColors.textSecondary,
+      marginRight: 8,
+    },
+    quickPillsScroll: {
+      gap: 8,
+    },
+    microChip: {
+      backgroundColor: themeColors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    microChipText: {
+      color: themeColors.text,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    cityListContent: {
+      paddingVertical: Spacing.sm,
+    },
+    cityRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: Spacing.xl,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.borderLight,
+    },
+    cityIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: themeColors.surfaceLight,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 14,
+    },
+    cityInfo: {
+      flex: 1,
+    },
+    cityNameText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: themeColors.text,
+      marginBottom: 2,
+    },
+    cityMetaText: {
+      fontSize: 13,
+      color: themeColors.textSecondary,
+    },
+    emptySearchContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingTop: 60,
+      paddingHorizontal: Spacing.xxl,
+    },
+    emptySearchTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: themeColors.text,
+      marginBottom: 8,
+    },
+    emptySearchDesc: {
+      fontSize: 14,
+      color: themeColors.textSecondary,
+      textAlign: "center",
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    customAddButton: {
+      backgroundColor: themeColors.surfaceLight,
+      borderWidth: 1,
+      borderColor: themeColors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 20,
+    },
+    customAddButtonText: {
+      color: themeColors.primary,
+      fontWeight: "700",
+      fontSize: 14,
+    },
+    map: {
+      flex: 1,
+    },
+    customMarker: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    floatingConfirmationCard: {
+      position: "absolute",
+      bottom: Platform.OS === "ios" ? 36 : 20,
+      left: 16,
+      right: 16,
+      backgroundColor: themeColors.surface,
+      borderRadius: Spacing.radiusXl,
+      padding: Spacing.xl,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      elevation: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+    },
+    cardHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: Spacing.lg,
+    },
+    cardPinCircle: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: themeColors.surfaceLight,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+    confirmLocationTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: themeColors.text,
+    },
+    confirmLocationCoords: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+      marginTop: 2,
+    },
+  });
 
 export default Location;
