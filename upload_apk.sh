@@ -5,7 +5,26 @@ set -e
 # 🚀 ARKASODHARA TRACKER APK UPLOAD SCRIPT
 # ========================================================
 
-ACCESS_TOKEN="eyJhbGciOiJFUzI1NiIsImtpZCI6ImMxNzk1YWMzLTQzNDgtNDRiMS04N2ZjLTQ0MWExYmE5OGJlYSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RiLmFya2Fzb2RoYXJhLnRlY2gvYXV0aC92MSIsInN1YiI6IjExYWI5YWVlLTI3MmUtNGYyYy1iZGMwLTc1NzJjOWI5ZWIwMyIsImF1ZCI6ImF1dGhlbnRpY2F0ZWQiLCJleHAiOjE3OTA1MzcwMjksImlhdCI6MTc5MDUzMzQyOSwiZW1haWwiOiJzYWlsYWtzaG1pYm9ycmE0NUBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6Imdvb2dsZSIsInByb3ZpZGVycyI6WyJnb29nbGUiXX0sInVzZXJfbWV0YWRhdGEiOnsiYXZhdGFyX3VybCI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0xqanREZEJSUThmaTdVbHVCRXg4aGZZVDFBdE9nUTlyVk9ZanF6enM5WjM5aGp1UT1zOTYtYyIsImVtYWlsIjoic2FpbGFrc2htaWJvcnJhNDVAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImZ1bGxfbmFtZSI6IlNhaSBMYWtzaG1pIiwiaXNzIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tIiwibmFtZSI6IlNhaSBMYWtzaG1pIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jTGpqdERkQlJROGZpN1VsdUJFeDhoZllUMUF0T2dROXJWT1lqcXp6czlaMzloanVRPXM5Ni1jIiwicHJvdmlkZXJfaWQiOiIxMTMwODAxMTM5NDc5Mzk0MzMzNjQiLCJzdWIiOiIxMTMwODAxMTM5NDc5Mzk0MzMzNjQifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJvYXV0aCIsInRpbWVzdGFtcCI6MTc4OTkzMjc5MH1dLCJzZXNzaW9uX2lkIjoiNmY0MTcwZTYtM2E1My00ZDcyLTk0NTktMGJkNGQ5OTVhN2YxIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.yYMzHcuhHerlRxetyvYyapRMPIiqotnkbhGhuDKLUI9cMmF5N5oc6ozraizCXIRACo2_We9Si4XyEifgVbXqcg"
+ENV_FILE=".env"
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$ENV_FILE"
+    set +a
+fi
+
+ACCESS_TOKEN="${ACCESS_TOKEN:-${ARKASODHARA_ACCESS_TOKEN:-}}"
+
+if [ -z "$ACCESS_TOKEN" ]; then
+    echo "❌ Missing ACCESS_TOKEN in .env. Add ACCESS_TOKEN='your-token-here' and retry."
+    exit 1
+fi
+
+if [[ "$ACCESS_TOKEN" == eyJ* ]]; then
+    echo "❌ ACCESS_TOKEN is a JWT, not an Arkasodhara personal access token."
+    echo "   Create a personal access token in Arkasodhara Tracker and replace ACCESS_TOKEN in .env."
+    exit 1
+fi
 
 PROJECT_ID="096775b3-0069-44a8-819e-c71bb2ae3762"
 UPLOAD_URL="https://tracker.arkasodhara.tech/api/apk/upload"
@@ -56,4 +75,3 @@ else
     exit 1
 fi
 echo "======================================================="
-
