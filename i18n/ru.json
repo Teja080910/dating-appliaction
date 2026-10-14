@@ -482,7 +482,7 @@
   "onboarding.privacyscreen.unknown_error": "Неизвестная ошибка",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Инициализация проверки лица... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Помести лицо перед камерой",
-  "onboarding.selfieverificationscreen.camera_ready": "Камера готова",
+  "onboarding.selfieverificationscreen.camera_ready": "Запуск камеры...",
   "onboarding.selfieverificationscreen.start": "Начать",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Отцентрируй лицо и нажми «Начать»",
   "onboarding.tellusmorescreen.almost_there": "Почти готово!",

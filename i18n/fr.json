@@ -482,7 +482,7 @@
   "onboarding.privacyscreen.unknown_error": "Erreur inconnue",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Initialisation de la vérification du visage... {scanProgress} %",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Place ton visage devant la caméra",
-  "onboarding.selfieverificationscreen.camera_ready": "Caméra prête",
+  "onboarding.selfieverificationscreen.camera_ready": "Démarrage de la caméra...",
   "onboarding.selfieverificationscreen.start": "Démarrer",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Centre ton visage et clique sur « Démarrer »",
   "onboarding.tellusmorescreen.almost_there": "Presque terminé !",

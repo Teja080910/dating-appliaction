@@ -482,7 +482,7 @@
   "onboarding.privacyscreen.unknown_error": "Unknown error",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Initializing face verification... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Move face in front of camera",
-  "onboarding.selfieverificationscreen.camera_ready": "Camera Ready",
+  "onboarding.selfieverificationscreen.camera_ready": "Starting camera...",
   "onboarding.selfieverificationscreen.start": "Start",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Center your face and click \"Start\"",
   "onboarding.selfieverificationscreen.allow_camera_access": "Allow Camera Access",

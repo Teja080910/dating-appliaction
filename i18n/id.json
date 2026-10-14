@@ -482,7 +482,7 @@
   "onboarding.privacyscreen.unknown_error": "Kesalahan tidak diketahui",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Inisialisasi verifikasi wajah... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Arahkan wajah ke kamera",
-  "onboarding.selfieverificationscreen.camera_ready": "Kamera siap",
+  "onboarding.selfieverificationscreen.camera_ready": "Memulai kamera...",
   "onboarding.selfieverificationscreen.start": "Mulai",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Pusatkan wajahmu dan klik mulai",
   "onboarding.tellusmorescreen.almost_there": "Hampir selesai!",

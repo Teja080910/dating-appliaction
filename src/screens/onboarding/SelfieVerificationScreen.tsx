@@ -32,16 +32,19 @@ type VerificationState = 'permission' | 'camera' | 'scanning';
 
 const SelfieVerificationScreen = ({ navigation }: any) => {
   useTranslation();
-  const { alert, AlertComponent } = useAlert();
+  const { AlertComponent } = useAlert();
   const { setVerifiedSelfie } = useContext(AppContext);
   const { isDark } = useTheme();
   const isScreenFocused = useIsFocused();
 
   const cameraRef = useRef<Camera>(null);
-  const frontCamera = useCameraDevice('front') ?? useCameraDevice('back');
+  const frontCameraDevice = useCameraDevice('front');
+  const backCameraDevice = useCameraDevice('back');
+  const frontCamera = frontCameraDevice ?? backCameraDevice;
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraInitialized, setCameraInitialized] = useState(false);
   const [cameraError, setCameraError] = useState(false);
   const [stepState, setStepState] = useState<VerificationState>('permission');
   const [scanProgress, setScanProgress] = useState(0);
@@ -345,16 +348,33 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               ]}
             >
               {cameraReady && frontCamera && isScreenFocused && !cameraError ? (
-                <Camera
-                  ref={cameraRef}
-                  style={StyleSheet.absoluteFill}
-                  device={frontCamera}
-                  isActive={isScreenFocused}
-                  onError={(e) => {
-                    console.warn('VisionCamera error:', e);
-                    setCameraError(true);
-                  }}
-                />
+                <>
+                  <Camera
+                    ref={cameraRef}
+                    style={StyleSheet.absoluteFill}
+                    device={frontCamera}
+                    isActive={isScreenFocused}
+                    androidPreviewViewType="texture-view"
+                    onInitialized={() => setCameraInitialized(true)}
+                    onError={(e) => {
+                      console.warn('VisionCamera error:', e);
+                      setCameraError(true);
+                    }}
+                  />
+                  {!cameraInitialized && (
+                    <View
+                      style={[
+                        styles.cameraPlaceholder,
+                        { backgroundColor: isDark ? '#1E293B' : '#F3F4F6' },
+                      ]}
+                    >
+                      <Icon name="face-recognition" size={76} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                      <Text style={[styles.placeholderText, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
+                        {t('onboarding.selfieverificationscreen.camera_ready')}
+                      </Text>
+                    </View>
+                  )}
+                </>
               ) : (
                 <View
                   style={[

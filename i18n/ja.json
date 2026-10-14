@@ -482,7 +482,7 @@
   "onboarding.privacyscreen.unknown_error": "不明なエラー",
   "onboarding.selfieverificationscreen.initializing_face_verification": "顔認証を初期化中... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "顔をカメラの前に合わせてください",
-  "onboarding.selfieverificationscreen.camera_ready": "カメラ準備完了",
+  "onboarding.selfieverificationscreen.camera_ready": "カメラを起動中...",
   "onboarding.selfieverificationscreen.start": "スタート",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "顔を中央に合わせて「スタート」をタップ",
   "onboarding.tellusmorescreen.almost_there": "もうすぐ完了！",

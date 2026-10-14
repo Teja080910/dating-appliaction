@@ -482,7 +482,7 @@
   "onboarding.privacyscreen.unknown_error": "Eroare necunoscută",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Se inițializează verificarea feței... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Apropie fața de cameră",
-  "onboarding.selfieverificationscreen.camera_ready": "Camera pregătită",
+  "onboarding.selfieverificationscreen.camera_ready": "Se pornește camera...",
   "onboarding.selfieverificationscreen.start": "Start",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Centrează-ți fața și apasă \"Start\"",
   "onboarding.tellusmorescreen.almost_there": "Ești aproape gata!",

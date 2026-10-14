@@ -482,7 +482,7 @@
   "onboarding.privacyscreen.unknown_error": "未知错误",
   "onboarding.selfieverificationscreen.initializing_face_verification": "正在初始化面部验证... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "将脸移至摄像头前",
-  "onboarding.selfieverificationscreen.camera_ready": "摄像头就绪",
+  "onboarding.selfieverificationscreen.camera_ready": "正在启动摄像头...",
   "onboarding.selfieverificationscreen.start": "开始",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "将脸置于画面中央并点击“开始”",
   "onboarding.tellusmorescreen.almost_there": "就快完成了！",
