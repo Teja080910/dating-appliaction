@@ -168,8 +168,10 @@ export const handleMockRequest = async (
     // Find or create registered user
     let user = await mockStore.findUserByMobile(identifier);
     if (!user) {
+      const fallbackName = body.gender === 'woman' ? 'Ananya' : 'Rahul';
+      const cleanName = body.name && body.name.trim() ? body.name.trim() : fallbackName;
       user = await mockStore.createUser({
-        name: body.name || 'New Amara User',
+        name: cleanName,
         mobile: !identifier.includes('@') ? identifier : (body.mobile || ''),
         email: identifier.includes('@') ? identifier : body.email,
         password: body.password || 'Password@123',
@@ -423,6 +425,9 @@ export const handleMockRequest = async (
       englishLevel: profile?.englishLevel || '',
       ethnicity: profile?.ethnicity || '',
       lookingFor: profile?.lookingFor || '',
+      kidCount: profile?.kidCount || profile?.kids || '',
+      kids: profile?.kids || profile?.kidCount || '',
+      netWorth: profile?.netWorth || '',
       mobile: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
       phone: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
       completion: 100,

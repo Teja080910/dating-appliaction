@@ -12,7 +12,8 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -79,6 +80,7 @@ const OTPScreen = ({ navigation, route }: any) => {
     return initId || 'sess_mock';
   });
   const inputRef = useRef<TextInput>(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     const timerId = setTimeout(() => {
@@ -111,7 +113,6 @@ const OTPScreen = ({ navigation, route }: any) => {
     setImages,
     setProfileImage,
     setProfileImageUrl,
-    setInitialScreen,
     setProfileText,
     setSelectedAppearance,
     setSelectedBodyType,
@@ -135,6 +136,7 @@ const OTPScreen = ({ navigation, route }: any) => {
 
   useFocusEffect(
     useCallback(() => {
+      isSubmittingRef.current = false;
       AsyncStorage.setItem('onboardingStep', 'GenderOrientation');
     }, []),
   );
@@ -191,20 +193,25 @@ const OTPScreen = ({ navigation, route }: any) => {
     );
   };
 
-  const handleVerify = async () => {
-    const trimmedOtp = otp.trim();
+  const handleVerify = async (explicitOtp?: unknown) => {
+    if (loading || isSubmittingRef.current) return;
+
+    const trimmedOtp = (typeof explicitOtp === 'string' ? explicitOtp : otp).trim();
 
     if (trimmedOtp.length < 4) {
       alert(t('auth.otpscreen.enter_full_otp'));
       return;
     }
 
+    isSubmittingRef.current = true;
+    setLoading(true);
+    Keyboard.dismiss();
+    inputRef.current?.blur();
+
     const effectiveSessionId =
       registerSessionId ||
       (typeof sessionId === 'string' && sessionId.trim() ? sessionId.trim() : null) ||
       'sess_mock';
-
-    setLoading(true);
 
     try {
       const verifyPayload = {
@@ -300,17 +307,22 @@ const OTPScreen = ({ navigation, route }: any) => {
         acceptTerms.mutate(undefined);
       } catch {}
 
-      if (setInitialScreen) {
-        setInitialScreen('GenderOrientation');
+      // Navigate cleanly to GenderOrientation, replacing stack so OTP is not revisited
+      try {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'GenderOrientation' }],
+        });
+      } catch (navError) {
+        try {
+          navigation.replace('GenderOrientation');
+        } catch {
+          navigation.navigate('GenderOrientation');
+        }
       }
 
-      // Navigate cleanly to GenderOrientation, replacing stack so OTP is not revisited
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'GenderOrientation' }],
-      });
-
     } catch (error: any) {
+      isSubmittingRef.current = false;
       console.log("VERIFY ERROR:", error);
       const msg = extractApiErrorMessage(error, "Verification failed");
 
@@ -395,9 +407,13 @@ const OTPScreen = ({ navigation, route }: any) => {
                   keyboardType="number-pad"
                   maxLength={6}
                   value={otp}
+                  editable={!loading}
                   onChangeText={(val) => {
                     const clean = val.replace(/\D/g, '').slice(0, 6);
                     setOtp(clean);
+                    if (clean.length === 6 && !loading && !isSubmittingRef.current) {
+                      handleVerify(clean);
+                    }
                   }}
                   onFocus={() => setIsInputFocused(true)}
                   onBlur={() => setIsInputFocused(false)}
@@ -454,7 +470,7 @@ const OTPScreen = ({ navigation, route }: any) => {
                   {/* Primary Verify Button (Solid White Pill Button) */}
                   <TouchableOpacity
                     style={[styles.verifyBtn, loading && { opacity: 0.8 }]}
-                    onPress={handleVerify}
+                    onPress={() => handleVerify()}
                     disabled={loading}
                     activeOpacity={0.88}
                   >

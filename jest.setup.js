@@ -12,3 +12,8 @@ jest.mock('react-native-encrypted-storage', () => {
     clear: jest.fn(async () => values.clear()),
   };
 });
+
+jest.mock('react-native-image-picker', () => ({
+  launchImageLibrary: jest.fn(),
+  launchCamera: jest.fn(),
+}));

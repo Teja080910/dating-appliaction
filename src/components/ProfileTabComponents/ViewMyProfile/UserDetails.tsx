@@ -1,4 +1,5 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Image,
@@ -98,7 +99,25 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     selectedBodyType,
     selectedLookingFor,
     selectedLanguages,
+    selectedNetWorth,
+    selectedKids,
   } = useContext(AppContext);
+
+  const [localNetWorth, setLocalNetWorth] = useState<string | null>(null);
+  const [localKids, setLocalKids] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    AsyncStorage.getItem('@amara_net_worth').then((val) => {
+      if (isMounted && val) setLocalNetWorth(val);
+    });
+    AsyncStorage.getItem('@amara_kid_count').then((val) => {
+      if (isMounted && val) setLocalKids(val);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedNetWorth, selectedKids]);
 
   // 🔄 Use prop profile if available, else fall back to context (legacy match)
   const profile = propProfile || {};
@@ -619,9 +638,23 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || t('profile.userdetails.other')) : t('profile.userdetails.other')))} />
           <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || t('profile.userdetails.no')) : t('profile.userdetails.no')))} />
           <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Medium') : 'Medium')) })} />
-          <DetailPill icon="baby-face-outline" text={t('profile.userdetails.kids', { normalizeTextValue: normalizeTextValue(resolvedProfile?.kids || profile?.kids, "0") })} />
-          {resolvedProfile?.netWorth || profile?.netWorth ? (
-            <DetailPill icon="currency-usd" text={normalizeTextValue(resolvedProfile?.netWorth || profile?.netWorth, "Below 50k")} />
+          <DetailPill
+            icon="baby-face-outline"
+            text={t('profile.userdetails.kids', {
+              normalizeTextValue: normalizeTextValue(
+                resolvedProfile?.kids || resolvedProfile?.kidCount || profile?.kids || profile?.kidCount,
+                isOwnProfile ? (selectedKids || localKids || "0") : "0"
+              ),
+            })}
+          />
+          {Boolean(resolvedProfile?.netWorth || profile?.netWorth || (isOwnProfile && (selectedNetWorth || localNetWorth))) ? (
+            <DetailPill
+              icon="currency-usd"
+              text={normalizeTextValue(
+                resolvedProfile?.netWorth || profile?.netWorth,
+                isOwnProfile ? (selectedNetWorth || localNetWorth || "Below 50k") : "Below 50k"
+              )}
+            />
           ) : null}
         </View>
       </View>

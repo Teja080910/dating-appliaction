@@ -160,9 +160,13 @@ const MoreInfoScreen = () => {
 
       if (selectedKids) {
         await AsyncStorage.setItem('@amara_kid_count', selectedKids);
+      } else {
+        await AsyncStorage.removeItem('@amara_kid_count');
       }
       if (selectedNetWorth) {
         await AsyncStorage.setItem('@amara_net_worth', selectedNetWorth);
+      } else {
+        await AsyncStorage.removeItem('@amara_net_worth');
       }
 
       await updateDetails.mutateAsync(detailsPayload);

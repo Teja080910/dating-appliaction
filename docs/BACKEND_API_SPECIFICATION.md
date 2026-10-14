@@ -101,6 +101,32 @@ This specification covers all **13 Functional Modules** and **38 Endpoints** req
 
 ## 1. Authentication & Account Lifecycle
 
+### 💡 OTP Delivery & Backend SMTP Architecture
+
+| Requirement / Component | Needed for OTPs? | Notes |
+| :--- | :---: | :--- |
+| **Backend SMTP Configuration** | ✅ **Yes** | The backend simply needs standard Gmail SMTP credentials to send the verification email. |
+| **Push Notifications (FCM / APNs)** | ❌ **No** | Push notifications are not used for sending OTPs. |
+| **In-App Notification Preferences** | ❌ **No** | User notification settings only apply to date and match alerts. OTPs are mandatory security verifications and must always be delivered. |
+| **Client Auto-Read / SMS Retriever** | ❌ **No** | Mobile operating systems sandbox email; users enter the 6-digit code manually or via clipboard paste. |
+
+#### Backend SMTP Configuration Details (Gmail SMTP)
+To enable real email dispatch for registration OTPs (`POST /register`), password reset codes (`POST /forgot-password/send-otp`), and notification digests:
+* **Host**: `smtp.gmail.com`
+* **Port**: `587` (STARTTLS) or `465` (SSL)
+* **Auth**: Standard Google App Password (generated via Google Account > Security > 2-Step Verification > App passwords)
+* **Environment Variables**:
+  ```env
+  SMTP_HOST=smtp.gmail.com
+  SMTP_PORT=587
+  SMTP_SECURE=false
+  SMTP_USER=your-amara-service-account@gmail.com
+  SMTP_PASS=your-16-char-google-app-password
+  SMTP_FROM="AMARA Dating <no-reply@amara-app.com>"
+  ```
+
+---
+
 ### 1.1 Send OTP (Email)
 Sends a 6-digit OTP code to the user's email address for verification.
 - **Endpoint**: `POST /auth/send-otp`

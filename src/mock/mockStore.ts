@@ -20,6 +20,39 @@ const NOTIFICATION_PREFS_KEY = '@amara_mock_notification_prefs';
 const EMAILS_KEY = '@amara_mock_emails';
 const BLOCKED_USERS_KEY = '@amara_mock_blocked_users';
 
+export const TEST_USER_KEYWORDS = [
+  'user one',
+  'user 1',
+  'userone',
+  'user_one',
+  'new amara',
+  'new amara user',
+  'new amara users',
+  'teja',
+];
+
+export const isTestUserOrProfile = (entity: any): boolean => {
+  if (!entity) return false;
+  if (typeof entity === 'string') {
+    const s = entity.toLowerCase().trim();
+    return TEST_USER_KEYWORDS.some((kw) => s.includes(kw));
+  }
+  const name = String(entity.name || entity.displayName || '').toLowerCase().trim();
+  const email = String(entity.email || '').toLowerCase().trim();
+  const mobile = String(entity.mobile || '').toLowerCase().trim();
+  const telegram = String(entity.telegramUsername || '').toLowerCase().trim();
+  const userId = String(entity.userId || entity.id || '').toLowerCase().trim();
+
+  return TEST_USER_KEYWORDS.some(
+    (kw) =>
+      name.includes(kw) ||
+      email.includes(kw) ||
+      mobile.includes(kw) ||
+      telegram.includes(kw) ||
+      userId.includes(kw)
+  );
+};
+
 export interface MockUserImage {
   id: number;
   userId: string;
@@ -198,6 +231,7 @@ class MockStore {
       this.blockedUsers = storedBlocked ? JSON.parse(storedBlocked) : {};
 
       this.plans = [...mockData.subscriptions.plans];
+      await this.purgeTestUsers();
       this.initialized = true;
     } catch (e) {
       console.warn('[MockStore] Failed to load mock storage, using in-memory fallbacks', e);
@@ -226,6 +260,108 @@ class MockStore {
     }
   }
 
+  public async purgeTestUsers(): Promise<void> {
+    const testUserIds = new Set<string>();
+
+    this.users.forEach((u) => {
+      if (isTestUserOrProfile(u)) {
+        if (u.userId) testUserIds.add(String(u.userId));
+        if (u.id) testUserIds.add(String(u.id));
+      }
+    });
+
+    this.profiles.forEach((p) => {
+      if (isTestUserOrProfile(p)) {
+        if (p.userId) testUserIds.add(String(p.userId));
+        if (p.id) testUserIds.add(String(p.id));
+      }
+    });
+
+    if (testUserIds.size > 0) {
+      this.users = this.users.filter(
+        (u) => !testUserIds.has(String(u.userId)) && !testUserIds.has(String(u.id)) && !isTestUserOrProfile(u)
+      );
+      this.profiles = this.profiles.filter(
+        (p) => !testUserIds.has(String(p.userId)) && !testUserIds.has(String(p.id)) && !isTestUserOrProfile(p)
+      );
+      this.requests = this.requests.filter(
+        (r) =>
+          !testUserIds.has(String(r.senderId)) &&
+          !testUserIds.has(String(r.receiverId)) &&
+          !isTestUserOrProfile(r.sender) &&
+          !isTestUserOrProfile(r.receiver)
+      );
+      this.images = this.images.filter((img) => !testUserIds.has(String(img.userId)));
+      this.supportTickets = this.supportTickets.filter((t) => !testUserIds.has(String(t.userId)));
+      this.notifications = this.notifications.filter((n) => !testUserIds.has(String(n.userId)));
+      this.emails = this.emails.filter(
+        (e) => !testUserIds.has(String(e.userId)) && !isTestUserOrProfile({ email: e.toEmail })
+      );
+
+      testUserIds.forEach((uid) => {
+        delete this.userSubscriptions[uid];
+        delete this.notificationPreferences[uid];
+        delete this.blockedUsers[uid];
+      });
+
+      await Promise.all([
+        AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users)),
+        AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles)),
+        AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests)),
+        AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images)),
+      ]);
+    }
+
+    // Reset currentUserId if pointing to a purged test user
+    const storedCurrentUserId = await AsyncStorage.getItem(CURRENT_USER_ID_KEY);
+    if (
+      storedCurrentUserId &&
+      (testUserIds.has(String(storedCurrentUserId)) || isTestUserOrProfile({ userId: storedCurrentUserId }))
+    ) {
+      this.currentUserId = 'usr_man_101';
+      await AsyncStorage.setItem(CURRENT_USER_ID_KEY, 'usr_man_101');
+    }
+
+    // Clear active test user session if stored on device
+    try {
+      const [storedUser, storedUserData, storedUid] = await Promise.all([
+        AsyncStorage.getItem('user'),
+        AsyncStorage.getItem('userData'),
+        AsyncStorage.getItem('user_id'),
+      ]);
+      const isTestSession =
+        [storedUser, storedUserData].some((jsonStr) => {
+          if (!jsonStr) return false;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            return (
+              isTestUserOrProfile(parsed) ||
+              isTestUserOrProfile(parsed?.user) ||
+              isTestUserOrProfile(parsed?.profile)
+            );
+          } catch {
+            return false;
+          }
+        }) || (storedUid && (testUserIds.has(String(storedUid)) || isTestUserOrProfile({ userId: storedUid })));
+
+      if (isTestSession) {
+        await AsyncStorage.multiRemove([
+          'auth_token',
+          'user_id',
+          'is_logged_in',
+          'user',
+          'userData',
+          'userToken',
+          'userMobile',
+          'userEmail',
+          'displayName',
+          'name',
+          'userName',
+        ]);
+      }
+    } catch {}
+  }
+
   // --- Users & Auth ---
   public async getCurrentUserId(): Promise<string> {
     await this.init();
@@ -249,7 +385,7 @@ class MockStore {
 
   public async getUsers(): Promise<MockUser[]> {
     await this.init();
-    return this.users;
+    return this.users.filter((u) => !isTestUserOrProfile(u));
   }
 
   public async findUserByMobile(mobileOrEmail: string): Promise<MockUser | undefined> {
@@ -287,12 +423,15 @@ class MockStore {
       return false;
     });
 
+    if (found && isTestUserOrProfile(found)) return undefined;
     return found; // Return undefined if account is not found!
   }
 
   public async findUserById(userId: string): Promise<MockUser | undefined> {
     await this.init();
-    return this.users.find((u) => String(u.userId) === String(userId) || String(u.id) === String(userId));
+    const found = this.users.find((u) => String(u.userId) === String(userId) || String(u.id) === String(userId));
+    if (found && isTestUserOrProfile(found)) return undefined;
+    return found;
   }
 
   public async createUser(userData: Partial<MockUser>): Promise<MockUser> {
@@ -309,10 +448,13 @@ class MockStore {
       : undefined;
     const cleanMobile = rawMobile && !rawMobile.includes('@') ? rawMobile : '';
 
+    const fallbackName = userData.gender === 'woman' ? 'Ananya' : 'Rahul';
+    const cleanName = userData.name && userData.name.trim() ? userData.name.trim() : fallbackName;
+
     const newUser: MockUser = {
       id,
       userId,
-      name: userData.name || 'New User',
+      name: cleanName,
       mobile: cleanMobile,
       email: cleanEmail,
       password: userData.password || 'Password@123',
@@ -384,7 +526,7 @@ class MockStore {
   // --- Profiles ---
   public async getProfiles(genderFilter?: string, currentUserId?: string): Promise<MockProfile[]> {
     await this.init();
-    let list = this.profiles;
+    let list = this.profiles.filter((p) => !isTestUserOrProfile(p));
     if (genderFilter) {
       const target = genderFilter.toLowerCase();
       if (target.includes('woman') || target.includes('female')) {
@@ -428,7 +570,7 @@ class MockStore {
         (pUserId.length >= 3 && cleanId.endsWith(pUserId))
       );
     });
-    if (profile) {
+    if (profile && !isTestUserOrProfile(profile)) {
       return {
         ...profile,
         id: profile.id || (profile.gender === 'woman' ? 201 : 101),

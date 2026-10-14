@@ -44,6 +44,9 @@ export interface MockProfile {
   phone?: string;
   mobile?: string;
   email?: string;
+  kidCount?: string;
+  kids?: string;
+  netWorth?: string;
 }
 
 export interface MockRequest {

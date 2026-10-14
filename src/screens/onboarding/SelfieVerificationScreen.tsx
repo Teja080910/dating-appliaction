@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   BackHandler,
   Dimensions,
+  PermissionsAndroid,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -19,6 +21,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useProfile } from '../../api/useProfile';
 import { useTheme, Colors } from '../../theme';
+import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,20 +32,40 @@ type VerificationState = 'permission' | 'camera' | 'scanning';
 
 const SelfieVerificationScreen = ({ navigation }: any) => {
   useTranslation();
+  const { alert, AlertComponent } = useAlert();
   const { setVerifiedSelfie } = useContext(AppContext);
   const { isDark } = useTheme();
   const isScreenFocused = useIsFocused();
 
   const cameraRef = useRef<Camera>(null);
-  const frontCamera = useCameraDevice('front');
+  const frontCamera = useCameraDevice('front') ?? useCameraDevice('back');
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
   const [stepState, setStepState] = useState<VerificationState>('permission');
   const [scanProgress, setScanProgress] = useState(0);
 
   const scanIntervalRef = useRef<any>(null);
   const { verifySelfie } = useProfile();
+
+  // Proactively check if camera permission is already granted on mount
+  useEffect(() => {
+    (async () => {
+      let isGranted = hasPermission;
+      if (Platform.OS === 'android') {
+        try {
+          isGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA);
+        } catch (e) {
+          console.warn('Error checking camera permission:', e);
+        }
+      }
+      if (isGranted) {
+        setCameraReady(true);
+        setStepState('camera');
+      }
+    })();
+  }, [hasPermission]);
 
   // Android hardware back handler
   useFocusEffect(
@@ -77,7 +100,14 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
   const handleAllowCamera = async () => {
     let granted = hasPermission;
-    if (!granted) {
+    if (Platform.OS === 'android') {
+      try {
+        const res = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+        granted = res === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (e) {
+        console.warn('Android permission error:', e);
+      }
+    } else if (!granted) {
       granted = await requestPermission();
     }
     setCameraReady(granted);
@@ -85,6 +115,8 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   };
 
   const handleStartVerification = () => {
+    if (stepState === 'scanning') return;
+
     setStepState('scanning');
     setScanProgress(5);
 
@@ -92,7 +124,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
 
     scanIntervalRef.current = setInterval(async () => {
-      progress += 3;
+      progress += 4;
       if (progress >= 100) {
         progress = 100;
         clearInterval(scanIntervalRef.current);
@@ -144,7 +176,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   // ----------------------------------------------------
   if (stepState === 'permission') {
     return (
-      <View style={[styles.permissionContainer, { backgroundColor: isDark ? '#0F0D1A' : '#FFFFFF' }]}>
+      <View style={[styles.container, { backgroundColor: isDark ? '#0F0D1A' : '#FFFFFF' }]}>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
           backgroundColor={isDark ? '#0F0D1A' : '#FFFFFF'}
@@ -229,6 +261,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
+        {AlertComponent}
       </View>
     );
   }
@@ -237,17 +270,20 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   // PHOTO 4: Face Verification Screen ("Center your face and click Start")
   // ----------------------------------------------------
   return (
-    <View style={styles.darkThemeContainer}>
-      <StatusBar barStyle="light-content" backgroundColor="#080E18" />
+    <View style={[styles.container, { backgroundColor: isDark ? '#0F0D1A' : '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? '#0F0D1A' : '#FFFFFF'}
+      />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        {/* Top Bar with Back chevron and 8 dashes (Dash 3 active in White) */}
+        {/* Top Bar with Back chevron and 8 dashes (Dash 3 active) */}
         <View style={styles.topBar}>
           <TouchableOpacity
             onPress={handleHeaderBack}
             style={styles.backBtn}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Feather name="chevron-left" size={28} color="#FFFFFF" />
+            <Feather name="chevron-left" size={28} color={isDark ? '#FFFFFF' : '#111827'} />
           </TouchableOpacity>
           <View style={styles.dashRow}>
             {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
@@ -256,15 +292,15 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                 style={[
                   styles.dash,
                   i + 1 === CURRENT_STEP
-                    ? styles.dashActiveWhite
-                    : styles.dashInactiveDark,
+                    ? [styles.dashActive, { backgroundColor: isDark ? '#FFFFFF' : '#111827' }]
+                    : [styles.dashInactive, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.22)' : '#D1D5DB' }],
                 ]}
               />
             ))}
           </View>
         </View>
 
-        {/* Start Button in Theme Primary Color (replacing Glambu crimson red) */}
+        {/* Start Button in Theme Primary Color */}
         <View style={styles.startBtnContainer}>
           <TouchableOpacity
             style={[styles.themeStartBtn, { backgroundColor: Colors.primary }]}
@@ -283,26 +319,51 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
         </View>
 
         {/* Instructions & Oval Camera Viewfinder Box */}
-        <View style={styles.darkCardContainer}>
-          <View style={styles.darkCard}>
-            <Text style={styles.darkCardText}>
+        <View style={styles.cardContainer}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? '#1A1730' : '#F9FAFB',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB',
+              },
+            ]}
+          >
+            <Text style={[styles.cardInstructionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
               {stepState === 'scanning'
                 ? `Verifying face...\n${scanProgress}%`
                 : 'Center your face\nand click "Start"'}
             </Text>
 
-            <View style={styles.ovalViewfinder}>
-              {cameraReady && frontCamera && isScreenFocused ? (
+            <View
+              style={[
+                styles.ovalViewfinder,
+                {
+                  backgroundColor: isDark ? '#111827' : '#E5E7EB',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.18)' : '#D1D5DB',
+                },
+              ]}
+            >
+              {cameraReady && frontCamera && isScreenFocused && !cameraError ? (
                 <Camera
                   ref={cameraRef}
                   style={StyleSheet.absoluteFill}
                   device={frontCamera}
                   isActive={isScreenFocused}
+                  onError={(e) => {
+                    console.warn('VisionCamera error:', e);
+                    setCameraError(true);
+                  }}
                 />
               ) : (
-                <View style={styles.cameraPlaceholder}>
-                  <Icon name="face-recognition" size={76} color="#6B7280" />
-                  <Text style={styles.placeholderText}>
+                <View
+                  style={[
+                    styles.cameraPlaceholder,
+                    { backgroundColor: isDark ? '#1E293B' : '#F3F4F6' },
+                  ]}
+                >
+                  <Icon name="face-recognition" size={76} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <Text style={[styles.placeholderText, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
                     {t('onboarding.selfieverificationscreen.camera_ready')}
                   </Text>
                 </View>
@@ -319,6 +380,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
           </View>
         </View>
       </SafeAreaView>
+      {AlertComponent}
     </View>
   );
 };
@@ -330,11 +392,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  darkThemeContainer: {
-    flex: 1,
-    backgroundColor: '#080E18',
-  },
-  permissionContainer: {
+  container: {
     flex: 1,
   },
 
@@ -461,21 +519,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
-  darkCardContainer: {
+  cardContainer: {
     flex: 1,
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
-  darkCard: {
+  card: {
     flex: 1,
-    backgroundColor: '#0C1624',
     borderRadius: 24,
+    borderWidth: 1,
     paddingTop: 24,
     paddingBottom: 32,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  darkCardText: {
-    color: '#FFFFFF',
+  cardInstructionText: {
     fontSize: 23,
     fontWeight: '600',
     textAlign: 'center',
@@ -486,19 +548,17 @@ const styles = StyleSheet.create({
     width: Math.min(SCREEN_WIDTH * 0.62, 230),
     height: Math.min(SCREEN_WIDTH * 0.62, 230) * 1.42,
     borderRadius: 115,
+    borderWidth: 2,
     overflow: 'hidden',
-    backgroundColor: '#111827',
     alignSelf: 'center',
     position: 'relative',
   },
   cameraPlaceholder: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderText: {
-    color: '#94A3B8',
     fontSize: 14,
     marginTop: 8,
     fontWeight: '500',

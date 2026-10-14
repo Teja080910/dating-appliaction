@@ -66,6 +66,7 @@ const RegisterScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const { sendRegisterOtp } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
+  const isSubmittingRef = useRef(false);
 
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -96,6 +97,7 @@ const RegisterScreen = ({ navigation }: any) => {
 
   useFocusEffect(
     useCallback(() => {
+      isSubmittingRef.current = false;
       AsyncStorage.setItem('onboardingStep', 'Register');
 
       setName('');
@@ -156,6 +158,8 @@ const RegisterScreen = ({ navigation }: any) => {
   );
 
   const handleRegister = async () => {
+    if (loading || isSubmittingRef.current) return;
+
     const cleanEmail = email.trim();
     if (!name.trim() || !cleanEmail || !password.trim()) {
       alert(t('auth.forgotpasswordscreen.missing_info'), t('auth.registerscreen.please_fill_all_required_fields'));
@@ -175,6 +179,7 @@ const RegisterScreen = ({ navigation }: any) => {
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
     Keyboard.dismiss();
     setContextName(name.trim());
@@ -214,6 +219,10 @@ const RegisterScreen = ({ navigation }: any) => {
         confirmPassword: confirmPassword.trim(),
         sessionId: 'sess_mock',
       });
+    } finally {
+      setTimeout(() => {
+        isSubmittingRef.current = false;
+      }, 1000);
     }
   };
 

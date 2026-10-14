@@ -1,5 +1,6 @@
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -144,6 +145,10 @@ const ViewMyProfileScreen = () => {
     selectedSmoking,
     selectedDrinking,
     selectedLookingFor,
+    selectedNetWorth,
+    setSelectedNetWorth,
+    selectedKids,
+    setSelectedKids,
     verifiedSelfie,
     location,
     setPaywallVisible,
@@ -243,6 +248,12 @@ const ViewMyProfileScreen = () => {
     React.useCallback(() => {
       if (isViewingSelf) {
         void refetchProfile();
+        AsyncStorage.getItem('@amara_net_worth').then((val) => {
+          if (val && setSelectedNetWorth) setSelectedNetWorth(val);
+        });
+        AsyncStorage.getItem('@amara_kid_count').then((val) => {
+          if (val && setSelectedKids) setSelectedKids(val);
+        });
         const activeTarget = myId || numericTargetId;
         if (activeTarget) {
           getAllImagesRef.current(String(activeTarget), {
@@ -252,7 +263,7 @@ const ViewMyProfileScreen = () => {
           });
         }
       }
-    }, [isViewingSelf, refetchProfile, myId, numericTargetId]),
+    }, [isViewingSelf, refetchProfile, myId, numericTargetId, setSelectedNetWorth, setSelectedKids]),
   );
 
   useEffect(() => {
@@ -524,6 +535,15 @@ const ViewMyProfileScreen = () => {
       lookingFor: isViewingSelf
         ? (normalizeTextValue(fetched?.lookingFor) || contextLookingFor || '')
         : (normalizeTextValue(routed?.lookingFor) || normalizeTextValue(fetched?.lookingFor) || t('profile.viewmyprofilescreen.long_term')),
+      kidCount: isViewingSelf
+        ? (normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids) || normalizeTextValue(selectedKids) || '')
+        : (normalizeTextValue(routed?.kidCount) || normalizeTextValue(routed?.kids) || normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids) || ''),
+      kids: isViewingSelf
+        ? (normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount) || normalizeTextValue(selectedKids) || '')
+        : (normalizeTextValue(routed?.kids) || normalizeTextValue(routed?.kidCount) || normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount) || ''),
+      netWorth: isViewingSelf
+        ? (normalizeTextValue(fetched?.netWorth) || normalizeTextValue(selectedNetWorth) || '')
+        : (normalizeTextValue(routed?.netWorth) || normalizeTextValue(fetched?.netWorth) || ''),
       currentCity: isViewingSelf
         ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(location) || '')
         : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(fetched?.currentCity) || t('home.usercard.nearby')),
@@ -556,8 +576,10 @@ const ViewMyProfileScreen = () => {
     selectedBodyType,
     selectedDrinking,
     selectedEthinicity,
+    selectedKids,
     selectedLanguages,
     selectedLookingFor,
+    selectedNetWorth,
     selectedSmoking,
     verifiedSelfie,
     contextImages,
