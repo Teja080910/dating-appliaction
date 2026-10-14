@@ -125,6 +125,19 @@ To enable real email dispatch for registration OTPs (`POST /register`), password
   SMTP_FROM="AMARA Dating <no-reply@amara-app.com>"
   ```
 
+### 🔑 Pre-Configured Test Credentials & QA Accounts
+
+For local development, API integration testing, and mobile client verification:
+
+| Account Type | Flow / Purpose | Email Address | Password | Static Test OTP |
+| :--- | :--- | :--- | :--- | :---: |
+| **👨 Male User** | Discovery Feed, Browse Profiles & Send Invitations | `rahul@amara.com` *(or `sailakshmiborra45@gmail.com`)* | `Password@123` | **`123456`** |
+| **👩 Female User** | Invitations Inbox, Approve & Decline Dates | `ananya.roy@amara.com` | `Password@123` | **`123456`** |
+| **👨 Male User (Alt)** | Secondary Discovery User | `arjun.kapoor@amara.com` | `Password@123` | **`123456`** |
+| **👩 Female User (Alt)** | Secondary Inbox User | `priya.sen@amara.com` | `Password@123` | **`123456`** |
+
+> **Note on Static OTP**: When verifying OTP for registration, login, or password reset, the development environment always accepts **`123456`**.
+
 ---
 
 ### 1.1 Send OTP (Email)

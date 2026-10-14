@@ -477,11 +477,13 @@ function buildFullHtml(title, bodyHtml) {
     <div class="cover-subtitle">Complete Production-Grade Contracts, Response Schemas, Database DDL &amp; SMTP Configuration</div>
     
     <div class="cover-meta-box">
-      <div class="cover-meta-row"><span class="cover-meta-label">Document Version:</span><span class="cover-meta-val">3.1 (Production Release)</span></div>
+      <div class="cover-meta-row"><span class="cover-meta-label">Document Version:</span><span class="cover-meta-val">3.2 (Production Release)</span></div>
       <div class="cover-meta-row"><span class="cover-meta-label">Date Generated:</span><span class="cover-meta-val">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
       <div class="cover-meta-row"><span class="cover-meta-label">Target Audience:</span><span class="cover-meta-val">Backend Developers, API Engineers, DBAs, QA</span></div>
       <div class="cover-meta-row"><span class="cover-meta-label">Client Application:</span><span class="cover-meta-val">AMARA React Native Client (iOS &amp; Android)</span></div>
       <div class="cover-meta-row"><span class="cover-meta-label">Primary Identity:</span><span class="cover-meta-val">Email Authentication (Gmail SMTP Verified)</span></div>
+      <div class="cover-meta-row"><span class="cover-meta-label">Test Accounts:</span><span class="cover-meta-val">rahul@amara.com / ananya.roy@amara.com (Password@123)</span></div>
+      <div class="cover-meta-row"><span class="cover-meta-label">Universal Test OTP:</span><span class="cover-meta-val">123456</span></div>
     </div>
   </div>
 
@@ -502,7 +504,7 @@ function convert(inputFile, outputPdf) {
   const bodyHtml = parseMarkdown(mdContent);
   const fullHtml = buildFullHtml('AMARA Dating App — Backend API Specification', bodyHtml);
   
-  const tempHtmlPath = path.resolve(__dirname, 'temp_spec.html');
+  const tempHtmlPath = path.resolve(__dirname, `temp_${path.basename(outputPdf, '.pdf')}.html`);
   fs.writeFileSync(tempHtmlPath, fullHtml, 'utf8');
   console.log(`Wrote temporary HTML to ${tempHtmlPath}`);
 
@@ -513,12 +515,6 @@ function convert(inputFile, outputPdf) {
     --margin-bottom 18mm \
     --margin-left 14mm \
     --margin-right 14mm \
-    --header-spacing 5 \
-    --footer-right "Page [page] of [topage]" \
-    --footer-left "AMARA Dating App — Backend API Specification" \
-    --footer-font-size 8 \
-    --footer-font-name "Segoe UI" \
-    --footer-spacing 6 \
     --enable-local-file-access \
     "${tempHtmlPath}" "${outputPdf}"`;
 
@@ -534,3 +530,8 @@ function convert(inputFile, outputPdf) {
 const backendSpecInput = path.resolve(__dirname, '../docs/BACKEND_API_SPECIFICATION.md');
 const backendSpecPdf = path.resolve(__dirname, '../AMARA_Backend_API_Specification.pdf');
 convert(backendSpecInput, backendSpecPdf);
+
+// Convert API_SPECIFICATION.md
+const apiSpecInput = path.resolve(__dirname, '../API_SPECIFICATION.md');
+const apiSpecPdf = path.resolve(__dirname, '../AMARA_Complete_API_Specification.pdf');
+convert(apiSpecInput, apiSpecPdf);

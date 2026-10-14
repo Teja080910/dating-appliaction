@@ -19,8 +19,8 @@
 11. [Domain 10: Help Desk & Customer Support](#11-domain-10-help-desk--customer-support)
 12. [Domain 11: Notifications & Communication Logs](#12-domain-11-notifications--communication-logs)
 13. [Domain 12: Legal, Terms & Privacy Acceptance](#13-domain-12-legal-terms--privacy-acceptance)
-14. [Domain 13: PostgreSQL Production Database Schema DDL](#14-domain-13-postgresql-production-database-schema-ddl)
-15. [Domain 14: Multi-Language Database Seed (10 Languages / 635 Keys Each)](#15-domain-14-multi-language-database-seed-10-languages--635-keys-each)
+14. [Domain 13: Core Relational Data Model Architecture](#14-domain-13-core-relational-data-model-architecture)
+15. [Domain 14: Multi-Language Application Translations (10 Languages / 635 Keys Each)](#15-domain-14-multi-language-application-translations-10-languages--635-keys-each)
 
 ---
 
@@ -68,6 +68,34 @@
 * Primary User Identifiers are string tokens formatted as `usr_man_<id>` or `usr_woman_<id>` or UUIDv4 (e.g., `"usr_man_101"`, `"usr_woman_201"`).
 * Both numeric `id` and alphanumeric `userId` must be consistently supported by the backend.
 
+### 1.5 Backend SMTP Configuration (Gmail SMTP)
+To enable real email dispatch for registration OTPs (`POST /register`), password resets (`POST /auth/forgot-password/send-otp`), and dating notifications:
+* **Service**: Gmail SMTP (`smtp.gmail.com`)
+* **Port**: `465` (SSL) or `587` (TLS)
+* **Authentication**: Dedicated 16-character **Google App Password** generated via [myaccount.google.com/security](https://myaccount.google.com/security) (2-Step Verification must be enabled).
+* **Environment Variables (`.env`)**:
+  ```env
+  SMTP_SERVICE=gmail
+  SMTP_HOST=smtp.gmail.com
+  SMTP_PORT=465
+  SMTP_SECURE=true
+  SMTP_USER=amara.dating.app@gmail.com
+  SMTP_PASS=abcdefghijklmnop
+  SMTP_FROM="AMARA Dating <no-reply@amara-app.com>"
+  ```
+
+### 1.6 Pre-Configured Test Credentials & QA Accounts
+For local development, API integration testing, and mobile client verification:
+
+| Account Type | Flow / Purpose | Email Address | Password | Static Test OTP |
+| :--- | :--- | :--- | :--- | :---: |
+| **👨 Male User** | Discovery Feed, Browse Profiles & Send Invitations | `rahul@amara.com` | `Password@123` | **`123456`** |
+| **👩 Female User** | Invitations Inbox, Approve & Decline Dates | `ananya.roy@amara.com` | `Password@123` | **`123456`** |
+| **👨 Male User (Alt)** | Secondary Discovery User | `arjun.kapoor@amara.com` | `Password@123` | **`123456`** |
+| **👩 Female User (Alt)** | Secondary Inbox User | `priya.sen@amara.com` | `Password@123` | **`123456`** |
+
+> **Development Test OTP**: When testing registration (`POST /register`), auth (`POST /auth/send-otp`), or password reset (`POST /forgot-password/send-otp`), the development environment accepts the universal test code **`123456`**.
+
 ---
 
 ## 2. Domain 1: Authentication & Account Lifecycle
@@ -75,30 +103,6 @@
 ### 💡 Development Environment OTP Note
 * For local development, QA testing, and automated tests, the backend should accept the static test code **`123456`** for `POST /verify-register/otp` and `POST /forgot-password/reset`.
 * In production (`NODE_ENV === 'production'`), real email/SMS dispatch should be executed, and the OTP must not be exposed in client-facing logs.
-
-### 💡 OTP Delivery & Backend SMTP Architecture
-
-| Requirement / Component | Needed for OTPs? | Notes |
-| :--- | :---: | :--- |
-| **Backend SMTP Configuration** | ✅ **Yes** | The backend simply needs standard Gmail SMTP credentials to send the verification email. |
-| **Push Notifications (FCM / APNs)** | ❌ **No** | Push notifications are not used for sending OTPs. |
-| **In-App Notification Preferences** | ❌ **No** | User notification settings only apply to date and match alerts. OTPs are mandatory security verifications and must always be delivered. |
-| **Client Auto-Read / SMS Retriever** | ❌ **No** | Mobile operating systems sandbox email; users enter the 6-digit code manually or via clipboard paste. |
-
-#### Backend SMTP Configuration Details (Gmail SMTP)
-To enable real email dispatch for registration OTPs (`POST /register`), password reset codes (`POST /forgot-password/send-otp`), and notification digests:
-* **Host**: `smtp.gmail.com`
-* **Port**: `587` (STARTTLS) or `465` (SSL)
-* **Auth**: Standard Google App Password (generated via Google Account > Security > 2-Step Verification > App passwords)
-* **Environment Variables**:
-  ```env
-  SMTP_HOST=smtp.gmail.com
-  SMTP_PORT=587
-  SMTP_SECURE=false
-  SMTP_USER=your-amara-service-account@gmail.com
-  SMTP_PASS=your-16-char-google-app-password
-  SMTP_FROM="AMARA Dating <no-reply@amara-app.com>"
-  ```
 
 ---
 
@@ -955,164 +959,29 @@ You and *${matchedUserName}* liked each other on Amara! Open Amara or tap below 
 
 ---
 
-## 14. Domain 13: PostgreSQL Production Database Schema DDL
+## 14. Domain 13: Core Relational Data Model Architecture
 
-The following relational DDL can be directly executed in PostgreSQL to create all necessary tables:
+The backend database model consists of the following core entity definitions and relationships:
 
-```sql
--- 1. USERS TABLE
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(64) UNIQUE NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    mobile VARCHAR(32) UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    name VARCHAR(128) NOT NULL,
-    display_name VARCHAR(128),
-    gender VARCHAR(32) NOT NULL DEFAULT 'man',
-    orientation VARCHAR(32) NOT NULL DEFAULT 'straight',
-    telegram_username VARCHAR(128),
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 2. USER PROFILES TABLE
-CREATE TABLE IF NOT EXISTS user_profiles (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(64) UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    age INT,
-    dob DATE,
-    bio TEXT,
-    height INT DEFAULT 165,
-    appearance VARCHAR(64),
-    body_type VARCHAR(64),
-    language VARCHAR(255),
-    english_level VARCHAR(64),
-    ethnicity VARCHAR(64),
-    kid_count VARCHAR(64),
-    net_worth VARCHAR(64),
-    looking_for VARCHAR(255),
-    smoke VARCHAR(64),
-    drink VARCHAR(64),
-    photo_verified BOOLEAN DEFAULT FALSE,
-    is_online BOOLEAN DEFAULT FALSE,
-    last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 3. USER IMAGES TABLE
-CREATE TABLE IF NOT EXISTS user_images (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    image_url TEXT NOT NULL,
-    is_profile BOOLEAN DEFAULT FALSE,
-    slot_index INT DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 4. CONNECTIONS / INVITATIONS TABLE
-CREATE TABLE IF NOT EXISTS connections (
-    id SERIAL PRIMARY KEY,
-    request_id VARCHAR(64) UNIQUE NOT NULL,
-    sender_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    receiver_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    status VARCHAR(32) NOT NULL DEFAULT 'PENDING', -- PENDING, ACCEPTED, REJECTED, CANCELLED
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_connection_pair UNIQUE(sender_id, receiver_id)
-);
-
--- 5. BLOCKED USERS TABLE
-CREATE TABLE IF NOT EXISTS blocked_users (
-    id SERIAL PRIMARY KEY,
-    blocker_user_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    blocked_user_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_block_pair UNIQUE(blocker_user_id, blocked_user_id)
-);
-
--- 6. REPORTS TABLE
-CREATE TABLE IF NOT EXISTS reports (
-    id SERIAL PRIMARY KEY,
-    reporter_user_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    reported_user_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    reason VARCHAR(64) NOT NULL,
-    details TEXT,
-    status VARCHAR(32) DEFAULT 'OPEN', -- OPEN, RESOLVED, DISMISSED
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 7. SUBSCRIPTIONS TABLE
-CREATE TABLE IF NOT EXISTS subscriptions (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    plan VARCHAR(32) NOT NULL, -- FREE, SILVER, GOLD
-    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
-    razorpay_order_id VARCHAR(128),
-    razorpay_payment_id VARCHAR(128),
-    daily_request_limit INT DEFAULT 10,
-    starts_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 8. USER LOCATIONS TABLE
-CREATE TABLE IF NOT EXISTS user_locations (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    city VARCHAR(128) NOT NULL,
-    state VARCHAR(128),
-    country VARCHAR(128) NOT NULL,
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8),
-    is_current BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 9. APP TRANSLATIONS TABLE (For dynamic database-backed localization)
-CREATE TABLE IF NOT EXISTS app_translations (
-    id SERIAL PRIMARY KEY,
-    string_key VARCHAR(255) NOT NULL,
-    lang_code VARCHAR(10) NOT NULL, -- en, es, pt, de, fr, ro, ru, zh, ja, id
-    translation_text TEXT NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_translation_entry UNIQUE(string_key, lang_code)
-);
-
-CREATE INDEX IF NOT EXISTS idx_trans_key_lang ON app_translations(string_key, lang_code);
-```
+| Entity Name | Primary Key | Key Foreign Keys | Purpose & Attributes |
+| :--- | :--- | :--- | :--- |
+| **users** | `user_id` (VARCHAR) | — | Core auth credentials: `email`, `mobile`, `password_hash`, `name`, `gender`, `telegram_username`, `status` |
+| **user_profiles** | `id` (SERIAL) | `user_id` &rarr; `users` | Extended dating profile: `age`, `dob`, `bio`, `height`, `appearance`, `body_type`, `language`, `net_worth`, `looking_for`, `smoke`, `drink`, `photo_verified`, `is_online` |
+| **user_images** | `id` (SERIAL) | `user_id` &rarr; `users` | Up to 6 gallery images per user: `image_url`, `is_profile` (boolean), `slot_index` (0-5) |
+| **connections** | `id` (SERIAL) | `sender_id`, `receiver_id` &rarr; `users` | Dating invitations: `status` ('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED'), `created_at` |
+| **subscriptions** | `id` (SERIAL) | `user_id` &rarr; `users` | Razorpay memberships: `plan` ('FREE', 'SILVER', 'GOLD'), `razorpay_order_id`, `razorpay_payment_id`, `expires_at` |
+| **user_locations** | `id` (SERIAL) | `user_id` &rarr; `users` | GPS & multi-city coordinates: `city`, `state`, `country`, `latitude`, `longitude`, `is_current` |
+| **reports** | `id` (SERIAL) | `reporter_user_id`, `reported_user_id` | Moderation & abuse reports: `reason`, `details`, `status` ('OPEN', 'RESOLVED') |
+| **blocked_users** | `id` (SERIAL) | `blocker_user_id`, `blocked_user_id` | User block relationships preventing discovery and interaction |
+| **app_translations** | `id` (SERIAL) | — | Dynamic localization storage: `string_key`, `lang_code`, `translation_text` |
 
 ---
 
-## 15. Domain 14: Multi-Language Database Seed (10 Languages / 635 Keys Each)
+## 15. Domain 14: Multi-Language Application Translations (10 Languages / 635 Keys Each)
 
-The AMARA mobile client supports **10 international languages** with exactly 635 standardized dot-notated string keys per language.
+The AMARA mobile client provides comprehensive localization across **10 international languages** with exactly 635 standardized dot-notated string keys per language.
 
-### How to insert these translations into your Database:
-1. **Automated SQL Script Execution**:
-   Run the generated seed script directly against your database:
-   ```bash
-   psql -U your_db_user -d amara_db -f scripts/seed_i18n.sql
-   ```
-2. **Method A (Relational Key-Value Table)**:
-   Use the `app_translations` table schema above:
-   ```sql
-   INSERT INTO app_translations (string_key, lang_code, translation_text)
-   VALUES ('home.usercard.nearby', 'en', 'Nearby')
-   ON CONFLICT (string_key, lang_code) DO UPDATE SET translation_text = EXCLUDED.translation_text;
-   ```
-3. **Method B (JSONB Document Table / MongoDB)**:
-   Store each language pack as a single document/row:
-   ```sql
-   CREATE TABLE IF NOT EXISTS language_packs (
-       lang_code VARCHAR(10) PRIMARY KEY,
-       name VARCHAR(64) NOT NULL,
-       strings JSONB NOT NULL
-   );
-   ```
-   And insert the JSON dictionary below directly into the `strings` column.
-
-Below are the complete string dictionaries for all 10 supported languages ready for database seeding:
+Below are the complete, production-ready string dictionaries for all 10 supported languages ready for database seeding or backend dictionary serving:
 
 ### 15.1 English (`en` — 635 Keys)
 
@@ -1601,7 +1470,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Unknown error",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Initializing face verification... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Move face in front of camera",
-  "onboarding.selfieverificationscreen.camera_ready": "Camera Ready",
+  "onboarding.selfieverificationscreen.camera_ready": "Starting camera...",
   "onboarding.selfieverificationscreen.start": "Start",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Center your face and click \"Start\"",
   "onboarding.selfieverificationscreen.allow_camera_access": "Allow Camera Access",
@@ -2243,7 +2112,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Error desconocido",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Iniciando la verificación facial... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Coloca el rostro frente a la cámara",
-  "onboarding.selfieverificationscreen.camera_ready": "Cámara lista",
+  "onboarding.selfieverificationscreen.camera_ready": "Iniciando cámara...",
   "onboarding.selfieverificationscreen.start": "Comenzar",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Centra tu rostro y pulsa \"Comenzar\"",
   "onboarding.tellusmorescreen.almost_there": "¡Ya casi está!",
@@ -2885,7 +2754,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Erro desconhecido",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Iniciando verificação facial... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Posicione o rosto em frente à câmera",
-  "onboarding.selfieverificationscreen.camera_ready": "Câmera pronta",
+  "onboarding.selfieverificationscreen.camera_ready": "Iniciando a câmera...",
   "onboarding.selfieverificationscreen.start": "Iniciar",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Centralize seu rosto e clique em \"Iniciar\"",
   "onboarding.tellusmorescreen.almost_there": "Quase lá!",
@@ -3527,7 +3396,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Unbekannter Fehler",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Gesichtsverifizierung wird initialisiert... {scanProgress} %",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Halte dein Gesicht vor die Kamera",
-  "onboarding.selfieverificationscreen.camera_ready": "Kamera bereit",
+  "onboarding.selfieverificationscreen.camera_ready": "Kamera wird gestartet...",
   "onboarding.selfieverificationscreen.start": "Starten",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Zentriere dein Gesicht und klicke auf \"Starten\"",
   "onboarding.tellusmorescreen.almost_there": "Fast geschafft!",
@@ -4169,7 +4038,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Erreur inconnue",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Initialisation de la vérification du visage... {scanProgress} %",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Place ton visage devant la caméra",
-  "onboarding.selfieverificationscreen.camera_ready": "Caméra prête",
+  "onboarding.selfieverificationscreen.camera_ready": "Démarrage de la caméra...",
   "onboarding.selfieverificationscreen.start": "Démarrer",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Centre ton visage et clique sur « Démarrer »",
   "onboarding.tellusmorescreen.almost_there": "Presque terminé !",
@@ -4811,7 +4680,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Eroare necunoscută",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Se inițializează verificarea feței... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Apropie fața de cameră",
-  "onboarding.selfieverificationscreen.camera_ready": "Camera pregătită",
+  "onboarding.selfieverificationscreen.camera_ready": "Se pornește camera...",
   "onboarding.selfieverificationscreen.start": "Start",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Centrează-ți fața și apasă \"Start\"",
   "onboarding.tellusmorescreen.almost_there": "Ești aproape gata!",
@@ -5453,7 +5322,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Неизвестная ошибка",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Инициализация проверки лица... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Помести лицо перед камерой",
-  "onboarding.selfieverificationscreen.camera_ready": "Камера готова",
+  "onboarding.selfieverificationscreen.camera_ready": "Запуск камеры...",
   "onboarding.selfieverificationscreen.start": "Начать",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Отцентрируй лицо и нажми «Начать»",
   "onboarding.tellusmorescreen.almost_there": "Почти готово!",
@@ -6095,7 +5964,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "未知错误",
   "onboarding.selfieverificationscreen.initializing_face_verification": "正在初始化面部验证... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "将脸移至摄像头前",
-  "onboarding.selfieverificationscreen.camera_ready": "摄像头就绪",
+  "onboarding.selfieverificationscreen.camera_ready": "正在启动摄像头...",
   "onboarding.selfieverificationscreen.start": "开始",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "将脸置于画面中央并点击“开始”",
   "onboarding.tellusmorescreen.almost_there": "就快完成了！",
@@ -6737,7 +6606,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "不明なエラー",
   "onboarding.selfieverificationscreen.initializing_face_verification": "顔認証を初期化中... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "顔をカメラの前に合わせてください",
-  "onboarding.selfieverificationscreen.camera_ready": "カメラ準備完了",
+  "onboarding.selfieverificationscreen.camera_ready": "カメラを起動中...",
   "onboarding.selfieverificationscreen.start": "スタート",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "顔を中央に合わせて「スタート」をタップ",
   "onboarding.tellusmorescreen.almost_there": "もうすぐ完了！",
@@ -7379,7 +7248,7 @@ Below are the complete string dictionaries for all 10 supported languages ready 
   "onboarding.privacyscreen.unknown_error": "Kesalahan tidak diketahui",
   "onboarding.selfieverificationscreen.initializing_face_verification": "Inisialisasi verifikasi wajah... {scanProgress}%",
   "onboarding.selfieverificationscreen.move_face_in_front_of_camera": "Arahkan wajah ke kamera",
-  "onboarding.selfieverificationscreen.camera_ready": "Kamera siap",
+  "onboarding.selfieverificationscreen.camera_ready": "Memulai kamera...",
   "onboarding.selfieverificationscreen.start": "Mulai",
   "onboarding.selfieverificationscreen.center_your_face_and_click_start": "Pusatkan wajahmu dan klik mulai",
   "onboarding.tellusmorescreen.almost_there": "Hampir selesai!",

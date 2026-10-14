@@ -46,8 +46,8 @@ const LoginScreen = ({ navigation }: any) => {
     setAuthUserId,
   } = useContext(AppContext);
 
-  const [email, setEmail] = useState('sailakshmiborra45@gmail.com');
-  const [password, setPassword] = useState('Password@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();

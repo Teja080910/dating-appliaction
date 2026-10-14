@@ -30,8 +30,8 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
   const { themeColors, isDark } = useTheme();
 
   const [step, setStep] = useState<1 | 2>(1);
-  const [email, setEmail] = useState('sailakshmiborra45@gmail.com');
-  const [otpCode, setOtpCode] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);

@@ -27,6 +27,19 @@ SMTP_PASS=your-16-char-google-app-password
 SMTP_FROM="AMARA Dating <no-reply@amara-app.com>"
 ```
 
+### 🔑 Pre-Configured Test Credentials & QA Accounts
+
+| Account Type | Flow / Purpose | Email Address | Password | Static Test OTP |
+| :--- | :--- | :--- | :--- | :---: |
+| **👨 Male User** | Discovery Feed, Browse Profiles & Send Invitations | `rahul@amara.com` *(or `sailakshmiborra45@gmail.com`)* | `Password@123` | **`123456`** |
+| **👩 Female User** | Invitations Inbox, Approve & Decline Dates | `ananya.roy@amara.com` | `Password@123` | **`123456`** |
+| **👨 Male User (Alt)** | Secondary Discovery User | `arjun.kapoor@amara.com` | `Password@123` | **`123456`** |
+| **👩 Female User (Alt)** | Secondary Inbox User | `priya.sen@amara.com` | `Password@123` | **`123456`** |
+
+> **Note on Static OTP**: When verifying OTP for registration, login, or password reset in development, use **`123456`**.
+
+---
+
 ### Register User
 *   **Endpoint**: `POST /register`
 *   **Request Body**: `RegisterRequest` (name, email, password, confirmPassword, otp?)
