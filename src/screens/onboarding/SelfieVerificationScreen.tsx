@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -18,17 +18,19 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useProfile } from '../../api/useProfile';
+import { useTheme, Colors } from '../../theme';
 import { t, useTranslation } from '../../i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TOTAL_STEPS = 8;
-const CURRENT_STEP = 3; // Step 3 of 8
+const CURRENT_STEP = 3; // Step 3 of 8 (Active dash)
 
-type VerificationState = 'move_face' | 'center_face' | 'initializing';
+type VerificationState = 'permission' | 'camera' | 'scanning';
 
 const SelfieVerificationScreen = ({ navigation }: any) => {
   useTranslation();
   const { setVerifiedSelfie } = useContext(AppContext);
+  const { isDark } = useTheme();
   const isScreenFocused = useIsFocused();
 
   const cameraRef = useRef<Camera>(null);
@@ -36,11 +38,10 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const [cameraReady, setCameraReady] = useState(false);
-  const [stepState, setStepState] = useState<VerificationState>('move_face');
+  const [stepState, setStepState] = useState<VerificationState>('permission');
   const [scanProgress, setScanProgress] = useState(0);
 
   const scanIntervalRef = useRef<any>(null);
-  const autoAdvanceTimerRef = useRef<any>(null);
   const { verifySelfie } = useProfile();
 
   // Android hardware back handler
@@ -48,14 +49,14 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
     useCallback(() => {
       AsyncStorage.setItem('onboardingStep', 'SelfieVerification');
       const onBackPress = () => {
-        if (stepState === 'initializing') {
+        if (stepState === 'scanning') {
           if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-          setStepState('center_face');
+          setStepState('camera');
           setScanProgress(0);
           return true;
         }
-        if (stepState === 'center_face') {
-          setStepState('move_face');
+        if (stepState === 'camera') {
+          setStepState('permission');
           return true;
         }
         if (navigation.canGoBack()) navigation.goBack();
@@ -67,51 +68,31 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
     }, [navigation, stepState])
   );
 
-  // Request camera permission on mount
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      if (!hasPermission) {
-        const granted = await requestPermission();
-        if (isMounted) setCameraReady(granted);
-      } else {
-        if (isMounted) setCameraReady(true);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [hasPermission, requestPermission]);
-
   // Clean up all timers on unmount
   useEffect(() => {
     return () => {
       if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     };
   }, []);
 
-  // In State 1 ('move_face'), auto transition to State 2 ('center_face') after 2.5s
-  useEffect(() => {
-    if (stepState === 'move_face') {
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        setStepState('center_face');
-      }, 2500);
-      return () => {
-        if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
-      };
+  const handleAllowCamera = async () => {
+    let granted = hasPermission;
+    if (!granted) {
+      granted = await requestPermission();
     }
-  }, [stepState]);
+    setCameraReady(granted);
+    setStepState('camera');
+  };
 
   const handleStartVerification = () => {
-    setStepState('initializing');
+    setStepState('scanning');
     setScanProgress(5);
 
     let progress = 5;
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
 
     scanIntervalRef.current = setInterval(async () => {
-      progress += 2;
+      progress += 3;
       if (progress >= 100) {
         progress = 100;
         clearInterval(scanIntervalRef.current);
@@ -133,22 +114,22 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
           } else {
             navigation.replace('UploadImage');
           }
-        }, 300);
+        }, 350);
       } else {
         setScanProgress(progress);
       }
-    }, 25); // Completes in ~1.2s
+    }, 30);
   };
 
   const handleHeaderBack = () => {
-    if (stepState === 'initializing') {
+    if (stepState === 'scanning') {
       if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-      setStepState('center_face');
+      setStepState('camera');
       setScanProgress(0);
       return;
     }
-    if (stepState === 'center_face') {
-      setStepState('move_face');
+    if (stepState === 'camera') {
+      setStepState('permission');
       return;
     }
     if (navigation.canGoBack()) {
@@ -158,27 +139,25 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleCloseToCenterFace = () => {
-    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
-    setStepState('center_face');
-  };
-
   // ----------------------------------------------------
-  // STATE 3: Pitch Black Screen with Cyan Spinner (Photo 1)
+  // PHOTO 3: "Allow Camera Access" Screen
   // ----------------------------------------------------
-  if (stepState === 'initializing') {
+  if (stepState === 'permission') {
     return (
-      <View style={styles.blackContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#000000" />
+      <View style={[styles.permissionContainer, { backgroundColor: isDark ? '#0F0D1A' : '#FFFFFF' }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={isDark ? '#0F0D1A' : '#FFFFFF'}
+        />
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-          {/* Top Bar with Back chevron and 8 dashes */}
+          {/* Top Bar with Back chevron and 8 dashes (Dash 3 active) */}
           <View style={styles.topBar}>
             <TouchableOpacity
               onPress={handleHeaderBack}
               style={styles.backBtn}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
-              <Feather name="chevron-left" size={28} color="#FFFFFF" />
+              <Feather name="chevron-left" size={28} color={isDark ? '#FFFFFF' : '#111827'} />
             </TouchableOpacity>
             <View style={styles.dashRow}>
               {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
@@ -186,90 +165,68 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                   key={i}
                   style={[
                     styles.dash,
-                    i + 1 <= CURRENT_STEP ? styles.dashActive : styles.dashInactive,
+                    i + 1 === CURRENT_STEP
+                      ? [styles.dashActive, { backgroundColor: isDark ? '#FFFFFF' : '#111827' }]
+                      : [styles.dashInactive, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.22)' : '#D1D5DB' }],
                   ]}
                 />
               ))}
             </View>
           </View>
 
-          {/* Center Spinner & Progress Text */}
-          <View style={styles.centerInitializingArea}>
-            <ActivityIndicator size="large" color="#6ADAD7" />
-            <Text style={styles.initializingText}>
-              Initializing face verification... {scanProgress}%
+          {/* Body Content */}
+          <View style={styles.permissionBody}>
+            <Text style={[styles.permissionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              {t('onboarding.selfieverificationscreen.allow_camera_access')}
             </Text>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  }
+            <Text style={[styles.permissionSubtitle, { color: isDark ? '#9CA3AF' : '#4B5563' }]}>
+              {t('onboarding.selfieverificationscreen.grant_camera_access')}
+            </Text>
 
-  // ----------------------------------------------------
-  // STATE 1: Cyan Top Banner + Camera Preview (Photo 3)
-  // ----------------------------------------------------
-  if (stepState === 'move_face') {
-    return (
-      <View style={styles.darkThemeContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#080E18" />
-        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-          {/* Top Bar with Back chevron and 8 dashes */}
-          <View style={styles.topBar}>
-            <TouchableOpacity
-              onPress={handleHeaderBack}
-              style={styles.backBtn}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            {/* Permission Card */}
+            <View
+              style={[
+                styles.permissionCard,
+                {
+                  backgroundColor: isDark ? '#1A1730' : '#FFFFFF',
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB',
+                },
+              ]}
             >
-              <Feather name="chevron-left" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-            <View style={styles.dashRow}>
-              {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.dash,
-                    i + 1 <= CURRENT_STEP ? styles.dashActive : styles.dashInactive,
-                  ]}
+              <View
+                style={[
+                  styles.cameraIconBox,
+                  { backgroundColor: isDark ? '#2D2950' : '#F3F4F6' },
+                ]}
+              >
+                <Icon
+                  name="camera-outline"
+                  size={26}
+                  color={isDark ? '#FFFFFF' : '#111827'}
                 />
-              ))}
-            </View>
-          </View>
-
-          {/* Close Button top right */}
-          <View style={styles.closeBtnRow}>
-            <TouchableOpacity
-              style={styles.whiteCloseCircle}
-              onPress={handleCloseToCenterFace}
-              activeOpacity={0.8}
-            >
-              <Feather name="x" size={20} color="#0D9488" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Cyan Alert Banner */}
-          <View style={styles.cyanBannerWrapper}>
-            <View style={styles.cyanBanner}>
-              <Text style={styles.cyanBannerText}>
-                Move face in front{'\n'}of camera
-              </Text>
-            </View>
-          </View>
-
-          {/* Camera View */}
-          <View style={styles.fullCameraBox}>
-            {cameraReady && frontCamera && isScreenFocused ? (
-              <Camera
-                ref={cameraRef}
-                style={StyleSheet.absoluteFill}
-                device={frontCamera}
-                isActive={isScreenFocused}
-              />
-            ) : (
-              <View style={styles.cameraPlaceholder}>
-                <Icon name="face-recognition" size={88} color="#6B7280" />
-                <Text style={styles.placeholderText}>{t('onboarding.selfieverificationscreen.camera_ready')}</Text>
               </View>
-            )}
+              <View style={styles.permissionCardTextGroup}>
+                <Text style={[styles.cardTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                  {t('onboarding.selfieverificationscreen.camera')}
+                </Text>
+                <Text style={[styles.cardDesc, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  {t('onboarding.selfieverificationscreen.camera_desc')}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Bottom Allow Camera Button */}
+          <View style={styles.bottomBtnContainer}>
+            <TouchableOpacity
+              style={[styles.allowCameraBtn, { backgroundColor: Colors.primary }]}
+              onPress={handleAllowCamera}
+              activeOpacity={0.88}
+            >
+              <Text style={styles.allowCameraBtnText}>
+                {t('onboarding.selfieverificationscreen.allow_camera')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -277,13 +234,13 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   }
 
   // ----------------------------------------------------
-  // STATE 2: Red "Start" Button + Dark Box with Oval Viewfinder (Photo 2)
+  // PHOTO 4: Face Verification Screen ("Center your face and click Start")
   // ----------------------------------------------------
   return (
     <View style={styles.darkThemeContainer}>
       <StatusBar barStyle="light-content" backgroundColor="#080E18" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        {/* Top Bar with Back chevron and 8 dashes */}
+        {/* Top Bar with Back chevron and 8 dashes (Dash 3 active in White) */}
         <View style={styles.topBar}>
           <TouchableOpacity
             onPress={handleHeaderBack}
@@ -298,29 +255,40 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                 key={i}
                 style={[
                   styles.dash,
-                  i + 1 <= CURRENT_STEP ? styles.dashActive : styles.dashInactive,
+                  i + 1 === CURRENT_STEP
+                    ? styles.dashActiveWhite
+                    : styles.dashInactiveDark,
                 ]}
               />
             ))}
           </View>
         </View>
 
-        {/* Centered Red Start Pill Button */}
+        {/* Start Button in Theme Primary Color (replacing Glambu crimson red) */}
         <View style={styles.startBtnContainer}>
           <TouchableOpacity
-            style={styles.redStartBtn}
-            onPress={handleStartVerification}
+            style={[styles.themeStartBtn, { backgroundColor: Colors.primary }]}
+            onPress={stepState === 'scanning' ? undefined : handleStartVerification}
             activeOpacity={0.85}
+            disabled={stepState === 'scanning'}
           >
-            <Text style={styles.redStartBtnText}>{t('onboarding.selfieverificationscreen.start')}</Text>
+            {stepState === 'scanning' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.themeStartBtnText}>
+                {t('onboarding.selfieverificationscreen.start')}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Dark Container Box with Oval Camera Viewfinder */}
+        {/* Instructions & Oval Camera Viewfinder Box */}
         <View style={styles.darkCardContainer}>
           <View style={styles.darkCard}>
             <Text style={styles.darkCardText}>
-              Center your face{'\n'}and click "Start"
+              {stepState === 'scanning'
+                ? `Verifying face...\n${scanProgress}%`
+                : 'Center your face\nand click "Start"'}
             </Text>
 
             <View style={styles.ovalViewfinder}>
@@ -334,7 +302,17 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               ) : (
                 <View style={styles.cameraPlaceholder}>
                   <Icon name="face-recognition" size={76} color="#6B7280" />
-                  <Text style={styles.placeholderText}>{t('onboarding.selfieverificationscreen.camera_ready')}</Text>
+                  <Text style={styles.placeholderText}>
+                    {t('onboarding.selfieverificationscreen.camera_ready')}
+                  </Text>
+                </View>
+              )}
+
+              {/* Scanning Overlay Ring/Spinner when in scanning state */}
+              {stepState === 'scanning' && (
+                <View style={styles.scanningOverlay}>
+                  <ActivityIndicator size="large" color="#FFFFFF" />
+                  <Text style={styles.scanningPercentText}>{scanProgress}%</Text>
                 </View>
               )}
             </View>
@@ -348,20 +326,19 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 export default SelfieVerificationScreen;
 
 const styles = StyleSheet.create({
-  // Global Containers
+  // Global Safe Area & Containers
+  safeArea: {
+    flex: 1,
+  },
   darkThemeContainer: {
     flex: 1,
     backgroundColor: '#080E18',
   },
-  blackContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  safeArea: {
+  permissionContainer: {
     flex: 1,
   },
 
-  // Top Bar & Dashes (consistent across all 3 screenshots)
+  // Top Bar & 8-Dash Progress Indicator (Matches Glambu)
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -385,85 +362,104 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   dashActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#111827',
   },
   dashInactive: {
+    backgroundColor: '#D1D5DB',
+  },
+  dashActiveWhite: {
+    backgroundColor: '#FFFFFF',
+  },
+  dashInactiveDark: {
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
 
-  // State 1: Cyan Banner & Close Button
-  closeBtnRow: {
-    alignItems: 'flex-end',
-    paddingHorizontal: 20,
-    marginTop: 8,
+  // Photo 3: "Allow Camera Access" styles
+  permissionBody: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 24,
   },
-  whiteCloseCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+  permissionTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 8,
+  },
+  permissionSubtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  permissionCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  cyanBannerWrapper: {
-    paddingHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  cyanBanner: {
-    backgroundColor: '#72D2EA',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    width: '90%',
+  cameraIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cyanBannerText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-    lineHeight: 32,
-  },
-  fullCameraBox: {
+  permissionCardTextGroup: {
     flex: 1,
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#111827',
+    marginLeft: 14,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  cardDesc: {
+    fontSize: 13.5,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  bottomBtnContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingTop: 12,
+  },
+  allowCameraBtn: {
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allowCameraBtnText: {
+    fontSize: 16.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
 
-  // State 2: Red Start Button & Dark Container Box
+  // Photo 4: Face Verification styles
   startBtnContainer: {
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: 14,
     marginBottom: 16,
   },
-  redStartBtn: {
-    backgroundColor: '#DE4B5B',
+  themeStartBtn: {
     borderRadius: 26,
     paddingVertical: 13,
     paddingHorizontal: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#DE4B5B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    minWidth: 180,
   },
-  redStartBtnText: {
+  themeStartBtnText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   darkCardContainer: {
     flex: 1,
@@ -474,28 +470,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0C1624',
     borderRadius: 24,
-    paddingTop: 28,
-    paddingBottom: 36,
+    paddingTop: 24,
+    paddingBottom: 32,
     alignItems: 'center',
   },
   darkCardText: {
     color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '500',
+    fontSize: 23,
+    fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 34,
-    marginBottom: 28,
+    lineHeight: 32,
+    marginBottom: 24,
   },
   ovalViewfinder: {
-    width: Math.min(SCREEN_WIDTH * 0.58, 220),
-    height: Math.min(SCREEN_WIDTH * 0.58, 220) * 1.42,
-    borderRadius: 110,
+    width: Math.min(SCREEN_WIDTH * 0.62, 230),
+    height: Math.min(SCREEN_WIDTH * 0.62, 230) * 1.42,
+    borderRadius: 115,
     overflow: 'hidden',
     backgroundColor: '#111827',
     alignSelf: 'center',
+    position: 'relative',
   },
-
-  // Camera Placeholder
   cameraPlaceholder: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#1E293B',
@@ -508,20 +503,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontWeight: '500',
   },
-
-  // State 3: Pitch Black Screen with Cyan Spinner
-  centerInitializingArea: {
-    flex: 1,
+  scanningOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
   },
-  initializingText: {
+  scanningPercentText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    marginTop: 22,
-    fontWeight: '400',
-    textAlign: 'center',
-    letterSpacing: 0.2,
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: 12,
   },
 });

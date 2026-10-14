@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
+import { t } from '../i18n';
 
 const allowedFields = [
   'name',
@@ -259,7 +260,7 @@ export const useProfile = () => {
           (await AsyncStorage.getItem('name')) ||
           (await AsyncStorage.getItem('displayName')) ||
           (await AsyncStorage.getItem('userName')) ||
-          'User';
+          t('home.usercard.user');
       }
       normalizedDto.name = resolvedName;
       if (!normalizedDto.displayName) {

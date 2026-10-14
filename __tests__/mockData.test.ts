@@ -59,4 +59,26 @@ describe('Mock Data & Language Configuration Verification', () => {
     const discoveryProfiles = await mockStore.getProfiles('woman');
     expect(discoveryProfiles.length).toBe(40);
   });
+
+  test('no female and male images are mixed in mock data (0 cross-gender overlap)', () => {
+    const women = profilesJson.filter((p: any) => p.gender === 'woman');
+    const men = profilesJson.filter((p: any) => p.gender === 'man');
+
+    const womenPhotoUrls = new Set<string>();
+    women.forEach((w: any) => {
+      w.photos.forEach((ph: string) => womenPhotoUrls.add(ph));
+      if (w.photo) womenPhotoUrls.add(w.photo);
+    });
+
+    const menPhotoUrls = new Set<string>();
+    men.forEach((m: any) => {
+      m.photos.forEach((ph: string) => menPhotoUrls.add(ph));
+      if (m.photo) menPhotoUrls.add(m.photo);
+    });
+
+    const overlap = [...womenPhotoUrls].filter((ph) => menPhotoUrls.has(ph));
+    expect(overlap).toEqual([]);
+    expect(womenPhotoUrls.size).toBeGreaterThanOrEqual(30);
+    expect(menPhotoUrls.size).toBeGreaterThanOrEqual(10);
+  });
 });

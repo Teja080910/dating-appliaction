@@ -210,13 +210,13 @@ const ResetLocationScreen: React.FC = () => {
       });
 
       alert(
-        'Location Updated',
-        `Your location has been updated to ${newCity}, ${newCountry}.`
+        t('profile.resetlocationscreen.location_updated'),
+        t('profile.resetlocationscreen.your_location_has_been_updated_to_newcity_newcou', { newCity, newCountry })
       );
     } catch (err: any) {
       alert(
-        'Location Error',
-        'Could not fetch your current GPS location. Please ensure location services are enabled.'
+        t('search.location.location_error'),
+        t('profile.resetlocationscreen.could_not_fetch_your_current_gps_location_please')
       );
     } finally {
       setLoading(false);
@@ -248,7 +248,7 @@ const ResetLocationScreen: React.FC = () => {
           />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: themeColors.text }]}>
-          Reset Location
+          {t('profile.resetlocationscreen.reset_location')}
         </Text>
         <View style={styles.headerRightSpacer} />
       </View>
@@ -288,7 +288,7 @@ const ResetLocationScreen: React.FC = () => {
           {/* City Row */}
           <View style={styles.cardRow}>
             <Text style={[styles.cardLabel, { color: themeColors.textSecondary }]}>
-              City
+              {t('profile.resetlocationscreen.city')}
             </Text>
             <Text style={[styles.cardValue, { color: themeColors.text }]}>
               {city}
@@ -306,7 +306,7 @@ const ResetLocationScreen: React.FC = () => {
           {/* Country Row */}
           <View style={styles.cardRow}>
             <Text style={[styles.cardLabel, { color: themeColors.textSecondary }]}>
-              Country
+              {t('profile.resetlocationscreen.country')}
             </Text>
             <Text style={[styles.cardValue, { color: themeColors.text }]}>
               {country}
@@ -317,7 +317,7 @@ const ResetLocationScreen: React.FC = () => {
         {/* Explanation text */}
         <View style={styles.explanationContainer}>
           <Text style={[styles.explanationTitle, { color: themeColors.text }]}>
-            Reset your location?
+            {t('profile.resetlocationscreen.reset_your_location')}
           </Text>
           <Text
             style={[
@@ -325,7 +325,7 @@ const ResetLocationScreen: React.FC = () => {
               { color: themeColors.textSecondary },
             ]}
           >
-            Only do this if you've traveled somewhere new and your location hasn't updated.
+            {t('profile.resetlocationscreen.only_do_this_if_youve_traveled')}
           </Text>
         </View>
 
@@ -345,7 +345,7 @@ const ResetLocationScreen: React.FC = () => {
             {loading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.resetButtonText}>Reset Location</Text>
+              <Text style={styles.resetButtonText}>{t('profile.resetlocationscreen.reset_location')}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -358,7 +358,7 @@ const ResetLocationScreen: React.FC = () => {
 
 export default ResetLocationScreen;
 
-const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
+const createStyles = (themeColors: ThemeColors, _isDark: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,

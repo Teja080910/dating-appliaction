@@ -421,13 +421,13 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       Toast.show({
         type: 'success',
         text1: t('common.subscriptionmodal.payment_successful'),
-        text2: t('common.subscriptionmodal.membership_is_now_active', { activatedPlan: activatedPlan?.name || 'Your' }),
+        text2: t('common.subscriptionmodal.membership_is_now_active', { activatedPlan: activatedPlan?.name || t('common.subscriptionmodal.your_plan') }),
       });
       setShowMockRazorpay(false);
       onClose();
     } catch (err: any) {
       console.warn('Verification Error:', err);
-      alert('Verification Failed', err?.response?.data?.message || err?.message || t('common.subscriptionmodal.payment_verification_failed'));
+      alert(t('common.subscriptionmodal.verification_failed'), err?.response?.data?.message || err?.message || t('common.subscriptionmodal.payment_verification_failed'));
     } finally {
       setLoading(false);
     }
@@ -440,7 +440,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setLoading(true);
 
       if (!selectedPlanId) {
-        alert('Error', 'Please select a plan.');
+        alert(t('profile.additionaluploadsection.error'), t('common.subscriptionmodal.please_select_a_plan'));
         setLoading(false);
         return;
       }
@@ -549,7 +549,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         /cancelled/i.test(backendMessage) ||
         /failed.*checkout/i.test(backendMessage)
       ) {
-        alert('Cancelled', 'Payment cancelled');
+        alert(t('common.subscriptionmodal.cancelled'), t('common.subscriptionmodal.payment_cancelled'));
         return;
       }
 
@@ -559,8 +559,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         error?.response?.status === 401
       ) {
         alert(
-          'Sync Needed',
-          "We're having trouble confirming your account server-side. Please retry once your login session is active on the backend.",
+          t('common.subscriptionmodal.sync_needed'),
+          t('common.subscriptionmodal.were_having_trouble_confirming_your_account_serv'),
           [
             { text: t('profile.additionaluploadsection.cancel'), onPress: () => setLoading(false) },
             { text: t('common.subscriptionmodal.retry_anyway'), onPress: () => handleUpgradePress() },
@@ -569,7 +569,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         return;
       }
 
-      alert('Payment Failed', backendMessage);
+      alert(t('common.subscriptionmodal.payment_failed'), backendMessage);
     } finally {
       setLoading(false);
     }
@@ -718,7 +718,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
           {/* Auto-renew disclaimer */}
           <Text style={styles.disclaimerText}>
-            Auto-renews every month until cancelled. Payment is taken a few days before each period ends. Cancel anytime.
+            {t('common.subscriptionmodal.auto_renews_every_month')}
           </Text>
 
           {/* Subscribe CTA */}
@@ -750,7 +750,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           >
             <Text style={styles.supportFooterText}>{t('common.subscriptionmodal.need_help')}{' '}
               <Text style={styles.supportFooterLink}>
-                Chat with us hi@amara.dating
+                {t('profile.supportscreen.chat_with_us_email')}
               </Text>
             </Text>
           </TouchableOpacity>

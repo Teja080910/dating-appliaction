@@ -175,6 +175,17 @@ export const handleMockRequest = async (
         password: body.password || 'Password@123',
         gender: body.gender || 'man',
       });
+    } else {
+      if (body.name) {
+        user.name = body.name;
+        await mockStore.saveProfile({ userId: user.userId, name: body.name, displayName: body.name, photos: [] });
+      } else {
+        await mockStore.saveProfile({ userId: user.userId, photos: [] });
+      }
+      if (body.password) {
+        user.password = body.password;
+      }
+      await mockStore.clearUserImages(user.userId);
     }
 
     await mockStore.setCurrentUserId(user.userId);
@@ -399,7 +410,7 @@ export const handleMockRequest = async (
       gender: profile?.gender || user?.gender || (isWoman ? 'woman' : 'man'),
       bio: profile?.bio !== undefined ? profile.bio : '',
       photos,
-      profileImageUrl: photos[0] || (profile as any)?.profileImageUrl || '',
+      profileImageUrl: photos[0] || '',
       telegramUsername: profile?.telegramUsername || user?.telegramUsername || '',
       verifiedSelfie: profile?.verifiedSelfie ?? true,
       selfieVerified: profile?.verifiedSelfie ?? true,
@@ -465,13 +476,19 @@ export const handleMockRequest = async (
     }
 
     const currentProfile = await mockStore.getProfileByUserId(targetUserId);
-    const existingPhotos = currentProfile?.photos || [];
-    const updatedPhotos = photoUri ? [photoUri, ...existingPhotos.filter((p: string) => p !== photoUri)] : existingPhotos;
+    let updatedPhotos: string[] = [];
+    if (Array.isArray(profileData.photos) && profileData.photos.length > 0) {
+      updatedPhotos = profileData.photos.filter((p: any) => typeof p === 'string' && p.trim().length > 0);
+    } else if (photoUri) {
+      updatedPhotos = [photoUri];
+    } else if (currentProfile?.photos && currentProfile.photos.length > 0) {
+      updatedPhotos = currentProfile.photos;
+    }
 
     const saved = await mockStore.saveProfile({
       userId: targetUserId,
       ...profileData,
-      ...(updatedPhotos.length > 0 ? { photos: updatedPhotos } : {}),
+      photos: updatedPhotos,
     });
 
     return createMockResponse(config, 200, {
@@ -613,12 +630,24 @@ export const handleMockRequest = async (
 
   // GET /dashboard/recent or GET /dashboard/online
   if (method === 'GET' && (url.includes('/dashboard/recent') || url.includes('/dashboard/online') || url.includes('/dashboard'))) {
-    // Only return women profiles as mandated by PRD FR-12 / BR-04
+    // Default to women profiles as mandated by PRD FR-12 / BR-04 unless user specified both or men
     const currentUserId = String(queryParams?.userId || (await mockStore.getCurrentUserId()) || '').trim();
-    const womenProfiles = await mockStore.getProfiles('woman', currentUserId || undefined);
+    const rawGender = queryParams?.gender || queryParams?.showMe;
+    let targetGender: string | undefined = 'woman';
+    if (rawGender) {
+      const g = String(rawGender).toLowerCase().trim();
+      if (g === 'both') {
+        targetGender = undefined;
+      } else if (isMaleGender(g)) {
+        targetGender = 'man';
+      } else {
+        targetGender = 'woman';
+      }
+    }
+    const profiles = await mockStore.getProfiles(targetGender, currentUserId || undefined);
     const visibleProfiles = url.includes('/dashboard/online')
-      ? womenProfiles.filter((profile) => profile.online === true)
-      : womenProfiles;
+      ? profiles.filter((profile) => profile.online === true)
+      : profiles;
     const page = Number(queryParams?.page ?? 0);
     const size = Number(queryParams?.size ?? 20);
     const start = page * size;

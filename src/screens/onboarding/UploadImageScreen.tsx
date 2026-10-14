@@ -123,7 +123,7 @@ const UploadPhotosScreen = ({ navigation }: any) => {
         >
           {/* Title and Instruction */}
           <Text style={styles.headline}>
-            Nice to meet you, {name ? name.trim() : 'Xyz'}!
+            {t('onboarding.uploadimagescreen.nice_to_meet_you', { name: name ? name.trim() : 'Xyz' })}
           </Text>
           <Text style={styles.subheadline}>{t('onboarding.uploadimagescreen.please_upload_at_least_3_photos_one_must_clearly_show_your_face')}</Text>
 

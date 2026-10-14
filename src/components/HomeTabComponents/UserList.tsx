@@ -230,7 +230,7 @@ const UserList = ({
             const searchPayload: Record<string, any> = {
               ...savedFilters,
               userId: resolvedUserId || undefined,
-              gender: savedFilters?.gender || (selectedGender === 'straight_man' ? [t('home.userlist.male')] : [t('home.userlist.female')]),
+              gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
               onlyOnline: mode === 'online',
               sortBy: mode === 'online' ? 'active' : 'createdAt',
               page: 0,
@@ -243,7 +243,12 @@ const UserList = ({
           } else if (mode === 'online') {
             try {
               const res = await apiClient.get('/dashboard/online', {
-                params: { page: 0, size: 20 },
+                params: {
+                  page: 0,
+                  size: 20,
+                  userId: resolvedUserId || undefined,
+                  gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+                },
               });
               items = parseUserCollection(res.data);
             } catch (onlineError) {
@@ -251,18 +256,27 @@ const UserList = ({
               const searchRes = await searchUsersMutationRef.current({
                 onlyOnline: true,
                 sortBy: 'active',
+                gender: selectedGender === 'straight_man' ? 'man' : 'woman',
               });
               items = parseUserCollection(searchRes);
             }
           } else {
             try {
               const res = await apiClient.get('/dashboard/recent', {
-                params: { page: 0, size: 20 },
+                params: {
+                  page: 0,
+                  size: 20,
+                  userId: resolvedUserId || undefined,
+                  gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+                },
               });
               items = parseUserCollection(res.data);
             } catch (recentError) {
               console.log('[UserList] recent failed → using search');
-              const searchRes = await searchUsersMutationRef.current({ sortBy: 'recent' });
+              const searchRes = await searchUsersMutationRef.current({
+                sortBy: 'recent',
+                gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+              });
               items = parseUserCollection(searchRes);
             }
           }
@@ -336,7 +350,7 @@ const UserList = ({
         const searchPayload: Record<string, any> = {
           ...savedFilters,
           userId: resolvedUserId || undefined,
-          gender: savedFilters?.gender || (selectedGender === 'straight_man' ? [t('home.userlist.male')] : [t('home.userlist.female')]),
+          gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
           onlyOnline: mode === 'online',
           sortBy: mode === 'online' ? 'active' : 'createdAt',
           page: nextPage,
@@ -347,7 +361,12 @@ const UserList = ({
       } else {
         const endpoint = mode === 'online' ? '/dashboard/online' : '/dashboard/recent';
         const res = await apiClient.get(endpoint, {
-          params: { page: nextPage, size: 10 },
+          params: {
+            page: nextPage,
+            size: 10,
+            userId: resolvedUserId || undefined,
+            gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+          },
         });
         newItems = parseUserCollection(res.data);
       }
@@ -459,7 +478,7 @@ const UserList = ({
         loading ? null : (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyTitle}>
-              No profiles found. Try adjusting your{'\n'}search settings.
+              {t('home.userlist.no_profiles_found_try_adjusting_your_search_settings')}
             </Text>
             <TouchableOpacity
               style={styles.resetButton}

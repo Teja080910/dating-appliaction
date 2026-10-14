@@ -91,7 +91,7 @@ const RazorpayMock = ({
             />
             <View>
               <Text style={styles.brand}>{t('common.razorpaymock.razorpay')}</Text>
-              <Text style={styles.amount}>Pay ₹{amount}</Text>
+              <Text style={styles.amount}>{t('common.razorpaymock.pay_amount', { amount })}</Text>
             </View>
 
             <TouchableOpacity onPress={handleCancel} style={styles.closeBtn}>
@@ -131,7 +131,7 @@ const RazorpayMock = ({
 
               <TouchableOpacity style={styles.payBtn} onPress={handlePay}>
                 <Text style={styles.payBtnText}>
-                  PAY ₹{amount}
+                  {t('common.razorpaymock.pay_amount', { amount })}
                 </Text>
               </TouchableOpacity>
             </View>

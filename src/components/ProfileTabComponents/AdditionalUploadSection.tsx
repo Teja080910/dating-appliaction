@@ -154,9 +154,9 @@ const AdditionalUploadSection = () => {
                 {
                   onSuccess: () => {
                     syncImagesFromServer(localUserId);
-                    alert('Primary Photo', 'Primary profile photo updated.');
+                    alert(t('profile.additionaluploadsection.primary_photo'), t('profile.additionaluploadsection.primary_profile_photo_updated'));
                   },
-                  onError: () => alert('Error', 'Failed to update primary photo.'),
+                  onError: () => alert(t('profile.additionaluploadsection.error'), t('profile.additionaluploadsection.failed_to_update_primary_photo')),
                 }
               );
             } else {
@@ -169,7 +169,7 @@ const AdditionalUploadSection = () => {
                 setProfileImage(newImages[0]);
                 setProfileImageUrl(newImages[0]);
               }
-              alert('Primary Photo', 'Primary profile photo updated.');
+              alert(t('profile.additionaluploadsection.primary_photo'), t('profile.additionaluploadsection.primary_profile_photo_updated'));
             }
           },
         });
@@ -184,7 +184,7 @@ const AdditionalUploadSection = () => {
               onSuccess: () => {
                 syncImagesFromServer(localUserId);
               },
-              onError: () => alert('Error', t('profile.uploadimage.failed_to_delete_image_from_server')),
+              onError: () => alert(t('profile.additionaluploadsection.error'), t('profile.uploadimage.failed_to_delete_image_from_server')),
             });
           } else {
             const newImages = [...images];
@@ -199,7 +199,7 @@ const AdditionalUploadSection = () => {
         style: 'cancel',
       });
 
-      alert('Photo Options', index === 0 ? t('profile.additionaluploadsection.this_is_currently_your_primary_photo') : t('profile.additionaluploadsection.choose_an_action_for_this_photo'), options);
+      alert(t('profile.additionaluploadsection.photo_options'), index === 0 ? t('profile.additionaluploadsection.this_is_currently_your_primary_photo') : t('profile.additionaluploadsection.choose_an_action_for_this_photo'), options);
     } else {
       // UPLOAD CASE
       setUploadingSlot(index);
@@ -243,7 +243,7 @@ const AdditionalUploadSection = () => {
                   error?.response?.data?.message ||
                   error?.message ||
                   t('profile.additionaluploadsection.failed_to_upload_image_to_server');
-                alert('Error', String(message));
+                alert(t('profile.additionaluploadsection.error'), String(message));
               },
             });
             return;

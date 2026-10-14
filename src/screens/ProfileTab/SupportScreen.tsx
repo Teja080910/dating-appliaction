@@ -62,7 +62,7 @@ const SupportScreen = () => {
 
   const handleSubmit = () => {
     if (!description.trim()) {
-      alert('Error', 'Please describe your issue.');
+      alert(t('profile.additionaluploadsection.error'), t('profile.supportscreen.please_describe_your_issue'));
       return;
     }
 
@@ -73,12 +73,12 @@ const SupportScreen = () => {
       },
       {
         onSuccess: () => {
-          alert('Success', 'Your support ticket has been created.');
+          alert(t('profile.supportscreen.success'), t('profile.supportscreen.your_support_ticket_has_been_created'));
           setDescription('');
         },
         onError: (error: any) => {
           alert(
-            'Error',
+            t('profile.additionaluploadsection.error'),
             String(getSupportErrorMessage(error, 'Failed to create ticket. Please try again.')),
           );
         },
@@ -87,18 +87,18 @@ const SupportScreen = () => {
   };
 
   const handleCloseTicket = (ticketId: number) => {
-    alert('Close Ticket', 'Mark this support ticket as closed?', [
+    alert(t('profile.supportscreen.close_ticket'), t('profile.supportscreen.mark_this_support_ticket_as_closed'), [
       { text: t('profile.additionaluploadsection.cancel'), style: 'cancel' },
       {
         text: t('more_info.moreinfoscreen.close'),
         onPress: () => {
           closeTicket.mutate(ticketId, {
             onSuccess: () => {
-              alert('Ticket Closed', 'The support ticket has been marked as closed.');
+              alert(t('profile.supportscreen.ticket_closed'), t('profile.supportscreen.the_support_ticket_has_been_marked_as_closed'));
             },
             onError: (error: any) => {
               alert(
-                'Close Failed',
+                t('profile.supportscreen.close_failed'),
                 String(getSupportErrorMessage(error, 'Unable to close this ticket right now.')),
               );
             },

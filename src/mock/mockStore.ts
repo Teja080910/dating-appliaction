@@ -487,13 +487,33 @@ class MockStore {
     await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
 
     if (Array.isArray(profileData.photos)) {
-      this.images = this.images.filter(
-        (img) => String(img.userId) !== userId || profileData.photos!.includes(img.imageUrl)
-      );
+      const validPhotos = profileData.photos.filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+      // Cleanly replace user images to match the exact profile photos list
+      this.images = this.images.filter((img) => String(img.userId) !== userId);
+      validPhotos.forEach((photoUrl, idx) => {
+        const id = this.images.length ? Math.max(...this.images.map((img) => img.id)) + 1 : 1;
+        this.images.push({
+          id,
+          userId: String(userId),
+          imageUrl: photoUrl.trim(),
+          isProfile: idx === 0,
+          fileName: `image_${id}.jpg`,
+          fileType: 'image/jpeg',
+          fileSize: 102400,
+          uploadedAt: new Date().toISOString(),
+        });
+      });
       await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
     }
 
     return updated;
+  }
+
+  public async clearUserImages(userId: string): Promise<void> {
+    await this.init();
+    const cleanId = String(userId || '').trim();
+    this.images = this.images.filter((img) => String(img.userId) !== cleanId);
+    await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
   }
 
   // --- User Images ---
@@ -547,11 +567,13 @@ class MockStore {
     this.images.push(newImage);
     await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
 
-    // Also sync with profile photos array
+    // Also sync with profile photos array without duplicating
     const profile = await this.getProfileByUserId(userId);
     if (profile) {
       if (!profile.photos) profile.photos = [];
-      profile.photos.push(imageUrl);
+      if (!profile.photos.includes(imageUrl)) {
+        profile.photos.push(imageUrl);
+      }
       await this.saveProfile(profile);
     }
 

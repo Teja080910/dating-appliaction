@@ -128,7 +128,7 @@ const MoreInfoScreen = () => {
     const hasUsableSessionToken = Boolean(authSession?.token);
 
     if (!hasUsableSessionToken) {
-      alert('Session error', 'Please log in again to continue.');
+      alert(t('more_info.moreinfoscreen.session_error'), t('more_info.moreinfoscreen.please_log_in_again_to_continue'));
       return;
     }
 
@@ -169,13 +169,13 @@ const MoreInfoScreen = () => {
       await updatePreferences.mutateAsync(prefsPayload);
 
       await profileQuery.refetch();
-      alert(t('search.location.saved'), 'Your profile details have been updated.', [
+      alert(t('search.location.saved'), t('more_info.moreinfoscreen.your_profile_details_have_been_updated'), [
         { text: t('more_info.moreinfoscreen.close'), style: 'default' },
       ]);
     } catch (error: any) {
       console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
       alert(
-        'Save failed',
+        t('more_info.moreinfoscreen.save_failed'),
         getUserFriendlyMessage(error, t('more_info.moreinfoscreen.we_could_not_save_your_profile_details_right_now')),
       );
     } finally {

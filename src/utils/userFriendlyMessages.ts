@@ -2,6 +2,11 @@
  * Converts API/mock errors into short, reassuring copy suitable for the app UI.
  * The backend can keep its diagnostic message; users should only see this layer.
  */
+import { t } from '../i18n';
+/**
+ * Converts API/mock errors into short, reassuring copy suitable for the app UI.
+ * The backend can keep its diagnostic message; users should only see this layer.
+ */
 export const getUserFriendlyMessage = (value: unknown, fallback = 'Please try again.') => {
   const error = value as any;
   const raw =
@@ -55,10 +60,10 @@ export const getUserFriendlyMessage = (value: unknown, fallback = 'Please try ag
 
 export const getUserFriendlyTitle = (value: string) => {
   const lower = String(value || '').toLowerCase();
-  if (lower.includes('recalled') || lower.includes('recall')) return 'Invitation update';
-  if (lower.includes('approval failed')) return "Couldn't approve invitation";
-  if (lower.includes('invite failed')) return "Couldn't send invitation";
-  if (lower === 'error' || lower.includes('failed')) return 'Something went wrong';
+  if (lower.includes('recalled') || lower.includes('recall')) return t('profile.userdetails.invitation_update');
+  if (lower.includes('approval failed')) return t('profile.userdetails.couldnt_approve_invitation');
+  if (lower.includes('invite failed')) return t('profile.userdetails.couldnt_send_invitation');
+  if (lower === 'error' || lower.includes('failed')) return t('common.alerts.something_went_wrong');
   return value;
 };
 

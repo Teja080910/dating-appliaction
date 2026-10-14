@@ -59,8 +59,8 @@ const ModalAddPhoto = () => {
 
     if (!isReplacingExisting && uploadedImageCount >= MAX_PROFILE_IMAGES) {
       alert(
-        'Photo Limit Reached',
-        'You already have 5 photos saved. Delete one photo before adding another.'
+        t('profile.modaladdphoto.photo_limit_reached'),
+        t('profile.modaladdphoto.you_already_have_5_photos_saved_delete_one_photo')
       );
       setIsModalVisible(false);
       return;
@@ -68,7 +68,7 @@ const ModalAddPhoto = () => {
 
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      alert('Permission Required', 'Please allow camera or photo library access to continue.');
+      alert(t('profile.profilephotogrid.permission_required'), t('profile.profilephotogrid.please_allow_camera_or_photo_library_access_to_c'));
       return;
     }
 
@@ -80,7 +80,7 @@ const ModalAddPhoto = () => {
     const asset = pickerResult.assets?.[0];
     if (!asset?.uri) {
       if (pickerResult.errorMessage) {
-        alert('Image Error', pickerResult.errorMessage);
+        alert(t('profile.modaladdphoto.image_error'), pickerResult.errorMessage);
       }
       setIsModalVisible(false);
       return;
@@ -148,8 +148,8 @@ const ModalAddPhoto = () => {
 
       if (String(message).toLowerCase().includes('max 5 images allowed')) {
         alert(
-          'Photo Limit Reached',
-          'You already have 5 photos saved on the server. Delete one photo before adding another.'
+          t('profile.modaladdphoto.photo_limit_reached'),
+          t('profile.modaladdphoto.you_already_have_5_photos_saved_on_the_server_de')
         );
         return;
       }

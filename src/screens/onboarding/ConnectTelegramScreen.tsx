@@ -27,7 +27,10 @@ import { t, useTranslation } from '../../i18n';
 
 const ConnectTelegramScreen = ({ navigation, route }: any) => {
   useTranslation();
+  const isTab = route?.name === 'Telegram' || Boolean(route?.params?.isTab);
   const fromProfile = Boolean(route?.params?.fromProfile);
+  const isOnboarding = !isTab && !fromProfile;
+
   const { connectTelegram, disconnectTelegram } = useTelegram();
   const { useMyProfile } = useProfile();
   const { data: profile, refetch: refetchProfile } = useMyProfile(undefined);
@@ -49,38 +52,39 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
 
   useFocusEffect(
     useCallback(() => {
-      if (!fromProfile) {
+      if (isOnboarding) {
         AsyncStorage.setItem('onboardingStep', 'ConnectTelegram');
       }
 
       const onBackPress = () => {
-        if (fromProfile || navigation.canGoBack()) {
+        if (fromProfile && navigation.canGoBack()) {
           navigation.goBack();
           return true;
         }
-        navigation.replace('UploadImage');
-        return true;
+        if (isOnboarding) {
+          navigation.replace('UploadImage');
+          return true;
+        }
+        return false;
       };
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => backHandler.remove();
-    }, [navigation, fromProfile]),
+    }, [navigation, isOnboarding, fromProfile]),
   );
 
   const handleBack = () => {
-    if (fromProfile || navigation.canGoBack()) {
+    if (fromProfile && navigation.canGoBack()) {
       navigation.goBack();
-    } else {
+    } else if (isOnboarding) {
       navigation.replace('UploadImage');
     }
   };
 
   const handleNextOrSkip = () => {
-    if (fromProfile) {
-      navigation.goBack();
-      return;
+    if (isOnboarding) {
+      navigation.navigate('AboutProfile');
     }
-    navigation.navigate('AboutProfile');
   };
 
   const handleConnectTelegramPress = async () => {
@@ -106,7 +110,7 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
   const handleSaveUsername = async () => {
     const username = telegramUsername.trim().replace(/^@+/, '');
     if (!username) {
-      alert('Username Required', 'Please enter your Telegram username.');
+      alert(t('profile.contactdetails.username_required'), t('profile.contactdetails.please_enter_your_telegram_username'));
       return;
     }
 
@@ -114,8 +118,8 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
     const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/;
     if (!TELEGRAM_USERNAME_REGEX.test(username)) {
       alert(
-        'Invalid Username',
-        'Username must start with a letter and contain 4-32 alphanumeric characters or underscores.'
+        t('profile.contactdetails.invalid_username'),
+        t('profile.contactdetails.username_must_start_with_a_letter_and_contain_4')
       );
       return;
     }
@@ -126,10 +130,10 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
       await refetchProfile();
       setLoading(false);
       setModalVisible(false);
-      alert('Connected', t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
+      alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
     } catch (error: any) {
       setLoading(false);
-      alert('Error', error?.message || t('onboarding.connecttelegramscreen.could_not_save_telegram_username'));
+      alert(t('profile.additionaluploadsection.error'), error?.message || t('onboarding.connecttelegramscreen.could_not_save_telegram_username'));
     }
   };
 
@@ -141,10 +145,10 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
       setTelegramUsername('');
       setLoading(false);
       setModalVisible(false);
-      alert('Disconnected', 'Your Telegram account has been disconnected.');
+      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     } catch (error: any) {
       setLoading(false);
-      alert('Error', error?.message || t('onboarding.connecttelegramscreen.could_not_disconnect_telegram'));
+      alert(t('profile.additionaluploadsection.error'), error?.message || t('onboarding.connecttelegramscreen.could_not_disconnect_telegram'));
     }
   };
 
@@ -161,8 +165,23 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
         backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
       />
 
-      {/* Header matching screenshot or onboarding 8-step bar */}
-      {fromProfile ? (
+      {/* Header matching tab screen, profile settings, or onboarding 8-step bar */}
+      {isTab ? (
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+              backgroundColor: isDark ? themeColors.background : '#FFFFFF',
+              justifyContent: 'center',
+            },
+          ]}
+        >
+          <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000', textAlign: 'center' }]}>
+            {t('nav.bottomtabs.telegram')}
+          </Text>
+        </View>
+      ) : fromProfile ? (
         <View
           style={[
             styles.header,
@@ -272,8 +291,8 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
           </TouchableOpacity>
         </View>
 
-        {/* Bottom Actions for onboarding */}
-        {!fromProfile && (
+        {/* Bottom Actions for onboarding only */}
+        {isOnboarding && (
           <View style={styles.onboardingActions}>
             <TouchableOpacity
               style={[

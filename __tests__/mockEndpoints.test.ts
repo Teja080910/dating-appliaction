@@ -41,6 +41,30 @@ describe('Comprehensive Mock API Endpoint Coverage', () => {
       expect(verifyRes.data.user.email).toBe('newcandidate@amara.com');
     });
 
+    test('POST /register and /verify-register/otp with 123456 creates user and preserves name', async () => {
+      const regRes = await apiClient.post('/register', {
+        email: 'karu@gmail.com',
+        name: 'Karu',
+        password: 'Password@123',
+        confirmPassword: 'Password@123',
+      });
+      expect(regRes.status).toBe(200);
+      const sessionId = regRes.data.sessionId;
+
+      const verifyRes = await apiClient.post('/verify-register/otp', {
+        email: 'karu@gmail.com',
+        name: 'Karu',
+        password: 'Password@123',
+        otp: '123456',
+        sessionId,
+      });
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.data.userId).toBeDefined();
+      expect(verifyRes.data.token).toBeDefined();
+      expect(verifyRes.data.user.name).toBe('Karu');
+      expect(verifyRes.data.user.email).toBe('karu@gmail.com');
+    });
+
     test('POST /login authenticates existing user by mobile', async () => {
       const res = await apiClient.post('/login', {
         mobile: '9876543110',

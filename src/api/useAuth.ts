@@ -7,6 +7,8 @@ import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 
 type VerifyRegisterOtpRequest = {
   email?: string;
+  name?: string;
+  password?: string;
   otp: string;
   mobile?: string;
   sessionId?: string;
@@ -212,6 +214,8 @@ export const useAuth = () => {
         otp: data.otp,
         ...(email ? { email: email.toLowerCase().trim() } : {}),
         ...(mobile ? { mobile } : {}),
+        ...(data.name ? { name: String(data.name).trim() } : {}),
+        ...(data.password ? { password: String(data.password).trim() } : {}),
         ...(String(data.sessionId ?? '').trim() ? { sessionId: String(data.sessionId).trim() } : {}),
       };
       const res = await apiClient.post('/verify-register/otp', payload);

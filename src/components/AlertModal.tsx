@@ -12,6 +12,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, Typography, Shadows, useTheme } from '../theme';
 import { getUserFriendlyMessage, getUserFriendlyTitle } from '../utils/userFriendlyMessages';
+import { t } from '../i18n';
 
 interface AlertButton {
   text: string;
@@ -102,7 +103,7 @@ const AlertModal = ({ visible, title, message, buttons, onDismiss }: AlertModalP
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel={t('more_info.moreinfoscreen.close')}
             >
               <Icon name="close" size={18} color={themeColors.textMuted} />
             </TouchableOpacity>

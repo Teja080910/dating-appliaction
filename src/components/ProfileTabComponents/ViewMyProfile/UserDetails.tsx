@@ -114,12 +114,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     connection.accept.mutate(requestId, {
       onSuccess: () => {
         connection.refreshAll();
-        alert('Request Approved', 'This connection is approved. Telegram contact is now available when connected.', [
+        alert(t('profile.userdetails.request_approved'), t('profile.userdetails.this_connection_is_approved_telegram_contact_is'), [
           { text: t('profile.userdetails.done'), onPress: () => navigation.goBack() },
         ]);
       },
       onError: (error: any) => {
-        alert("Couldn't approve invitation", getUserFriendlyMessage(error, t('profile.userdetails.we_could_not_approve_this_invitation_right_now')));
+        alert(t('profile.userdetails.couldnt_approve_invitation'), getUserFriendlyMessage(error, t('profile.userdetails.we_could_not_approve_this_invitation_right_now')));
       },
     });
   };
@@ -130,7 +130,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const handleShareTelegram = async (username?: string) => {
     if (!username) {
-      alert('Telegram not connected', 'No username available to share.');
+      alert(t('profile.userdetails.telegram_not_connected'), t('profile.userdetails.no_username_available_to_share'));
       return;
     }
     const cleanUsername = username.replace('@', '');
@@ -524,8 +524,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         targetUserId: activeTarget,
         reason: selectedReason,
         message: additionalDetails.trim()
-          ? t('profile.userdetails.reported_reason_details', { finalDisplayName: finalDisplayName || 'User', selectedReason, additionalDetails: additionalDetails.trim() })
-          : t('profile.userdetails.reported_reason', { finalDisplayName: finalDisplayName || 'User', selectedReason }),
+          ? t('profile.userdetails.reported_reason_details', { finalDisplayName: finalDisplayName || t('home.usercard.user'), selectedReason, additionalDetails: additionalDetails.trim() })
+          : t('profile.userdetails.reported_reason', { finalDisplayName: finalDisplayName || t('home.usercard.user'), selectedReason }),
       },
       {
         onSuccess: () => {

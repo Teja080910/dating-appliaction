@@ -1,8 +1,14 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AsyncStorageService } from './types/AsyncStorage';
-import { APIURL } from '../environment/ApiConfig';
+import { APIURL, USE_MOCK } from '../environment/ApiConfig';
+import { handleMockRequest } from '../mock/mockAdapter';
 import { decode as atob } from 'base-64';
+
+const sessionHttpClient = axios.create({
+  timeout: 5000,
+  adapter: USE_MOCK ? handleMockRequest : undefined,
+});
 
 // ✅ Break circular dependency: Export core state functions from independent source
 export * from './sessionState';
@@ -171,7 +177,7 @@ const probeProfileById = async (userId: number, token: string) => {
     },
   };
 
-  const response = await axios.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId } });
+  const response = await sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId } });
   return response?.data;
 };
 
@@ -441,9 +447,9 @@ const syncStoredSessionState = async (session: {
 
     const uid = session.userId;
     const [privacyResult, completionResult, profileResult] = await Promise.allSettled([
-      axios.get(`${APIURL}/privacy/status`, { ...requestConfig, params: { userId: uid } }),
-      axios.post(`${APIURL}/profile/completion`, null, { ...requestConfig, params: { userId: uid } }),
-      axios.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId: uid } }),
+      sessionHttpClient.get(`${APIURL}/privacy/status`, { ...requestConfig, params: { userId: uid } }),
+      sessionHttpClient.post(`${APIURL}/profile/completion`, null, { ...requestConfig, params: { userId: uid } }),
+      sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId: uid } }),
     ]);
 
     if (privacyResult.status === 'fulfilled' && privacyResult.value?.data === true) {

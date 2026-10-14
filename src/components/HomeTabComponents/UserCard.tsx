@@ -34,10 +34,13 @@ interface UserCardProps {
   cardHeight?: number;
 }
 
-const FALLBACK_IMAGES = [
+const GIRL_FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/girl1.webp'),
   require('../../assets/MessageTabImages/girl2.webp'),
   require('../../assets/MessageTabImages/girl3.webp'),
+];
+
+const BOY_FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/boy1.webp'),
   require('../../assets/MessageTabImages/boy2.webp'),
   require('../../assets/MessageTabImages/boy3.webp'),
@@ -103,8 +106,16 @@ const UserCard = ({
     const seedValue = String(id || safeName)
       .split('')
       .reduce((total, char) => total + char.charCodeAt(0), 0);
-    return FALLBACK_IMAGES[seedValue % FALLBACK_IMAGES.length];
-  }, [fallbackAsset, id, safeName]);
+    const rawGender = String(
+      profileData?.gender ||
+      profileData?.profile?.gender ||
+      profileData?.user?.gender ||
+      ''
+    ).toLowerCase();
+    const isMale = rawGender === 'man' || rawGender === 'male' || rawGender === 'straight_man';
+    const pool = isMale ? BOY_FALLBACK_IMAGES : GIRL_FALLBACK_IMAGES;
+    return pool[seedValue % pool.length];
+  }, [fallbackAsset, id, safeName, profileData]);
 
   const safeImage = !imageFailed && normalizedImage ? getAbsoluteUrl(normalizedImage) : null;
   const imageSource: ImageSourcePropType | null = safeImage

@@ -143,7 +143,13 @@ const BottomTabs = () => {
 
       {/* Women Flow: Invitations (Inbox) + Telegram (Screenshot 5A) */}
       {isWoman && <Tab.Screen name="Invitations" component={RequestsInboxScreen} />}
-      {isWoman && <Tab.Screen name="Telegram" component={ConnectTelegramScreen} />}
+      {isWoman && (
+        <Tab.Screen
+          name="Telegram"
+          component={ConnectTelegramScreen}
+          initialParams={{ isTab: true }}
+        />
+      )}
 
       {/* Common Tabs: About me + Profile */}
       <Tab.Screen name="AboutMe" component={MoreInfoScreen} />

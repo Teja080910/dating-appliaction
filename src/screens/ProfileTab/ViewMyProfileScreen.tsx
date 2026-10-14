@@ -317,13 +317,13 @@ const ViewMyProfileScreen = () => {
     if (!numericTargetId || !myId) return;
 
     if (isAlreadyInvited) {
-      alert('Already Invited', 'You have already sent an invitation to this user.');
+      alert(t('profile.viewmyprofilescreen.already_invited'), t('profile.viewmyprofilescreen.you_have_already_sent_an_invitation_to_this_user'));
       return;
     }
 
     const normalizeId = (id: string) => id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (normalizeId(String(numericTargetId)) === normalizeId(String(myId))) {
-      alert('Error', 'You cannot send an invite to yourself.');
+      alert(t('profile.additionaluploadsection.error'), t('profile.viewmyprofilescreen.you_cannot_send_an_invite_to_yourself'));
       return;
     }
 
@@ -333,7 +333,7 @@ const ViewMyProfileScreen = () => {
       if (repairedId && isResolvedApiUserId(repairedId)) {
         senderId = String(repairedId);
       } else {
-        alert('Account Issue', 'Could not verify your account. Please log in again.');
+        alert(t('profile.viewmyprofilescreen.account_issue'), t('profile.viewmyprofilescreen.could_not_verify_your_account_please_log_in_agai'));
         return;
       }
     }
@@ -379,7 +379,7 @@ const ViewMyProfileScreen = () => {
           (errorDetails.includes('duplicate') || errorDetails.includes('already') || errorDetails.includes('invalid data') || errorDetails.includes('cannot send request to yourself'))
         ) {
           connection.sentList.refetch();
-          alert('Already Invited', 'You have already sent an invitation to this user.');
+          alert(t('profile.viewmyprofilescreen.already_invited'), t('profile.viewmyprofilescreen.you_have_already_sent_an_invitation_to_this_user'));
           return;
         }
         if (isSubscriptionGateError(error)) {
@@ -387,7 +387,7 @@ const ViewMyProfileScreen = () => {
           setPaywallVisible(true);
           return;
         }
-        alert("Couldn't send invitation", getUserFriendlyMessage(error, t('profile.viewmyprofilescreen.we_could_not_send_your_invitation_right_now')));
+        alert(t('profile.viewmyprofilescreen.couldnt_send_invitation'), getUserFriendlyMessage(error, t('profile.viewmyprofilescreen.we_could_not_send_your_invitation_right_now')));
       },
     });
   };
@@ -467,17 +467,16 @@ const ViewMyProfileScreen = () => {
     ]);
 
     const activeContextPhotos = (contextImages || []).filter(Boolean) as string[];
+    const fetchedPhotos = Array.isArray(fetched?.photos) && fetched.photos.length > 0
+      ? dedupeImageUris([fetched.photos])
+      : [];
     const ownImages = activeContextPhotos.length > 0
       ? activeContextPhotos
-      : dedupeImageUris([
-          fetched?.photos,
-          fetched?.images,
-          fetched?.allImages,
-          galleryImages,
-          profileImageUrl,
-          profileImage,
-          fetched?.profileImageUrl,
-        ]);
+      : fetchedPhotos.length > 0
+        ? fetchedPhotos
+        : galleryImages.length > 0
+          ? galleryImages
+          : dedupeImageUris([profileImageUrl, profileImage]);
 
     const mergedImages = isViewingSelf ? ownImages : targetImages;
 
@@ -532,7 +531,7 @@ const ViewMyProfileScreen = () => {
         ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
         : Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
       profileImageUrl: isViewingSelf
-        ? (normalizeTextValue(fetched?.profileImageUrl) || contextPrimaryImage)
+        ? (contextPrimaryImage || (ownImages[0] || null) || normalizeTextValue(fetched?.profileImageUrl))
         : (normalizeTextValue(routed?.profileImageUrl) || normalizeTextValue(fetched?.profileImageUrl) || routeImage || (targetImages[0] || null)),
       images: mergedImages.length > 0 ? mergedImages : (routeImage ? [routeImage] : []),
     };
@@ -572,11 +571,17 @@ const ViewMyProfileScreen = () => {
     );
   }
 
-  const profileImages = dedupeImageUris([
-    mergedProfile?.images,
-    mergedProfile?.profileImageUrl,
-    routeImage,
-  ]).map((image) => getAbsoluteUrl(image));
+  const profileImages = (
+    isViewingSelf
+      ? (mergedProfile?.images && mergedProfile.images.length > 0
+          ? mergedProfile.images
+          : dedupeImageUris([mergedProfile?.profileImageUrl]))
+      : dedupeImageUris([
+          mergedProfile?.images,
+          mergedProfile?.profileImageUrl,
+          routeImage,
+        ])
+  ).map((image: string | null | undefined) => getAbsoluteUrl(image));
   const sliderImages =
     profileImages.length > 0
       ? profileImages

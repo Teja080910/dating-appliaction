@@ -133,4 +133,18 @@ describe('Search Settings Gender Filter & ShowMe multi-select', () => {
     expect(hasWomen).toBe(true);
     expect(hasMen).toBe(true);
   });
+
+  test('GET /dashboard/online defaults to women only, but returns both when gender=both', async () => {
+    const defaultRes = await apiClient.get('/dashboard/online', { params: { page: 0, size: 20 } });
+    expect(defaultRes.status).toBe(200);
+    const defaultProfiles = defaultRes.data.content || defaultRes.data;
+    expect(defaultProfiles.length).toBeGreaterThan(0);
+    expect(defaultProfiles.every((p: any) => p.gender === 'woman')).toBe(true);
+
+    const bothRes = await apiClient.get('/dashboard/online', { params: { page: 0, size: 40, gender: 'both' } });
+    expect(bothRes.status).toBe(200);
+    const bothProfiles = bothRes.data.content || bothRes.data;
+    expect(bothProfiles.some((p: any) => p.gender === 'woman')).toBe(true);
+    expect(bothProfiles.some((p: any) => p.gender === 'man')).toBe(true);
+  });
 });

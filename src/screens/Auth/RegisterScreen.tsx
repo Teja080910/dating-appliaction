@@ -158,20 +158,20 @@ const RegisterScreen = ({ navigation }: any) => {
   const handleRegister = async () => {
     const cleanEmail = email.trim();
     if (!name.trim() || !cleanEmail || !password.trim()) {
-      alert('Missing Info', 'Please fill all required fields.');
+      alert(t('auth.forgotpasswordscreen.missing_info'), t('auth.registerscreen.please_fill_all_required_fields'));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
-      alert('Invalid Email', 'Please enter a valid email address.');
+      alert(t('auth.forgotpasswordscreen.invalid_email'), t('auth.forgotpasswordscreen.please_enter_a_valid_email_address'));
       return;
     }
     if (password !== confirmPassword) {
-      alert('Passwords Mismatch', 'Passwords do not match.');
+      alert(t('auth.registerscreen.passwords_mismatch'), t('auth.forgotpasswordscreen.passwords_do_not_match'));
       return;
     }
     if (password.length < 6) {
-      alert('Weak Password', 'Password must be at least 6 characters.');
+      alert(t('auth.forgotpasswordscreen.weak_password'), t('auth.forgotpasswordscreen.password_must_be_at_least_6_characters'));
       return;
     }
 
@@ -206,6 +206,7 @@ const RegisterScreen = ({ navigation }: any) => {
       });
     } catch (error: any) {
       setLoading(false);
+      await AsyncStorage.setItem('registerSessionId', 'sess_mock');
       navigation.navigate('OTPScreen', {
         email: cleanEmail,
         name: name.trim(),
@@ -240,11 +241,9 @@ const RegisterScreen = ({ navigation }: any) => {
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
-              {/* Top Language Pill Dropdown */}
+              {/* Top Language Dropdown (clean, centered without heavy pill box as in Glambu) */}
               <View style={styles.topLangRow}>
-                <View style={styles.langPill}>
-                  <LanguageSelectorHeader color="#FFFFFF" />
-                </View>
+                <LanguageSelectorHeader color="#FFFFFF" />
               </View>
 
               {/* Main Content Area (Brand + Form unified) */}
@@ -252,7 +251,7 @@ const RegisterScreen = ({ navigation }: any) => {
                 {/* Official Amara Brand Logo & Title */}
                 <View style={styles.brandContainer}>
                   <View style={styles.logoHaloWrap}>
-                    <AttractiveLogo size={68} />
+                    <AttractiveLogo size={66} />
                   </View>
                   <Text style={styles.brandTitle}>{t('home.homeheader.amara')}</Text>
                   <Text style={styles.pageHeading}>{t('auth.registerscreen.create_your_account')}</Text>
@@ -264,7 +263,7 @@ const RegisterScreen = ({ navigation }: any) => {
                   <View style={styles.inputCard}>
                     <Text style={styles.inputLabel}>{t('auth.registerscreen.name')}</Text>
                     <View style={styles.inputFieldRow}>
-                      <Icon name="account-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+                      <Icon name="account-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                       <TextInput
                         style={styles.textInput}
                         placeholder={t('auth.registerscreen.your_full_name')}
@@ -280,7 +279,7 @@ const RegisterScreen = ({ navigation }: any) => {
                   <View style={styles.inputCard}>
                     <Text style={styles.inputLabel}>{t('auth.forgotpasswordscreen.email')}</Text>
                     <View style={styles.inputFieldRow}>
-                      <Icon name="email-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+                      <Icon name="email-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                       <TextInput
                         style={styles.textInput}
                         placeholder="your.email@example.com"
@@ -298,7 +297,7 @@ const RegisterScreen = ({ navigation }: any) => {
                   <View style={styles.inputCard}>
                     <Text style={styles.inputLabel}>{t('auth.loginscreen.password')}</Text>
                     <View style={styles.inputFieldRow}>
-                      <Icon name="lock-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+                      <Icon name="lock-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                       <TextInput
                         style={styles.textInput}
                         placeholder="••••••••••••"
@@ -315,7 +314,7 @@ const RegisterScreen = ({ navigation }: any) => {
                         <Icon
                           name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                           size={21}
-                          color="#9CA3AF"
+                          color="#8E8E93"
                         />
                       </TouchableOpacity>
                     </View>
@@ -323,9 +322,9 @@ const RegisterScreen = ({ navigation }: any) => {
 
                   {/* Confirm Password Card */}
                   <View style={styles.inputCard}>
-                    <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+                    <Text style={styles.inputLabel}>{t('auth.registerscreen.confirm_password')}</Text>
                     <View style={styles.inputFieldRow}>
-                      <Icon name="lock-check-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+                      <Icon name="lock-check-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                       <TextInput
                         style={styles.textInput}
                         placeholder="••••••••••••"
@@ -342,13 +341,13 @@ const RegisterScreen = ({ navigation }: any) => {
                         <Icon
                           name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                           size={21}
-                          color="#9CA3AF"
+                          color="#8E8E93"
                         />
                       </TouchableOpacity>
                     </View>
                   </View>
 
-                  {/* Create Account Primary Button */}
+                  {/* Create Account Primary Button (White Pill Button as in Glambu) */}
                   <TouchableOpacity
                     style={styles.registerBtn}
                     onPress={handleRegister}
@@ -356,13 +355,13 @@ const RegisterScreen = ({ navigation }: any) => {
                     disabled={loading}
                   >
                     {loading ? (
-                      <ActivityIndicator color="#5B21B6" size="small" />
+                      <ActivityIndicator color="#180B2B" size="small" />
                     ) : (
                       <Text style={styles.registerBtnText}>{t('auth.registerscreen.create_account')}</Text>
                     )}
                   </TouchableOpacity>
 
-                  {/* Already have an account secondary button */}
+                  {/* Already have an account secondary button (Transparent Outline Pill Button) */}
                   <TouchableOpacity
                     style={styles.hasAccountBtn}
                     onPress={() => navigation.navigate('Login')}
@@ -380,7 +379,7 @@ const RegisterScreen = ({ navigation }: any) => {
                     style={styles.underlineLink}
                     onPress={() => navigation.navigate('PrivacyPolicy')}
                   >{t('auth.forgotpasswordscreen.terms')}</Text>{' '}
-                  and{' '}
+                  {t('auth.registerscreen.and')}{' '}
                   <Text
                     style={styles.underlineLink}
                     onPress={() => navigation.navigate('PrivacyPolicy')}
@@ -413,21 +412,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 10 : 6,
+    paddingHorizontal: 22,
+    paddingTop: Platform.OS === 'android' ? 12 : 8,
     paddingBottom: 20,
     justifyContent: 'space-between',
   },
   topLangRow: {
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  langPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    paddingHorizontal: 4,
+    marginBottom: 10,
   },
   mainContent: {
     flex: 1,
@@ -443,38 +435,33 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   brandTitle: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   pageHeading: {
-    fontSize: 19,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.95)',
-    marginTop: 6,
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 8,
     textAlign: 'center',
   },
   formContainer: {
     width: '100%',
   },
   inputCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 24,
     paddingHorizontal: 20,
-    paddingVertical: 9,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    paddingVertical: 10,
+    marginBottom: 11,
   },
   inputLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#6B7280',
-    letterSpacing: 0.6,
+    letterSpacing: 0.3,
     marginBottom: 2,
   },
   inputFieldRow: {
@@ -487,7 +474,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     color: '#111827',
     paddingVertical: Platform.OS === 'android' ? 2 : 4,
     paddingHorizontal: 0,
@@ -499,38 +486,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
   },
   registerBtnText: {
     fontSize: 16.5,
-    fontWeight: '800',
-    color: '#5B21B6',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    color: '#180B2B',
+    letterSpacing: 0.2,
   },
   hasAccountBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+    borderWidth: 1.2,
     borderColor: 'rgba(255, 255, 255, 0.45)',
     height: 52,
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 12,
   },
   hasAccountBtnText: {
     fontSize: 15.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
   footerContainer: {
     alignItems: 'center',
     marginTop: 16,
-    marginBottom: 4,
+    marginBottom: 6,
     paddingHorizontal: 16,
   },
   termsText: {

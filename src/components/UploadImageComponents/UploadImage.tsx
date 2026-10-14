@@ -73,7 +73,7 @@ const UploadImage = () => {
           error?.response?.data?.message ||
           error?.message ||
           t('profile.uploadimage.unable_to_load_your_uploaded_images');
-        alert('Image Sync Failed', String(message));
+        alert(t('profile.uploadimage.image_sync_failed'), String(message));
       },
     });
   }, [getAllImages, setImages, setProfileImage, setProfileImageUrl]);
@@ -119,8 +119,8 @@ const UploadImage = () => {
   const openImageOptions = (index: number) => {
     if (!images?.[index] && visibleImages.filter(Boolean).length >= MAX_PROFILE_IMAGES) {
       alert(
-        'Photo Limit Reached',
-        'You already have 5 photos saved. Delete one photo before adding another.'
+        t('profile.modaladdphoto.photo_limit_reached'),
+        t('profile.modaladdphoto.you_already_have_5_photos_saved_delete_one_photo')
       );
       return;
     }
@@ -139,7 +139,7 @@ const UploadImage = () => {
       return;
     }
 
-    alert(t('profile.additionaluploadsection.remove_photo'), 'Do you want to delete this photo from the server?', [
+    alert(t('profile.additionaluploadsection.remove_photo'), t('profile.uploadimage.do_you_want_to_delete_this_photo_from_the_server'), [
       { text: t('profile.additionaluploadsection.cancel'), style: 'cancel' },
       {
         text: t('profile.uploadimage.delete'),
@@ -154,7 +154,7 @@ const UploadImage = () => {
                 error?.response?.data?.message ||
                 error?.message ||
                 t('profile.uploadimage.failed_to_delete_image_from_server');
-              alert('Delete Failed', String(message));
+              alert(t('profile.uploadimage.delete_failed'), String(message));
             },
           });
         },

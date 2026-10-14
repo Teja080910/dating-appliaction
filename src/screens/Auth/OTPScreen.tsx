@@ -74,7 +74,10 @@ const OTPScreen = ({ navigation, route }: any) => {
   const [timer, setTimer] = useState(30);
   const [loading, setLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(true);
-  const [registerSessionId, setRegisterSessionId] = useState<string | null>(null);
+  const [registerSessionId, setRegisterSessionId] = useState<string | null>(() => {
+    const initId = typeof sessionId === 'string' && sessionId.trim() ? sessionId.trim() : null;
+    return initId || 'sess_mock';
+  });
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -132,7 +135,7 @@ const OTPScreen = ({ navigation, route }: any) => {
 
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.setItem('onboardingStep', 'OTPScreen');
+      AsyncStorage.setItem('onboardingStep', 'GenderOrientation');
     }, []),
   );
 
@@ -178,11 +181,11 @@ const OTPScreen = ({ navigation, route }: any) => {
           }
 
           setTimer(30);
-          alert('Code Resent', t('auth.otpscreen.a_new_verification_code_has_been_sent_to_your', { isEmail: isEmail ? 'email' : 'mobile' }));
+          alert(t('auth.otpscreen.code_resent'), t('auth.otpscreen.a_new_verification_code_has_been_sent_to_your', { isEmail: isEmail ? 'email' : 'mobile' }));
         },
         onError: (error: any) => {
           const rawError = extractApiErrorMessage(error, 'Could not resend OTP.');
-          alert('Resend Failed', String(rawError));
+          alert(t('auth.otpscreen.resend_failed'), String(rawError));
         }
       }
     );
@@ -192,17 +195,14 @@ const OTPScreen = ({ navigation, route }: any) => {
     const trimmedOtp = otp.trim();
 
     if (trimmedOtp.length < 4) {
-      alert('Enter full OTP');
+      alert(t('auth.otpscreen.enter_full_otp'));
       return;
     }
 
-    if (!registerSessionId) {
-      alert(
-        'Session Expired',
-        'Your verification session is missing. Please resend OTP and try again.',
-      );
-      return;
-    }
+    const effectiveSessionId =
+      registerSessionId ||
+      (typeof sessionId === 'string' && sessionId.trim() ? sessionId.trim() : null) ||
+      'sess_mock';
 
     setLoading(true);
 
@@ -210,8 +210,10 @@ const OTPScreen = ({ navigation, route }: any) => {
       const verifyPayload = {
         email: isEmail ? recipient : undefined,
         mobile: !isEmail ? effectiveMobile : undefined,
+        name: effectiveName || undefined,
+        password: effectivePassword || undefined,
         otp: trimmedOtp,
-        sessionId: registerSessionId,
+        sessionId: effectiveSessionId,
       };
 
       console.log("VERIFY PAYLOAD:", verifyPayload);
@@ -302,25 +304,28 @@ const OTPScreen = ({ navigation, route }: any) => {
         setInitialScreen('GenderOrientation');
       }
 
-      // Navigate directly to GenderOrientation (bypassing Privacy step)
-      navigation.replace("GenderOrientation");
+      // Navigate cleanly to GenderOrientation, replacing stack so OTP is not revisited
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'GenderOrientation' }],
+      });
 
     } catch (error: any) {
       console.log("VERIFY ERROR:", error);
       const msg = extractApiErrorMessage(error, "Verification failed");
 
       if (isRegisterSessionExpiredError(error)) {
-        alert("Session Expired", "Please resend OTP");
+        alert(t('auth.otpscreen.session_expired'), t('auth.otpscreen.please_resend_otp'));
       } else if (isInvalidOtpError(error)) {
-        alert("Invalid OTP", "Please enter correct OTP");
+        alert(t('auth.otpscreen.invalid_otp'), t('auth.otpscreen.please_enter_correct_otp'));
       } else if (msg.toLowerCase().includes('duplicate entry') || msg.toLowerCase().includes('already exists')) {
         alert(
-          "Account Ready", 
-          "Your account is already registered. Please proceed to the Login screen.",
+          t('auth.otpscreen.account_ready'), 
+          t('auth.otpscreen.your_account_is_already_registered_please_procee'),
           [{ text: t('auth.otpscreen.go_to_login'), onPress: () => navigation.replace('Login') }]
         );
       } else {
-        alert("Error", msg);
+        alert(t('profile.additionaluploadsection.error'), msg);
       }
     } finally {
       setLoading(false);
@@ -335,7 +340,7 @@ const OTPScreen = ({ navigation, route }: any) => {
         backgroundColor="transparent"
       />
       <LinearGradient
-        colors={['#0F0D1A', '#180B2B', '#260F45', '#160B2C']}
+        colors={['#180B2B', '#2E1065', '#4C1D95', '#6D28D9', '#7C3AED']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.gradient}
@@ -446,28 +451,21 @@ const OTPScreen = ({ navigation, route }: any) => {
 
                 {/* Action Buttons */}
                 <View style={styles.buttonContainer}>
-                  {/* Primary Verify Button */}
+                  {/* Primary Verify Button (Solid White Pill Button) */}
                   <TouchableOpacity
                     style={[styles.verifyBtn, loading && { opacity: 0.8 }]}
                     onPress={handleVerify}
                     disabled={loading}
                     activeOpacity={0.88}
                   >
-                    <LinearGradient
-                      colors={['#7C3AED', '#6D28D9', '#5B21B6']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.verifyGradient}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color="#FFFFFF" size="small" />
-                      ) : (
-                        <Text style={styles.verifyBtnText}>{t('auth.otpscreen.verify')}</Text>
-                      )}
-                    </LinearGradient>
+                    {loading ? (
+                      <ActivityIndicator color="#180B2B" size="small" />
+                    ) : (
+                      <Text style={styles.verifyBtnText}>{t('auth.otpscreen.verify')}</Text>
+                    )}
                   </TouchableOpacity>
 
-                  {/* Secondary Change Email Button */}
+                  {/* Secondary Change Email Button (Transparent Outline Pill Button) */}
                   <TouchableOpacity
                     style={styles.changeEmailBtn}
                     onPress={() =>
@@ -482,6 +480,21 @@ const OTPScreen = ({ navigation, route }: any) => {
                     </Text>
                   </TouchableOpacity>
                 </View>
+              </View>
+
+              {/* Bottom Terms & Privacy Footer */}
+              <View style={styles.footerContainer}>
+                <Text style={styles.termsText}>{t('auth.forgotpasswordscreen.by_signing_up_you_agree_to_our')}{' '}
+                  <Text
+                    style={styles.underlineLink}
+                    onPress={() => navigation.navigate('PrivacyPolicy')}
+                  >{t('auth.forgotpasswordscreen.terms')}</Text>{' '}
+                  and{' '}
+                  <Text
+                    style={styles.underlineLink}
+                    onPress={() => navigation.navigate('PrivacyPolicy')}
+                  >{t('auth.forgotpasswordscreen.privacy_policy')}</Text>
+                </Text>
               </View>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -630,41 +643,50 @@ function createStyles(colors: any) {
       marginTop: 8,
     },
     verifyBtn: {
-      height: 54,
-      borderRadius: 27,
-      overflow: 'hidden',
-      marginBottom: 12,
-      shadowColor: '#7C3AED',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.35,
-      shadowRadius: 10,
-      elevation: 6,
-    },
-    verifyGradient: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    verifyBtnText: {
-      color: '#FFFFFF',
-      fontSize: 16.5,
-      fontWeight: '800',
-      letterSpacing: 0.3,
-    },
-    changeEmailBtn: {
+      backgroundColor: '#FFFFFF',
       height: 52,
       borderRadius: 26,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-      borderWidth: 1.5,
-      borderColor: 'rgba(255, 255, 255, 0.22)',
+      marginBottom: 12,
+    },
+    verifyBtnText: {
+      color: '#180B2B',
+      fontSize: 16.5,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+    },
+    changeEmailBtn: {
+      backgroundColor: 'transparent',
+      borderWidth: 1.2,
+      borderColor: 'rgba(255, 255, 255, 0.45)',
+      height: 52,
+      borderRadius: 26,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     changeEmailBtnText: {
       color: '#FFFFFF',
       fontSize: 15.5,
-      fontWeight: '700',
+      fontWeight: '600',
       letterSpacing: 0.2,
+    },
+    footerContainer: {
+      alignItems: 'center',
+      marginTop: 20,
+      marginBottom: 6,
+      paddingHorizontal: 16,
+    },
+    termsText: {
+      fontSize: 12.5,
+      color: 'rgba(255, 255, 255, 0.85)',
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+    underlineLink: {
+      textDecorationLine: 'underline',
+      color: '#FFFFFF',
+      fontWeight: '700',
     },
   });
 }

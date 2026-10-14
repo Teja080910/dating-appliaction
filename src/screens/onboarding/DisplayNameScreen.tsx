@@ -64,7 +64,7 @@ const DisplayNameScreen = ({ navigation }: any) => {
   const handleNext = async () => {
     const trimmed = nickname.trim();
     if (!trimmed) {
-      alert('Name Required', 'Please enter your nickname or first name.');
+      alert(t('onboarding.displaynamescreen.name_required'), t('onboarding.displaynamescreen.please_enter_your_nickname_or_first_name'));
       return;
     }
 
@@ -86,13 +86,13 @@ const DisplayNameScreen = ({ navigation }: any) => {
       yNum < 1920 ||
       yNum > new Date().getFullYear()
     ) {
-      alert('Valid Birthday Required', 'Please enter a valid birthday in DD / MM / YYYY format.');
+      alert(t('onboarding.dobscreen.valid_birthday_required'), t('onboarding.dobscreen.please_enter_a_valid_birthday_in_dd_mm_yyyy_form'));
       return;
     }
 
     const age = calculateAge(dNum, mNum, yNum);
     if (age < 18) {
-      alert('Age Restriction', t('onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register'));
+      alert(t('onboarding.dobscreen.age_restriction'), t('onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register'));
       return;
     }
 

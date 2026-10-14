@@ -267,7 +267,7 @@ const SentRequestsScreen: React.FC = () => {
 
           {/* Title */}
           <Text style={styles.emptyInvitesTitle}>
-            You haven't invited anyone yet. Don't wait.{'\n'}Invite someone today!
+            {t('sent.sentrequestsscreen.you_havent_invited_anyone_yet')}
           </Text>
 
           {/* Subtitle */}
@@ -305,11 +305,11 @@ const SentRequestsScreen: React.FC = () => {
                   end={{ x: 1, y: 1 }}
                   style={styles.segmentPillActive}
                 >
-                  <Text style={styles.segmentTextActive}>Pending</Text>
+                  <Text style={styles.segmentTextActive}>{t('requests.requestsinboxscreen.pending')}</Text>
                 </LinearGradient>
               ) : (
                 <View style={styles.segmentPillInactive}>
-                  <Text style={styles.segmentTextInactive}>Pending</Text>
+                  <Text style={styles.segmentTextInactive}>{t('requests.requestsinboxscreen.pending')}</Text>
                 </View>
               )}
             </TouchableOpacity>

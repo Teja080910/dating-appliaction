@@ -206,7 +206,7 @@ export default function MessageScreen() {
         Toast.show({ type: 'success', text1: t('messages.messagescreen.invitation_accepted'), text2: t('messages.messagescreen.you_can_now_chat_with', { item: item.name || item.username || 'them' }) });
         setActiveMainTab('messages');
       },
-      onError: () => { alert('Error', 'Failed to accept invitation.'); },
+      onError: () => { alert(t('profile.additionaluploadsection.error'), t('messages.messagescreen.failed_to_accept_invitation')); },
     });
   };
 

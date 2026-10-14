@@ -342,7 +342,7 @@ const Location = () => {
       setSuggestions([]);
     } catch (err: any) {
       alert(
-        "Location Error",
+        t('search.location.location_error'),
         getLocationErrorMessage(
           err,
           "Unable to get your current location. Please verify GPS permissions."

@@ -86,10 +86,10 @@ const SearchScreen = ({ navigation }: any) => {
     worldwide: isChecked || false,
     gender:
       showMe === 'both'
-        ? [t('home.userlist.female'), t('home.userlist.male')]
+        ? ['Female', 'Male']
         : showMe === 'straight_man'
-          ? [t('home.userlist.male')]
-          : [t('home.userlist.female')],
+          ? ['Male']
+          : ['Female'],
     minHeight: bodyHeight?.[0] ?? 120,
     maxHeight: bodyHeight?.[1] ?? 200,
     bodyType: selectBodyTypes || [],
@@ -124,10 +124,10 @@ const SearchScreen = ({ navigation }: any) => {
             gender:
               saved.gender ||
               (saved.showMe === 'both'
-                ? [t('home.userlist.female'), t('home.userlist.male')]
+                ? ['Female', 'Male']
                 : saved.showMe === 'straight_man'
-                  ? [t('home.userlist.male')]
-                  : [t('home.userlist.female')]),
+                  ? ['Male']
+                  : ['Female']),
           }));
 
           if (saved.minHeight !== undefined && saved.maxHeight !== undefined) {
@@ -231,7 +231,7 @@ const SearchScreen = ({ navigation }: any) => {
       const profiles = Array.isArray(result) ? result : (result?.content || []);
       setFilteredProfiles(profiles);
       setFilter(filters.onlyOnline ? 'online' : 'newest');
-      alert('Filters Applied', 'Matches updated successfully.');
+      alert(t('search.searchscreen.filters_applied'), t('search.searchscreen.matches_updated_successfully'));
       navigation.goBack();
     } catch (err: any) {
       const serverMessage =
@@ -240,7 +240,7 @@ const SearchScreen = ({ navigation }: any) => {
         (typeof err?.message === 'string' ? err.message : null);
       if (err?.response?.status === 401) {
         await clearAuthSession();
-        alert('Session Expired', 'Please login again to continue.');
+        alert(t('auth.otpscreen.session_expired'), t('search.searchscreen.please_login_again_to_continue'));
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
@@ -249,7 +249,7 @@ const SearchScreen = ({ navigation }: any) => {
         );
       } else {
         alert(
-          'Error',
+          t('profile.additionaluploadsection.error'),
           serverMessage
             ? t('search.searchscreen.failed_to_apply_filters', { String: String(serverMessage) })
             : 'Failed to apply filters. Please try again.',

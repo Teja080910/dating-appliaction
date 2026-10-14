@@ -233,7 +233,7 @@ const ProfileScreen = () => {
           />
           <SettingsRow
             icon="map-marker-outline"
-            label="Reset Location"
+            label={t('profile.resetlocationscreen.reset_location')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('ResetLocationScreen')}
@@ -267,7 +267,7 @@ const ProfileScreen = () => {
           />
           <SettingsRow
             icon="chat-outline"
-            label="Chat With Us"
+            label={t('profile.chatwithus.chat_with_us')}
             themeColors={themeColors}
             styles={styles}
             onPress={handleChatWithUs}
@@ -280,14 +280,14 @@ const ProfileScreen = () => {
         <View style={styles.groupContainer}>
           <SettingsRow
             icon="logout"
-            label="Log Out"
+            label={t('profile.logout.log_out')}
             themeColors={themeColors}
             styles={styles}
             onPress={handleLogout}
           />
           <SettingsRow
             icon="trash-can-outline"
-            label="Delete My Profile"
+            label={t('profile.deletemyprofile.delete_my_profile')}
             isDestructive={true}
             themeColors={themeColors}
             styles={styles}
@@ -324,7 +324,7 @@ const ProfileScreen = () => {
               <Icon name="close" size={20} color={themeColors.textSecondary} />
             </TouchableOpacity>
 
-            <Text style={styles.modalTitle}>Delete My Profile</Text>
+            <Text style={styles.modalTitle}>{t('profile.deletemyprofile.delete_my_profile')}</Text>
 
             <Text style={styles.modalBodyText}>{t('profile.profilescreen.your_profile_will_be_hidden_immediately_and_permanently_deleted_after')}</Text>
 
@@ -375,7 +375,7 @@ const ProfileScreen = () => {
                 { color: isDark ? '#FFFFFF' : '#000000' },
               ]}
             >
-              Chat With Us
+              {t('profile.chatwithus.chat_with_us')}
             </Text>
 
             <Text

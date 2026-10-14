@@ -20,20 +20,24 @@ import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
 import { t, useTranslation } from '../../i18n';
 
-const FALLBACK_IMAGES = [
+const GIRL_FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/girl1.webp'),
   require('../../assets/MessageTabImages/girl2.webp'),
   require('../../assets/MessageTabImages/girl3.webp'),
+];
+
+const BOY_FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/boy1.webp'),
   require('../../assets/MessageTabImages/boy2.webp'),
   require('../../assets/MessageTabImages/boy3.webp'),
 ];
 
-const getFallbackAsset = (seed: string | number = 'user') => {
+const getFallbackAsset = (seed: string | number = 'user', isMale: boolean = false) => {
   const seedNum = String(seed)
     .split('')
     .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return FALLBACK_IMAGES[seedNum % FALLBACK_IMAGES.length];
+  const pool = isMale ? BOY_FALLBACK_IMAGES : GIRL_FALLBACK_IMAGES;
+  return pool[seedNum % pool.length];
 };
 
 const extractFirstImagePath = (value: unknown): string | null => {
@@ -65,7 +69,7 @@ const MatchScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { requireSubscription } = useSubscriptionGate();
-  const { profileImageUrl, profileImage, images } = useContext(AppContext);
+  const { profileImageUrl, profileImage, images, oppositeGender } = useContext(AppContext);
   const { width, height } = useWindowDimensions();
 
   const isCompact = height < 740;
@@ -121,10 +125,14 @@ const MatchScreen = () => {
     return candidate ? getAbsoluteUrl(candidate) : null;
   }, [profileImageUrl, profileImage, images]);
 
-  const myFallback = useMemo(() => getFallbackAsset('my-profile'), []);
+  const isMyGenderMale = oppositeGender === 'straight_woman';
+  const myFallback = useMemo(() => getFallbackAsset('my-profile', isMyGenderMale), [isMyGenderMale]);
+  const isTheirGenderMale = matchedUser?.gender
+    ? String(matchedUser.gender).toLowerCase().includes('man') || String(matchedUser.gender).toLowerCase() === 'male'
+    : !isMyGenderMale;
   const theirFallback = useMemo(
-    () => getFallbackAsset(matchedUser?.id || theirName),
-    [matchedUser?.id, theirName],
+    () => getFallbackAsset(matchedUser?.id || theirName, isTheirGenderMale),
+    [matchedUser?.id, matchedUser?.gender, theirName, isTheirGenderMale],
   );
 
   const mySource: ImageSourcePropType = useMemo(() => {

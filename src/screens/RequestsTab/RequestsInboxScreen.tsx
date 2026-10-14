@@ -247,7 +247,7 @@ const RequestsInboxScreen: React.FC = () => {
               activeTab === 'pending' ? styles.tabTextActive : styles.tabTextInactive,
             ]}
           >
-            Pending
+            {t('requests.requestsinboxscreen.pending')}
           </Text>
           {activeTab === 'pending' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>

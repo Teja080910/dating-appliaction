@@ -89,12 +89,12 @@ const LoginScreen = ({ navigation }: any) => {
   const handleLogin = async () => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !password.trim()) {
-      alert('Missing Info', 'Please enter your email and password.');
+      alert(t('auth.forgotpasswordscreen.missing_info'), t('auth.loginscreen.please_enter_your_email_and_password'));
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
-      alert('Invalid Email', 'Please enter a valid email address.');
+      alert(t('auth.forgotpasswordscreen.invalid_email'), t('auth.forgotpasswordscreen.please_enter_a_valid_email_address'));
       return;
     }
 
@@ -110,13 +110,13 @@ const LoginScreen = ({ navigation }: any) => {
       onSuccess: async (data: any) => {
         if (data?.success === false) {
           setLoading(false);
-          alert('Login Failed', data?.message || t('auth.loginscreen.invalid_email_or_password'));
+          alert(t('auth.loginscreen.login_failed'), data?.message || t('auth.loginscreen.invalid_email_or_password'));
           return;
         }
         const session = extractSession(data);
         if (!session.token) {
           setLoading(false);
-          alert('Login Error', data?.message || t('auth.loginscreen.server_did_not_return_a_valid_session'));
+          alert(t('auth.loginscreen.login_error'), data?.message || t('auth.loginscreen.server_did_not_return_a_valid_session'));
           return;
         }
 
@@ -163,14 +163,14 @@ const LoginScreen = ({ navigation }: any) => {
         setLoading(false);
         const status = error.response?.status;
         const serverMessage = error.response?.data?.message;
-        if (serverMessage) alert('Login Failed', String(serverMessage));
+        if (serverMessage) alert(t('auth.loginscreen.login_failed'), String(serverMessage));
         else if (status === 401 || status === 403)
-          alert('Login Failed', 'Invalid credentials. Please verify your password.');
+          alert(t('auth.loginscreen.login_failed'), t('auth.loginscreen.invalid_credentials_please_verify_your_password'));
         else if (status === 404)
-          alert('Account Not Found', 'No account found. Please register first.');
+          alert(t('auth.loginscreen.account_not_found'), t('auth.loginscreen.no_account_found_please_register_first'));
         else if (!error.response)
-          alert('Connection Error', 'Unable to connect to server.');
-        else alert('Login Failed', error.message);
+          alert(t('auth.loginscreen.connection_error'), t('auth.loginscreen.unable_to_connect_to_server'));
+        else alert(t('auth.loginscreen.login_failed'), error.message);
       },
     });
   };
@@ -199,11 +199,9 @@ const LoginScreen = ({ navigation }: any) => {
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
-              {/* Top Language Pill Dropdown */}
+              {/* Top Language Dropdown (clean, centered without heavy pill box as in Glambu) */}
               <View style={styles.topLangRow}>
-                <View style={styles.langPill}>
-                  <LanguageSelectorHeader color="#FFFFFF" />
-                </View>
+                <LanguageSelectorHeader color="#FFFFFF" />
               </View>
 
               {/* Main Content Area (Brand + Form unified) */}
@@ -211,7 +209,7 @@ const LoginScreen = ({ navigation }: any) => {
                 {/* Official Amara Brand Logo & Title */}
                 <View style={styles.brandContainer}>
                   <View style={styles.logoHaloWrap}>
-                    <AttractiveLogo size={70} />
+                    <AttractiveLogo size={66} />
                   </View>
                   <Text style={styles.brandTitle}>{t('home.homeheader.amara')}</Text>
                   <Text style={styles.pageHeading}>{t('auth.loginscreen.log_in_to_your_account')}</Text>
@@ -223,7 +221,7 @@ const LoginScreen = ({ navigation }: any) => {
                   <View style={styles.inputCard}>
                     <Text style={styles.inputLabel}>{t('auth.forgotpasswordscreen.email')}</Text>
                     <View style={styles.inputFieldRow}>
-                      <Icon name="email-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+                      <Icon name="email-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                       <TextInput
                         style={styles.textInput}
                         placeholder="your.email@example.com"
@@ -241,7 +239,7 @@ const LoginScreen = ({ navigation }: any) => {
                   <View style={styles.inputCard}>
                     <Text style={styles.inputLabel}>{t('auth.loginscreen.password')}</Text>
                     <View style={styles.inputFieldRow}>
-                      <Icon name="lock-outline" size={20} color="#7C3AED" style={styles.inputIcon} />
+                      <Icon name="lock-outline" size={20} color="#6B7280" style={styles.inputIcon} />
                       <TextInput
                         style={styles.textInput}
                         placeholder="••••••••••••"
@@ -258,7 +256,7 @@ const LoginScreen = ({ navigation }: any) => {
                         <Icon
                           name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                           size={21}
-                          color="#9CA3AF"
+                          color="#8E8E93"
                         />
                       </TouchableOpacity>
                     </View>
@@ -273,7 +271,7 @@ const LoginScreen = ({ navigation }: any) => {
                     <Text style={styles.forgotBtnText}>{t('auth.loginscreen.forgot_password')}</Text>
                   </TouchableOpacity>
 
-                  {/* Primary Login Button */}
+                  {/* Primary Login Button (White Pill Button as in Glambu) */}
                   <TouchableOpacity
                     style={styles.loginBtn}
                     onPress={handleLogin}
@@ -281,13 +279,13 @@ const LoginScreen = ({ navigation }: any) => {
                     disabled={loading}
                   >
                     {loading ? (
-                      <ActivityIndicator color="#5B21B6" size="small" />
+                      <ActivityIndicator color="#180B2B" size="small" />
                     ) : (
                       <Text style={styles.loginBtnText}>{t('auth.forgotpasswordscreen.login')}</Text>
                     )}
                   </TouchableOpacity>
 
-                  {/* Secondary 'I don't have an account' Button */}
+                  {/* Secondary 'I don't have an account' Button (Transparent Outline Pill Button) */}
                   <TouchableOpacity
                     style={styles.noAccountBtn}
                     onPress={() => navigation.navigate('Register')}
@@ -338,21 +336,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 10 : 6,
+    paddingHorizontal: 22,
+    paddingTop: Platform.OS === 'android' ? 12 : 8,
     paddingBottom: 20,
     justifyContent: 'space-between',
   },
   topLangRow: {
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  langPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    paddingHorizontal: 4,
+    marginBottom: 10,
   },
   mainContent: {
     flex: 1,
@@ -362,44 +353,39 @@ const styles = StyleSheet.create({
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 26,
   },
   logoHaloWrap: {
     marginBottom: 8,
   },
   brandTitle: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   pageHeading: {
-    fontSize: 19,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.95)',
-    marginTop: 6,
+    fontSize: 21,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 10,
     textAlign: 'center',
   },
   formContainer: {
     width: '100%',
   },
   inputCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 24,
     paddingHorizontal: 20,
     paddingVertical: 10,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   inputLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#6B7280',
-    letterSpacing: 0.6,
+    letterSpacing: 0.3,
     marginBottom: 2,
   },
   inputFieldRow: {
@@ -412,21 +398,21 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     color: '#111827',
     paddingVertical: Platform.OS === 'android' ? 2 : 4,
     paddingHorizontal: 0,
   },
   forgotBtn: {
     alignSelf: 'flex-end',
-    marginTop: 2,
-    marginBottom: 18,
+    marginTop: 4,
+    marginBottom: 22,
     paddingVertical: 4,
     paddingHorizontal: 4,
   },
   forgotBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 14.5,
+    fontWeight: '500',
     color: '#FFFFFF',
   },
   loginBtn: {
@@ -435,21 +421,16 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
   },
   loginBtnText: {
     fontSize: 16.5,
-    fontWeight: '800',
-    color: '#5B21B6',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    color: '#180B2B',
+    letterSpacing: 0.2,
   },
   noAccountBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+    borderWidth: 1.2,
     borderColor: 'rgba(255, 255, 255, 0.45)',
     height: 52,
     borderRadius: 26,
@@ -459,14 +440,14 @@ const styles = StyleSheet.create({
   },
   noAccountBtnText: {
     fontSize: 15.5,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
   footerContainer: {
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 4,
+    marginTop: 18,
+    marginBottom: 6,
     paddingHorizontal: 16,
   },
   termsText: {

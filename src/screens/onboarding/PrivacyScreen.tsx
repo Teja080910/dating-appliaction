@@ -129,7 +129,7 @@ const PrivacyScreen = ({ navigation }: any) => {
     } catch (error: any) {
       console.warn('[privacy] Accept terms error:', describeError(error));
       isTransitioningRef.current = false;
-      alert('Error', 'Unable to proceed. Please try again.');
+      alert(t('profile.additionaluploadsection.error'), t('onboarding.privacyscreen.unable_to_proceed_please_try_again'));
       setLoading(false);
     }
   };
@@ -159,7 +159,7 @@ const PrivacyScreen = ({ navigation }: any) => {
           >
             <View style={styles.linkRow}>
               <Icon name="file-text" size={18} color="#2196F3" style={styles.linkIcon} />
-              <Text style={styles.linkText}>Terms of Use</Text>
+              <Text style={styles.linkText}>{t('profile.privacypolicyscreen.terms_of_use')}</Text>
             </View>
           </TouchableOpacity>
 

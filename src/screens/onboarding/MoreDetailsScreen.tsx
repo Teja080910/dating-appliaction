@@ -245,6 +245,7 @@ const MoreDetailsScreen = ({ navigation }: any) => {
         lookingFor: normalizeJoinedValues(selectedLookingFor, t('profile.userdetails.relationship')),
         smoke: normalizeTextValue(selectedSmoking, t('profile.userdetails.no')),
         drink: normalizeTextValue(selectedDrinking, t('profile.userdetails.no')),
+        photos: availableImages,
       };
 
       // 5. Build Details and Prefs Payloads

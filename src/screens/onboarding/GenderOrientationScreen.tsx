@@ -67,7 +67,7 @@ const GenderOrientationScreen = ({ navigation }: any) => {
         navigation.navigate('DisplayName');
       }
     } else {
-      alert('Selection Required', 'Please select your gender and orientation to continue.');
+      alert(t('onboarding.genderorientationscreen.selection_required'), t('onboarding.genderorientationscreen.please_select_your_gender_and_orientation_to_con'));
     }
   };
 
@@ -118,78 +118,140 @@ const GenderOrientationScreen = ({ navigation }: any) => {
         </View>
 
         {/* 3 Selectable Options */}
-        <View style={styles.optionsList}>
-          {/* Option 1: Man */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[
-              styles.optionCard,
-              { backgroundColor: isDark ? '#1A1730' : '#F3F4F6' },
-              selection === 'straight_man' && styles.manCardActive,
-            ]}
-            onPress={() => setSelection('straight_man')}
-          >
-            <View style={styles.optionLeftText}>
-              <View style={styles.optionTitleRow}>
-                <Text style={[styles.optionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>{t('onboarding.genderorientationscreen.i_am_a')}<Text style={styles.boldText}>{t('onboarding.genderorientationscreen.man')}</Text>
-                </Text>
-                {selection === 'straight_man' && (
-                  <Icon name="check" size={20} color="#3B82F6" style={styles.checkMark} />
-                )}
-              </View>
-              <Text style={[styles.optionSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('onboarding.genderorientationscreen.and_like_women')}</Text>
-            </View>
-            <Icon name="account" size={46} color={isDark ? '#9CA3AF' : '#4B5563'} />
-          </TouchableOpacity>
+        {(() => {
+          const isManActive = selection === 'straight_man';
+          const isWomanActive = selection === 'straight_woman';
+          const isLgbtqActive = selection === 'lgbtqia';
 
-          {/* Option 2: Woman */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[
-              styles.optionCard,
-              { backgroundColor: isDark ? '#1A1730' : '#F3F4F6' },
-              selection === 'straight_woman' && styles.womanCardActive,
-            ]}
-            onPress={() => setSelection('straight_woman')}
-          >
-            <View style={styles.optionLeftText}>
-              <View style={styles.optionTitleRow}>
-                <Text style={[styles.optionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>{t('onboarding.genderorientationscreen.i_am_a')}<Text style={styles.boldText}>{t('onboarding.genderorientationscreen.woman')}</Text>
-                </Text>
-                {selection === 'straight_woman' && (
-                  <Icon name="check" size={20} color="#EC4899" style={styles.checkMark} />
-                )}
-              </View>
-              <Text style={[styles.optionSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('onboarding.genderorientationscreen.and_like_men')}</Text>
-            </View>
-            <Icon name="face-woman-profile" size={46} color={isDark ? '#9CA3AF' : '#4B5563'} />
-          </TouchableOpacity>
+          return (
+            <View style={styles.optionsList}>
+              {/* Option 1: Man */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.optionCard,
+                  { backgroundColor: isDark ? '#1A1730' : '#F3F4F6' },
+                  isManActive && styles.manCardActive,
+                ]}
+                onPress={() => setSelection('straight_man')}
+              >
+                <View style={styles.optionLeftText}>
+                  <View style={styles.optionTitleRow}>
+                    <Text
+                      style={[
+                        styles.optionTitle,
+                        { color: isManActive ? '#111827' : (isDark ? '#FFFFFF' : '#111827') },
+                      ]}
+                    >
+                      {t('onboarding.genderorientationscreen.i_am_a')}{' '}
+                      <Text style={styles.boldText}>{t('onboarding.genderorientationscreen.man')}</Text>
+                    </Text>
+                    {isManActive && (
+                      <Icon name="check" size={20} color="#3B82F6" style={styles.checkMark} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.optionSubtitle,
+                      { color: isManActive ? '#4B5563' : (isDark ? '#9CA3AF' : '#6B7280') },
+                    ]}
+                  >
+                    {t('onboarding.genderorientationscreen.and_like_women')}
+                  </Text>
+                </View>
+                <Icon
+                  name="account"
+                  size={46}
+                  color={isManActive ? '#3B82F6' : (isDark ? '#9CA3AF' : '#4B5563')}
+                />
+              </TouchableOpacity>
 
-          {/* Option 3: LGBTQ+ */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[
-              styles.optionCard,
-              { backgroundColor: isDark ? '#1A1730' : '#F3F4F6' },
-              selection === 'lgbtqia' && styles.lgbtqCardActive,
-            ]}
-            onPress={() => setSelection('lgbtqia')}
-          >
-            {/* Left Rainbow Accent Stripe */}
-            <View style={styles.rainbowStripe} />
-            <View style={styles.optionLeftText}>
-              <View style={styles.optionTitleRow}>
-                <Text style={[styles.optionTitle, { color: isDark ? '#FFFFFF' : '#111827' }]}>{t('onboarding.genderorientationscreen.i_am')}<Text style={styles.boldText}>{t('onboarding.genderorientationscreen.lgbtq')}</Text>
-                </Text>
-                {selection === 'lgbtqia' && (
-                  <Icon name="check" size={20} color="#7C3AED" style={styles.checkMark} />
-                )}
-              </View>
-              <Text style={[styles.optionSubtitle, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{t('onboarding.genderorientationscreen.lesbian_gay_bisexual_trans_queer')}</Text>
+              {/* Option 2: Woman */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.optionCard,
+                  { backgroundColor: isDark ? '#1A1730' : '#F3F4F6' },
+                  isWomanActive && styles.womanCardActive,
+                ]}
+                onPress={() => setSelection('straight_woman')}
+              >
+                <View style={styles.optionLeftText}>
+                  <View style={styles.optionTitleRow}>
+                    <Text
+                      style={[
+                        styles.optionTitle,
+                        { color: isWomanActive ? '#111827' : (isDark ? '#FFFFFF' : '#111827') },
+                      ]}
+                    >
+                      {t('onboarding.genderorientationscreen.i_am_a')}{' '}
+                      <Text style={styles.boldText}>{t('onboarding.genderorientationscreen.woman')}</Text>
+                    </Text>
+                    {isWomanActive && (
+                      <Icon name="check" size={20} color="#EC4899" style={styles.checkMark} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.optionSubtitle,
+                      { color: isWomanActive ? '#4B5563' : (isDark ? '#9CA3AF' : '#6B7280') },
+                    ]}
+                  >
+                    {t('onboarding.genderorientationscreen.and_like_men')}
+                  </Text>
+                </View>
+                <Icon
+                  name="face-woman-profile"
+                  size={46}
+                  color={isWomanActive ? '#EC4899' : (isDark ? '#9CA3AF' : '#4B5563')}
+                />
+              </TouchableOpacity>
+
+              {/* Option 3: LGBTQ+ */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.optionCard,
+                  { backgroundColor: isDark ? '#1A1730' : '#F3F4F6' },
+                  isLgbtqActive && styles.lgbtqCardActive,
+                ]}
+                onPress={() => setSelection('lgbtqia')}
+              >
+                {/* Left Rainbow Accent Stripe */}
+                <View style={styles.rainbowStripe} />
+                <View style={styles.optionLeftText}>
+                  <View style={styles.optionTitleRow}>
+                    <Text
+                      style={[
+                        styles.optionTitle,
+                        { color: isLgbtqActive ? '#111827' : (isDark ? '#FFFFFF' : '#111827') },
+                      ]}
+                    >
+                      {t('onboarding.genderorientationscreen.i_am')}{' '}
+                      <Text style={styles.boldText}>{t('onboarding.genderorientationscreen.lgbtq')}</Text>
+                    </Text>
+                    {isLgbtqActive && (
+                      <Icon name="check" size={20} color="#7C3AED" style={styles.checkMark} />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.optionSubtitle,
+                      { color: isLgbtqActive ? '#4B5563' : (isDark ? '#9CA3AF' : '#6B7280') },
+                    ]}
+                  >
+                    {t('onboarding.genderorientationscreen.lesbian_gay_bisexual_trans_queer')}
+                  </Text>
+                </View>
+                <Icon
+                  name="account-group"
+                  size={46}
+                  color={isLgbtqActive ? '#7C3AED' : (isDark ? '#9CA3AF' : '#4B5563')}
+                />
+              </TouchableOpacity>
             </View>
-            <Icon name="account-group" size={46} color={isDark ? '#9CA3AF' : '#4B5563'} />
-          </TouchableOpacity>
-        </View>
+          );
+        })()}
 
         {/* Spacer */}
         <View style={styles.spacer} />

@@ -111,15 +111,15 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   const handleSaveTelegram = async () => {
     const username = inputTelegram.trim().replace(/^@+/, '');
     if (!username) {
-      alert('Username Required', 'Please enter your Telegram username.');
+      alert(t('profile.contactdetails.username_required'), t('profile.contactdetails.please_enter_your_telegram_username'));
       return;
     }
 
     const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/;
     if (!TELEGRAM_USERNAME_REGEX.test(username)) {
       alert(
-        'Invalid Username',
-        'Username must start with a letter and contain 4-32 alphanumeric characters or underscores.'
+        t('profile.contactdetails.invalid_username'),
+        t('profile.contactdetails.username_must_start_with_a_letter_and_contain_4')
       );
       return;
     }
@@ -130,12 +130,12 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
       setTelegramUsername(username);
       setTgLoading(false);
       setTelegramModalVisible(false);
-      alert('Connected', t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
+      alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
     } catch (error: any) {
       setTgLoading(false);
       setTelegramUsername(username);
       setTelegramModalVisible(false);
-      alert('Connected', t('profile.contactdetails.your_telegram_account_is_saved', { username }));
+      alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_saved', { username }));
     }
   };
 
@@ -146,12 +146,12 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
       setTelegramUsername('');
       setTgLoading(false);
       setTelegramModalVisible(false);
-      alert('Disconnected', 'Your Telegram account has been disconnected.');
+      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     } catch (error: any) {
       setTgLoading(false);
       setTelegramUsername('');
       setTelegramModalVisible(false);
-      alert('Disconnected', 'Your Telegram account has been disconnected.');
+      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     }
   };
 

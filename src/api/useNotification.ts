@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient, { toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
+import { t } from '../i18n';
 
 export interface NotificationItem {
   id: number;
@@ -45,7 +46,7 @@ const normalizeNotifications = (payload: unknown): NotificationItem[] =>
     }
     return {
       id: typeof item?.id === 'number' ? item.id : 0,
-      title: String(item?.title || item?.subject || 'Notification').trim(),
+      title: String(item?.title || item?.subject || t('profile.notificationsscreen.notification')).trim(),
       body: String(item?.body || item?.message || '').trim(),
       message: String(item?.message || item?.body || '').trim(),
       read: Boolean(item?.read ?? item?.isRead ?? false),

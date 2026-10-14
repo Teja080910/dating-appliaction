@@ -11,7 +11,7 @@ const AllRightsReserved = () => {
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Text style={[styles.brand, { color: themeColors.textMuted }]}>{t('home.homeheader.amara')}</Text>
       <Text style={[styles.footerText, { color: themeColors.textMuted }]}>
-        2025 © Amara app. All rights reserved.{'\n'}v. 4.2.2
+        {t('profile.allrightsreserved.copyright')}
       </Text>
     </View>
   );

@@ -168,7 +168,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
     try {
       const hasPermission = await requestPermissions();
       if (!hasPermission) {
-        alert('Permission Required', 'Please allow camera or photo library access to continue.');
+        alert(t('profile.profilephotogrid.permission_required'), t('profile.profilephotogrid.please_allow_camera_or_photo_library_access_to_c'));
         return;
       }
 
@@ -208,7 +208,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
             {
               onError: (err) => {
                 console.error('Image upload failed:', err);
-                alert('Upload failed', 'Failed to upload image. Please try again.');
+                alert(t('profile.profilephotogrid.upload_failed'), t('profile.profilephotogrid.failed_to_upload_image_please_try_again'));
               },
               onSettled: () => {
                 setUploadingSlot(null);

@@ -186,7 +186,7 @@ const ProfileSettingsScreen = () => {
 
   const handleSave = () => {
     if (!localDisplayName.trim()) {
-      alert('Missing name', 'Nickname / First name is required.');
+      alert(t('profile.profilesettingsscreen.missing_name'), t('profile.profilesettingsscreen.nickname_first_name_is_required'));
       return;
     }
 
@@ -226,7 +226,7 @@ const ProfileSettingsScreen = () => {
       setLoading(true);
       const authSession = await getAuthSession();
       if (!authSession?.token) {
-        alert('Session error', 'Please log in again.', [
+        alert(t('more_info.moreinfoscreen.session_error'), t('profile.profilesettingsscreen.please_log_in_again'), [
           {
             text: t('profile.profilesettingsscreen.ok'),
             onPress: () => navigation.replace('Login'),
@@ -251,7 +251,7 @@ const ProfileSettingsScreen = () => {
           onSuccess: async () => {
             await persistLocalState();
             await profileQuery.refetch();
-            alert(t('search.location.saved'), 'Profile updated successfully.', [
+            alert(t('search.location.saved'), t('profile.profilesettingsscreen.profile_updated_successfully'), [
               {
                 text: t('profile.profilesettingsscreen.ok'),
                 onPress: () => navigation.goBack(),
@@ -270,8 +270,8 @@ const ProfileSettingsScreen = () => {
             ) {
               await persistLocalState();
               alert(
-                'Saved locally',
-                'Profile changes are saved in the app and will sync automatically.',
+                t('profile.profilesettingsscreen.saved_locally'),
+                t('profile.profilesettingsscreen.profile_changes_are_saved_in_the_app_and_will_sy'),
                 [
                   {
                     text: t('profile.profilesettingsscreen.ok'),
@@ -283,7 +283,7 @@ const ProfileSettingsScreen = () => {
             }
 
             alert(
-              'Update failed',
+              t('profile.profilesettingsscreen.update_failed'),
               getUserFriendlyMessage(error, t('profile.profilesettingsscreen.we_could_not_save_your_profile_please_try_again'))
             );
           },

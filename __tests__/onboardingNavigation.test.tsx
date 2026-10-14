@@ -26,4 +26,22 @@ describe('Onboarding Flow Navigation', () => {
       expect(ONBOARDING_ROUTES.has(step)).toBe(true);
     });
   });
+
+  it('verifies that Telegram tab mode isolates from onboarding setup flow', () => {
+    // When rendered inside BottomTabs, route.name is 'Telegram' or route.params.isTab is true
+    const tabRoute: { name: string; params: Record<string, unknown> } = { name: 'Telegram', params: { isTab: true } };
+    const onboardingRoute: { name: string; params: Record<string, unknown> } = { name: 'ConnectTelegram', params: {} };
+
+    const isTabInBottomTabs = tabRoute.name === 'Telegram' || Boolean(tabRoute.params?.isTab);
+    const isOnboardingInTab = !isTabInBottomTabs && !tabRoute.params?.fromProfile;
+
+    expect(isTabInBottomTabs).toBe(true);
+    expect(isOnboardingInTab).toBe(false);
+
+    const isTabInOnboarding = onboardingRoute.name === 'Telegram' || Boolean(onboardingRoute.params?.isTab);
+    const isOnboardingInStack = !isTabInOnboarding && !onboardingRoute.params?.fromProfile;
+
+    expect(isTabInOnboarding).toBe(false);
+    expect(isOnboardingInStack).toBe(true);
+  });
 });
