@@ -4,10 +4,17 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const OPTIONS = ['Yes', 'No', 'Sometimes'];
+const optionLabel = (opt: string) =>
+  opt === 'Yes' ? t('profile.userdetails.yes')
+  : opt === 'No' ? t('profile.userdetails.no')
+  : opt === 'Sometimes' ? t('search.drinking.sometimes')
+  : opt;
 
 const DrinkingSelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { selectedDrinking, setSelectedDrinking } = useContext(AppContext);
 
@@ -19,7 +26,7 @@ const DrinkingSelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="glass-cocktail" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Do you drink?</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.drinkingselector.do_you_drink')}</Text>
       </View>
       <View style={styles.optionsWrap}>
         {OPTIONS.map((option) => {
@@ -37,7 +44,7 @@ const DrinkingSelector = () => {
                 end={{ x: 1, y: 1 }}
                 style={styles.pillActiveGradient}
               >
-                <Text style={styles.pillTextActive}>{option}</Text>
+                <Text style={styles.pillTextActive}>{optionLabel(option)}</Text>
               </LinearGradient>
             </TouchableOpacity>
           ) : (
@@ -53,7 +60,7 @@ const DrinkingSelector = () => {
                 },
               ]}
             >
-              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{option}</Text>
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{optionLabel(option)}</Text>
             </TouchableOpacity>
           );
         })}

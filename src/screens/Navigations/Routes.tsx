@@ -15,6 +15,7 @@ import UploadImageScreen from '../onboarding/UploadImageScreen';
 import SelfieVerificationScreen from '../onboarding/SelfieVerificationScreen';
 import BottomTabs from './BottomTabs';
 import AboutProfileScreen from '../onboarding/AboutProfileScreen';
+import TellUsMoreScreen from '../onboarding/TellUsMoreScreen';
 import ConnectTelegramScreen from '../onboarding/ConnectTelegramScreen';
 import SearchScreen from '../SearchSettings/SearchScreen';
 import ProfileSettingsScreen from '../ProfileTab/ProfileSettingsScreen';
@@ -27,6 +28,8 @@ import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
 import SupportScreen from '../ProfileTab/SupportScreen';
 import NotificationsScreen from '../ProfileTab/NotificationsScreen';
 import PreferencesScreen from '../ProfileTab/PreferencesScreen';
+import HowToUseScreen from '../ProfileTab/HowToUseScreen';
+import ResetLocationScreen from '../ProfileTab/ResetLocationScreen';
 import { SESSION_EXPIRED_EVENT } from '../../api/apiClient';
 import { resolveInitialRoute } from '../../utils/session';
 import SubscriptionModal from '../../components/SubscriptionModal';
@@ -121,10 +124,13 @@ const Routes = () => {
         backgroundColor={activeColors.background}
       />
       <Stack.Navigator
-
         key={initialScreen}
         initialRouteName={initialScreen}
-        screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: activeColors.background || '#0F0D1A' },
+        }}
       >
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
@@ -138,6 +144,7 @@ const Routes = () => {
         <Stack.Screen name="SelfieVerification" component={SelfieVerificationScreen} />
         <Stack.Screen name="BottomTabs" component={BottomTabs} />
         <Stack.Screen name="AboutProfile" component={AboutProfileScreen} />
+        <Stack.Screen name="TellUsMore" component={TellUsMoreScreen} />
         <Stack.Screen name="ConnectTelegram" component={ConnectTelegramScreen} />
         <Stack.Screen name="SearchSettings" component={SearchScreen} />
         <Stack.Screen name="ProfileSettingsScreen" component={ProfileSettingsScreen} />
@@ -154,6 +161,9 @@ const Routes = () => {
         <Stack.Screen name="RequestsInboxScreen" component={RequestsInboxScreen} />
         <Stack.Screen name="SentRequestsScreen" component={SentRequestsScreen} />
         <Stack.Screen name="Sent" component={SentRequestsScreen} />
+        <Stack.Screen name="HowToUseScreen" component={HowToUseScreen} />
+        <Stack.Screen name="ResetLocationScreen" component={ResetLocationScreen} />
+        <Stack.Screen name="ResetLocation" component={ResetLocationScreen} />
       </Stack.Navigator>
       <SubscriptionModal
         visible={paywallVisible}

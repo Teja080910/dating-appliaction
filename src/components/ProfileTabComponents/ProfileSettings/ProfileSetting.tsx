@@ -5,8 +5,10 @@ import { useNavigation } from '@react-navigation/native';
 import { RootParamList } from '../../../utils/types/navigation.types';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Colors, Spacing } from '../../../theme';
+import { t, useTranslation } from '../../../i18n';
 
 const ProfileSetting = () => {
+  useTranslation();
   const navigation = useNavigation<StackNavigationProp<RootParamList,'ProfileSettingsScreen'>>();
   const handlePress = () => {
     navigation.navigate('ProfileSettingsScreen');
@@ -14,12 +16,12 @@ const ProfileSetting = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>ACCOUNT SETTINGS</Text>
+      <Text style={styles.sectionTitle}>{t('profile.profilesetting.account_settings')}</Text>
       <TouchableOpacity style={styles.itemRow} onPress={handlePress}>
         <View style={styles.iconWrapper}>
           <Icon name="cog" solid size={16} color={Colors.white} />
         </View>
-        <Text style={styles.itemText}>Profile settings</Text>
+        <Text style={styles.itemText}>{t('profile.profilesetting.profile_settings')}</Text>
         <Icon name="chevron-right" size={16} color={Colors.textMuted} />
       </TouchableOpacity>
     </View>

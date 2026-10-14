@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { Colors } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface SaveButtonProps {
   onPress?: () => void;
@@ -9,23 +10,26 @@ interface SaveButtonProps {
 }
 
 const SaveButton: React.FC<SaveButtonProps> = ({ onPress, loading }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+
   return (
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={onPress}
       disabled={loading}
-      style={[styles.wrapper, loading && { opacity: 0.7 }]}
+      style={[styles.button, loading && { opacity: 0.7 }]}
     >
       <LinearGradient
-        colors={[Colors.primary, Colors.primaryLight]}
+        colors={[themeColors.primary, themeColors.secondary]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
         {loading ? (
-          <ActivityIndicator color={Colors.white} size="small" />
+          <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
-          <Text style={styles.text}>Save</Text>
+          <Text style={styles.text}>{t('more_info.savebutton.save')}</Text>
         )}
       </LinearGradient>
     </TouchableOpacity>
@@ -35,17 +39,18 @@ const SaveButton: React.FC<SaveButtonProps> = ({ onPress, loading }) => {
 export default SaveButton;
 
 const styles = StyleSheet.create({
-  wrapper: {
+  button: {
     width: '100%',
     borderRadius: 26,
     overflow: 'hidden',
-    shadowColor: Colors.primary,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   gradient: {
+    width: '100%',
     paddingVertical: 14,
     borderRadius: 26,
     alignItems: 'center',

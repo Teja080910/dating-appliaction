@@ -3,19 +3,21 @@ import { View, Text, StyleSheet, Platform, LayoutChangeEvent } from 'react-nativ
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface BodyHeightProps {
   onChange?: (min: number, max: number) => void;
 }
 
 const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { bodyHeight, setBodyHeight } = useContext(AppContext);
   const [sliderWidth, setSliderWidth] = useState<number>(260);
 
-  const safeMin = Math.min(Math.max(bodyHeight?.[0] ?? 120, 120), 200);
-  const safeMax = Math.min(Math.max(bodyHeight?.[1] ?? 200, safeMin), 200);
+  const safeMin = Math.min(Math.max(bodyHeight?.[0] ?? 120, 120), 220);
+  const safeMax = Math.min(Math.max(bodyHeight?.[1] ?? 220, safeMin), 220);
   const currentValues = [safeMin, safeMax];
 
   const handleValuesChange = (values: number[]) => {
@@ -28,22 +30,25 @@ const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
   const handleLayout = (e: LayoutChangeEvent) => {
     const availableWidth = e.nativeEvent.layout.width;
     if (availableWidth > 60) {
-      setSliderWidth(Math.max(180, availableWidth - 26));
+      setSliderWidth(Math.max(180, availableWidth - 28));
     }
   };
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
-      <Text style={styles.label}>
-        Height range: <Text style={styles.value}>{currentValues[0]} cm - {currentValues[1]} cm</Text>
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{t('search.bodyheight.height_range')}</Text>
+        <Text style={styles.valueText}>
+          {currentValues[0]} cm – {currentValues[1]} cm
+        </Text>
+      </View>
 
       <View style={styles.sliderWrapper} onLayout={handleLayout}>
         <MultiSlider
           values={currentValues}
           sliderLength={sliderWidth}
           min={120}
-          max={200}
+          max={220}
           onValuesChange={handleValuesChange}
           step={1}
           allowOverlap={false}
@@ -70,7 +75,9 @@ const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
 const createStyles = (themeColors: ThemeColors) =>
   StyleSheet.create({
     container: {
-      padding: Spacing.xl,
+      paddingHorizontal: Spacing.xl,
+      paddingTop: Spacing.xl,
+      paddingBottom: Spacing.lg,
       backgroundColor: themeColors.surface,
       marginHorizontal: Spacing.screenPaddingHorizontal,
       marginTop: Spacing.lg,
@@ -78,15 +85,22 @@ const createStyles = (themeColors: ThemeColors) =>
       borderWidth: 1,
       borderColor: themeColors.borderLight,
     },
-    label: {
-      fontSize: 15,
-      marginBottom: Spacing.lg,
-      color: themeColors.textSecondary,
-      fontWeight: '500',
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: Spacing.sm,
     },
-    value: {
+    title: {
+      fontSize: 16,
       fontWeight: '700',
       color: themeColors.text,
+      letterSpacing: 0.1,
+    },
+    valueText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: themeColors.textSecondary,
     },
     sliderWrapper: {
       width: '100%',

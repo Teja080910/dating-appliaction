@@ -8,10 +8,10 @@ export const Colors = {
   secondaryDark: '#DB2777',
 
   // Gradients
-  gradientPrimary: ['#7C3AED', '#EC4899'] as const,
-  gradientSecondary: ['#EC4899', '#F59E0B'] as const,
-  gradientDark: ['#1E1B2E', '#2D1B3D'] as const,
-  gradientCard: ['rgba(124, 58, 237, 0.12)', 'rgba(236, 72, 153, 0.08)'] as const,
+  gradientPrimary: ['#7C3AED', '#EC4899'] as readonly [string, string],
+  gradientSecondary: ['#EC4899', '#F59E0B'] as readonly [string, string],
+  gradientDark: ['#1E1B2E', '#2D1B3D'] as readonly [string, string],
+  gradientCard: ['rgba(124, 58, 237, 0.12)', 'rgba(236, 72, 153, 0.08)'] as readonly [string, string],
 
   // Backgrounds
   background: '#0F0D1A',
@@ -71,43 +71,78 @@ export const DarkColors = {
 
 export type ThemeColors = typeof Colors;
 
-export const LightColors = {
+export const LightColors: ThemeColors = {
   ...Colors,
-  background: '#F8F9FA',
-  surface: '#FFFFFF',
-  surfaceLight: '#F3F4F6',
-  surfaceLighter: '#E5E7EB',
+  // Primary remains purple/pink or amara theme
+  primary: '#7C3AED',
+  primaryLight: '#A78BFA',
+  primaryDark: '#5B21B6',
+  secondary: '#EC4899',
+  secondaryLight: '#F472B6',
+  secondaryDark: '#DB2777',
 
+  // Gradients
+  gradientPrimary: ['#7C3AED', '#EC4899'] as const,
+  gradientSecondary: ['#EC4899', '#F59E0B'] as const,
+  gradientDark: ['#F3F4F6', '#E5E7EB'] as const,
+  gradientCard: ['rgba(124, 58, 237, 0.08)', 'rgba(236, 72, 153, 0.05)'] as const,
+
+  // Backgrounds
+  background: '#FFFFFF',
+  surface: '#F8F9FA',
+  surfaceLight: '#F1F3F5',
+  surfaceLighter: '#E9ECEF',
   cardBackground: '#FFFFFF',
-  inputBackground: '#F3F4F6',
-  overlay: 'rgba(0, 0, 0, 0.4)',
-  tabBarBackground: 'rgba(255, 255, 255, 0.95)',
+  inputBackground: '#F1F3F5',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  tabBarBackground: '#FFFFFF',
 
+  // Glass
+  glass: 'rgba(0, 0, 0, 0.04)',
+  glassLight: 'rgba(0, 0, 0, 0.02)',
+  glassBorder: 'rgba(0, 0, 0, 0.08)',
+  glassBorderLight: 'rgba(0, 0, 0, 0.12)',
+
+  // Text
   text: '#111827',
   textPrimary: '#111827',
   textSecondary: '#4B5563',
   textMuted: '#6B7280',
   textInverse: '#FFFFFF',
 
-  border: '#E5E7EB',
-  borderLight: '#D1D5DB',
-  divider: '#E5E7EB',
+  // UI
+  white: '#FFFFFF',
+  black: '#000000',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  danger: '#EF4444',
+  info: '#3B82F6',
+  online: '#10B981',
+  badge: '#EC4899',
+
+  // Neutrals
+  border: 'rgba(0, 0, 0, 0.08)',
+  borderLight: 'rgba(0, 0, 0, 0.12)',
+  divider: 'rgba(0, 0, 0, 0.06)',
   placeholder: '#9CA3AF',
   disabled: '#E5E7EB',
   disabledText: '#9CA3AF',
   grey: '#9CA3AF',
   lightGrey: '#F3F4F6',
 
-  glass: '#FFFFFF',
-  glassLight: '#F9FAFB',
-  glassBorder: '#E5E7EB',
-  glassBorderLight: '#D1D5DB',
+  // Shadows
+  shadow: 'rgba(0, 0, 0, 0.08)',
+  shadowPink: 'rgba(236, 72, 153, 0.15)',
+  shadowDark: 'rgba(0, 0, 0, 0.12)',
+  glow: 'rgba(124, 58, 237, 0.08)',
+  glowPink: 'rgba(236, 72, 153, 0.08)',
 };
 
 export const getThemeColors = (
   mode: 'light' | 'dark' | 'system' = 'dark',
   systemScheme?: string | null
-) => {
+): ThemeColors => {
   if (mode === 'light') return LightColors;
   if (mode === 'system') return systemScheme === 'light' ? LightColors : DarkColors;
   return DarkColors;

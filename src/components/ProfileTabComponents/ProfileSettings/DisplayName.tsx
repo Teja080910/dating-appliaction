@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Colors, useTheme } from '../../../theme';
+import { t, useTranslation } from '../../../i18n';
 
 interface DisplayNameProps {
   value: string;
@@ -8,6 +9,7 @@ interface DisplayNameProps {
 }
 
 const DisplayName: React.FC<DisplayNameProps> = ({ value, onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
 
   return (
@@ -21,12 +23,12 @@ const DisplayName: React.FC<DisplayNameProps> = ({ value, onChange }) => {
           },
         ]}
       >
-        <Text style={[styles.label, { color: themeColors.textSecondary }]}>Nickname / First name</Text>
+        <Text style={[styles.label, { color: themeColors.textSecondary }]}>{t('profile.displayname.nickname_first_name')}</Text>
         <TextInput
           style={[styles.input, { color: themeColors.text }]}
           value={value}
           onChangeText={onChange}
-          placeholder="Enter nickname"
+          placeholder={t('profile.displayname.enter_nickname')}
           placeholderTextColor={themeColors.textMuted}
         />
       </View>

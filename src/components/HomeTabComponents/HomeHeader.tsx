@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, PermissionsAndroid, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,7 +7,9 @@ import Icon from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import AttractiveLogo from '../AttractiveLogo';
+import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface Props {
   selectedFilter: 'online' | 'newest';
@@ -18,7 +20,9 @@ interface Props {
 const NOTIFICATION_BANNER_KEY = 'notification_banner_dismissed';
 
 const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
+  const { activeFilterCount } = useContext(AppContext);
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
@@ -69,8 +73,8 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
           {
-            title: 'Enable Notifications',
-            message: 'Get instant alerts when you receive a new invite or match!',
+            title: t('home.homeheader.enable_notifications'),
+            message: t('home.homeheader.get_instant_alerts_when_you_receive_a_new_invite_or_match'),
             buttonPositive: 'Allow',
             buttonNegative: 'Not Now',
           }
@@ -115,9 +119,7 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
             <View style={styles.bannerIconWrap}>
               <Icon name="bell" size={15} color={themeColors.primaryLight} />
             </View>
-            <Text style={styles.bannerText} numberOfLines={2}>
-              Don't miss a new invite — get notified instantly
-            </Text>
+            <Text style={styles.bannerText} numberOfLines={2}>{t('home.homeheader.dont_miss_a_new_invite_get_notified_instantly')}</Text>
           </TouchableOpacity>
 
           <View style={styles.bannerActions}>
@@ -132,7 +134,7 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
                 end={{ x: 1, y: 0 }}
                 style={styles.notifyGradient}
               >
-                <Text style={styles.notifyButtonText}>Notify me!</Text>
+                <Text style={styles.notifyButtonText}>{t('home.homeheader.notify_me')}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -153,8 +155,8 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
         <View style={styles.logoContainer}>
           <AttractiveLogo size={34} />
           <View style={styles.logoTextWrap}>
-            <Text style={styles.logoText}>AMARA</Text>
-            <Text style={styles.logoSubtext}>Curated private matches</Text>
+            <Text style={styles.logoText}>{t('home.homeheader.amara')}</Text>
+            <Text style={styles.logoSubtext}>{t('home.homeheader.curated_private_matches')}</Text>
           </View>
         </View>
       </View>
@@ -162,11 +164,16 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
       {/* Filter and Tabs Row */}
       <View style={styles.controlsRow}>
         <TouchableOpacity
-          style={styles.filterButton}
+          style={[styles.filterButton, activeFilterCount > 0 && styles.filterButtonWithBadge]}
           activeOpacity={0.8}
           onPress={() => navigation.navigate('SearchSettings')}
         >
           <Icon name="sliders" size={18} color={themeColors.textSecondary} />
+          {activeFilterCount > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <View style={styles.dividerLine} />
@@ -187,11 +194,11 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
                 end={{ x: 1, y: 1 }}
                 style={styles.activeGradient}
               >
-                <Text style={styles.activeText}>Last Active</Text>
+                <Text style={styles.activeText}>{t('home.homeheader.last_active')}</Text>
               </LinearGradient>
             ) : (
               <View style={styles.inactiveContent}>
-                <Text style={styles.inactiveText}>Last Active</Text>
+                <Text style={styles.inactiveText}>{t('home.homeheader.last_active')}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -211,11 +218,11 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
                 end={{ x: 1, y: 1 }}
                 style={styles.activeGradient}
               >
-                <Text style={styles.activeText}>Newest</Text>
+                <Text style={styles.activeText}>{t('home.homeheader.newest')}</Text>
               </LinearGradient>
             ) : (
               <View style={styles.inactiveContent}>
-                <Text style={styles.inactiveText}>Newest</Text>
+                <Text style={styles.inactiveText}>{t('home.homeheader.newest')}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -327,6 +334,28 @@ const createStyles = (colors: any) =>
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 10,
+    },
+    filterButtonWithBadge: {
+      width: 'auto',
+      minWidth: 54,
+      paddingHorizontal: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    filterBadge: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 5,
+    },
+    filterBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '700',
     },
     dividerLine: {
       width: 1,

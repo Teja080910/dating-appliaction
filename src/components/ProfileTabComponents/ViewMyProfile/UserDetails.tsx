@@ -24,11 +24,15 @@ import { useReport } from '../../../api/useReport';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../../theme';
 import { isResolvedApiUserId, repairStoredSessionIdentity } from '../../../utils/session';
-import { getAuthToken } from '../../../utils/sessionHelper';
+import { getAuthToken, getUserId } from '../../../utils/sessionHelper';
 import { getUserFriendlyMessage, isSubscriptionGateError } from '../../../utils/userFriendlyMessages';
 import { useAlert } from '../../../components/AlertModal';
+import { openTelegramChat } from '../../../utils/telegramHelper';
+import { getLanguageFlag } from '../../../utils/languageHelper';
+import { t, useTranslation } from '../../../i18n';
+import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
 
-const REPORT_REASONS = [
+const getReportReasons = () => [
   'Scam / Fraud',
   'Fake profile',
   'Harassment',
@@ -42,7 +46,7 @@ const REPORT_REASONS = [
   'Sent unsolicited content',
   'Wrong gender shown',
   'Multiple accounts',
-  'Other',
+  t('profile.userdetails.other'),
 ];
 
 interface UserDetailsProps {
@@ -62,8 +66,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   requestRole,
   requestStatus,
 }) => {
+  useTranslation();
   const hiddenLanguages = new Set(['telugu']);
-  const hiddenLookingForValues = new Set(['long-term relationship']);
+  const hiddenLookingForValues = new Set([t('profile.userdetails.long_term_relationship')]);
   const capitalizeLabel = (value: string) =>
     value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
   const navigation = useNavigation<any>();
@@ -110,36 +115,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       onSuccess: () => {
         connection.refreshAll();
         alert('Request Approved', 'This connection is approved. Telegram contact is now available when connected.', [
-          { text: 'Done', onPress: () => navigation.goBack() },
+          { text: t('profile.userdetails.done'), onPress: () => navigation.goBack() },
         ]);
       },
       onError: (error: any) => {
-        alert("Couldn't approve invitation", getUserFriendlyMessage(error, 'We could not approve this invitation right now.'));
+        alert("Couldn't approve invitation", getUserFriendlyMessage(error, t('profile.userdetails.we_could_not_approve_this_invitation_right_now')));
       },
     });
   };
 
   const handleOpenTelegram = (username?: string) => {
-    if (!username) {
-      alert('Telegram not connected', 'They have not connected Telegram yet. You can still keep in touch here.');
-      return;
-    }
-    const cleanUsername = username.replace('@', '');
-    const url = `https://t.me/${cleanUsername}`;
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          alert('Open Link', `Open in browser: ${url}`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open', onPress: () => Linking.openURL(url) },
-          ]);
-        }
-      })
-      .catch(() => {
-        Linking.openURL(url);
-      });
+    openTelegramChat(username);
   };
 
   const handleShareTelegram = async (username?: string) => {
@@ -150,7 +136,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     const cleanUsername = username.replace('@', '');
     try {
       await Share.share({
-        message: `@${cleanUsername} (https://t.me/${cleanUsername})`,
+        message: t('profile.userdetails.https_t_me', { cleanUsername }),
       });
     } catch {
       // User dismissed share dialog
@@ -164,7 +150,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     }
 
     if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
+      return value ? t('profile.userdetails.yes') : t('profile.userdetails.no');
     }
 
     if (typeof value === 'string') {
@@ -251,7 +237,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             profile.displayName ||
             name ||
             displayName,
-          'User'
+          t('home.usercard.user')
         )
       : normalizeTextValue(
           resolvedProfile?.name ||
@@ -259,9 +245,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             profile.name ||
             profile.displayName ||
             cardUserName,
-          'User'
+          t('home.usercard.user')
         )
-  ).replace(/,\s*\d+$/, '').trim() || 'User';
+  ).replace(/,\s*\d+$/, '').trim() || t('home.usercard.user');
 
   const displayAge = isOwnProfile
     ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge || 25))
@@ -304,8 +290,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const visibleLookingFor = normalizeTextValue(
     resolvedProfile?.lookingFor || profile?.lookingFor,
     isOwnProfile
-      ? (Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || 'Relationship'))
-      : 'Long-term',
+      ? (Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || t('profile.userdetails.relationship')))
+      : t('profile.viewmyprofilescreen.long_term'),
   )
     .split(',')
     .map((value) => value.trim())
@@ -314,7 +300,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     .join(', ');
   const locationText = normalizeTextValue(
     resolvedProfile?.currentCity || profile?.currentCity,
-    isOwnProfile ? 'Your location' : 'Nearby'
+    isOwnProfile ? t('profile.userdetails.your_location') : t('home.usercard.nearby')
+  );
+  const distanceRaw = resolvedProfile?.distance || profile?.distance;
+  const distanceText = distanceRaw
+    ? (String(distanceRaw).toLowerCase().includes('away') ? String(distanceRaw) : t('home.usercard.away', { trimmed: distanceRaw }))
+    : '21 km away';
+  const cityText = normalizeTextValue(
+    resolvedProfile?.currentCity || profile?.currentCity,
+    'Dattatreya Ward, Bengaluru'
   );
   const canAttemptInvite = Boolean(resolvedTargetUserId);
 
@@ -352,8 +346,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       });
       Toast.show({
         type: 'error',
-        text1: 'User unavailable',
-        text2: 'This profile cannot be invited right now.',
+        text1: t('profile.userdetails.user_unavailable'),
+        text2: t('profile.userdetails.this_profile_cannot_be_invited_right_now'),
       });
       return;
     }
@@ -362,28 +356,28 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       const token = await getAuthToken();
       Toast.show({
         type: 'error',
-        text1: 'Account Sync Needed',
+        text1: t('profile.userdetails.account_sync_needed'),
         text2: token
-          ? 'Your login is missing a valid account id from the server.'
-          : 'Please log in again and try once more.',
+          ? t('profile.userdetails.your_login_is_missing_a_valid_account_id_from_the_server')
+          : t('profile.userdetails.please_log_in_again_and_try_once_more'),
       });
       return;
     }
 
     const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (normalizeId(resolvedTargetUserId) === normalizeId(activeCurrentUserId)) {
-      Toast.show({ type: 'error', text1: 'Action not allowed', text2: 'You cannot invite yourself.' });
+      Toast.show({ type: 'error', text1: t('profile.userdetails.action_not_allowed'), text2: t('profile.userdetails.you_cannot_invite_yourself') });
       return;
     }
 
     if (isAlreadyInvited) {
-        Toast.show({ type: 'info', text1: 'Already invited!' });
+        Toast.show({ type: 'info', text1: t('profile.userdetails.already_invited') });
         return;
     }
 
     const inviteData = {
         receiverId: resolvedTargetUserId,
-        name: finalDisplayName || "Guest",
+        name: finalDisplayName || t('profile.userdetails.guest'),
         age: displayAge || 25,
         image: selectedUserImage || '',
     };
@@ -397,7 +391,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       onSuccess: () => {
         connection.sentList.refetch();
         connection.refreshAll();
-        Toast.show({ type: 'success', text1: 'Invitation sent!' });
+        Toast.show({ type: 'success', text1: t('profile.userdetails.invitation_sent') });
       },
       onError: (error: any) => {
         if (isSubscriptionGateError(error)) {
@@ -406,8 +400,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         }
         Toast.show({
           type: 'error',
-          text1: 'Invite failed',
-          text2: getUserFriendlyMessage(error, 'Please try again in a moment.'),
+          text1: t('profile.userdetails.invite_failed'),
+          text2: getUserFriendlyMessage(error, t('profile.userdetails.please_try_again_in_a_moment')),
         });
       },
     });
@@ -422,15 +416,20 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
-  const handleOpenReportModal = () => {
-    if (!resolvedTargetUserId || !currentUserId) {
-      Toast.show({ type: 'error', text1: 'User unavailable' });
+  const handleOpenReportModal = async () => {
+    let activeBy = currentUserId ? String(currentUserId).trim() : '';
+    if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+      activeBy = String((await getUserId()) || (await repairStoredSessionIdentity()) || '');
+    }
+
+    if (!resolvedTargetUserId || !activeBy) {
+      Toast.show({ type: 'error', text1: t('profile.userdetails.user_unavailable') });
       return;
     }
 
     const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    if (normalizeId(resolvedTargetUserId) === normalizeId(currentUserId)) {
-      Toast.show({ type: 'error', text1: 'Action not allowed', text2: 'You cannot report your own profile.' });
+    if (normalizeId(resolvedTargetUserId) === normalizeId(activeBy)) {
+      Toast.show({ type: 'error', text1: t('profile.userdetails.action_not_allowed'), text2: t('profile.userdetails.you_cannot_report_your_own_profile') });
       return;
     }
 
@@ -443,12 +442,27 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     setReportModalVisible(true);
   };
 
-  const handleBlockOnly = () => {
+  const handleBlockOnly = async () => {
+    let activeBy = currentUserId ? String(currentUserId).trim() : '';
+    if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+      activeBy = String((await getUserId()) || (await repairStoredSessionIdentity()) || '');
+    }
+
+    const activeTarget = resolvedTargetUserId ? String(resolvedTargetUserId).trim() : '';
+    if (activeTarget && activeBy) {
+      await saveBlockedUser(activeBy, activeTarget);
+      try {
+        await reportApi.block.mutateAsync({ byUserId: activeBy, targetUserId: activeTarget });
+      } catch (err) {
+        console.warn('Block request warning:', err);
+      }
+    }
+
     setReportModalVisible(false);
     Toast.show({
       type: 'success',
-      text1: 'User blocked',
-      text2: 'This user has been blocked.',
+      text1: t('profile.userdetails.user_blocked'),
+      text2: t('profile.userdetails.this_user_has_been_blocked'),
     });
     navigation.goBack();
   };
@@ -482,20 +496,36 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     setIsDetailsExpanded(true);
   };
 
-  const handleReportAndBlock = () => {
+  const handleReportAndBlock = async () => {
     if (!selectedReason) {
-      Toast.show({ type: 'error', text1: 'Please select a reason' });
+      Toast.show({ type: 'error', text1: t('profile.userdetails.please_select_a_reason') });
       return;
     }
+
+    let activeBy = currentUserId ? String(currentUserId).trim() : '';
+    if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+      activeBy = String((await getUserId()) || (await repairStoredSessionIdentity()) || '');
+    }
+
+    const activeTarget = resolvedTargetUserId ? String(resolvedTargetUserId).trim() : '';
+    if (!activeTarget || activeTarget === 'undefined' || activeTarget === 'null') {
+      Toast.show({ type: 'error', text1: t('profile.userdetails.target_user_unavailable') });
+      return;
+    }
+
+    if (activeTarget && activeBy) {
+      await saveBlockedUser(activeBy, activeTarget);
+    }
+
     setIsSubmittingReport(true);
     reportApi.report.mutate(
       {
-        byUserId: String(currentUserId),
-        targetUserId: String(resolvedTargetUserId),
+        byUserId: activeBy,
+        targetUserId: activeTarget,
         reason: selectedReason,
         message: additionalDetails.trim()
-          ? `Reported: ${finalDisplayName || 'User'}. Reason: ${selectedReason}. Details: ${additionalDetails.trim()}`
-          : `Reported: ${finalDisplayName || 'User'}. Reason: ${selectedReason}.`,
+          ? t('profile.userdetails.reported_reason_details', { finalDisplayName: finalDisplayName || 'User', selectedReason, additionalDetails: additionalDetails.trim() })
+          : t('profile.userdetails.reported_reason', { finalDisplayName: finalDisplayName || 'User', selectedReason }),
       },
       {
         onSuccess: () => {
@@ -503,8 +533,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           setReportModalVisible(false);
           Toast.show({
             type: 'success',
-            text1: 'Report submitted',
-            text2: 'Thank you. The user has been reported and blocked.',
+            text1: t('profile.userdetails.report_submitted'),
+            text2: t('profile.userdetails.thank_you_the_user_has_been_reported_and_blocked'),
           });
           navigation.goBack();
         },
@@ -512,8 +542,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           setIsSubmittingReport(false);
           Toast.show({
             type: 'error',
-            text1: 'Report failed',
-            text2: getUserFriendlyMessage(err, 'Unable to submit report. Please try again.'),
+            text1: t('profile.userdetails.report_failed'),
+            text2: getUserFriendlyMessage(err, t('profile.userdetails.unable_to_submit_report_please_try_again')),
           });
         },
       }
@@ -522,7 +552,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const DetailPill = ({ icon, text }: { icon?: string; text: string }) => (
     <View style={styles.pill}>
-      {icon ? <Icon name={icon} size={16} color={Colors.textSecondary} style={styles.pillIcon} /> : null}
+      {icon ? <Icon name={icon} size={16} color={themeColors.textSecondary || Colors.textSecondary} style={styles.pillIcon} /> : null}
       <Text style={styles.pillText}>{text}</Text>
     </View>
   );
@@ -532,51 +562,79 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       {/* Header Info */}
       <View style={styles.headerArea}>
         <View style={styles.nameRow}>
-          <Text style={styles.nameText}>{finalDisplayName || "User"}, {displayAge}</Text>
-          <View style={styles.verifiedBadge}>
-            <Icon name="check-decagram-outline" size={16} color={Colors.primaryLight} style={styles.verifiedIcon} />
-            <Text style={styles.verifiedText}>You're verified by photo!</Text>
-          </View>
+          <Text style={styles.nameText}>{finalDisplayName || t('home.usercard.user')}, {displayAge}</Text>
+          {isOwnProfile ? (
+            <View style={styles.verifiedBadge}>
+              <Icon name="check-decagram-outline" size={16} color={Colors.primaryLight} style={styles.verifiedIcon} />
+              <Text style={styles.verifiedText}>{t('profile.userdetails.youre_verified_by_photo')}</Text>
+            </View>
+          ) : (
+            <Icon name="check-circle" size={19} color={themeColors.primary || '#7C3AED'} style={{ marginLeft: 6 }} />
+          )}
         </View>
 
-        <Text style={styles.bioText}>
-          {resolvedProfile?.bio || profile?.bio || (isOwnProfile ? (profileText || "I am good enough for every good thing you can imagine..") : "Looking for meaningful connections.")}
-        </Text>
+        {!isOwnProfile && (
+          <View style={styles.metaInfoRow}>
+            <View style={styles.metaItem}>
+              <Icon name="clock-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
+              <Text style={styles.metaText}>{t('profile.userdetails.active_today')}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Icon name="map-marker-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
+              <Text style={styles.metaText}>{distanceText}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Icon name="office-building-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
+              <Text style={styles.metaText} numberOfLines={1}>{cityText}</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.bioBlock}>
+          <Text style={styles.sectionTitle}>{t('more_info.header.about_me')}</Text>
+          <Text style={styles.bioText}>
+            {resolvedProfile?.bio || profile?.bio || (isOwnProfile ? (profileText || t('profile.userdetails.i_am_good_enough_for_every_good_thing_you_can_imagine')) : "Dm for vc only")}
+          </Text>
+        </View>
       </View>
 
-      {/* About Me / Details Section */}
+      {/* Details Section */}
       <View style={styles.section}>
         <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>About me</Text>
+          <Text style={styles.sectionTitle}>{t('profile.userdetails.details')}</Text>
           {isOwnProfile && (
             <TouchableOpacity
               onPress={() => navigation.navigate('MoreInfoScreen')}
               style={styles.editSectionBtn}
               activeOpacity={0.8}
             >
-              <Text style={styles.editSectionText}>Edit</Text>
+              <Text style={styles.editSectionText}>{t('profile.userdetails.edit')}</Text>
             </TouchableOpacity>
           )}
         </View>
         <View style={styles.pillsContainer}>
-          <DetailPill icon="tape-measure" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '171') : '171')} cm`} />
-          <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || "Slim") : "Slim"))} />
-          <DetailPill icon="emoticon-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || "Attractive") : "Attractive"))} />
-          <DetailPill icon="account-group-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || "Asian") : "Asian"))} />
-          <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || 'Sometimes') : 'Sometimes'))} />
-          <DetailPill text={`English Fluency: ${capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Basic') : 'Basic'))}`} />
-          <DetailPill icon="baby-face-outline" text={`Kids: ${normalizeTextValue(resolvedProfile?.kids || profile?.kids, "Prefer not to say")}`} />
-          <DetailPill icon="currency-usd" text={normalizeTextValue(resolvedProfile?.netWorth || profile?.netWorth, "Below 50k")} />
+          <DetailPill icon="tape-measure" text={t('more_info.heightselector.cm', { currentHeight: normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '160') : '160') })} />
+          <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || t('profile.userdetails.slim')) : t('profile.userdetails.slim')))} />
+          <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || t('profile.userdetails.attractive')) : t('profile.userdetails.attractive')))} />
+          <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || t('profile.userdetails.other')) : t('profile.userdetails.other')))} />
+          <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || t('profile.userdetails.no')) : t('profile.userdetails.no')))} />
+          <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Medium') : 'Medium')) })} />
+          <DetailPill icon="baby-face-outline" text={t('profile.userdetails.kids', { normalizeTextValue: normalizeTextValue(resolvedProfile?.kids || profile?.kids, "0") })} />
+          {resolvedProfile?.netWorth || profile?.netWorth ? (
+            <DetailPill icon="currency-usd" text={normalizeTextValue(resolvedProfile?.netWorth || profile?.netWorth, "Below 50k")} />
+          ) : null}
         </View>
       </View>
 
       {/* Languages Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Languages</Text>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>{t('profile.userdetails.languages')}</Text>
+        </View>
         <View style={styles.pillsContainer}>
-          {(resolvedLanguages && resolvedLanguages.length > 0 ? resolvedLanguages : ['English']).map((lang: string) => (
+          {(resolvedLanguages && resolvedLanguages.length > 0 ? resolvedLanguages : [t('profile.userdetails.english')]).map((lang: string) => (
             <View key={lang} style={styles.pill}>
-              <Text style={styles.flagEmoji}>🇬🇧</Text>
+              <Text style={styles.flagEmoji}>{getLanguageFlag(lang)}</Text>
               <Text style={styles.pillText}>{capitalizeLabel(lang)}</Text>
             </View>
           ))}
@@ -585,11 +643,16 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
       {/* Looking For Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Looking for</Text>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>{t('profile.userdetails.looking_for')}</Text>
+        </View>
         <View style={styles.pillsContainer}>
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>{visibleLookingFor || 'Relationship'}</Text>
-          </View>
+          {(visibleLookingFor ? visibleLookingFor.split(',').map((item) => item.trim()).filter(Boolean) : [t('profile.userdetails.casual_dating')]).map((item) => (
+            <View key={item} style={styles.pill}>
+              <Icon name="heart-outline" size={16} color={themeColors.primary || Colors.primary} style={styles.pillIcon} />
+              <Text style={styles.pillText}>{item}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -612,26 +675,27 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                   {connection.accept.isPending ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.inviteText}>Approve Request</Text>
+                    <Text style={styles.inviteText}>{t('profile.userdetails.approve_request')}</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
             ) : null}
+
             <TouchableOpacity 
               activeOpacity={0.7} 
               style={styles.reportBtn} 
               onPress={handleOpenReportModal}
             >
-                 <Feather name="alert-triangle" size={16} color={themeColors.textSecondary || '#94A3B8'} style={{ marginRight: 2 }} />
-                 <Text style={styles.reportText}>Report this profile</Text>
+              <Feather name="alert-triangle" size={16} color={themeColors.textSecondary || '#94A3B8'} style={{ marginRight: 6 }} />
+              <Text style={styles.reportText}>{t('profile.userdetails.report_this_profile')}</Text>
             </TouchableOpacity>
 
             {isAlreadyInvited && !isApprovedInvitation ? (
-              <Text style={styles.pendingInvitationText}>Invitation pending approval</Text>
+              <Text style={styles.pendingInvitationText}>{t('profile.userdetails.invitation_pending_approval')}</Text>
             ) : isApprovedInvitation ? (
               <View style={styles.approvedTelegramContainer}>
                 <View style={styles.approvedTelegramInfoBox}>
-                  <Text style={styles.approvedTelegramLabel}>TELEGRAM CONTACT</Text>
+                  <Text style={styles.approvedTelegramLabel}>{t('profile.userdetails.telegram_contact')}</Text>
                   <Text selectable={true} style={styles.approvedTelegramHandle}>
                     {targetTelegramUsername ? `@${targetTelegramUsername.replace('@', '')}` : 'Not connected'}
                   </Text>
@@ -649,7 +713,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                       style={styles.telegramGradient}
                     >
                       <Icon name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
-                      <Text style={styles.openTelegramBtnText}>Open Telegram</Text>
+                      <Text style={styles.openTelegramBtnText}>{t('profile.userdetails.open_telegram')}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                   {targetTelegramUsername ? (
@@ -664,37 +728,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                   ) : null}
                 </View>
               </View>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={styles.inviteBtnWrapper}
-                onPress={handleInvite}
-                disabled={!canAttemptInvite || isAlreadyInvited || connection.send.isPending}
-              >
-                <LinearGradient
-                  colors={(!canAttemptInvite || isAlreadyInvited) ? [Colors.disabled, Colors.disabled] : [Colors.primary, Colors.primaryLight]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.inviteBtn}
-                >
-                  {connection.send.isPending ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Icon
-                        name={!canAttemptInvite ? "lock-outline" : isAlreadyInvited ? "check-all" : "heart-flash"}
-                        size={22}
-                        color="#fff"
-                        style={styles.inviteIcon}
-                      />
-                      <Text style={styles.inviteText}>
-                        {!canAttemptInvite ? "Invite Unavailable" : isAlreadyInvited ? "Connected" : "Invite Now"}
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
+            ) : null}
         </View>
       )}
 
@@ -709,23 +743,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           <View style={styles.reportModalCard}>
             {reportStep === 'INITIAL' ? (
               <View>
-                <Text style={styles.reportModalTitle}>Report and block this user</Text>
+                <Text style={styles.reportModalTitle}>{t('profile.userdetails.report_and_block_this_user')}</Text>
                 
-                <Text style={styles.reportModalParagraph}>
-                  We are committed to maintaining a safe and respectful community. If you have experienced any issues or inappropriate behavior with this user, please report them to us.
-                </Text>
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.we_are_committed_to_maintaining_a_safe_and_respectful_community_if_you')}</Text>
 
-                <Text style={styles.reportModalParagraph}>
-                  Blocking this user will prevent them from seeing your profile or contacting you on Amara.
-                </Text>
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.blocking_this_user_will_prevent_them_from_seeing_your_profile_or_conta')}</Text>
 
-                <Text style={styles.reportModalParagraph}>
-                  To help us take appropriate action, please provide as much detail as possible about why you are reporting this user.
-                </Text>
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.to_help_us_take_appropriate_action_please_provide_as_much_detail_as_po')}</Text>
 
-                <Text style={styles.reportModalParagraph}>
-                  Thank you for helping us keep Amara a safe and welcoming space for everyone.
-                </Text>
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.thank_you_for_helping_us_keep_amara_a_safe_and_welcoming_space_for_eve')}</Text>
 
                 <View style={styles.reportBtnStack}>
                   <TouchableOpacity
@@ -733,7 +759,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     style={styles.blockOnlyBtn}
                     onPress={handleBlockOnly}
                   >
-                    <Text style={styles.blockOnlyBtnText}>Block only</Text>
+                    <Text style={styles.blockOnlyBtnText}>{t('profile.userdetails.block_only')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -741,7 +767,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     style={styles.coralPillBtn}
                     onPress={() => setReportStep('REASONS')}
                   >
-                    <Text style={styles.coralPillBtnText}>Report & Block</Text>
+                    <Text style={styles.coralPillBtnText}>{t('profile.userdetails.report_block')}</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -749,13 +775,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     style={styles.modalCancelBtn}
                     onPress={() => setReportModalVisible(false)}
                   >
-                    <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                    <Text style={styles.modalCancelBtnText}>{t('profile.additionaluploadsection.cancel')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <View style={{ maxHeight: '90%' }}>
-                <Text style={styles.reportModalTitle}>Why are you reporting?</Text>
+                <Text style={styles.reportModalTitle}>{t('profile.userdetails.why_are_you_reporting')}</Text>
 
                 <ScrollView showsVerticalScrollIndicator={false} style={styles.reportScrollArea}>
                   {/* Reason Accordion */}
@@ -765,7 +791,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     onPress={() => setIsReasonExpanded(!isReasonExpanded)}
                   >
                     <View style={styles.accordionHeaderLeft}>
-                      <Text style={styles.accordionTitle}>Reason</Text>
+                      <Text style={styles.accordionTitle}>{t('profile.userdetails.reason')}</Text>
                       {selectedReason && (
                         <Text style={styles.accordionSelectedReasonText} numberOfLines={1}>
                           ✓ {selectedReason}
@@ -781,7 +807,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
                   {isReasonExpanded && (
                     <View style={styles.reasonsList}>
-                      {REPORT_REASONS.map((reason, index) => {
+                      {getReportReasons().map((reason, index) => {
                         const isSelected = selectedReason === reason;
                         return (
                           <TouchableOpacity
@@ -789,7 +815,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                             activeOpacity={0.7}
                             style={[
                               styles.reasonRow,
-                              index === REPORT_REASONS.length - 1 && { borderBottomWidth: 0 },
+                              index === getReportReasons().length - 1 && { borderBottomWidth: 0 },
                             ]}
                             onPress={() => handleSelectReason(reason)}
                           >
@@ -816,7 +842,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     style={[styles.accordionHeader, { marginTop: 12 }]}
                     onPress={() => setIsDetailsExpanded(!isDetailsExpanded)}
                   >
-                    <Text style={styles.accordionTitle}>Additional details</Text>
+                    <Text style={styles.accordionTitle}>{t('profile.userdetails.additional_details')}</Text>
                     <Feather
                       name={isDetailsExpanded ? 'chevron-up' : 'chevron-down'}
                       size={20}
@@ -832,7 +858,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                           multiline={true}
                           numberOfLines={3}
                           maxLength={1023}
-                          placeholder="Description"
+                          placeholder={t('profile.userdetails.description')}
                           placeholderTextColor={themeColors.placeholder || '#94A3B8'}
                           value={additionalDetails}
                           onChangeText={setAdditionalDetails}
@@ -843,9 +869,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                         {additionalDetails.length} / 1023
                       </Text>
 
-                      <Text style={styles.evidencePhotosTitle}>
-                        Evidence photos (optional)
-                      </Text>
+                      <Text style={styles.evidencePhotosTitle}>{t('profile.userdetails.evidence_photos_optional')}</Text>
 
                       <View style={styles.photoSlotsRow}>
                         {[0, 1, 2].map((slotIndex) => {
@@ -905,7 +929,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     {isSubmittingReport ? (
                       <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : (
-                      <Text style={styles.coralPillBtnText}>Report & Block</Text>
+                      <Text style={styles.coralPillBtnText}>{t('profile.userdetails.report_block')}</Text>
                     )}
                   </TouchableOpacity>
 
@@ -914,7 +938,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     style={styles.modalCancelBtn}
                     onPress={() => setReportStep('INITIAL')}
                   >
-                    <Text style={styles.modalCancelBtnText}>Back</Text>
+                    <Text style={styles.modalCancelBtnText}>{t('profile.userdetails.back')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -964,8 +988,32 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     fontWeight: '600',
     color: colors.primaryLight,
   },
+  metaInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaIcon: {
+    marginRight: 4,
+  },
+  metaText: {
+    fontSize: 13,
+    color: colors.textSecondary || '#94A3B8',
+    fontWeight: '500',
+  },
+  bioBlock: {
+    marginTop: 10,
+    marginBottom: 4,
+  },
   section: {
-    marginBottom: 22,
+    marginBottom: 28,
   },
   sectionTitle: {
     fontSize: isCompactDevice ? 17 : 18.5,
@@ -976,7 +1024,7 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   editSectionBtn: {
     backgroundColor: colors.primary,
@@ -1001,7 +1049,7 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
   pillsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
     width: '100%',
   },
   pill: {
@@ -1011,21 +1059,21 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     backgroundColor: colors.surfaceLight,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    borderRadius: 22,
-    paddingHorizontal: isCompactDevice ? 12 : 14,
-    paddingVertical: 8.5,
+    borderRadius: 24,
+    paddingHorizontal: isCompactDevice ? 14 : 16,
+    paddingVertical: 9.5,
   },
   pillIcon: {
-    marginRight: 6,
+    marginRight: 7,
   },
   flagEmoji: {
-    fontSize: 14,
-    marginRight: 6,
+    fontSize: 16,
+    marginRight: 8,
   },
   pillText: {
     fontSize: isCompactDevice ? 13.5 : 14,
     color: colors.text,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   actionSection: {
     gap: 16,
@@ -1035,14 +1083,11 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 52,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    gap: 8,
+    paddingVertical: 14,
+    gap: 6,
   },
   reportText: {
-    color: colors.textMuted,
+    color: colors.textSecondary || '#94A3B8',
     fontSize: 14.5,
     fontWeight: '600',
   },

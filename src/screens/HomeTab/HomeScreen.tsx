@@ -23,9 +23,14 @@ const HomeScreen = () => {
     filteredProfiles,
     setFilteredProfiles,
     setShowMe,
+    hydrateSavedFilters,
   } = useContext(AppContext);
   const [currentUserGender, setCurrentUserGender] = useState<'man' | 'woman' | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  useEffect(() => {
+    hydrateSavedFilters().catch(() => {});
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

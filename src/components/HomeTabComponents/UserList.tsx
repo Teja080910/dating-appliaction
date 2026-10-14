@@ -1,13 +1,17 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
 import { useDiscovery } from '../../api/useDiscovery';
 import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
-import { getSavedSearchFilters } from '../../utils/types/AsyncStorage';
+import { getSavedSearchFilters, getLocalBlockedUsers } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing, useTheme } from '../../theme';
 import { useResponsive } from '../../utils/responsive';
+import { t, useTranslation } from '../../i18n';
 
 
 interface HomeUserListProps {
@@ -23,6 +27,9 @@ const hasActiveSearchFilters = (saved: any): boolean => {
   if (!saved || typeof saved !== 'object') return false;
   return Boolean(
     saved.isFilterActive === true ||
+    saved.showMe === 'straight_man' ||
+    saved.showMe === 'both' ||
+    (Array.isArray(saved.gender) && (saved.gender.includes(t('home.userlist.male')) || saved.gender.length > 1)) ||
     (saved.minAge !== undefined && (saved.minAge !== 18 || saved.maxAge !== 40)) ||
     (saved.minHeight !== undefined && (saved.minHeight !== 120 || saved.maxHeight !== 200)) ||
     (Array.isArray(saved.bodyType) && saved.bodyType.length > 0) ||
@@ -33,7 +40,7 @@ const hasActiveSearchFilters = (saved: any): boolean => {
     (Array.isArray(saved.lookingFor) && saved.lookingFor.length > 0) ||
     saved.smoke !== undefined ||
     saved.drink !== undefined ||
-    (saved.location && saved.location !== 'My current location' && saved.location !== 'Mumbai, India') ||
+    (saved.location && saved.location !== t('search.location.my_current_location') && saved.location !== 'Mumbai, India') ||
     saved.worldwide === true ||
     (saved.maxDistanceKm !== undefined && saved.maxDistanceKm < 50)
   );
@@ -99,26 +106,63 @@ const parseUserCollection = (data: any) =>
   (Array.isArray(data?.data) ? data.data : null) ||
   (Array.isArray(data) ? data : []);
 
-const matchesGenderSelection = (item: any, selectedGender: string | null) => {
+const matchesGenderSelection = (
+  item: any,
+  selectedGender: string | null,
+  activeGenders?: string[] | null
+) => {
   const gender = normalizeText(item?.profile?.gender || item?.gender);
-  if (selectedGender === 'straight_man') return gender === 'man' || gender === 'male';
-  // PRD FR-12 & BR-04: Men see women only. Browse grid defaults to women's profiles.
-  return gender === 'woman' || gender === 'female';
+  const isMan = gender === 'man' || gender === 'male';
+  const isWoman = gender === 'woman' || gender === 'female';
+
+  if (activeGenders && activeGenders.length > 0) {
+    const wantsMen = activeGenders.some((g) => {
+      const s = String(g).toLowerCase().trim();
+      return s === 'male' || s === 'man' || s === 'straight_man' || (s.includes('male') && !s.includes('female')) || (s.includes('man') && !s.includes('woman')) || s === 'both';
+    });
+    const wantsWomen = activeGenders.some((g) => {
+      const s = String(g).toLowerCase().trim();
+      return s === 'female' || s === 'woman' || s === 'straight_woman' || s.includes('female') || s.includes('woman') || s === 'both';
+    });
+    if (wantsMen && wantsWomen) return isMan || isWoman;
+    if (wantsMen) return isMan;
+    if (wantsWomen) return isWoman;
+  }
+
+  if (selectedGender === 'both') return isMan || isWoman;
+  if (selectedGender === 'straight_man') return isMan;
+  return isWoman;
 };
 
 const keepInvitableProfiles = (items: any[]) =>
   items.filter((item) => resolveProfileUserId(item));
+
+const isBlockedProfile = (item: any, blockedIds: string[]): boolean => {
+  if (!blockedIds || blockedIds.length === 0) return false;
+  const uid = String(resolveProfileUserId(item) || '').trim();
+  const itemId = String(item?.id || '').trim();
+  const itemUserId = String(item?.userId || item?.profile?.userId || '').trim();
+  return (
+    (Boolean(uid) && blockedIds.includes(uid)) ||
+    (Boolean(itemId) && blockedIds.includes(itemId)) ||
+    (Boolean(itemUserId) && blockedIds.includes(itemUserId))
+  );
+};
 
 const UserList = ({
   filterByGender,
   mode = 'online',
   filteredProfiles = null,
 }: HomeUserListProps) => {
+  useTranslation();
+  const insets = useSafeAreaInsets();
   const { filterUsers, searchUsers } = useDiscovery();
   const { width, columns, getCardWidth } = useResponsive();
   const {
     showMe,
     authUserId,
+    resetSearchFilters,
+    setFilteredProfiles,
   } = useContext(AppContext);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,6 +170,29 @@ const UserList = ({
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [resolvedBackendUserId, setResolvedBackendUserId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleResetFilters = async () => {
+    try {
+      setLoading(true);
+      await resetSearchFilters();
+      setFilteredProfiles(null);
+      setRefreshKey((prev) => prev + 1);
+    } catch (e) {
+      console.error('Failed to reset search filters:', e);
+    }
+  };
+
+  const handleRefresh = () => {
+    setLoading(true);
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setRefreshKey((prev) => prev + 1);
+    }, [])
+  );
 
   const filterUsersMutationRef = useRef(filterUsers.mutateAsync);
   const searchUsersMutationRef = useRef(searchUsers.mutateAsync);
@@ -163,7 +230,7 @@ const UserList = ({
             const searchPayload: Record<string, any> = {
               ...savedFilters,
               userId: resolvedUserId || undefined,
-              gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
+              gender: savedFilters?.gender || (selectedGender === 'straight_man' ? [t('home.userlist.male')] : [t('home.userlist.female')]),
               onlyOnline: mode === 'online',
               sortBy: mode === 'online' ? 'active' : 'createdAt',
               page: 0,
@@ -212,8 +279,13 @@ const UserList = ({
           } catch {}
         }
 
-        const genderMatched = items.filter((item) =>
-          matchesGenderSelection(item, selectedGender) &&
+        const activeGenders =
+          savedFilters?.gender ||
+          (savedFilters?.showMe ? [savedFilters.showMe] : (showMe ? [showMe] : null));
+        const blockedUserIds = await getLocalBlockedUsers(resolvedUserId);
+        const unblockedItems = items.filter((item) => !isBlockedProfile(item, blockedUserIds));
+        const genderMatched = unblockedItems.filter((item) =>
+          matchesGenderSelection(item, selectedGender, activeGenders) &&
           (mode !== 'online' || item?.online === true || item?.profile?.online === true)
         );
         const invitable = keepInvitableProfiles(genderMatched);
@@ -247,7 +319,7 @@ const UserList = ({
 
     fetchMatches();
     return () => { isMounted = false; };
-  }, [mode, filterByGender, showMe, resolvedBackendUserId, filteredProfiles]);
+  }, [mode, filterByGender, showMe, resolvedBackendUserId, filteredProfiles, refreshKey]);
 
   const handleLoadMore = async () => {
     if (loading || loadingMore || !hasMore || profiles.length < 10) return;
@@ -264,7 +336,7 @@ const UserList = ({
         const searchPayload: Record<string, any> = {
           ...savedFilters,
           userId: resolvedUserId || undefined,
-          gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
+          gender: savedFilters?.gender || (selectedGender === 'straight_man' ? [t('home.userlist.male')] : [t('home.userlist.female')]),
           onlyOnline: mode === 'online',
           sortBy: mode === 'online' ? 'active' : 'createdAt',
           page: nextPage,
@@ -283,8 +355,13 @@ const UserList = ({
         setHasMore(false);
       } else {
         const selectedGender = filterByGender || 'straight_woman';
-        const genderMatched = newItems.filter((item: any) =>
-          matchesGenderSelection(item, selectedGender)
+        const activeGenders =
+          savedFilters?.gender ||
+          (savedFilters?.showMe ? [savedFilters.showMe] : (showMe ? [showMe] : null));
+        const blockedUserIds = await getLocalBlockedUsers(resolvedUserId);
+        const unblockedItems = newItems.filter((item: any) => !isBlockedProfile(item, blockedUserIds));
+        const genderMatched = unblockedItems.filter((item: any) =>
+          matchesGenderSelection(item, selectedGender, activeGenders)
         );
         const invitable = keepInvitableProfiles(genderMatched);
         const finalItems = resolvedBackendUserId
@@ -333,12 +410,22 @@ const UserList = ({
 
   return (
     <FlatList
+      style={styles.list}
       key={`userlist-cols-${columns}`}
       data={profiles}
       numColumns={columns}
       keyExtractor={(item, index) => item?.userId || item?.id?.toString() || index.toString()}
       columnWrapperStyle={columns > 1 ? styles.row : undefined}
-      contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}
+      contentContainerStyle={[
+        styles.container,
+        profiles.length === 0 && styles.emptyContainer,
+        {
+          backgroundColor: themeColors.background,
+          paddingBottom: Math.max(insets.bottom, 16) + 110,
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       onEndReached={hasMore && profiles.length >= 10 ? handleLoadMore : null}
       onEndReachedThreshold={0.2}
       ListFooterComponent={
@@ -350,7 +437,7 @@ const UserList = ({
       }
       renderItem={({ item }) => {
         const profile = item?.profile || item;
-        const rawName = String(profile?.name || profile?.displayName || item?.name || 'User');
+        const rawName = String(profile?.name || profile?.displayName || item?.name || t('home.usercard.user'));
         const cleanName = rawName.replace(/,\s*\d+$/, '').trim();
         const safeAge = profile?.age || item?.age || '24';
         return (
@@ -359,7 +446,7 @@ const UserList = ({
             name={cleanName}
             age={safeAge}
             image={resolveHomeCardImage(item)}
-            distance={profile?.currentCity || profile?.city || 'Nearby'}
+            distance={profile?.currentCity || profile?.city || t('home.usercard.nearby')}
             isOnline={profile?.online === true}
             isNew={mode === 'newest'}
             profileData={item}
@@ -369,11 +456,28 @@ const UserList = ({
         );
       }}
       ListEmptyComponent={
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>
-            No {mode === 'online' ? 'online' : 'new'} profiles found.
-          </Text>
-        </View>
+        loading ? null : (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyTitle}>
+              No profiles found. Try adjusting your{'\n'}search settings.
+            </Text>
+            <TouchableOpacity
+              style={styles.resetButton}
+              activeOpacity={0.85}
+              onPress={handleResetFilters}
+            >
+              <MaterialCommunityIcons name="reload" size={18} color="#FFFFFF" style={styles.resetIcon} />
+              <Text style={styles.resetButtonText}>{t('home.userlist.reset_filters')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.refreshButton}
+              activeOpacity={0.7}
+              onPress={handleRefresh}
+            >
+              <Text style={styles.refreshButtonText}>{t('home.userlist.refresh')}</Text>
+            </TouchableOpacity>
+          </View>
+        )
       }
     />
   );
@@ -383,6 +487,9 @@ export default UserList;
 
 const createStyles = (colors: any) =>
   StyleSheet.create({
+    list: {
+      flex: 1,
+    },
     row: {
       justifyContent: 'flex-start',
       gap: 12,
@@ -393,6 +500,11 @@ const createStyles = (colors: any) =>
       paddingBottom: 100,
       backgroundColor: colors.background,
     },
+    emptyContainer: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     loader: {
       flex: 1,
       justifyContent: 'center',
@@ -400,13 +512,48 @@ const createStyles = (colors: any) =>
       backgroundColor: colors.background,
     },
     emptyBox: {
-      padding: Spacing.xl,
       alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: Spacing.xl,
+      paddingVertical: Spacing.xxl,
     },
-    emptyText: {
-      color: colors.textMuted,
+    emptyTitle: {
+      color: colors.textPrimary,
       fontWeight: '600',
+      fontSize: 16,
+      lineHeight: 24,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    resetButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 25,
+      paddingVertical: 13,
+      paddingHorizontal: 28,
+      minWidth: 160,
+    },
+    resetIcon: {
+      marginRight: 8,
+    },
+    resetButtonText: {
+      color: '#FFFFFF',
       fontSize: 15,
+      fontWeight: '700',
+    },
+    refreshButton: {
+      marginTop: 18,
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    refreshButtonText: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      fontWeight: '600',
     },
   });
 

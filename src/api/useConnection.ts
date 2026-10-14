@@ -9,6 +9,7 @@ export interface ConnectionRequest {
   status: string;
   createdAt: string | null;
   updatedAt: string | null;
+  accessExpired?: boolean;
 }
 
 const resolveConnectionArray = (payload: unknown): any[] => {
@@ -40,6 +41,7 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
     status: String(item?.status || 'PENDING').trim().toUpperCase(),
     createdAt: item?.createdAt ? String(item.createdAt) : null,
     updatedAt: item?.updatedAt ? String(item.updatedAt) : null,
+    accessExpired: typeof item?.accessExpired === 'boolean' ? item.accessExpired : false,
   }));
 
 const getConnectionErrorMessage = (error: any, fallback: string) =>

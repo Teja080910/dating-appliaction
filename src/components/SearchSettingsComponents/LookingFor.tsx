@@ -2,20 +2,20 @@ import React, { useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const options = [
-  'Hookup',
-  'Casual dating',
-  'Online relationship',
-  'Relationship',
-  'Marriage',
-];
+const options = ['Hookup', 'Casual dating', 'Online relationship', 'Relationship', 'Marriage'];
+const lookingForLabel = (val: string) =>
+  val === 'Casual dating' ? t('profile.userdetails.casual_dating')
+  : val === 'Relationship' ? t('profile.userdetails.relationship')
+  : val;
 
 interface LookingForProps {
   onChange?: (val: string[]) => void;
 }
 
 const LookingFor: React.FC<LookingForProps> = ({ onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { lookingFor, setLookingFor } = useContext(AppContext);
@@ -30,7 +30,7 @@ const LookingFor: React.FC<LookingForProps> = ({ onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Looking for</Text>
+      <Text style={styles.label}>{t('more_info.lookingforselector.what_are_you_looking_for')}</Text>
       <View style={styles.optionsWrapper}>
         {options.map((item: string, index) => (
           <TouchableOpacity
@@ -39,7 +39,7 @@ const LookingFor: React.FC<LookingForProps> = ({ onChange }) => {
             onPress={() => toggleOption(item)}
           >
             <Text style={[styles.optionText, lookingFor.includes(item) && styles.optionTextSelected]}>
-              {item}
+              {lookingForLabel(item)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -60,10 +60,11 @@ const createStyles = (themeColors: ThemeColors) =>
       borderColor: themeColors.borderLight,
     },
     label: {
-      fontWeight: '600',
-      fontSize: 15,
+      fontWeight: '700',
+      fontSize: 16,
       marginBottom: Spacing.md,
-      color: themeColors.textSecondary,
+      color: themeColors.text,
+      letterSpacing: 0.1,
     },
     optionsWrapper: {
       flexDirection: 'row',

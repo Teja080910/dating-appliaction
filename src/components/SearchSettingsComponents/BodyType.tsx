@@ -2,22 +2,20 @@ import React, { useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const bodyTypes = [
-  'Slim',
-  'Curvy',
-  'Muscular',
-  'Athletic',
-  'Average',
-  'A few extra pounds',
-  'Other',
-];
+const bodyTypes = ['Slim', 'Curvy', 'Muscular', 'Athletic', 'Average', 'A few extra pounds', 'Other'];
+const bodyTypeLabel = (val: string) =>
+  val === 'Slim' ? t('profile.userdetails.slim')
+  : val === 'Other' ? t('profile.userdetails.other')
+  : val;
 
 interface BodyTypeProps {
   onChange?: (val: string[]) => void;
 }
 
 const BodyType: React.FC<BodyTypeProps> = ({ onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { selectBodyTypes, setSelectBodyTypes } = useContext(AppContext);
@@ -32,7 +30,7 @@ const BodyType: React.FC<BodyTypeProps> = ({ onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Body type</Text>
+      <Text style={styles.label}>{t('search.bodytype.body_type')}</Text>
       <View style={styles.optionsWrapper}>
         {bodyTypes.map((type, index) => (
           <TouchableOpacity
@@ -41,7 +39,7 @@ const BodyType: React.FC<BodyTypeProps> = ({ onChange }) => {
             onPress={() => toggleSelection(type)}
           >
             <Text style={[styles.optionText, selectBodyTypes.includes(type) && styles.optionTextSelected]}>
-              {type}
+              {bodyTypeLabel(type)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -62,10 +60,11 @@ const createStyles = (themeColors: ThemeColors) =>
       borderColor: themeColors.borderLight,
     },
     label: {
-      fontWeight: '600',
-      fontSize: 15,
+      fontWeight: '700',
+      fontSize: 16,
       marginBottom: Spacing.md,
-      color: themeColors.textSecondary,
+      color: themeColors.text,
+      letterSpacing: 0.1,
     },
     optionsWrapper: {
       flexDirection: 'row',

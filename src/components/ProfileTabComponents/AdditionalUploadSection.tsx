@@ -19,11 +19,13 @@ import { Colors } from '../../theme';
 import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
 import PhotoVerifiedBadge from './PhotoVerifiedBadge';
 import { useAlert } from '../AlertModal';
+import { t, useTranslation } from '../../i18n';
 
 // PRD FR-08: profiles may contain a maximum of five photos.
 const TOTAL_SLOTS = 5;
 
 const AdditionalUploadSection = () => {
+  useTranslation();
   const { alert, AlertComponent } = useAlert();
   const {
     images,
@@ -143,7 +145,7 @@ const AdditionalUploadSection = () => {
 
       if (index !== 0) {
         options.push({
-          text: 'Set as Primary Photo',
+          text: t('profile.additionaluploadsection.set_as_primary_photo'),
           style: 'default',
           onPress: async () => {
             if (imageId && localUserId) {
@@ -174,7 +176,7 @@ const AdditionalUploadSection = () => {
       }
 
       options.push({
-        text: 'Remove Photo',
+        text: t('profile.additionaluploadsection.remove_photo'),
         style: 'destructive',
         onPress: () => {
           if (imageId) {
@@ -182,7 +184,7 @@ const AdditionalUploadSection = () => {
               onSuccess: () => {
                 syncImagesFromServer(localUserId);
               },
-              onError: () => alert('Error', 'Failed to delete image from server.'),
+              onError: () => alert('Error', t('profile.uploadimage.failed_to_delete_image_from_server')),
             });
           } else {
             const newImages = [...images];
@@ -193,11 +195,11 @@ const AdditionalUploadSection = () => {
       });
 
       options.push({
-        text: 'Cancel',
+        text: t('profile.additionaluploadsection.cancel'),
         style: 'cancel',
       });
 
-      alert('Photo Options', index === 0 ? 'This is currently your primary photo.' : 'Choose an action for this photo:', options);
+      alert('Photo Options', index === 0 ? t('profile.additionaluploadsection.this_is_currently_your_primary_photo') : t('profile.additionaluploadsection.choose_an_action_for_this_photo'), options);
     } else {
       // UPLOAD CASE
       setUploadingSlot(index);
@@ -240,7 +242,7 @@ const AdditionalUploadSection = () => {
                 const message =
                   error?.response?.data?.message ||
                   error?.message ||
-                  'Failed to upload image to server.';
+                  t('profile.additionaluploadsection.failed_to_upload_image_to_server');
                 alert('Error', String(message));
               },
             });

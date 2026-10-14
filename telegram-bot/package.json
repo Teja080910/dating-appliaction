@@ -1,0 +1,13 @@
+{
+  "name": "amara-telegram-bot",
+  "version": "1.0.0",
+  "description": "Amara Dating Telegram Bot for local & production handling",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "telegraf": "^4.16.3"
+  }
+}

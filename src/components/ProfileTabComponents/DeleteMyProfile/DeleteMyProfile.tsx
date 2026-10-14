@@ -3,13 +3,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { t, useTranslation } from '../../../i18n';
 
 const DeleteMyProfile = () => {
+  useTranslation();
   return (
     <TouchableOpacity style={styles.container} activeOpacity={0.6}>
       <View style={styles.row}>
         <Ionicons name="trash-outline" size={24} color="#d9534f" style={styles.icon} />
-        <Text style={styles.text}>Delete my profile</Text>
+        <Text style={styles.text}>{t('profile.deletemyprofile.delete_my_profile')}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#bbb" />
     </TouchableOpacity>

@@ -25,16 +25,17 @@ const IDENTITY_REPAIR_CACHE = new Map<string, string | null>();
 const IDENTITY_REPAIR_IN_FLIGHT = new Map<string, Promise<string | null>>();
 const PROFILE_ID_SCAN_LIMIT = 200;
 
-const ONBOARDING_ROUTES = new Set([
+export const ONBOARDING_ROUTES = new Set([
   'Privacy',
   'GenderOrientation',
   'DisplayName',
   'DOB',
   'UploadImage',
   'SelfieVerification',
-  'MoreDetails',
-  'AboutProfile',
   'ConnectTelegram',
+  'AboutProfile',
+  'TellUsMore',
+  'MoreDetails',
 ]);
 
 const normalizeStoredString = (value: unknown): string | null => {
@@ -629,8 +630,8 @@ export const resolveInitialRoute = async (): Promise<string> => {
   const acceptedTerms = values[STORAGE_KEYS.acceptedTerms] === 'true';
   const rawOnboardingStep = values[STORAGE_KEYS.onboardingStep];
   const onboardingStep =
-    acceptedTerms && rawOnboardingStep === 'Privacy'
-      ? null
+    rawOnboardingStep === 'Privacy'
+      ? 'GenderOrientation'
       : rawOnboardingStep;
   const onboardingComplete = values[STORAGE_KEYS.entryHomeScreen] === 'true';
   
@@ -703,8 +704,8 @@ export const resolveInitialRoute = async (): Promise<string> => {
   const acceptedTermsAfterHydration = values[STORAGE_KEYS.acceptedTerms] === 'true';
   const rawOnboardingStepAfterHydration = values[STORAGE_KEYS.onboardingStep];
   const onboardingStepAfterHydration =
-    acceptedTermsAfterHydration && rawOnboardingStepAfterHydration === 'Privacy'
-      ? null
+    rawOnboardingStepAfterHydration === 'Privacy'
+      ? 'GenderOrientation'
       : rawOnboardingStepAfterHydration;
   const onboardingCompleteAfterHydration = values[STORAGE_KEYS.entryHomeScreen] === 'true';
 
@@ -713,7 +714,7 @@ export const resolveInitialRoute = async (): Promise<string> => {
   }
 
   if (!acceptedTermsAfterHydration) {
-    return 'Privacy';
+    return onboardingStepAfterHydration || 'GenderOrientation';
   }
 
   // Only completed profiles may enter the main app. Login no longer marks
@@ -722,7 +723,7 @@ export const resolveInitialRoute = async (): Promise<string> => {
     return 'BottomTabs';
   }
 
-  if (!onboardingCompleteAfterHydration && onboardingStepAfterHydration && ONBOARDING_ROUTES.has(onboardingStepAfterHydration) && onboardingStepAfterHydration !== 'SelfieVerification') {
+  if (!onboardingCompleteAfterHydration && onboardingStepAfterHydration && ONBOARDING_ROUTES.has(onboardingStepAfterHydration)) {
      if (__DEV__) console.log('[session] Routes: Resuming onboarding at', onboardingStepAfterHydration);
      return onboardingStepAfterHydration;
   }

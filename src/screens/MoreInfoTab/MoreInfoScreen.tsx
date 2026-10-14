@@ -20,11 +20,13 @@ import { getAuthSession } from '../../utils/session';
 import { Colors, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
+import { t, useTranslation } from '../../i18n';
 
 const HIDDEN_PROFILE_LANGUAGES = new Set(['telugu']);
 const HIDDEN_LOOKING_FOR_VALUES = new Set(['long-term relationship']);
 
 const MoreInfoScreen = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { alert, AlertComponent } = useAlert();
   const insets = useSafeAreaInsets();
@@ -133,7 +135,7 @@ const MoreInfoScreen = () => {
     try {
       setLoading(true);
 
-      const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
+      const englishLevels = [t('onboarding.moredetailsscreen.basic'), t('profile.userdetails.medium'), 'Good', 'Very Good'];
       const englishLevelStr = englishLevels[englishSkillLevel] || '';
       const languageStr = Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '';
       const lookingForStr = Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '';
@@ -167,14 +169,14 @@ const MoreInfoScreen = () => {
       await updatePreferences.mutateAsync(prefsPayload);
 
       await profileQuery.refetch();
-      alert('Saved', 'Your profile details have been updated.', [
-        { text: 'Close', style: 'default' },
+      alert(t('search.location.saved'), 'Your profile details have been updated.', [
+        { text: t('more_info.moreinfoscreen.close'), style: 'default' },
       ]);
     } catch (error: any) {
       console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
       alert(
         'Save failed',
-        getUserFriendlyMessage(error, 'We could not save your profile details right now.'),
+        getUserFriendlyMessage(error, t('more_info.moreinfoscreen.we_could_not_save_your_profile_details_right_now')),
       );
     } finally {
       setLoading(false);
@@ -182,14 +184,20 @@ const MoreInfoScreen = () => {
   };
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+    >
       <Header />
       <ScrollView
         style={[styles.scrollView, { backgroundColor: themeColors.background }]}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { backgroundColor: themeColors.background },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.content}>
+        <View style={[styles.content, { backgroundColor: themeColors.background }]}>
           <HeightSelector />
           <BodyTypeSelector />
           <AppearanceSelector />
@@ -224,7 +232,6 @@ export default MoreInfoScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -238,9 +245,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   footer: {
-    backgroundColor: Colors.background,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: 12,
     paddingHorizontal: 16,
   },

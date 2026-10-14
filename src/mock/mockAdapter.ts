@@ -29,6 +29,13 @@ const parseRequestBody = (data: any): any => {
       return {};
     }
   }
+  if (data && typeof data === 'object' && Array.isArray((data as any)._parts)) {
+    const result: Record<string, any> = {};
+    for (const [key, val] of (data as any)._parts) {
+      result[key] = val;
+    }
+    return result;
+  }
   return data;
 };
 
@@ -77,6 +84,16 @@ const REPORT_REASONS = new Set([
   'SAFETY_CONCERN',
 ]);
 
+const isMaleGender = (g: string) => {
+  const s = String(g).toLowerCase().trim();
+  return s === 'male' || s === 'man' || s === 'straight_man' || (s.includes('male') && !s.includes('female')) || (s.includes('man') && !s.includes('woman'));
+};
+
+const isFemaleGender = (g: string) => {
+  const s = String(g).toLowerCase().trim();
+  return s === 'female' || s === 'woman' || s === 'straight_woman' || s.includes('female') || s.includes('woman');
+};
+
 export const handleMockRequest = async (
   config: InternalAxiosRequestConfig
 ): Promise<AxiosResponse> => {
@@ -101,14 +118,23 @@ export const handleMockRequest = async (
 
   // POST /register
   if (method === 'POST' && (url.includes('/register') || url.includes('/auth/register')) && !url.includes('/verify-register')) {
-    const mobile = body.mobile || body.phoneNumber;
+    const identifier = body.email || body.mobile || body.phoneNumber;
     const name = body.name || body.username || 'Test User';
     const password = body.password;
     const confirmPassword = body.confirmPassword || password;
+    const isEmail = Boolean(body.email || (identifier && String(identifier).includes('@')));
 
-    if (!mobile || String(mobile).replace(/\D/g, '').length < 10) {
-      throw createMockError(config, 400, 'Mobile number must be at least 10 digits.');
+    if (!identifier) {
+      throw createMockError(config, 400, 'Email address is required for registration.');
     }
+    if (isEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(identifier).trim())) {
+        throw createMockError(config, 400, 'Please enter a valid email address.');
+      }
+    } else if (String(identifier).replace(/\D/g, '').length < 10) {
+      throw createMockError(config, 400, 'Please enter a valid email address.');
+    }
+
     if (password && confirmPassword && password !== confirmPassword) {
       throw createMockError(config, 400, 'Passwords do not match.');
     }
@@ -116,33 +142,36 @@ export const handleMockRequest = async (
       throw createMockError(config, 400, 'You must be at least 18 years old to use AMARA.', 'AGE_RESTRICTION');
     }
 
-    const { otp, sessionId } = mockStore.createOtp(mobile);
+    const { otp, sessionId } = mockStore.createOtp(identifier);
+    console.log(`[AUTH SERVICE] 📧 Verification OTP [${otp}] sent to email: ${identifier}`);
+
     return createMockResponse(config, 200, {
       status: 'success',
-      message: 'Registration initiated. OTP sent to mobile.',
+      message: `Registration initiated. Verification code sent to ${identifier}.`,
       otp, // Exposed in mock for automated testing
       sessionId,
-      data: { sessionId, mobile, name },
+      data: { sessionId, email: isEmail ? identifier : undefined, mobile: !isEmail ? identifier : undefined, name },
     });
   }
 
   // POST /verify-register/otp or /verify-otp
   if (method === 'POST' && (url.includes('/verify-register/otp') || url.includes('/verifyOtp') || url.includes('/verify-otp'))) {
-    const mobile = body.mobile || body.phoneNumber;
+    const identifier = body.email || body.mobile || body.phoneNumber;
     const otp = body.otp;
     const sessionId = body.sessionId;
 
-    const isValid = mockStore.verifyOtp(mobile, otp, sessionId);
+    const isValid = mockStore.verifyOtp(identifier, otp, sessionId);
     if (!isValid) {
       throw createMockError(config, 400, 'Invalid OTP. Please check and try again.');
     }
 
     // Find or create registered user
-    let user = await mockStore.findUserByMobile(mobile);
+    let user = await mockStore.findUserByMobile(identifier);
     if (!user) {
       user = await mockStore.createUser({
         name: body.name || 'New Amara User',
-        mobile,
+        mobile: !identifier.includes('@') ? identifier : (body.mobile || ''),
+        email: identifier.includes('@') ? identifier : body.email,
         password: body.password || 'Password@123',
         gender: body.gender || 'man',
       });
@@ -150,6 +179,17 @@ export const handleMockRequest = async (
 
     await mockStore.setCurrentUserId(user.userId);
     const profile = await mockStore.getProfileByUserId(user.userId);
+
+    // Dispatch welcome email
+    if (user.email) {
+      mockStore.sendMockEmail({
+        userId: user.userId,
+        toEmail: user.email,
+        subject: `Welcome to Amara, ${user.name || 'Member'}! 💜`,
+        body: `Hi ${user.name || 'there'},\n\nWelcome to Amara! Your account has been verified successfully.\n\nComplete your profile and start discovering meaningful connections.\n\nBest regards,\nThe Amara Team`,
+        type: 'SECURITY',
+      }).catch(() => {});
+    }
     return createMockResponse(config, 200, {
       status: 'success',
       message: 'User registered successfully',
@@ -160,7 +200,8 @@ export const handleMockRequest = async (
         userId: user.userId,
         name: user.name,
         displayName: user.name,
-        mobile: user.mobile,
+        email: user.email,
+        mobile: user.mobile && !user.mobile.includes('@') ? user.mobile : '',
         gender: user.gender,
         telegramUsername: user.telegramUsername || '',
         profile,
@@ -170,19 +211,19 @@ export const handleMockRequest = async (
 
   // POST /login
   if (method === 'POST' && (url.includes('/login') || url.includes('/auth/login'))) {
-    const mobile = body.mobile || body.phoneNumber;
+    const identifier = body.email || body.mobile || body.phoneNumber;
     const password = body.password;
 
-    if (!mobile || !password) {
-      throw createMockError(config, 400, 'Mobile and password are required.');
+    if (!identifier || !password) {
+      throw createMockError(config, 400, 'Email and password are required.');
     }
 
-    const user = await mockStore.findUserByMobile(mobile);
+    const user = await mockStore.findUserByMobile(identifier);
     if (!user) {
       throw createMockError(config, 404, 'Account not found. Please register first.');
     }
 
-    if (user.password && user.password !== password && password !== 'Password@123') {
+    if (user.password && user.password !== password) {
       throw createMockError(config, 401, 'Invalid credentials. Please verify your password.');
     }
 
@@ -196,7 +237,8 @@ export const handleMockRequest = async (
         userId: user.userId,
         name: user.name,
         displayName: user.name,
-        mobile: user.mobile,
+        email: user.email,
+        mobile: user.mobile && !user.mobile.includes('@') ? user.mobile : '',
         gender: user.gender,
         telegramUsername: user.telegramUsername || '',
         profile,
@@ -206,35 +248,54 @@ export const handleMockRequest = async (
 
   // POST /auth/send-otp
   if (method === 'POST' && url.includes('/auth/send-otp')) {
-    const mobile = body.mobile || body.phoneNumber;
-    const { otp, sessionId } = mockStore.createOtp(mobile);
+    const identifier = body.email || body.mobile || body.phoneNumber;
+    if (!identifier) {
+      throw createMockError(config, 400, 'Email address is required.');
+    }
+    const isEmail = Boolean(body.email || String(identifier).includes('@'));
+    const { otp, sessionId } = mockStore.createOtp(identifier);
+    console.log(`[AUTH SERVICE] 📧 Verification OTP [${otp}] sent to email: ${identifier}`);
     return createMockResponse(config, 200, {
       status: 'success',
-      message: 'OTP sent successfully',
+      message: `OTP sent successfully to ${identifier}`,
       otp,
       sessionId,
+      data: {
+        sessionId,
+        email: isEmail ? identifier : undefined,
+        mobile: !isEmail ? identifier : undefined,
+      },
     });
   }
 
   // POST /forgot-password/send-otp
   if (method === 'POST' && url.includes('/forgot-password/send-otp')) {
-    const mobile = body.mobile;
-    const { otp, sessionId } = mockStore.createOtp(mobile);
+    const identifier = body.email || body.mobile || body.phoneNumber;
+    if (!identifier) {
+      throw createMockError(config, 400, 'Email address is required.');
+    }
+    const { otp, sessionId } = mockStore.createOtp(identifier);
+    console.log(`[AUTH SERVICE] 📧 Password reset verification code [${otp}] sent to email: ${identifier}`);
     return createMockResponse(config, 200, {
       status: 'success',
-      message: 'Password reset OTP sent successfully',
+      message: `Password reset code sent to ${identifier}.`,
       otp,
       sessionId,
+      data: { sessionId, email: identifier },
     });
   }
 
   // POST /forgot-password/reset
   if (method === 'POST' && url.includes('/forgot-password/reset')) {
-    const { mobile, otp, newPassword } = body;
-    if (!mockStore.verifyOtp(mobile, otp)) {
+    const identifier = body.email || body.mobile || body.phoneNumber;
+    const { otp, newPassword } = body;
+    if (!identifier || !otp || !newPassword) {
+      throw createMockError(config, 400, 'Email, reset code, and new password are required.');
+    }
+    if (!mockStore.verifyOtp(identifier, otp)) {
       throw createMockError(config, 400, 'Invalid OTP for password reset.');
     }
-    const user = await mockStore.findUserByMobile(mobile);
+    const user = await mockStore.findUserByMobile(identifier);
     if (user) {
       user.password = newPassword;
     }
@@ -296,22 +357,22 @@ export const handleMockRequest = async (
       currentStoreUserId ||
       'usr_man_101';
     let profile = await mockStore.getProfileByUserId(targetUserId);
+    const user = await mockStore.findUserById(targetUserId);
 
-    const isWomanRequest =
-      String(targetUserId).includes('woman') ||
-      String(targetUserId).startsWith('2') ||
-      profile?.gender === 'woman';
-
-    if (!profile) {
-      if (isWomanRequest) {
-        const women = await mockStore.getProfiles('woman');
-        profile = women[0];
-      } else {
-        profile = await mockStore.getProfileByUserId(currentStoreUserId || 'usr_man_101');
-      }
+    if (!profile && user) {
+      profile = await mockStore.saveProfile({
+        userId: user.userId,
+        name: user.name,
+        displayName: user.name,
+        gender: user.gender,
+        mobile: user.mobile,
+        email: user.email,
+        telegramUsername: user.telegramUsername || '',
+      });
     }
 
-    const isWoman = profile?.gender === 'woman' || isWomanRequest;
+    const isWoman = profile?.gender === 'woman' || user?.gender === 'woman';
+    const isRegisteredUser = Boolean(user || (profile && profile.userId === currentStoreUserId));
 
     const defaultPhotos = isWoman
       ? [
@@ -323,31 +384,36 @@ export const handleMockRequest = async (
           'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&auto=format&fit=crop&q=80',
         ];
 
-    const photos = profile?.photos && profile.photos.length > 0 ? profile.photos : defaultPhotos;
+    const photos = profile?.photos && profile.photos.length > 0 ? profile.photos : (isRegisteredUser ? [] : defaultPhotos);
+
+    const effectiveName = profile?.name || user?.name || (isWoman ? 'Ananya Roy' : 'Rahul Sharma');
+    const effectiveDisplayName = profile?.displayName || profile?.name || user?.name || (isWoman ? 'Ananya' : 'Rahul');
 
     const responsePayload = {
-      id: profile?.id || (isWoman ? 201 : 101),
+      id: profile?.id || user?.id || (isWoman ? 201 : 101),
       userId: profile?.userId || targetUserId,
-      name: profile?.name || (isWoman ? 'Ananya Roy' : 'Rahul Sharma'),
-      displayName: profile?.displayName || profile?.name || (isWoman ? 'Ananya' : 'Rahul'),
-      age: profile?.age || (isWoman ? 24 : 25),
-      dob: profile?.dob || (isWoman ? '2002-05-14' : '2001-05-10'),
-      gender: profile?.gender || (isWoman ? 'woman' : 'man'),
-      bio: profile?.bio || (isWoman ? 'Architect by day, espresso enthusiast by night.' : 'Welcome to my profile!'),
+      name: effectiveName,
+      displayName: effectiveDisplayName,
+      age: profile?.age || (profile?.dob ? calculateAge(profile.dob) : (isWoman ? 24 : 25)),
+      dob: profile?.dob || '',
+      gender: profile?.gender || user?.gender || (isWoman ? 'woman' : 'man'),
+      bio: profile?.bio !== undefined ? profile.bio : '',
       photos,
-      profileImageUrl: photos[0] || '',
-      telegramUsername: profile?.telegramUsername || '',
-      verifiedSelfie: true,
-      selfieVerified: true,
-      language: profile?.language || 'English',
-      height: profile?.height || 175,
-      appearance: profile?.appearance || 'Athletic',
-      bodyType: profile?.bodyType || 'Fit',
-      smoke: profile?.smoke || 'Never',
-      drink: profile?.drink || 'Socially',
-      englishLevel: profile?.englishLevel || 'advanced',
-      ethnicity: profile?.ethnicity || 'Asian',
-      lookingFor: profile?.lookingFor || 'Long-term, Marriage',
+      profileImageUrl: photos[0] || (profile as any)?.profileImageUrl || '',
+      telegramUsername: profile?.telegramUsername || user?.telegramUsername || '',
+      verifiedSelfie: profile?.verifiedSelfie ?? true,
+      selfieVerified: profile?.verifiedSelfie ?? true,
+      language: profile?.language || '',
+      height: profile?.height || '',
+      appearance: profile?.appearance || '',
+      bodyType: profile?.bodyType || '',
+      smoke: profile?.smoke || '',
+      drink: profile?.drink || '',
+      englishLevel: profile?.englishLevel || '',
+      ethnicity: profile?.ethnicity || '',
+      lookingFor: profile?.lookingFor || '',
+      mobile: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
+      phone: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
       completion: 100,
     };
 
@@ -371,24 +437,41 @@ export const handleMockRequest = async (
   if (method === 'POST' && url.includes('/setup')) {
     const urlParts = url.split('/');
     const setupIndex = urlParts.indexOf('setup');
-    const targetUserId = setupIndex > 0 ? urlParts[setupIndex - 1] : body.userId || 'usr_man_101';
+    const currentStoreUserId = await mockStore.getCurrentUserId();
+    const targetUserId = setupIndex > 0 ? urlParts[setupIndex - 1] : body.userId || currentStoreUserId || 'usr_man_101';
 
-    let profileData = body;
+    let profileData: any = {};
+    if (queryParams.dto) {
+      try {
+        profileData = typeof queryParams.dto === 'string' ? JSON.parse(queryParams.dto) : queryParams.dto;
+      } catch {}
+    }
     if (body.data && typeof body.data === 'string') {
       try {
-        profileData = JSON.parse(body.data);
-      } catch {
-        profileData = body;
+        profileData = { ...profileData, ...JSON.parse(body.data) };
+      } catch {}
+    }
+    profileData = { ...profileData, ...body };
+
+    // Extract photo from body or config
+    let photoUri = body?.photo?.uri || body?.photoUrl || '';
+    if (!photoUri && config.data && (config.data as any)._parts) {
+      for (const [k, v] of (config.data as any)._parts) {
+        if ((k === 'photo' || k === 'image') && v && v.uri) {
+          photoUri = v.uri;
+          break;
+        }
       }
     }
 
-    if (isUnderage(profileData.dob, profileData.age)) {
-      throw createMockError(config, 400, 'You must be at least 18 years old to use AMARA.', 'AGE_RESTRICTION');
-    }
+    const currentProfile = await mockStore.getProfileByUserId(targetUserId);
+    const existingPhotos = currentProfile?.photos || [];
+    const updatedPhotos = photoUri ? [photoUri, ...existingPhotos.filter((p: string) => p !== photoUri)] : existingPhotos;
 
     const saved = await mockStore.saveProfile({
       userId: targetUserId,
       ...profileData,
+      ...(updatedPhotos.length > 0 ? { photos: updatedPhotos } : {}),
     });
 
     return createMockResponse(config, 200, {
@@ -401,7 +484,8 @@ export const handleMockRequest = async (
 
   // PUT /profile/update-basic, PUT /profile/update-details, PUT /profile/update-preferences
   if ((method === 'PUT' || method === 'POST') && url.includes('/profile/update')) {
-    const targetUserId = body.userId || queryParams.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
+    const currentStoreUserId = await mockStore.getCurrentUserId();
+    const targetUserId = body.userId || queryParams.userId || currentStoreUserId || 'usr_man_101';
     if (isUnderage(body.dob, body.age)) {
       throw createMockError(config, 400, 'You must be at least 18 years old to use AMARA.', 'AGE_RESTRICTION');
     }
@@ -415,17 +499,25 @@ export const handleMockRequest = async (
 
   // POST /profile/upload-image
   if (method === 'POST' && url.includes('/upload-image')) {
-    const targetUserId = queryParams.userId || body.userId || 'usr_man_101';
-    let imageUri = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80';
+    const targetUserId = queryParams.userId || body.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
+    let imageUri = '';
 
-    if (config.data && (config.data as any)._parts) {
+    if (body?.photo?.uri) {
+      imageUri = body.photo.uri;
+    } else if (body?.uri) {
+      imageUri = body.uri;
+    } else if (config.data && (config.data as any)._parts) {
       const parts = (config.data as any)._parts;
       for (const [key, val] of parts) {
-        if (key === 'image' && val && val.uri) {
+        if ((key === 'image' || key === 'photo') && val && val.uri) {
           imageUri = val.uri;
           break;
         }
       }
+    }
+
+    if (!imageUri) {
+      imageUri = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80';
     }
 
     const newImage = await mockStore.addUserImage(targetUserId, imageUri);
@@ -480,9 +572,15 @@ export const handleMockRequest = async (
 
   // PUT /profile/selfie/verify
   if ((method === 'PUT' || method === 'POST') && url.includes('/profile/selfie/verify')) {
+    const match = url.match(/\/profile\/selfie\/verify\/([^/?]+)/);
+    const targetUserId = match ? match[1] : (queryParams.userId || body.userId || (await mockStore.getCurrentUserId()));
+    if (targetUserId) {
+      await mockStore.saveProfile({ userId: targetUserId, photoVerified: true });
+    }
     return createMockResponse(config, 200, {
       status: 'success',
       message: 'Verified',
+      data: { userId: targetUserId, photoVerified: true },
     });
   }
 
@@ -507,14 +605,17 @@ export const handleMockRequest = async (
 
   // GET /home/{userId}
   if (method === 'GET' && url.includes('/home/')) {
-    const womenProfiles = await mockStore.getProfiles('woman');
+    const rawTarget = url.split('/home/')[1]?.split('?')[0];
+    const currentUserId = (rawTarget && rawTarget !== 'undefined' && rawTarget !== 'null') ? rawTarget : (await mockStore.getCurrentUserId());
+    const womenProfiles = await mockStore.getProfiles('woman', currentUserId || undefined);
     return createMockResponse(config, 200, womenProfiles.map(hideTelegramFromPublicProfile));
   }
 
   // GET /dashboard/recent or GET /dashboard/online
   if (method === 'GET' && (url.includes('/dashboard/recent') || url.includes('/dashboard/online') || url.includes('/dashboard'))) {
     // Only return women profiles as mandated by PRD FR-12 / BR-04
-    const womenProfiles = await mockStore.getProfiles('woman');
+    const currentUserId = String(queryParams?.userId || (await mockStore.getCurrentUserId()) || '').trim();
+    const womenProfiles = await mockStore.getProfiles('woman', currentUserId || undefined);
     const visibleProfiles = url.includes('/dashboard/online')
       ? womenProfiles.filter((profile) => profile.online === true)
       : womenProfiles;
@@ -527,8 +628,24 @@ export const handleMockRequest = async (
 
   // POST /search or POST /users/filter
   if (method === 'POST' && (url.includes('/search') || url.includes('/users/filter') || url.includes('/searchCriteria'))) {
-    const womenProfiles = await mockStore.getProfiles('woman');
-    let filtered = [...womenProfiles];
+    const rawGender = body.gender || queryParams?.gender || body.showMe;
+    const genderList = Array.isArray(rawGender)
+      ? rawGender.map(g => String(g).toLowerCase())
+      : rawGender ? [String(rawGender).toLowerCase()] : [];
+    const hasSpecifiedGender = genderList.length > 0 && genderList.some(g => Boolean(g));
+    const wantsMen = hasSpecifiedGender && genderList.some(g => isMaleGender(g) || g === 'both');
+    const wantsWomen = !hasSpecifiedGender || genderList.some(g => isFemaleGender(g) || g === 'both');
+
+    const currentUserId = String(body.userId || queryParams?.userId || (await mockStore.getCurrentUserId()) || '').trim();
+    let baseProfiles: any[] = [];
+    if (wantsMen && wantsWomen) {
+      baseProfiles = await mockStore.getProfiles(undefined, currentUserId || undefined);
+    } else if (wantsMen) {
+      baseProfiles = await mockStore.getProfiles('man', currentUserId || undefined);
+    } else {
+      baseProfiles = await mockStore.getProfiles('woman', currentUserId || undefined);
+    }
+    let filtered = [...baseProfiles];
 
     // Filter by Age
     if (Number.isFinite(Number(body.minAge))) {
@@ -595,14 +712,16 @@ export const handleMockRequest = async (
       filtered = filtered.filter(p => Boolean(p.online));
     }
 
-    // Filter by Search Query
-    if (body.query && typeof body.query === 'string') {
-      const q = body.query.toLowerCase().trim();
-      filtered = filtered.filter(p =>
-        (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.displayName && p.displayName.toLowerCase().includes(q)) ||
-        (p.bio && p.bio.toLowerCase().includes(q))
-      );
+    // Filter by City / Location (when not worldwide)
+    const targetCity = String(body.city || body.location || '').trim().toLowerCase();
+    if (targetCity && !body.worldwide && targetCity !== 'my current location' && !targetCity.includes('current location')) {
+      const cityMatches = filtered.filter(p => {
+        const pCity = String(p.currentCity || (p as any).city || '').toLowerCase();
+        return pCity && (pCity.includes(targetCity) || targetCity.includes(pCity));
+      });
+      if (cityMatches.length > 0) {
+        filtered = cityMatches;
+      }
     }
 
     const finalResult = filtered.map(hideTelegramFromPublicProfile);
@@ -642,6 +761,7 @@ export const handleMockRequest = async (
         status: 'success',
         message: 'Request Sent',
         data: newRequest,
+        request: newRequest,
       });
     } catch (err: any) {
       const message = err.message || 'Duplicate request';
@@ -682,6 +802,29 @@ export const handleMockRequest = async (
     } catch (err: any) {
       throw createMockError(config, 404, err.message || 'Request not found');
     }
+  }
+
+  // PUT or POST /connections/reject
+  if ((method === 'PUT' || method === 'POST') && url.includes('/connections/reject')) {
+    const requestId = body.requestId || queryParams.requestId;
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: 'Invitation declined',
+      data: { id: requestId, status: 'REJECTED', rejectedAt: new Date().toISOString() },
+    });
+  }
+
+  // POST /connections/restore-access
+  if (method === 'POST' && url.includes('/connections/restore-access')) {
+    const requestId = body.requestId || queryParams.requestId;
+    if (requestId) {
+      await mockStore.restoreAccess(String(requestId));
+    }
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: 'Access restored successfully!',
+      data: { id: requestId, accessExpired: false },
+    });
   }
 
   // GET /connections/status
@@ -747,7 +890,7 @@ export const handleMockRequest = async (
     const isOwnLink = !targetUserId || String(targetUserId) === String(currentStoreUserId);
     return createMockResponse(config, 200, {
       telegramUsername: username,
-      link: username ? `https://t.me/${username}` : (isOwnLink ? 'https://t.me/AmaraDatingBot' : ''),
+      link: username ? `https://t.me/${username}` : (isOwnLink ? 'https://t.me/amara_dating_bot' : ''),
     });
   }
 
@@ -792,7 +935,7 @@ export const handleMockRequest = async (
     const orderId = body.orderId || queryParams.orderId;
     const paymentId = body.paymentId || queryParams.paymentId;
     const signature = body.signature || queryParams.signature;
-    if (!orderId || !paymentId || !signature || !String(signature).startsWith('sig_mock_')) {
+    if (!orderId || !paymentId || !signature) {
       throw createMockError(config, 400, 'Payment verification requires a valid orderId, paymentId, and signature.');
     }
     const activeUserId = userId || await mockStore.getCurrentUserId();
@@ -826,9 +969,9 @@ export const handleMockRequest = async (
         startDate: sub.startDate,
         endDate: sub.endDate,
         status: 'ACTIVE',
-        priorityHandoff: plan === 'GOLD' || plan === 'PREMIUM',
-        eliteBadge: plan === 'PREMIUM',
-        dailyRequestLimit: plan === 'BASIC' ? 10 : plan === 'GOLD' ? 20 : null,
+        priorityHandoff: plan === 'GOLD' || plan === 'PREMIUM' || plan === 'MONTHLY' || plan === 'YEARLY',
+        eliteBadge: plan === 'PREMIUM' || plan === 'YEARLY',
+        dailyRequestLimit: plan === 'BASIC' ? 10 : plan === 'GOLD' ? 20 : plan === 'MONTHLY' || plan === 'YEARLY' ? 30 : null,
       });
     }
 
@@ -853,8 +996,8 @@ export const handleMockRequest = async (
     return createMockResponse(config, 200, remainingDays);
   }
 
-  // POST /subscriber/activate
-  if (method === 'POST' && url.includes('/subscriber/activate')) {
+  // POST /subscriber/activate or /subscription/activate
+  if (method === 'POST' && (url.includes('/subscriber/activate') || url.includes('/subscription/activate'))) {
     const targetUserId = queryParams.userId || body.userId || (await mockStore.getCurrentUserId());
     const plan = queryParams.plan || body.plan || 'GOLD';
     const sub = await mockStore.activateSubscription(String(targetUserId), plan);
@@ -928,8 +1071,24 @@ export const handleMockRequest = async (
 
   // GET /location/nearby
   if (method === 'GET' && url.includes('/location/nearby')) {
-    const womenProfiles = await mockStore.getProfiles('woman');
-    return createMockResponse(config, 200, womenProfiles);
+    const rawGender = queryParams?.gender;
+    const genderList = Array.isArray(rawGender)
+      ? rawGender.map(g => String(g).toLowerCase())
+      : rawGender ? [String(rawGender).toLowerCase()] : [];
+    const hasSpecifiedGender = genderList.length > 0 && genderList.some(g => Boolean(g));
+    const wantsMen = hasSpecifiedGender && genderList.some(g => isMaleGender(g) || g === 'both');
+    const wantsWomen = !hasSpecifiedGender || genderList.some(g => isFemaleGender(g) || g === 'both');
+
+    const currentUserId = String(queryParams?.userId || (await mockStore.getCurrentUserId()) || '').trim();
+    let baseProfiles: any[] = [];
+    if (wantsMen && wantsWomen) {
+      baseProfiles = await mockStore.getProfiles(undefined, currentUserId || undefined);
+    } else if (wantsMen) {
+      baseProfiles = await mockStore.getProfiles('man', currentUserId || undefined);
+    } else {
+      baseProfiles = await mockStore.getProfiles('woman', currentUserId || undefined);
+    }
+    return createMockResponse(config, 200, baseProfiles);
   }
 
   // ----------------------------------------------------
@@ -1009,24 +1168,47 @@ export const handleMockRequest = async (
   }
 
   // GET /notification
-  if (method === 'GET' && url.includes('/notification') && !url.includes('/read')) {
-    return createMockResponse(config, 200, [
-      {
-        id: 1,
-        title: 'Welcome to AMARA',
-        message: 'Your profile has been created successfully.',
-        isRead: false,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+  if (method === 'GET' && url.includes('/notification') && !url.includes('/read') && !url.includes('/preferences')) {
+    const targetUserId = queryParams.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
+    const list = await mockStore.getNotifications(String(targetUserId));
+    return createMockResponse(config, 200, list);
   }
 
   // PUT /notification/read/{id}
   if (method === 'PUT' && url.includes('/notification/read/')) {
+    const match = url.match(/\/notification\/read\/(\d+)/);
+    const id = match ? parseInt(match[1], 10) : Number(queryParams.notificationId || 1);
+    await mockStore.markNotificationRead(id);
     return createMockResponse(config, 200, {
       status: 'success',
       message: 'Notification marked as read',
     });
+  }
+
+  // GET /notification/preferences
+  if (method === 'GET' && url.includes('/notification/preferences')) {
+    const targetUserId = queryParams.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
+    const prefs = await mockStore.getNotificationPreferences(String(targetUserId));
+    return createMockResponse(config, 200, prefs);
+  }
+
+  // PUT /notification/preferences or POST /notification/preferences
+  if ((method === 'PUT' || method === 'POST') && url.includes('/notification/preferences')) {
+    const targetUserId = body.userId || queryParams.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
+    const prefs = await mockStore.saveNotificationPreferences(String(targetUserId), body);
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: 'Notification preferences updated',
+      data: prefs,
+      preferences: prefs,
+    });
+  }
+
+  // GET /emails/my
+  if (method === 'GET' && url.includes('/emails/my')) {
+    const targetUserId = queryParams.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
+    const emails = await mockStore.getSentEmails(String(targetUserId));
+    return createMockResponse(config, 200, emails);
   }
 
   // POST /notification/push
@@ -1063,8 +1245,14 @@ export const handleMockRequest = async (
 
   // POST /reports/report or POST /report
   if (method === 'POST' && (url.includes('/reports/report') || url.includes('/report'))) {
-    const reason = String(body.reason || '').trim().toUpperCase();
-    if (!body.byUserId || !body.targetUserId || !REPORT_REASONS.has(reason)) {
+    const rawBy = String(body.byUserId || body.reporterUserId || body.reporterId || body.userId || '').trim();
+    const byUserId = (rawBy && rawBy !== 'undefined' && rawBy !== 'null') ? rawBy : (await mockStore.getCurrentUserId());
+
+    const rawTarget = String(body.targetUserId || body.reportedUserId || body.targetId || '').trim();
+    const targetUserId = (rawTarget && rawTarget !== 'undefined' && rawTarget !== 'null') ? rawTarget : null;
+
+    const rawReason = String(body.reason || '').trim();
+    if (!byUserId || !targetUserId || !rawReason) {
       throw createMockError(
         config,
         400,
@@ -1073,18 +1261,66 @@ export const handleMockRequest = async (
       );
     }
 
+    // Automatically block the reported user
+    await mockStore.blockUser(String(byUserId), String(targetUserId));
+
     return createMockResponse(config, 200, {
       status: 'success',
-      message: 'Profile has been reported. Our safety team will review it shortly.',
+      message: 'Profile has been reported and blocked. Our safety team will review it shortly.',
       data: {
         id: `report_${Date.now()}`,
-        reportedById: String(body.byUserId),
-        reportedUserId: String(body.targetUserId),
-        reason,
-        message: String(body.message || ''),
+        reportedById: String(byUserId),
+        reportedUserId: String(targetUserId),
+        reason: rawReason,
+        message: String(body.message || body.details || ''),
         status: 'PENDING',
         createdAt: new Date().toISOString(),
       },
+    });
+  }
+
+  // POST /users/block or POST /reports/block
+  if (method === 'POST' && (url.includes('/users/block') || url.includes('/reports/block') || url.includes('/block/user') || url.includes('/block'))) {
+    const rawBy = String(body.byUserId || body.userId || body.reporterUserId || '').trim();
+    const byUserId = (rawBy && rawBy !== 'undefined' && rawBy !== 'null') ? rawBy : (await mockStore.getCurrentUserId());
+    const rawTarget = String(body.targetUserId || body.blockedUserId || body.reportedUserId || '').trim();
+    const targetUserId = (rawTarget && rawTarget !== 'undefined' && rawTarget !== 'null') ? rawTarget : null;
+
+    if (!byUserId || !targetUserId) {
+      throw createMockError(config, 400, 'byUserId and targetUserId are required.');
+    }
+
+    await mockStore.blockUser(String(byUserId), String(targetUserId));
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: 'User blocked successfully.',
+      data: {
+        byUserId: String(byUserId),
+        targetUserId: String(targetUserId),
+        blockedAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  // GET /users/blocked or GET /reports/blocked
+  if (method === 'GET' && (url.includes('/users/blocked') || url.includes('/reports/blocked') || url.includes('/blocked'))) {
+    const rawUser = String(queryParams?.userId || (await mockStore.getCurrentUserId())).trim();
+    const blockedList = await mockStore.getBlockedUsers(rawUser);
+    return createMockResponse(config, 200, blockedList);
+  }
+
+  // POST /users/unblock or POST /reports/unblock
+  if (method === 'POST' && (url.includes('/users/unblock') || url.includes('/reports/unblock') || url.includes('/unblock'))) {
+    const rawBy = String(body.byUserId || body.userId || '').trim();
+    const byUserId = (rawBy && rawBy !== 'undefined' && rawBy !== 'null') ? rawBy : (await mockStore.getCurrentUserId());
+    const rawTarget = String(body.targetUserId || body.blockedUserId || '').trim();
+    if (!byUserId || !rawTarget) {
+      throw createMockError(config, 400, 'byUserId and targetUserId are required.');
+    }
+    await mockStore.unblockUser(String(byUserId), String(rawTarget));
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: 'User unblocked successfully.',
     });
   }
 

@@ -1,13 +1,14 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const OPTIONS = ['0', '1', '2', '3+', 'Prefer not to say'];
 
 const KidsSelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { selectedKids, setSelectedKids } = useContext(AppContext);
 
@@ -19,7 +20,7 @@ const KidsSelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="baby-face-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>How many kids do you have?</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.kidsselector.how_many_kids_do_you_have')}</Text>
       </View>
       <View style={styles.optionsWrap}>
         {OPTIONS.map((option) => {
@@ -29,16 +30,9 @@ const KidsSelector = () => {
               key={option}
               activeOpacity={0.8}
               onPress={() => toggleSelect(option)}
-              style={styles.pillActiveWrapper}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
             >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.primaryLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pillActiveGradient}
-              >
-                <Text style={styles.pillTextActive}>{option}</Text>
-              </LinearGradient>
+              <Text style={styles.pillTextActive}>{option}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -49,7 +43,7 @@ const KidsSelector = () => {
                 styles.pillInactive,
                 {
                   backgroundColor: themeColors.surfaceLight,
-                  borderColor: themeColors.borderLight,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
@@ -98,11 +92,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  pillActiveWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  pillActiveGradient: {
+  pillActive: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
@@ -111,7 +101,7 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     fontSize: 14.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
 });

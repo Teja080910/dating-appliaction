@@ -1,6 +1,37 @@
 {
   "plans": [
     {
+      "id": "MONTHLY",
+      "name": "Monthly",
+      "durationMonths": 1,
+      "price": 1199,
+      "tagline": "Billed monthly",
+      "popular": false,
+      "features": [
+        "Invite up to 30 members per day",
+        "Browse all verified profiles",
+        "Telegram handoff upon approval",
+        "Direct messaging & chat"
+      ],
+      "gradient": ["#C53047", "#E11D48"]
+    },
+    {
+      "id": "YEARLY",
+      "name": "Yearly",
+      "durationMonths": 12,
+      "price": 6999,
+      "tagline": "Save 51% annually",
+      "popular": true,
+      "features": [
+        "Invite up to 30 members per day",
+        "Browse all verified profiles",
+        "Priority Telegram handoff",
+        "Save 51% annually (~₹583.25/mo)",
+        "Dedicated customer support"
+      ],
+      "gradient": ["#7C3AED", "#EC4899"]
+    },
+    {
       "id": "BASIC",
       "name": "Standard",
       "durationMonths": 1,

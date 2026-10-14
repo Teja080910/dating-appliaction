@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const options = [
-  { label: 'Yes', value: 'Yes' },
-  { label: 'No', value: 'No' },
-  { label: 'Sometimes', value: 'Sometimes' },
-];
+const values = ['Yes', 'No', 'Sometimes'];
+const valueLabel = (val: string) =>
+  val === 'Yes' ? t('profile.userdetails.yes')
+  : val === 'No' ? t('profile.userdetails.no')
+  : val === 'Sometimes' ? t('search.drinking.sometimes')
+  : val;
 
 interface SmokeProps {
   value?: string | boolean;
@@ -24,6 +26,7 @@ const isOptionSelected = (currentVal: string | boolean | undefined, optionVal: s
 };
 
 const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
@@ -37,18 +40,18 @@ const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Smoker?</Text>
+      <Text style={styles.label}>{t('search.smoke.smoker')}</Text>
       <View style={styles.optionsWrapper}>
-        {options.map((item) => {
-          const selected = isOptionSelected(value, item.value);
+        {values.map((item) => {
+          const selected = isOptionSelected(value, item);
           return (
             <TouchableOpacity
-              key={item.label}
+              key={item}
               style={[styles.option, selected && styles.optionSelected]}
-              onPress={() => handlePress(item.value)}
+              onPress={() => handlePress(item)}
             >
               <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
-                {item.label}
+                {valueLabel(item)}
               </Text>
             </TouchableOpacity>
           );
@@ -70,10 +73,11 @@ const createStyles = (themeColors: ThemeColors) =>
       borderColor: themeColors.borderLight,
     },
     label: {
-      fontWeight: '600',
-      fontSize: 15,
+      fontWeight: '700',
+      fontSize: 16,
       marginBottom: Spacing.md,
-      color: themeColors.textSecondary,
+      color: themeColors.text,
+      letterSpacing: 0.1,
     },
     optionsWrapper: {
       flexDirection: 'row',

@@ -203,6 +203,13 @@ export const clearOnboardingState = async () => {
     'profileImage',
     'onboardingImages',
     'registerSessionId',
+    '@amara_mock_images',
+    '@onboarding_bio',
+    '@amara_kid_count',
+    '@amara_net_worth',
+    '@selfie_verified',
+    'bio',
+    'profileText',
   ]);
 };
 

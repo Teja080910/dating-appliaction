@@ -1,104 +1,131 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
   FlatList,
   Image,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
   Linking,
-  Alert,
+  Modal,
   RefreshControl,
+  StyleSheet,
+  Text,
   TextInput,
-  Dimensions,
-  Share,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing, useTheme } from '../../theme';
+import { Colors, useTheme } from '../../theme';
+import apiClient from '../../api/apiClient';
+import NotificationBanner from '../../components/NotificationBanner';
+import { openTelegramChat } from '../../utils/telegramHelper';
+import { t, useTranslation } from '../../i18n';
+
+const girl1 = require('../../assets/MessageTabImages/girl1.webp');
+const girl2 = require('../../assets/MessageTabImages/girl2.webp');
+const girl3 = require('../../assets/MessageTabImages/girl3.webp');
+const envelopeImg = require('../../assets/MessageTabImages/envelope.png');
 
 const SentRequestsScreen: React.FC = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
-  const styles = React.useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const canGoBack = Boolean(navigation?.canGoBack?.());
-  const { setViewMyProfile, setCardUserName, setCardUserAge, setSelectedUserImage } =
-    useContext(AppContext);
+  const {
+    setViewMyProfile,
+    setCardUserName,
+    setCardUserAge,
+    setSelectedUserImage,
+    setPaywallVisible,
+  } = useContext(AppContext);
+
   const { sentList, refreshAll } = useConnection();
-  const [searchQuery, setSearchQuery] = useState('');
-
-
   const { data: requests = [], isLoading, isRefetching } = sentList;
 
-  const sortedRequests = [...requests].sort((a, b) => {
-    const aTime = new Date(a.createdAt || a.updatedAt || 0).getTime();
-    const bTime = new Date(b.createdAt || b.updatedAt || 0).getTime();
-    return bTime - aTime;
-  });
-  const formatRequestTime = (value?: string | null) => {
-    if (!value) return 'Time unavailable';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Time unavailable';
-    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-  };
+  const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>('accepted');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
-  const displayedRequests = searchQuery.trim()
-    ? sortedRequests.filter((r) => {
-        const receiver = r.receiver || {};
-        const q = searchQuery.toLowerCase().trim();
-        const name = (receiver.displayName || receiver.name || '').toLowerCase();
-        const city = (receiver.city || receiver.currentCity || '').toLowerCase();
-        return name.includes(q) || city.includes(q);
-      })
-    : sortedRequests;
+  // Group requests into pending vs accepted
+  const pendingRequests = useMemo(
+    () => requests.filter((r) => r.status === 'PENDING'),
+    [requests]
+  );
+
+  const acceptedRequests = useMemo(
+    () => requests.filter((r) => r.status === 'APPROVED'),
+    [requests]
+  );
+
+  const currentList = activeTab === 'pending' ? pendingRequests : acceptedRequests;
+
+  const filteredRequests = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return currentList;
+    return currentList.filter((r) => {
+      const receiver = r.receiver || {};
+      const name = (receiver.displayName || receiver.name || '').toLowerCase();
+      return name.includes(q);
+    });
+  }, [currentList, searchQuery]);
 
   const cleanDisplayName = (name?: string) => {
-    if (!name) return 'User';
-    return String(name).replace(/,\s*\d+$/, '').trim() || 'User';
+    if (!name) return t('home.usercard.user');
+    return String(name).replace(/,\s*\d+$/, '').trim() || t('home.usercard.user');
   };
 
-  const handleOpenTelegram = (username?: string) => {
-    if (!username) {
-      Alert.alert('Telegram not connected', 'They have not connected Telegram yet. You can still keep in touch here.');
-      return;
-    }
-    const cleanUsername = username.replace('@', '');
-    const url = `https://t.me/${cleanUsername}`;
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert('Open Link', `Open in browser: ${url}`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open', onPress: () => Linking.openURL(url) },
-          ]);
-        }
-      })
-      .catch(() => {
-        Linking.openURL(url);
-      });
+  const formatRelativeTime = (isoString?: string | null) => {
+    if (!isoString) return '1 year ago';
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return '1 year ago';
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays >= 365) return t('sent.sentrequestsscreen.year_ago', { Math: Math.floor(diffDays / 365) });
+    if (diffDays >= 30) return t('sent.sentrequestsscreen.months_ago', { Math: Math.floor(diffDays / 30) });
+    if (diffDays > 0) return t('sent.sentrequestsscreen.days_ago', { diffDays });
+    if (diffHours > 0) return t('sent.sentrequestsscreen.hours_ago', { diffHours });
+    return 'Just now';
   };
 
-  const handleShareTelegram = async (username?: string) => {
-    if (!username) {
-      Alert.alert('Telegram not connected', 'No username available to share.');
-      return;
-    }
-    const cleanUsername = username.replace('@', '');
-    try {
-      await Share.share({
-        message: `@${cleanUsername} (https://t.me/${cleanUsername})`,
-      });
-    } catch {
-      // User dismissed share dialog
-    }
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
+  const handleRestoreAccess = async (item: ConnectionRequest) => {
+    const receiver = item.receiver || {};
+    const name = cleanDisplayName(receiver.displayName || receiver.name);
+
+    Alert.alert(
+      'Restore Access',
+      t('sent.sentrequestsscreen.would_you_like_to_restore_active_access_to_chat_with', { name }),
+      [
+        { text: t('profile.additionaluploadsection.cancel'), style: 'cancel' },
+        {
+          text: t('sent.sentrequestsscreen.restore_now'),
+          onPress: async () => {
+            try {
+              setRestoringId(String(item.id));
+              await apiClient.post('/connections/restore-access', { requestId: item.id });
+              Alert.alert('Access Restored', t('sent.sentrequestsscreen.you_can_now_connect_with', { name }));
+              refreshAll();
+            } catch {
+              // Open paywall if subscription needed
+              setPaywallVisible?.(true);
+            } finally {
+              setRestoringId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleOpenProfile = (item: ConnectionRequest) => {
@@ -109,207 +136,275 @@ const SentRequestsScreen: React.FC = () => {
       (receiver.photos && receiver.photos[0]) ||
       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
 
-    const fullProfileData = {
-      ...receiver,
-      id: targetUserId,
-      userId: targetUserId,
-      targetUserId: targetUserId,
-      name: cleanDisplayName(receiver.displayName || receiver.name),
-      displayName: cleanDisplayName(receiver.displayName || receiver.name),
-      age: receiver.age,
-      gender: receiver.gender || 'woman',
-      bio: receiver.bio || '',
-      currentCity: receiver.city || receiver.currentCity || 'Nearby',
-      photos: receiver.photos || (photoUrl ? [photoUrl] : []),
-      images: receiver.photos || (photoUrl ? [photoUrl] : []),
-      profileImageUrl: photoUrl,
-      image: photoUrl,
-      telegramUsername: receiver.telegramUsername || '',
-      smoke: receiver.smoke,
-      drink: receiver.drink,
-      height: receiver.height,
-      bodyType: receiver.bodyType,
-      appearance: receiver.appearance,
-      language: receiver.language,
-      englishLevel: receiver.englishLevel,
-      ethnicity: receiver.ethnicity,
-      lookingFor: receiver.lookingFor,
-    };
-
-    setCardUserName(fullProfileData.name);
-    setCardUserAge(String(fullProfileData.age || '24'));
-    setViewMyProfile(false);
-    setSelectedUserImage(photoUrl);
+    setCardUserName?.(cleanDisplayName(receiver.displayName || receiver.name));
+    setCardUserAge?.(String(receiver.age || '25'));
+    setViewMyProfile?.(false);
+    setSelectedUserImage?.(photoUrl);
 
     navigation.navigate('ViewMyProfileScreen', {
       userId: targetUserId,
       targetUserId: targetUserId,
-      profileData: fullProfileData,
+      profileData: {
+        ...receiver,
+        id: targetUserId,
+        displayName: cleanDisplayName(receiver.displayName || receiver.name),
+        photos: receiver.photos || [photoUrl],
+      },
       image: photoUrl,
     });
   };
 
-  const renderItem = ({ item }: { item: ConnectionRequest }) => {
+  const renderCard = ({ item }: { item: ConnectionRequest }) => {
     const receiver = item.receiver || {};
     const photoUrl =
       receiver.photo ||
       (receiver.photos && receiver.photos[0]) ||
       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
-    const isApproved = item.status === 'APPROVED';
+
+    const displayName = cleanDisplayName(receiver.displayName || receiver.name);
+    const age = receiver.age ? `, ${receiver.age}` : '';
+    const timeText = formatRelativeTime(item.createdAt);
 
     return (
       <TouchableOpacity
         style={styles.card}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
         onPress={() => handleOpenProfile(item)}
       >
         <Image source={{ uri: photoUrl }} style={styles.avatar} />
 
-        <View style={styles.cardContent}>
-          <View style={styles.nameRow}>
-            <Text style={styles.nameText} numberOfLines={1}>
-              {cleanDisplayName(receiver.displayName || receiver.name)}
-              {receiver.age ? `, ${receiver.age}` : ''}
-            </Text>
+        <View style={styles.cardInfo}>
+          <Text style={styles.nameAgeText} numberOfLines={1}>
+            {displayName}{age}
+          </Text>
 
-            {isApproved ? (
-              <View style={styles.approvedActionRow}>
-                <TouchableOpacity
-                  style={styles.smallActionWrapper}
-                  activeOpacity={0.8}
-                  onPress={() => handleOpenTelegram(receiver.telegramUsername)}
+          {activeTab === 'accepted' ? (
+            item.accessExpired ? (
+              <TouchableOpacity
+                style={styles.restoreBtnWrapper}
+                activeOpacity={0.8}
+                onPress={() => handleRestoreAccess(item)}
+                disabled={restoringId === String(item.id)}
+              >
+                <LinearGradient
+                  colors={[themeColors.primary, themeColors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.restoreBtn}
                 >
-                  <LinearGradient
-                    colors={[Colors.primary, Colors.secondary]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.smallActionGradient}
-                  >
-                    <Text style={styles.smallActionText}>Open Telegram</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                {receiver.telegramUsername ? (
-                  <TouchableOpacity
-                    style={styles.shareIconButton}
-                    activeOpacity={0.7}
-                    onPress={() => handleShareTelegram(receiver.telegramUsername)}
-                    accessibilityLabel="Share Telegram Handle"
-                  >
-                    <Icon name="share-variant-outline" size={17} color={Colors.primary} />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-
-          {isApproved && receiver.telegramUsername ? (
-            <View style={styles.itemHandleRow}>
-              <Text style={styles.itemHandleLabel}>Telegram: </Text>
-              <Text selectable={true} style={styles.itemHandleText}>
-                @{receiver.telegramUsername.replace('@', '')}
-              </Text>
+                  {restoringId === String(item.id) ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <View style={styles.restoreBtnContent}>
+                      <Icon name="lock" size={13} color="#FFFFFF" style={styles.lockIcon} />
+                      <Text style={styles.restoreBtnText}>{t('sent.sentrequestsscreen.restore_access')}</Text>
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.chatBtn}
+                activeOpacity={0.8}
+                onPress={() => openTelegramChat(receiver.telegramUsername)}
+              >
+                <Icon name="send" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+                <Text style={styles.chatBtnText}>{t('requests.requestsinboxscreen.chat')}</Text>
+              </TouchableOpacity>
+            )
+          ) : (
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingBadgeText}>{t('sent.sentrequestsscreen.pending_reply')}</Text>
             </View>
-          ) : null}
-
-          {receiver.city ? (
-            <Text style={styles.cityText} numberOfLines={1}>
-              {receiver.city}
-            </Text>
-          ) : null}
-
-          {receiver.bio ? (
-            <Text style={styles.bioText} numberOfLines={1}>
-              {receiver.bio}
-            </Text>
-          ) : null}
-          <Text style={styles.metaText}>{formatRequestTime(item.createdAt)}</Text>
+          )}
         </View>
+
+        <Text style={styles.timestampText}>{timeText}</Text>
       </TouchableOpacity>
     );
   };
 
+  const hasAnyInvitations = requests.length > 0;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTitleRow}>
-          {canGoBack && (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Icon name="arrow-left" size={24} color={Colors.text} />
-            </TouchableOpacity>
-          )}
-          <Text style={styles.screenTitle}>Sent Invitations</Text>
-        </View>
-        <Text style={styles.screenSubtitle}>Your sent invitations</Text>
-      </View>
+      {/* Notification Banner */}
+      <NotificationBanner />
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Icon name="magnify" size={20} color={Colors.textMuted} />
-        <TextInput
-          placeholder="Search sent invitations by name or city..."
-          style={styles.searchInput}
-          placeholderTextColor={Colors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setSearchQuery('')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Icon name="close-circle" size={18} color={Colors.textMuted} />
-          </TouchableOpacity>
+      {/* Top Header */}
+      <View style={styles.headerRow}>
+        <Text style={styles.headerTitle}>{t('messages.messagescreen.invitations')}</Text>
+        {hasAnyInvitations && (
+          <View style={styles.headerActions}>
+            <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
+              <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.refreshBtn}
+              onPress={refreshAll}
+            >
+              <Icon name="sync" size={20} color={themeColors.primary} />
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
-      {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading invitations...</Text>
-        </View>
-      ) : displayedRequests.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Icon
-            name={searchQuery.trim() ? 'account-search-outline' : 'send-outline'}
-            size={48}
-            color={Colors.textMuted}
-            style={{ marginBottom: Spacing.md }}
-          />
-          <Text style={styles.emptyTitle}>
-            {searchQuery.trim() ? 'No Results Found' : 'No sent invitations yet'}
+      {/* When user has no invitations at all, show empty illustration */}
+      {!isLoading && !hasAnyInvitations ? (
+        <View style={styles.emptyContainer}>
+          {/* 3 Overlapping Avatars (pyramid) */}
+          <View style={styles.avatarPyramid}>
+            <Image source={girl1} style={[styles.pyramidAvatar, styles.avatarTopLeft]} />
+            <Image source={girl2} style={[styles.pyramidAvatar, styles.avatarTopRight]} />
+            <View style={styles.avatarBottomCenterWrapper}>
+              <Image source={girl3} style={[styles.pyramidAvatar, styles.avatarBottomCenter]} />
+              <View style={styles.envelopeBadge}>
+                <Image source={envelopeImg} style={styles.envelopeIcon} resizeMode="contain" />
+              </View>
+            </View>
+          </View>
+
+          {/* Title */}
+          <Text style={styles.emptyInvitesTitle}>
+            You haven't invited anyone yet. Don't wait.{'\n'}Invite someone today!
           </Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery.trim()
-              ? `No sent invitations match "${searchQuery.trim()}".`
-              : 'Explore profiles and send an invitation when you find someone interesting.'}
-          </Text>
-          {searchQuery.trim().length > 0 && (
-            <TouchableOpacity
-              style={styles.clearSearchBtn}
-              onPress={() => setSearchQuery('')}
+
+          {/* Subtitle */}
+          <Text style={styles.emptyInvitesSubtitle}>{t('sent.sentrequestsscreen.when_she_accepts_your_invitation_you_can_contact_her_on_whatsapp_or_te')}</Text>
+
+          {/* Invite now pill button */}
+          <TouchableOpacity
+            style={styles.inviteNowBtnWrapper}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Home')}
+          >
+            <LinearGradient
+              colors={[themeColors.primary, themeColors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.inviteNowBtn}
             >
-              <Text style={styles.clearSearchBtnText}>Clear Search</Text>
-            </TouchableOpacity>
-          )}
+              <Text style={styles.inviteNowText}>{t('messages.invitebutton.invite_now')}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={displayedRequests}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refreshAll}
-              tintColor={Colors.primary}
+        <>
+          {/* Segmented Control Pills */}
+          <View style={styles.segmentedWrap}>
+            <TouchableOpacity
+              style={styles.segmentPillWrapper}
+              onPress={() => setActiveTab('pending')}
+              activeOpacity={0.7}
+            >
+              {activeTab === 'pending' ? (
+                <LinearGradient
+                  colors={[themeColors.primary, themeColors.primaryLight]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.segmentPillActive}
+                >
+                  <Text style={styles.segmentTextActive}>Pending</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.segmentPillInactive}>
+                  <Text style={styles.segmentTextInactive}>Pending</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.segmentPillWrapper}
+              onPress={() => setActiveTab('accepted')}
+              activeOpacity={0.7}
+            >
+              {activeTab === 'accepted' ? (
+                <LinearGradient
+                  colors={[themeColors.primary, themeColors.primaryLight]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.segmentPillActive}
+                >
+                  <Text style={styles.segmentTextActive}>{t('requests.requestsinboxscreen.accepted')}</Text>
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>
+                      {acceptedRequests.length > 9 ? '9+' : acceptedRequests.length || '9+'}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              ) : (
+                <View style={styles.segmentPillInactive}>
+                  <Text style={styles.segmentTextInactive}>{t('requests.requestsinboxscreen.accepted')}</Text>
+                  <View style={styles.countBadgeInactive}>
+                    <Text style={styles.countBadgeInactiveText}>
+                      {acceptedRequests.length > 9 ? '9+' : acceptedRequests.length || '9+'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Search Bar: "Search by name" */}
+          <View style={styles.searchBar}>
+            <Icon name="magnify" size={20} color={themeColors.textMuted} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('requests.requestsinboxscreen.search_by_name')}
+              placeholderTextColor={themeColors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
-          }
-        />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Icon name="close-circle" size={18} color={themeColors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* List */}
+          {isLoading ? (
+            <View style={styles.centerBox}>
+              <ActivityIndicator size="large" color={themeColors.primary} />
+            </View>
+          ) : filteredRequests.length === 0 ? (
+            <View style={styles.centerBox}>
+              <Icon name="email-outline" size={48} color={themeColors.textMuted} style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyTitle}>
+                {t('sent.sentrequestsscreen.no_invitations', { activeTab })}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {activeTab === 'accepted'
+                  ? t('sent.sentrequestsscreen.invitations_that_are_accepted_will_appear_here')
+                  : t('sent.sentrequestsscreen.you_have_no_invitations_waiting_for_a_reply')}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              style={styles.list}
+              data={filteredRequests}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={renderCard}
+              contentContainerStyle={[
+                styles.listContent,
+                { paddingBottom: Math.max(insets.bottom, 16) + 110 },
+              ]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefetching}
+                  onRefresh={refreshAll}
+                  tintColor={themeColors.primary}
+                />
+              }
+            />
+          )}
+        </>
       )}
     </View>
   );
@@ -323,74 +418,139 @@ const createStyles = (colors: any) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      paddingHorizontal: Spacing.lg,
-      paddingTop: Spacing.md,
-      paddingBottom: Spacing.sm,
-    },
-    headerTitleRow: {
+    headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 8,
     },
-    backButton: {
-      marginRight: 10,
+    headerTitle: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    selectBtn: {
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+    },
+    selectText: {
+      color: colors.primary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    refreshBtn: {
       padding: 4,
     },
-    screenTitle: {
-      fontSize: 24,
+    segmentedWrap: {
+      flexDirection: 'row',
+      paddingHorizontal: 20,
+      marginTop: 12,
+      marginBottom: 16,
+      gap: 12,
+    },
+    segmentPillWrapper: {
+      borderRadius: 22,
+      overflow: 'hidden',
+    },
+    segmentPillActive: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: 22,
+    },
+    segmentPillInactive: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 9,
+      paddingHorizontal: 19,
+      borderRadius: 22,
+      backgroundColor: colors.surfaceLight,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    segmentText: {
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    segmentTextActive: {
+      color: '#FFFFFF',
+      fontSize: 15,
       fontWeight: '700',
-      color: colors.text,
     },
-    screenSubtitle: {
-      fontSize: 13,
-      color: colors.textMuted,
-      marginTop: 2,
+    segmentTextInactive: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      fontWeight: '500',
     },
-    searchContainer: {
+    countBadge: {
+      marginLeft: 6,
+      backgroundColor: colors.secondary,
+      borderRadius: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    countBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    countBadgeInactive: {
+      marginLeft: 6,
+      backgroundColor: colors.surfaceLighter || colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    countBadgeInactiveText: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      marginHorizontal: Spacing.lg,
-      marginTop: Spacing.sm,
-      marginBottom: Spacing.xs,
-      paddingHorizontal: Spacing.md,
-      borderRadius: 22,
-      height: 42,
+      borderRadius: 24,
       borderWidth: 1,
       borderColor: colors.borderLight,
+      marginHorizontal: 20,
+      paddingHorizontal: 16,
+      height: 44,
+      marginBottom: 16,
+    },
+    searchIcon: {
+      marginRight: 10,
     },
     searchInput: {
       flex: 1,
       color: colors.text,
-      fontSize: 14,
-      marginLeft: 8,
+      fontSize: 15,
       paddingVertical: 0,
     },
-    clearSearchBtn: {
-      marginTop: Spacing.md,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 16,
-      backgroundColor: colors.surfaceLight,
-    },
-    clearSearchBtnText: {
-      color: colors.primary,
-      fontWeight: '700',
-      fontSize: 13,
+    list: {
+      flex: 1,
     },
     listContent: {
-      padding: Spacing.md,
-      paddingBottom: 90,
+      paddingHorizontal: 20,
+      gap: 14,
     },
     card: {
       flexDirection: 'row',
-      backgroundColor: colors.surface,
-      borderRadius: 14,
-      padding: Spacing.md,
-      marginBottom: Spacing.sm,
       alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor: colors.borderLight,
+      borderColor: colors.border,
+      padding: 14,
     },
     avatar: {
       width: 60,
@@ -398,310 +558,195 @@ const createStyles = (colors: any) =>
       borderRadius: 30,
       backgroundColor: colors.surfaceLight,
     },
-    cardContent: {
+    cardInfo: {
       flex: 1,
-      marginLeft: Spacing.md,
-    },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    nameText: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: colors.text,
-      flex: 1,
-      marginRight: 8,
-    },
-    smallActionWrapper: {
-      borderRadius: 14,
-      overflow: 'hidden',
-    },
-    smallActionGradient: {
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: 14,
+      marginLeft: 14,
       justifyContent: 'center',
-      alignItems: 'center',
     },
-    smallActionText: {
-      color: '#fff',
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    cityText: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
-    bioText: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-    metaText: {
-      fontSize: 11,
-      color: colors.textMuted,
-    },
-    centerContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: Spacing.xl,
-    },
-    loadingText: {
-      fontSize: 14,
-      color: colors.textMuted,
-      marginTop: Spacing.md,
-    },
-    emptyTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+    nameAgeText: {
       color: colors.text,
-    },
-    emptySubtitle: {
-      fontSize: 13,
-      color: colors.textMuted,
-      textAlign: 'center',
-      marginTop: 6,
-      lineHeight: 18,
-    },
-    // Full Profile Modal
-    modalContainer: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: Spacing.md,
-      paddingVertical: Spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
-    },
-    modalBackBtn: {
-      padding: Spacing.xs,
-    },
-    modalTitle: {
       fontSize: 17,
       fontWeight: '700',
-      color: colors.text,
+      marginBottom: 6,
     },
-    modalScroll: {
-      paddingBottom: 80,
-      flexGrow: 1,
-    },
-    photoContainer: {
-      width: '100%',
-      maxWidth: 480,
-      aspectRatio: 0.8,
-      maxHeight: 520,
-      alignSelf: 'center',
-      backgroundColor: colors.surfaceLight,
-      position: 'relative',
-    },
-    modalPhoto: {
-      width: '100%',
-      height: '100%',
-      resizeMode: 'cover',
-      backgroundColor: colors.surfaceLight,
-    },
-    storyBarsContainer: {
-      position: 'absolute',
-      top: 10,
-      left: 12,
-      right: 12,
-      flexDirection: 'row',
-      gap: 5,
-      zIndex: 10,
-    },
-    storyBarTrack: {
-      flex: 1,
-      height: 3,
-      borderRadius: 2,
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    restoreBtnWrapper: {
+      alignSelf: 'flex-start',
+      borderRadius: 16,
       overflow: 'hidden',
     },
-    storyBarFill: {
-      flex: 1,
-      borderRadius: 2,
+    restoreBtn: {
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    tapZoneLeft: {
-      position: 'absolute',
-      top: 25,
-      left: 0,
-      bottom: 25,
-      width: '45%',
-      zIndex: 5,
-    },
-    tapZoneRight: {
-      position: 'absolute',
-      top: 25,
-      right: 0,
-      bottom: 25,
-      width: '55%',
-      zIndex: 5,
-    },
-    photoCountBadge: {
-      position: 'absolute',
-      bottom: 12,
-      right: 14,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 10,
-      zIndex: 10,
-    },
-    photoCountText: {
-      color: '#fff',
-      fontSize: 11,
-      fontWeight: '700',
-    },
-    modalInfo: {
-      padding: Spacing.lg,
-    },
-    modalNameRow: {
+    restoreBtnContent: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
     },
-    modalName: {
-      fontSize: 22,
-      fontWeight: '800',
-      color: colors.text,
+    lockIcon: {
+      marginRight: 5,
     },
-    modalCity: {
-      fontSize: 14,
-      color: colors.textMuted,
-      marginTop: 4,
-    },
-    modalSection: {
-      marginTop: Spacing.lg,
-    },
-    sectionLabel: {
+    restoreBtnText: {
+      color: '#FFFFFF',
       fontSize: 13,
       fontWeight: '700',
-      color: colors.textMuted,
-      textTransform: 'uppercase',
-      marginBottom: 4,
     },
-    modalBio: {
-      fontSize: 15,
-      color: colors.text,
-      lineHeight: 22,
+    chatBtn: {
+      alignSelf: 'flex-start',
+      backgroundColor: '#0088cc',
+      borderRadius: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 6,
+      paddingHorizontal: 14,
     },
-    modalActionBox: {
-      marginTop: Spacing.xl,
+    chatBtnText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
     },
-    modalConnectedBox: {
-      backgroundColor: colors.surface,
-      padding: Spacing.md,
+    pendingBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surfaceLight,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.borderLight,
-      alignItems: 'center',
+      borderColor: colors.border,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
     },
-    connectedLabel: {
+    pendingBadgeText: {
+      color: colors.textSecondary,
       fontSize: 12,
-      color: '#22c55e',
-      fontWeight: '700',
-      textTransform: 'uppercase',
+      fontWeight: '500',
     },
-    connectedHandle: {
-      fontSize: 16,
-      fontWeight: '700',
-      color: colors.text,
-      marginVertical: 4,
-    },
-    modalTelegramBtnWrapper: {
-      borderRadius: 12,
-      overflow: 'hidden',
-      marginTop: 10,
-      width: '100%',
-    },
-    modalTelegramGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 12,
-    },
-    modalTelegramBtnText: {
-      color: '#fff',
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    modalPendingBox: {
-      backgroundColor: colors.surface,
-      padding: Spacing.md,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-      alignItems: 'center',
-    },
-    modalPendingTitle: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: '#eab308',
-    },
-    modalPendingSub: {
-      fontSize: 12,
+    timestampText: {
       color: colors.textMuted,
-      textAlign: 'center',
-      marginTop: 4,
-    },
-    modalRecallBtnWrapper: {
-      borderRadius: 10,
-      overflow: 'hidden',
-      marginTop: 14,
-      width: '100%',
-    },
-    modalRecallGradient: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 10,
-      width: '100%',
-    },
-    modalRecallBtnText: {
-      color: '#fff',
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    approvedActionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    shareIconButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: 'rgba(124, 58, 237, 0.1)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginLeft: 8,
-      borderWidth: 1,
-      borderColor: 'rgba(124, 58, 237, 0.2)',
-    },
-    itemHandleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      fontSize: 13,
+      fontWeight: '400',
+      alignSelf: 'flex-start',
       marginTop: 2,
-      marginBottom: 4,
     },
-    itemHandleLabel: {
-      fontSize: 12,
-      color: colors.textMuted,
+    centerBox: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+    },
+    emptyTitle: {
+      color: colors.text,
+      fontSize: 18,
       fontWeight: '600',
+      marginBottom: 6,
     },
-    itemHandleText: {
-      fontSize: 12,
-      color: colors.primary,
+    emptySubtitle: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+      paddingBottom: 40,
+    },
+    avatarPyramid: {
+      width: 170,
+      height: 120,
+      position: 'relative',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    pyramidAvatar: {
+      borderRadius: 999,
+    },
+    avatarTopLeft: {
+      position: 'absolute',
+      top: 0,
+      left: 14,
+      width: 66,
+      height: 66,
+      borderRadius: 33,
+    },
+    avatarTopRight: {
+      position: 'absolute',
+      top: 0,
+      right: 14,
+      width: 66,
+      height: 66,
+      borderRadius: 33,
+    },
+    avatarBottomCenterWrapper: {
+      position: 'absolute',
+      bottom: 0,
+      width: 76,
+      height: 76,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarBottomCenter: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      borderWidth: 3,
+      borderColor: colors.background,
+    },
+    envelopeBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOpacity: 0.25,
+      shadowRadius: 3,
+    },
+    envelopeIcon: {
+      width: 14,
+      height: 14,
+    },
+    emptyInvitesTitle: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+      lineHeight: 24,
+      marginTop: 18,
+    },
+    emptyInvitesSubtitle: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginTop: 12,
+      marginHorizontal: 16,
+    },
+    inviteNowBtnWrapper: {
+      borderRadius: 24,
+      overflow: 'hidden',
+      marginTop: 26,
+    },
+    inviteNowBtn: {
+      paddingHorizontal: 36,
+      paddingVertical: 12,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    inviteNowText: {
+      color: '#FFFFFF',
+      fontSize: 15,
       fontWeight: '700',
     },
   });
-

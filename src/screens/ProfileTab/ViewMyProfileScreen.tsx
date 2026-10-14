@@ -6,7 +6,9 @@ import {
   FlatList,
   Image,
   ImageSourcePropType,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,11 +17,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Feather";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { getAbsoluteUrl, isApiHostedUrl } from "../../api/apiClient";
 import { useConnection } from "../../api/useConnection";
 import { useUserImages } from "../../api/useImages";
 import { useMyProfile } from "../../api/useProfile";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
+import NotificationBanner from "../../components/NotificationBanner";
 import AppContext from "../../context/CreateGlobalStateContext";
 import { Colors, useTheme } from "../../theme";
 import { useAlert } from "../../components/AlertModal";
@@ -28,6 +32,7 @@ import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/se
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
 import { RootParamList } from "../../utils/types/navigation.types";
+import { t, useTranslation } from '../../i18n';
 
 const normalizeTextValue = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -116,6 +121,7 @@ const resolveNumericIdentifier = (...values: unknown[]) => {
 };
 
 const ViewMyProfileScreen = () => {
+  useTranslation();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const heroHeight = Math.min(Math.max(screenWidth * 1.15, 320), Math.min(screenHeight * 0.58, 540));
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
@@ -141,6 +147,7 @@ const ViewMyProfileScreen = () => {
     verifiedSelfie,
     location,
     setPaywallVisible,
+    isSubscribed,
   } = useContext(AppContext);
 
   // userId from params if we are viewing someone else
@@ -156,7 +163,7 @@ const ViewMyProfileScreen = () => {
   } = (route.params as any) || {};
 
   const { themeColors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const [myId, setMyId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -190,6 +197,8 @@ const ViewMyProfileScreen = () => {
   }, []);
 
   const { getAllImages } = useUserImages();
+  const getAllImagesRef = useRef(getAllImages.mutate);
+  getAllImagesRef.current = getAllImages.mutate;
   const connection = useConnection(myId || undefined);
   const { send: likeMutation } = connection;
 
@@ -234,8 +243,16 @@ const ViewMyProfileScreen = () => {
     React.useCallback(() => {
       if (isViewingSelf) {
         void refetchProfile();
+        const activeTarget = myId || numericTargetId;
+        if (activeTarget) {
+          getAllImagesRef.current(String(activeTarget), {
+            onSuccess: (data: any) => {
+              setGalleryImages(dedupeImageUris([data]));
+            },
+          });
+        }
       }
-    }, [isViewingSelf, refetchProfile]),
+    }, [isViewingSelf, refetchProfile, myId, numericTargetId]),
   );
 
   useEffect(() => {
@@ -292,6 +309,11 @@ const ViewMyProfileScreen = () => {
   }, [sentConnections, numericTargetId]);
 
   const handleLike = async () => {
+    if (!isSubscribed) {
+      setPaywallVisible(true);
+      return;
+    }
+
     if (!numericTargetId || !myId) return;
 
     if (isAlreadyInvited) {
@@ -331,7 +353,7 @@ const ViewMyProfileScreen = () => {
         navigation.navigate('MatchScreen', {
           matchedUser: {
             id: numericTargetId,
-            name: mergedProfile?.displayName || mergedProfile?.name || 'User',
+            name: mergedProfile?.displayName || mergedProfile?.name || t('home.usercard.user'),
             image: matchedImage,
             age: mergedProfile?.age || null,
             city: mergedProfile?.currentCity || null,
@@ -365,7 +387,7 @@ const ViewMyProfileScreen = () => {
           setPaywallVisible(true);
           return;
         }
-        alert("Couldn't send invitation", getUserFriendlyMessage(error, 'We could not send your invitation right now.'));
+        alert("Couldn't send invitation", getUserFriendlyMessage(error, t('profile.viewmyprofilescreen.we_could_not_send_your_invitation_right_now')));
       },
     });
   };
@@ -426,8 +448,8 @@ const ViewMyProfileScreen = () => {
       ? selectedLookingFor.filter(Boolean).join(", ")
       : normalizeTextValue(selectedLookingFor);
     const contextEnglishLevel =
-      ["Beginner", "Intermediate", "Advanced", "Native"][englishSkillLevel] ||
-      "Beginner";
+      [t('profile.viewmyprofilescreen.beginner'), t('profile.userdetails.intermediate'), "Advanced", "Native"][englishSkillLevel] ||
+      t('profile.viewmyprofilescreen.beginner');
     const contextPrimaryImage =
       dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
 
@@ -444,16 +466,18 @@ const ViewMyProfileScreen = () => {
       routeImage,
     ]);
 
-    const ownImages = dedupeImageUris([
-      fetched?.photos,
-      fetched?.images,
-      fetched?.allImages,
-      galleryImages,
-      contextImages,
-      profileImageUrl,
-      profileImage,
-      fetched?.profileImageUrl,
-    ]);
+    const activeContextPhotos = (contextImages || []).filter(Boolean) as string[];
+    const ownImages = activeContextPhotos.length > 0
+      ? activeContextPhotos
+      : dedupeImageUris([
+          fetched?.photos,
+          fetched?.images,
+          fetched?.allImages,
+          galleryImages,
+          profileImageUrl,
+          profileImage,
+          fetched?.profileImageUrl,
+        ]);
 
     const mergedImages = isViewingSelf ? ownImages : targetImages;
 
@@ -463,11 +487,11 @@ const ViewMyProfileScreen = () => {
       id: (isViewingSelf ? (fetched?.id || myId) : (fetched?.id || routed?.id || numericTargetId)) || null,
       targetUserId: isViewingSelf ? null : (numericTargetId || routed?.targetUserId || routed?.userId || null),
       name: isViewingSelf
-        ? (normalizeTextValue(fetched?.name) || normalizeTextValue(name) || normalizeTextValue(displayName) || 'User')
-        : (normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || 'User'),
+        ? (normalizeTextValue(fetched?.name) || normalizeTextValue(name) || normalizeTextValue(displayName) || t('home.usercard.user'))
+        : (normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || t('home.usercard.user')),
       displayName: isViewingSelf
-        ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(displayName) || normalizeTextValue(name) || 'User')
-        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || 'User'),
+        ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(displayName) || normalizeTextValue(name) || t('home.usercard.user'))
+        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || t('home.usercard.user')),
       age: isViewingSelf
         ? (fetched?.age || ownAge || null)
         : (routed?.age || fetched?.age || null),
@@ -485,25 +509,25 @@ const ViewMyProfileScreen = () => {
         : (normalizeTextValue(routed?.bodyType) || normalizeTextValue(fetched?.bodyType) || ''),
       language: isViewingSelf
         ? (normalizeTextValue(fetched?.language) || contextLanguage || '')
-        : (normalizeTextValue(routed?.language) || normalizeTextValue(fetched?.language) || 'English'),
+        : (normalizeTextValue(routed?.language) || normalizeTextValue(fetched?.language) || t('profile.userdetails.english')),
       englishLevel: isViewingSelf
         ? (normalizeTextValue(fetched?.englishLevel) || contextEnglishLevel || '')
-        : (normalizeTextValue(routed?.englishLevel) || normalizeTextValue(fetched?.englishLevel) || 'Conversational'),
+        : (normalizeTextValue(routed?.englishLevel) || normalizeTextValue(fetched?.englishLevel) || t('profile.viewmyprofilescreen.conversational')),
       ethnicity: isViewingSelf
         ? (normalizeTextValue(fetched?.ethnicity) || normalizeTextValue(selectedEthinicity) || '')
-        : (normalizeTextValue(routed?.ethnicity) || normalizeTextValue(fetched?.ethnicity) || 'Asian'),
+        : (normalizeTextValue(routed?.ethnicity) || normalizeTextValue(fetched?.ethnicity) || t('profile.viewmyprofilescreen.asian')),
       smoke: isViewingSelf
         ? (normalizeTextValue(fetched?.smoke) || normalizeTextValue(selectedSmoking) || '')
-        : (normalizeTextValue(routed?.smoke) || normalizeTextValue(fetched?.smoke) || 'Never'),
+        : (normalizeTextValue(routed?.smoke) || normalizeTextValue(fetched?.smoke) || t('profile.viewmyprofilescreen.never')),
       drink: isViewingSelf
         ? (normalizeTextValue(fetched?.drink) || normalizeTextValue(selectedDrinking) || '')
-        : (normalizeTextValue(routed?.drink) || normalizeTextValue(fetched?.drink) || 'Socially'),
+        : (normalizeTextValue(routed?.drink) || normalizeTextValue(fetched?.drink) || t('profile.viewmyprofilescreen.socially')),
       lookingFor: isViewingSelf
         ? (normalizeTextValue(fetched?.lookingFor) || contextLookingFor || '')
-        : (normalizeTextValue(routed?.lookingFor) || normalizeTextValue(fetched?.lookingFor) || 'Long-term'),
+        : (normalizeTextValue(routed?.lookingFor) || normalizeTextValue(fetched?.lookingFor) || t('profile.viewmyprofilescreen.long_term')),
       currentCity: isViewingSelf
         ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(location) || '')
-        : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(fetched?.currentCity) || 'Nearby'),
+        : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(fetched?.currentCity) || t('home.usercard.nearby')),
       verifiedSelfie: isViewingSelf
         ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
         : Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
@@ -562,37 +586,42 @@ const ViewMyProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={themeColors.background}
+      />
+      {/* Top Notification Banner */}
+      <NotificationBanner />
+
       {/* Top Header Bar */}
       <View style={styles.topNavBar}>
         <TouchableOpacity
-          style={styles.navBackBtn}
+          style={styles.navLeftRow}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Icon name="chevron-left" size={26} color={Colors.text} />
+          <Icon name="chevron-left" size={28} color={themeColors.text} style={styles.navBackIcon} />
+          <Text style={styles.brandLogoText}>{t('home.homeheader.amara')}</Text>
         </TouchableOpacity>
-        <Text style={styles.navTitle}>
-          {isViewingSelf ? 'My Profile' : (mergedProfile?.displayName || mergedProfile?.name || 'Profile')}
-        </Text>
+
+        {isViewingSelf ? (
+          <TouchableOpacity
+            style={styles.pillEditBtn}
+            onPress={() => navigation.navigate('ProfileSettingsScreen')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.pillEditBtnText}>{t('profile.userdetails.edit')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.navRightPlaceholder} />
+        )}
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, !isViewingSelf && numericTargetId ? styles.scrollContentWithFooter : null]}
+        contentContainerStyle={[styles.scrollContent, !isViewingSelf && requestRole !== 'received' ? styles.scrollContentWithFooter : null]}
       >
-        {/* Top Edit Button row when viewing own profile */}
-        {isViewingSelf && (
-          <View style={styles.topEditRow}>
-            <TouchableOpacity
-              style={styles.pillEditBtn}
-              onPress={() => navigation.navigate('ProfileSettingsScreen')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.pillEditBtnText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Hero Photo Carousel */}
         <View style={styles.sliderWrapper}>
           {sliderImages.length > 0 ? (
@@ -614,7 +643,24 @@ const ViewMyProfileScreen = () => {
                 }
                 style={styles.image}
                 resizeMode="cover"
+                blurRadius={!isViewingSelf && !isSubscribed ? (Platform.OS === 'android' ? 22 : 16) : 0}
               />
+
+              {/* Upgrade to premium blur overlay card when viewing another user and not subscribed */}
+              {!isViewingSelf && !isSubscribed && (
+                <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
+                  <View style={styles.blurCardOverlay}>
+                    <TouchableOpacity
+                      style={styles.upgradePillBtn}
+                      activeOpacity={0.85}
+                      onPress={() => setPaywallVisible(true)}
+                    >
+                      <MaterialCommunityIcons name="crown" size={20} color="#FF4D6D" style={styles.crownIcon} />
+                      <Text style={styles.upgradePillText}>{t('profile.viewmyprofilescreen.upgrade_to_premium')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               {sliderImages.length > 1 && (
                 <>
@@ -650,8 +696,8 @@ const ViewMyProfileScreen = () => {
                         {
                           backgroundColor:
                             index === activeIndex
-                              ? Colors.primaryLight
-                              : 'rgba(255, 255, 255, 0.35)',
+                              ? '#FFFFFF'
+                              : 'rgba(255, 255, 255, 0.45)',
                           width: index === activeIndex ? 22 : 6,
                         },
                       ]}
@@ -677,27 +723,33 @@ const ViewMyProfileScreen = () => {
         />
       </ScrollView>
 
-      {/* 🔥 ACTION BUTTONS FOR OTHER USERS */}
-      {!isViewingSelf && numericTargetId && requestRole !== 'received' && (
-        <View style={styles.actionFooter}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleDislike}>
-            <Icon name="x" size={28} color={Colors.error} />
-          </TouchableOpacity>
-
+      {/* Sticky Bottom Full-Width Send Invite Pill */}
+      {!isViewingSelf && requestRole !== 'received' && (
+        <View style={styles.stickyBottomBar}>
           <TouchableOpacity
             style={[
-              styles.actionBtn,
-              { borderColor: isAlreadyInvited ? Colors.success : Colors.primaryLight },
-              (isAlreadyInvited || likeMutation.isPending) && styles.disabledActionBtn,
+              styles.sendInvitePill,
+              (isAlreadyInvited || likeMutation.isPending) && styles.sendInvitePillDisabled,
             ]}
+            activeOpacity={0.85}
             onPress={handleLike}
             disabled={isAlreadyInvited || likeMutation.isPending}
           >
-            <Icon
-              name={isAlreadyInvited ? "check" : "heart"}
-              size={28}
-              color={isAlreadyInvited ? Colors.success : Colors.primaryLight}
-            />
+            {likeMutation.isPending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <View style={styles.sendInviteContent}>
+                <MaterialCommunityIcons
+                  name={isAlreadyInvited ? "check-circle-outline" : "send"}
+                  size={19}
+                  color="#FFFFFF"
+                  style={styles.sendInviteIcon}
+                />
+                <Text style={styles.sendInviteText}>
+                  {isAlreadyInvited ? t('profile.viewmyprofilescreen.invitation_sent') : t('profile.viewmyprofilescreen.send_invite')}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -708,7 +760,7 @@ const ViewMyProfileScreen = () => {
 
 export default ViewMyProfileScreen;
 
-const createStyles = (colors: any) =>
+const createStyles = (colors: any, isDark: boolean = true) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -717,37 +769,37 @@ const createStyles = (colors: any) =>
     topNavBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      justifyContent: 'space-between',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
       backgroundColor: colors.background,
     },
-    navBackBtn: {
-      paddingRight: 12,
-      paddingVertical: 4,
-    },
-    navTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.text,
-      letterSpacing: 0.2,
-    },
-    topEditRow: {
+    navLeftRow: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
-      paddingHorizontal: 16,
-      paddingTop: 4,
-      paddingBottom: 12,
+      alignItems: 'center',
+    },
+    navBackIcon: {
+      marginRight: 2,
+    },
+    brandLogoText: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.primary,
+      letterSpacing: -0.5,
+    },
+    navRightPlaceholder: {
+      width: 32,
     },
     pillEditBtn: {
       backgroundColor: colors.primary,
-      paddingHorizontal: 22,
-      paddingVertical: 7,
-      borderRadius: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 6,
+      borderRadius: 18,
       justifyContent: 'center',
       alignItems: 'center',
     },
     pillEditBtnText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
       color: '#FFFFFF',
     },
@@ -821,33 +873,91 @@ const createStyles = (colors: any) =>
       height: 6,
       borderRadius: 3,
     },
-    actionFooter: {
-      flexDirection: "row",
-      justifyContent: "space-evenly",
-      paddingVertical: 18,
-      borderTopWidth: 1,
-      borderColor: colors.glassBorder,
-      backgroundColor: colors.surface,
+    blurCardOverlayWrapper: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    blurCardOverlay: {
+      width: 230,
+      height: 230,
+      borderRadius: 24,
+      backgroundColor: isDark ? 'rgba(30, 24, 38, 0.52)' : 'rgba(255, 255, 255, 0.38)',
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.65)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+      elevation: 6,
+    },
+    upgradePillBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#1E1924',
+      paddingVertical: 12,
+      paddingHorizontal: 22,
+      borderRadius: 25,
+      elevation: 6,
+      shadowColor: '#000',
+      shadowOpacity: 0.35,
+      shadowRadius: 6,
+    },
+    crownIcon: {
+      marginRight: 8,
+    },
+    upgradePillText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    stickyBottomBar: {
       position: 'absolute',
       bottom: 0,
-      width: '100%',
-    },
-    actionBtn: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-      borderWidth: 1,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.background,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+      borderTopWidth: 1,
       borderColor: colors.glassBorder,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: colors.surfaceLight,
-      elevation: 4,
-      shadowColor: '#000',
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
+      zIndex: 20,
     },
-    disabledActionBtn: {
-      opacity: 0.6,
+    sendInvitePill: {
+      backgroundColor: colors.primary || '#7C3AED',
+      height: 52,
+      borderRadius: 26,
+      justifyContent: 'center',
+      alignItems: 'center',
+      elevation: 4,
+      shadowColor: colors.primary || '#7C3AED',
+      shadowOpacity: 0.35,
+      shadowRadius: 6,
+    },
+    sendInvitePillDisabled: {
+      opacity: 0.7,
+      backgroundColor: colors.disabled || '#554270',
+    },
+    sendInviteContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sendInviteIcon: {
+      marginRight: 8,
+    },
+    sendInviteText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
     },
   });
 

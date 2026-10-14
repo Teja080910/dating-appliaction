@@ -4,6 +4,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeColors, Spacing, Shadows } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface SaveResetButtonsProps {
   onSave?: () => void;
@@ -12,6 +13,7 @@ interface SaveResetButtonsProps {
 }
 
 const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, saving }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation();
@@ -30,7 +32,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
     if (onReset) onReset();
     else {
       setAgeRange([18, 55]);
-      setLocation('My current location');
+      setLocation(t('search.location.my_current_location'));
       setDistanceRange(1100);
       setBodyHeight([120, 200]);
       setSearchLanguages([]);
@@ -51,7 +53,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
         onPress={handleReset}
         disabled={saving}
       >
-        <Text style={styles.resetButtonText}>Reset</Text>
+        <Text style={styles.resetButtonText}>{t('search.saveresetbuttons.reset')}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.button, styles.saveButton]}
@@ -59,7 +61,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
         disabled={saving}
       >
         <LinearGradient
-          colors={[themeColors.primary, themeColors.primaryLight]}
+          colors={[themeColors.primary, themeColors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.saveGradient}
@@ -67,7 +69,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
           {saving ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>{t('more_info.savebutton.save')}</Text>
           )}
         </LinearGradient>
       </TouchableOpacity>

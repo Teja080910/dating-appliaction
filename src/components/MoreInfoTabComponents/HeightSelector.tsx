@@ -3,10 +3,12 @@ import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const HeightSelector = () => {
-  const { themeColors, isDark } = useTheme();
+  useTranslation();
+  const { themeColors } = useTheme();
   const { height, setHeight, tempHeight, setTempHeight } = useContext(AppContext);
   const currentHeight = Number(tempHeight || height || 171);
 
@@ -15,8 +17,10 @@ const HeightSelector = () => {
       <View style={styles.headerRow}>
         <Icon name="ruler" size={22} color={themeColors.text} style={styles.headerIcon} />
         <View style={styles.textColumn}>
-          <Text style={[styles.title, { color: themeColors.text }]}>Your height</Text>
-          <Text style={[styles.valueText, { color: themeColors.textSecondary }]}>{currentHeight} cm</Text>
+          <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.heightselector.your_height')}</Text>
+          <Text style={[styles.valueText, { color: themeColors.textSecondary }]}>
+            {currentHeight} cm
+          </Text>
         </View>
       </View>
       <View style={styles.sliderContainer}>
@@ -26,7 +30,7 @@ const HeightSelector = () => {
           maximumValue={220}
           step={1}
           minimumTrackTintColor={themeColors.primary}
-          maximumTrackTintColor={isDark ? 'rgba(255, 255, 255, 0.18)' : '#E5E7EB'}
+          maximumTrackTintColor={themeColors.surfaceLight}
           thumbTintColor={themeColors.primaryLight}
           value={currentHeight}
           onValueChange={(value) => setTempHeight(Math.round(value))}
@@ -46,7 +50,7 @@ export default HeightSelector;
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 16,
     marginBottom: 4,
   },
   headerRow: {
@@ -79,5 +83,3 @@ const styles = StyleSheet.create({
     height: 40,
   },
 });
-
-

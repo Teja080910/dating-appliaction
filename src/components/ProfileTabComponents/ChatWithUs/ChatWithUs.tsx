@@ -3,13 +3,15 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { t, useTranslation } from '../../../i18n';
 
 const ChatWithUs = ({ onPress }: any) => {
+  useTranslation();
   return (
     <TouchableOpacity style={styles.row} onPress={onPress}>
       <View style={styles.left}>
         <MaterialCommunityIcons name="message-text-outline" size={22} style={styles.icon} />
-        <Text style={styles.text}>Chat with us</Text>
+        <Text style={styles.text}>{t('profile.chatwithus.chat_with_us')}</Text>
       </View>
       <Icon name="chevron-right" size={26} color="#c4c4c4" style={styles.chevron} />
     </TouchableOpacity>

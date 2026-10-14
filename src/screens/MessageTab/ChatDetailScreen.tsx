@@ -18,13 +18,15 @@ import Feather from 'react-native-vector-icons/Feather';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
 import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const ChatDetailScreen = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = React.useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const { name, image } = route.params || { name: 'User', image: null };
+  const { name, image } = route.params || { name: t('home.usercard.user'), image: null };
   const { requireSubscription } = useSubscriptionGate();
 
   const [messages, setMessages] = useState<any[]>([]);
@@ -58,8 +60,8 @@ const ChatDetailScreen = () => {
       <View style={styles.emptyIconCircle}>
         <Icon name="chat-outline" size={40} color={Colors.textMuted} />
       </View>
-      <Text style={styles.emptyTitle}>No messages yet</Text>
-      <Text style={styles.emptyDesc}>Send a message to start the conversation!</Text>
+      <Text style={styles.emptyTitle}>{t('messages.chatdetailscreen.no_messages_yet')}</Text>
+      <Text style={styles.emptyDesc}>{t('messages.chatdetailscreen.send_a_message_to_start_the_conversation')}</Text>
     </View>
   );
 
@@ -84,7 +86,7 @@ const ChatDetailScreen = () => {
             <Text style={styles.headerName}>{name}</Text>
             <View style={styles.onlineStatus}>
               <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Online</Text>
+              <Text style={styles.onlineText}>{t('messages.chatdetailscreen.online')}</Text>
             </View>
           </View>
         </View>
@@ -117,7 +119,7 @@ const ChatDetailScreen = () => {
 
           <View style={styles.inputWrapper}>
             <TextInput
-              placeholder="Messaging coming soon..."
+              placeholder={t('messages.chatdetailscreen.messaging_coming_soon')}
               style={styles.input}
               value={inputText}
               onChangeText={setInputText}

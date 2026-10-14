@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import { Colors, useTheme } from '../../../theme';
+import { t, useTranslation } from '../../../i18n';
 
 interface YourBirthdayProps {
   value: string;
@@ -9,6 +10,7 @@ interface YourBirthdayProps {
 }
 
 const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
   const [open, setOpen] = useState(false);
 
@@ -29,7 +31,7 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: themeColors.text }]}>Select your birthday</Text>
+      <Text style={[styles.title, { color: themeColors.text }]}>{t('profile.yourbirthday.select_your_birthday')}</Text>
 
       <View style={styles.boxesRow}>
         <TouchableOpacity

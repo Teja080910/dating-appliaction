@@ -5,8 +5,10 @@ import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useAuth } from '../../../api/useAuth';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../../theme';
+import { t, useTranslation } from '../../../i18n';
 
 const Logout = () => {
+  useTranslation();
   const navigation = useNavigation();
   const { logout } = useAuth();
   const { setLogin, setAuthUserId } = useContext(AppContext);
@@ -34,7 +36,7 @@ const Logout = () => {
       onPress={handleLogout}
     >
       <Ionicons name="log-out-outline" size={24} color={Colors.error} />
-      <Text style={styles.text}>Log out</Text>
+      <Text style={styles.text}>{t('profile.logout.log_out')}</Text>
     </TouchableOpacity>
   );
 };

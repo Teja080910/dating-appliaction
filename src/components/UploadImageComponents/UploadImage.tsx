@@ -1,5 +1,5 @@
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import Icon from 'react-native-vector-icons/Feather';
 import { mapImagesToSlots, MAX_PROFILE_IMAGES, useUserImages } from '../../api/useImages';
@@ -8,12 +8,16 @@ import { isResolvedApiUserId } from '../../utils/sessionState';
 import { getAuthToken } from '../../utils/sessionHelper';
 import { getUserId } from '../../utils/sessionHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, Spacing } from '../../theme';
+import { Colors, Spacing, useTheme, type ThemeColors } from '../../theme';
 import { useAlert } from '../AlertModal';
 import { isApiHostedUrl } from '../../api/apiClient';
+import { t, useTranslation } from '../../i18n';
 
 const UploadImage = () => {
+  useTranslation();
   const { alert, AlertComponent } = useAlert();
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const {
     images,
     setImages,
@@ -68,7 +72,7 @@ const UploadImage = () => {
         const message =
           error?.response?.data?.message ||
           error?.message ||
-          'Unable to load your uploaded images.';
+          t('profile.uploadimage.unable_to_load_your_uploaded_images');
         alert('Image Sync Failed', String(message));
       },
     });
@@ -135,10 +139,10 @@ const UploadImage = () => {
       return;
     }
 
-    alert('Remove Photo', 'Do you want to delete this photo from the server?', [
-      { text: 'Cancel', style: 'cancel' },
+    alert(t('profile.additionaluploadsection.remove_photo'), 'Do you want to delete this photo from the server?', [
+      { text: t('profile.additionaluploadsection.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('profile.uploadimage.delete'),
         style: 'destructive',
         onPress: () => {
           deleteImage.mutate(imageId, {
@@ -149,7 +153,7 @@ const UploadImage = () => {
               const message =
                 error?.response?.data?.message ||
                 error?.message ||
-                'Failed to delete image from server.';
+                t('profile.uploadimage.failed_to_delete_image_from_server');
               alert('Delete Failed', String(message));
             },
           });
@@ -164,7 +168,7 @@ const UploadImage = () => {
         <View key={index} style={styles.imageWrapper}>
           <View style={styles.slotHeader}>
             <Text style={styles.slotLabel}>
-              {index === 0 ? 'Main photo' : `Photo ${index + 1}`}
+              {index === 0 ? 'Main photo' : t('profile.uploadimage.photo', { index: index + 1 })}
             </Text>
           </View>
 
@@ -218,112 +222,113 @@ const UploadImage = () => {
   );
 };
 
-export default UploadImage;
+const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'flex-start',
+      marginTop: Spacing.sm + 2,
+      marginHorizontal: -6,
+    },
+    imageWrapper: {
+      width: '33.33%',
+      alignItems: 'center',
+      marginBottom: Spacing.md,
+      paddingHorizontal: 6,
+    },
+    slotHeader: {
+      width: '100%',
+      marginBottom: Spacing.sm,
+    },
+    slotLabel: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: themeColors.textSecondary,
+      textAlign: 'left',
+    },
+    imageBox: {
+      width: '100%',
+      aspectRatio: 1,
+      backgroundColor: themeColors.inputBackground,
+      borderRadius: Spacing.radiusLg,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: themeColors.border,
+      position: 'relative',
+      overflow: 'visible',
+    },
+    mainIndicator: {
+      borderColor: themeColors.primary,
+      borderStyle: 'dashed',
+      backgroundColor: isDark ? themeColors.glass : 'rgba(124, 58, 237, 0.05)',
+    },
+    mainActive: {
+      borderColor: themeColors.primary,
+      borderWidth: 2,
+    },
+    iconContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cameraIconWrapper: {
+      position: 'relative',
+      width: 24,
+      height: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    plusBadge: {
+      position: 'absolute',
+      top: -6,
+      right: -10,
+      backgroundColor: themeColors.primary,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: themeColors.surface,
+    },
+    deleteBadge: {
+      position: 'absolute',
+      top: -8,
+      right: -8,
+      backgroundColor: isDark ? Colors.black : '#111827',
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: themeColors.surface,
+      zIndex: 10,
+    },
+    plusText: {
+      color: Colors.white,
+      fontSize: 10,
+      fontWeight: 'bold',
+    },
+    addLabel: {
+      marginTop: Spacing.sm,
+      fontSize: 12,
+      fontWeight: '700',
+      color: themeColors.primary,
+    },
+    image: {
+      width: '100%',
+      height: '100%',
+      borderRadius: Spacing.radiusMd,
+    },
+    imageLoader: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      borderRadius: Spacing.radiusMd,
+    },
+  });
 
-const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    marginTop: Spacing.sm + 2,
-    marginHorizontal: -6,
-  },
-  imageWrapper: {
-    width: '33.33%',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    paddingHorizontal: 6,
-  },
-  slotHeader: {
-    width: '100%',
-    marginBottom: Spacing.sm,
-  },
-  slotLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textMuted,
-    textAlign: 'left',
-  },
-  imageBox: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: Colors.inputBackground,
-    borderRadius: Spacing.radiusLg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    position: 'relative',
-    overflow: 'visible',
-  },
-  mainIndicator: {
-    borderColor: Colors.primary,
-    borderStyle: 'dashed',
-    backgroundColor: Colors.glass,
-  },
-  mainActive: {
-    borderColor: Colors.primary,
-    borderWidth: 2,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraIconWrapper: {
-    position: 'relative',
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  plusBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -10,
-    backgroundColor: Colors.primary,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.surface,
-  },
-  deleteBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: Colors.black,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.surface,
-    zIndex: 10,
-  },
-  plusText: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  addLabel: {
-    marginTop: Spacing.sm,
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.primary,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: Spacing.radiusMd,
-  },
-  imageLoader: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: Spacing.radiusMd,
-  },
-});
+export default UploadImage;

@@ -9,11 +9,14 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import HomeScreen from '../HomeTab/HomeScreen';
 import ProfileScreen from '../ProfileTab/ProfileScreen';
 import SentRequestsScreen from '../SentTab/SentRequestsScreen';
+import RequestsInboxScreen from '../RequestsTab/RequestsInboxScreen';
+import ConnectTelegramScreen from '../onboarding/ConnectTelegramScreen';
 import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
 import { getGender } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing, Shadows, useTheme } from '../../theme';
 import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
+import { t, useTranslation } from '../../i18n';
 
 const Tab = createBottomTabNavigator();
 
@@ -115,18 +118,14 @@ const BottomTabs = () => {
 
   return (
     <Tab.Navigator
-      tabBar={
-        !isWoman
-          ? (props) => (
-              <MaleCustomTabBar
-                {...props}
-                avatarUri={avatarUri}
-                insets={insets}
-                themeColors={themeColors}
-              />
-            )
-          : undefined
-      }
+      tabBar={(props) => (
+        <MaleCustomTabBar
+          {...props}
+          avatarUri={avatarUri}
+          insets={insets}
+          themeColors={themeColors}
+        />
+      )}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -138,32 +137,17 @@ const BottomTabs = () => {
         tabBarInactiveTintColor: themeColors.textSecondary,
       }}
     >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-      />
+      {/* Men Flow: Discover (Home) + Sent (Invitations) */}
+      {!isWoman && <Tab.Screen name="Home" component={HomeScreen} />}
+      {!isWoman && <Tab.Screen name="Sent" component={SentRequestsScreen} />}
 
-      {/* Invitations (Men) */}
-      {!isWoman && (
-        <Tab.Screen
-          name="Sent"
-          component={SentRequestsScreen}
-        />
-      )}
+      {/* Women Flow: Invitations (Inbox) + Telegram (Screenshot 5A) */}
+      {isWoman && <Tab.Screen name="Invitations" component={RequestsInboxScreen} />}
+      {isWoman && <Tab.Screen name="Telegram" component={ConnectTelegramScreen} />}
 
-      {/* About me (Men) */}
-      {!isWoman && (
-        <Tab.Screen
-          name="AboutMe"
-          component={MoreInfoScreen}
-        />
-      )}
-
-      {/* Profile (Men & Women) */}
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-      />
+      {/* Common Tabs: About me + Profile */}
+      <Tab.Screen name="AboutMe" component={MoreInfoScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };
@@ -184,6 +168,7 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
   insets,
   themeColors,
 }) => {
+  useTranslation();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 16);
   const barHeight = (Platform.OS === 'ios' ? 70 : 66) + Math.max(insets.bottom, 0);
 
@@ -225,7 +210,7 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
             >
               {isFocused ? (
                 <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
+                  colors={[themeColors.primary, themeColors.secondary]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.avatarGradientBorder}
@@ -240,7 +225,7 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
                   />
                 </LinearGradient>
               ) : (
-                <View style={[styles.avatarDefaultBorder, { borderColor: themeColors.glassBorderLight }]}>
+                <View style={[styles.avatarDefaultBorder, { borderColor: themeColors.glassBorderLight || 'rgba(255, 255, 255, 0.15)' }]}>
                   <Image
                     source={
                       avatarUri
@@ -251,22 +236,31 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
                   />
                 </View>
               )}
+              <Text
+                style={[
+                  styles.tabLabel,
+                  isFocused ? styles.tabLabelActive : [styles.tabLabelInactive, { color: themeColors.textSecondary }],
+                ]}
+              >{t('nav.bottomtabs.profile')}</Text>
             </TouchableOpacity>
           );
         }
 
         let iconName = 'fire';
-        let label = 'Discover';
+        let label = t('nav.bottomtabs.discover');
 
         if (route.name === 'Home') {
           iconName = 'fire';
-          label = 'Discover';
-        } else if (route.name === 'Sent') {
+          label = t('nav.bottomtabs.discover');
+        } else if (route.name === 'Sent' || route.name === 'Invitations') {
           iconName = 'email-outline';
-          label = 'Invitations';
+          label = t('messages.messagescreen.invitations');
+        } else if (route.name === 'Telegram') {
+          iconName = 'send-outline';
+          label = t('nav.bottomtabs.telegram');
         } else if (route.name === 'AboutMe') {
           iconName = 'clipboard-edit-outline';
-          label = 'About me';
+          label = t('more_info.header.about_me');
         }
 
         return (
@@ -325,6 +319,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.tabBarBackground,
     borderTopWidth: 1,
     borderTopColor: Colors.glassBorder,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -368,26 +364,28 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   avatarGradientBorder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     padding: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 2,
   },
   avatarDefaultBorder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: Colors.glassBorderLight,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 2,
   },
   avatarImg: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
   },
 });
 

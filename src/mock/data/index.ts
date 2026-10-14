@@ -8,6 +8,7 @@ export interface MockUser {
   userId: string;
   name: string;
   mobile: string;
+  email?: string;
   password?: string;
   gender: 'man' | 'woman' | string;
   telegramUsername?: string;
@@ -37,6 +38,12 @@ export interface MockProfile {
   englishLevel?: string;
   ethnicity?: string;
   lookingFor?: string;
+  photoVerified?: boolean;
+  verifiedSelfie?: boolean;
+  selfieVerified?: boolean;
+  phone?: string;
+  mobile?: string;
+  email?: string;
 }
 
 export interface MockRequest {
@@ -46,6 +53,7 @@ export interface MockRequest {
   status: 'PENDING' | 'APPROVED';
   createdAt: string;
   updatedAt: string;
+  accessExpired?: boolean;
   sender?: Partial<MockProfile>;
   receiver?: Partial<MockProfile>;
 }

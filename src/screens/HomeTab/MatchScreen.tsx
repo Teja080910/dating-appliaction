@@ -18,6 +18,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
+import { t, useTranslation } from '../../i18n';
 
 const FALLBACK_IMAGES = [
   require('../../assets/MessageTabImages/girl1.webp'),
@@ -60,6 +61,7 @@ const extractFirstImagePath = (value: unknown): string | null => {
 };
 
 const MatchScreen = () => {
+  useTranslation();
   const navigation = useNavigation();
   const route = useRoute();
   const { requireSubscription } = useSubscriptionGate();
@@ -88,8 +90,8 @@ const MatchScreen = () => {
   }, []);
 
   const params = route.params as any;
-  const matchedUser = params?.matchedUser || { name: 'User', image: null };
-  const theirName = matchedUser?.name || matchedUser?.displayName || 'User';
+  const matchedUser = params?.matchedUser || { name: t('home.usercard.user'), image: null };
+  const theirName = matchedUser?.name || matchedUser?.displayName || t('home.usercard.user');
 
   const rawTheirImage = useMemo(() => {
     const candidate = [
@@ -170,7 +172,7 @@ const MatchScreen = () => {
                 style={styles.sparkleIcon}
               />
             </View>
-            <Text style={[styles.title, isCompact && styles.titleCompact]}>Invitation Sent! 💌</Text>
+            <Text style={[styles.title, isCompact && styles.titleCompact]}>{t('home.matchscreen.invitation_sent')}</Text>
             <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>
               We've notified {theirName}. Once she accepts, her Telegram handle will appear in your Sent Invitations.
             </Text>
@@ -223,14 +225,14 @@ const MatchScreen = () => {
                   color={Colors.primary}
                   style={styles.icon}
                 />
-                <Text style={styles.primaryButtonText}>View Sent Invitations</Text>
+                <Text style={styles.primaryButtonText}>{t('home.matchscreen.view_sent_invitations')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.secondaryButton}
                 onPress={() => navigation.goBack()}
               >
-                <Text style={styles.secondaryButtonText}>Keep Browsing</Text>
+                <Text style={styles.secondaryButtonText}>{t('home.matchscreen.keep_browsing')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -241,7 +243,7 @@ const MatchScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: Colors.background || '#0F0D1A' },
   safeArea: { flex: 1 },
   scrollContent: { flexGrow: 1 },
   content: {

@@ -91,8 +91,8 @@ interface AppContextType {
   setSmokeFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
   drinkFilter?: string | boolean | undefined;
   setDrinkFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
-  showMe: 'straight_man' | 'straight_woman' | null;
-  setShowMe: Dispatch<SetStateAction<'straight_man' | 'straight_woman' | null>>;
+  showMe: 'straight_man' | 'straight_woman' | 'both' | null;
+  setShowMe: Dispatch<SetStateAction<'straight_man' | 'straight_woman' | 'both' | null>>;
 
   // missing properties from components
   selectedOptions: string[];
@@ -146,6 +146,9 @@ interface AppContextType {
   resetApp: () => Promise<void>;
   logout: () => Promise<void>;
   setProfilePreferences: (prefs: any) => void;
+  activeFilterCount: number;
+  hydrateSavedFilters: (userId?: string | number | null) => Promise<void>;
+  resetSearchFilters: () => Promise<void>;
 
   // theme & appearance
   themeMode: 'light' | 'system' | 'dark';

@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Dispatch, SetStateAction } from "react";
 import { useColorScheme } from "react-native";
 import AppContext from "./CreateGlobalStateContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
 import { clearFullSession } from '../utils/session';
 import { MAX_PROFILE_IMAGES } from '../api/useImages';
-import { getSavedSearchFilters } from '../utils/types/AsyncStorage';
+import { getSavedSearchFilters, clearSavedSearchFilters, getActiveFilterCount } from '../utils/types/AsyncStorage';
 import { getThemeColors, Colors } from '../theme/colors';
 
 const GlobalStateProvider = ({ children }: any) => {
@@ -16,6 +16,30 @@ const GlobalStateProvider = ({ children }: any) => {
   useEffect(() => {
     Object.assign(Colors, themeColors);
   }, [themeColors]);
+
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@app_appearance_theme');
+        if (saved === 'light' || saved === 'dark' || saved === 'system') {
+          setThemeMode(saved);
+        }
+      } catch (e) {
+        console.warn('Failed to load appearance theme preference:', e);
+      }
+    };
+    void loadThemePreference();
+  }, []);
+
+  const updateThemeMode: Dispatch<SetStateAction<'light' | 'system' | 'dark'>> = (value) => {
+    setThemeMode((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      AsyncStorage.setItem('@app_appearance_theme', next).catch((e) =>
+        console.warn('Failed to save appearance theme preference:', e)
+      );
+      return next;
+    });
+  };
 
 
   // ================= BASIC USER =================
@@ -74,7 +98,7 @@ const GlobalStateProvider = ({ children }: any) => {
   const [smoke, setSmoke] = useState<string[]>([]);
   const [smokeFilter, setSmokeFilter] = useState<string | boolean | undefined>(undefined);
   const [drinkFilter, setDrinkFilter] = useState<string | boolean | undefined>(undefined);
-  const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
+  const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | 'both' | null>(null);
 
   // Missing properties from components
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -134,6 +158,8 @@ const GlobalStateProvider = ({ children }: any) => {
         ]);
         if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
           setThemeMode(storedTheme);
+        } else {
+          setThemeMode('dark');
         }
         // Generic name/profile keys belong to the active account only. During
         // a fresh registration they may still be present briefly while the
@@ -143,51 +169,29 @@ const GlobalStateProvider = ({ children }: any) => {
           if (storedDisplayName) setDisplayName(storedDisplayName);
           const resolvedGender = storedGender || storedUserGender;
           if (resolvedGender) setGender(resolvedGender);
-        }
-        if (storedImages) {
-          try {
-            const parsed = JSON.parse(storedImages);
-            if (Array.isArray(parsed) && parsed.some(Boolean)) {
-              setImages(parsed);
-            }
-          } catch (e) {}
-        }
-        if (storedProfileImage) {
-          setProfileImage(storedProfileImage);
-          setProfileImageUrl(storedProfileImage);
+
+          if (storedImages) {
+            try {
+              const parsed = JSON.parse(storedImages);
+              if (Array.isArray(parsed) && parsed.some(Boolean)) {
+                setImages(parsed);
+              }
+            } catch (e) {}
+          }
+          if (storedProfileImage) {
+            setProfileImage(storedProfileImage);
+            setProfileImageUrl(storedProfileImage);
+          }
+        } else {
+          setImages(emptyImageSlots());
+          setProfileImage(null);
+          setProfileImageUrl(null);
         }
 
         const subStatus = await AsyncStorage.getItem('isSubscribed');
         if (subStatus === 'true') setIsSubscribed(true);
 
-        const savedFilters = await getSavedSearchFilters(id);
-        if (savedFilters) {
-          if (savedFilters.minAge !== undefined && savedFilters.maxAge !== undefined) {
-            setAgeRange([savedFilters.minAge, savedFilters.maxAge]);
-          }
-          if (savedFilters.maxDistanceKm !== undefined) {
-            const rawDist = Number(savedFilters.maxDistanceKm);
-            setDistanceRange(Number.isFinite(rawDist) ? Math.min(Math.max(rawDist, 5), 100) : 50);
-          }
-          if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
-            setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);
-          }
-          if (savedFilters.bodyType) setSelectBodyTypes(savedFilters.bodyType);
-          if (savedFilters.appearance) setSelectedOptions(savedFilters.appearance);
-          if (savedFilters.language) setSearchLanguages(savedFilters.language);
-          if (savedFilters.englishLevel) setEnglishProficiency(savedFilters.englishLevel);
-          if (savedFilters.ethnicity) setEthnicity(savedFilters.ethnicity);
-          if (savedFilters.lookingFor) setLookingFor(savedFilters.lookingFor);
-          if (savedFilters.showMe !== undefined) {
-            setShowMe(savedFilters.showMe);
-          } else if (savedFilters.gender?.length) {
-            setShowMe(savedFilters.gender[0] === 'Male' ? 'straight_man' : 'straight_woman');
-          }
-          if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
-          if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
-          if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
-          if (savedFilters.location) setLocation(savedFilters.location);
-        }
+        await hydrateSavedFilters(id);
       } catch (e) {
         console.error('Init Error:', e);
       }
@@ -195,6 +199,104 @@ const GlobalStateProvider = ({ children }: any) => {
 
     initializeApp();
   }, []);
+
+  const hydrateSavedFilters = async (customUserId?: string | number | null) => {
+    try {
+      const targetId = customUserId ?? authUserId ?? (await getUserId());
+      const savedFilters = await getSavedSearchFilters(targetId);
+      if (savedFilters) {
+        if (savedFilters.minAge !== undefined && savedFilters.maxAge !== undefined) {
+          setAgeRange([savedFilters.minAge, savedFilters.maxAge]);
+        }
+        if (savedFilters.maxDistanceKm !== undefined) {
+          const rawDist = Number(savedFilters.maxDistanceKm);
+          setDistanceRange(Number.isFinite(rawDist) ? Math.min(Math.max(rawDist, 5), 100) : 50);
+        }
+        if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
+          setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);
+        }
+        if (savedFilters.bodyType) setSelectBodyTypes(savedFilters.bodyType);
+        if (savedFilters.appearance) setSelectedOptions(savedFilters.appearance);
+        if (savedFilters.language) setSearchLanguages(savedFilters.language);
+        if (savedFilters.englishLevel) setEnglishProficiency(savedFilters.englishLevel);
+        if (savedFilters.ethnicity) setEthnicity(savedFilters.ethnicity);
+        if (savedFilters.lookingFor) setLookingFor(savedFilters.lookingFor);
+        if (savedFilters.showMe !== undefined) {
+          setShowMe(savedFilters.showMe);
+        } else if (savedFilters.gender?.length) {
+          const hasMale = savedFilters.gender.includes('Male');
+          const hasFemale = savedFilters.gender.includes('Female');
+          if (hasMale && hasFemale) setShowMe('both');
+          else if (hasMale) setShowMe('straight_man');
+          else setShowMe('straight_woman');
+        }
+        if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
+        if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
+        if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
+        if (savedFilters.location) setLocation(savedFilters.location);
+      }
+    } catch (e) {
+      console.error('Error hydrating saved search filters:', e);
+    }
+  };
+
+  const resetSearchFilters = async () => {
+    try {
+      const targetId = authUserId ?? (await getUserId());
+      await clearSavedSearchFilters(targetId);
+      setAgeRange([18, 40]);
+      setDistanceRange(50);
+      setBodyHeight([120, 200]);
+      setSelectBodyTypes([]);
+      setSelectedOptions([]);
+      setSearchLanguages([]);
+      setEnglishProficiency([]);
+      setEthnicity([]);
+      setLookingFor([]);
+      setSmokeFilter(undefined);
+      setDrinkFilter(undefined);
+      setIsChecked(false);
+      setLocation('');
+      setShowMe('straight_woman');
+      setFilteredProfiles(null);
+    } catch (e) {
+      console.error('Error resetting search filters:', e);
+    }
+  };
+
+  const activeFilterCount = useMemo(() => {
+    return getActiveFilterCount({
+      minAge: ageRange?.[0],
+      maxAge: ageRange?.[1],
+      maxDistanceKm: Number(distanceRange),
+      worldwide: isChecked,
+      minHeight: bodyHeight?.[0],
+      maxHeight: bodyHeight?.[1],
+      location: location,
+      bodyType: selectBodyTypes,
+      appearance: selectedOptions,
+      language: searchLanguages,
+      englishLevel: englishProficiency,
+      ethnicity: ethnicity,
+      lookingFor: lookingFor,
+      smoke: smokeFilter,
+      drink: drinkFilter,
+    });
+  }, [
+    ageRange,
+    distanceRange,
+    isChecked,
+    bodyHeight,
+    location,
+    selectBodyTypes,
+    selectedOptions,
+    searchLanguages,
+    englishProficiency,
+    ethnicity,
+    lookingFor,
+    smokeFilter,
+    drinkFilter,
+  ]);
 
   // ================= ACTIONS =================
   const logout = async () => {
@@ -226,11 +328,20 @@ const GlobalStateProvider = ({ children }: any) => {
       setDate(new Date());
       setProfileText('');
       setSelected(null);
+      setSelectedAppearance(null);
+      setSelectedBodyType(null);
+      setSelectedLanguages([]);
+      setSelectedEthnicity(null);
+      setSelectedSmoking(null);
+      setSelectedDrinking(null);
+      setSelectedLookingFor([]);
+      setSelectedKids(null);
+      setSelectedNetWorth(null);
+      setEnglishSkillLevel(0);
+      setVerifiedSelfie(false);
       setOppositeGender('straight_woman');
       setShowMe('straight_woman');
-      setSelectedOptions([]);
-      setSelectBodyTypes([]);
-      setSearchLanguages([]);
+      // Preserved across logout/login per user requirement
       setImages(emptyImageSlots());
       setLogin(false);
       setIsSubscribed(false);
@@ -330,6 +441,9 @@ const GlobalStateProvider = ({ children }: any) => {
         resetApp,
         logout,
         setProfilePreferences,
+        activeFilterCount,
+        hydrateSavedFilters,
+        resetSearchFilters,
 
         // Aliases for misspelled versions used in codebase
         selectedEthinicity: selectedEthnicity,
@@ -337,7 +451,7 @@ const GlobalStateProvider = ({ children }: any) => {
 
         // theme & appearance
         themeMode,
-        setThemeMode,
+        setThemeMode: updateThemeMode,
         themeColors,
 
       }}

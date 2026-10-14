@@ -1,11 +1,9 @@
 import React, {
   useContext,
-  useState,
   useCallback,
-  useEffect,
-  useRef,
+  useMemo,
 } from 'react';
-import {useFocusEffect} from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -14,591 +12,253 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
-  ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
+  BackHandler,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import AppContext from '../../context/CreateGlobalStateContext';
-import {Colors, Spacing, Shadows} from '../../theme';
-import {useProfile} from '../../api/useProfile';
-import {useUserImages, mapImagesToSlots} from '../../api/useImages';
+import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {getAuthSession} from '../../utils/session';
-import {useAlert} from '../../components/AlertModal';
 
-const AboutProfileScreen = ({navigation}: any) => {
+import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing, Shadows, useTheme, type ThemeColors } from '../../theme';
+import { t, useTranslation } from '../../i18n';
+
+const AboutProfileScreen = ({ navigation }: any) => {
+  useTranslation();
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
+
   const {
     profileText,
     setProfileText,
-    name,
-    displayName,
-    date,
-    height,
-    selectedLanguages,
-    selectedEthinicity,
-    selectedSmoking,
-    selectedDrinking,
-    selectedLookingFor,
-    images,
-    setImages,
-    profileImage,
-    setProfileImage,
-    profileImageUrl,
-    setProfileImageUrl,
-    authUserId,
-    selected,
-    selectedAppearance,
-    selectedBodyType,
-    englishSkillLevel,
   } = useContext(AppContext);
-
-  const [loading, setLoading] = useState(false);
-  const [isResolving, setIsResolving] = useState(true);
-  const [identityPending, setIdentityPending] = useState(false);
-  const {updateUser, uploadImage} = useProfile();
-  const {getAllImages} = useUserImages();
-  const resolveAttemptsRef = useRef(0);
-  const {alert, AlertComponent} = useAlert();
-
-  const continueToNextStep = async () => {
-    setLoading(false);
-    await AsyncStorage.setItem('onboardingStep', 'ConnectTelegram');
-    navigation.replace('ConnectTelegram');
-  };
-
-  const resolveGenderOrientation = (selection?: string | null) => {
-    switch (selection) {
-      case 'straight_woman':
-        return {gender: 'woman', orientation: 'straight'};
-      case 'straight_man':
-        return {gender: 'man', orientation: 'straight'};
-      case 'lgbtqia':
-        return {gender: 'lgbtqia', orientation: 'lgbtqia'};
-      default:
-        return {gender: 'woman', orientation: 'straight'};
-    }
-  };
-
-  const normalizeTextValue = (value: unknown, fallback: string) => {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-    return fallback;
-  };
-
-  const normalizeJoinedValues = (value: unknown, fallback: string) => {
-    if (Array.isArray(value)) {
-      const joined = value
-        .map(item => String(item || '').trim())
-        .filter(Boolean)
-        .join(', ');
-      return joined || fallback;
-    }
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-    return fallback;
-  };
-
-  const shouldAllowLocalFallback = (error: any) => {
-    const statusCode = Number(error?.response?.status);
-    const message = String(
-      error?.response?.data?.message || error?.message || '',
-    ).toLowerCase();
-    return (
-      message.includes('network error') ||
-      message.includes('timeout') ||
-      statusCode >= 500
-    );
-  };
-
-  const isSessionSyncError = (error: any) => {
-    const statusCode = Number(error?.response?.status);
-    const message = String(
-      error?.response?.data?.message || error?.message || '',
-    ).toLowerCase();
-    return (
-      statusCode === 401 ||
-      statusCode === 403 ||
-      message.includes('user not found') ||
-      message.includes('profile not found') ||
-      message.includes('invalid userid')
-    );
-  };
 
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.setItem('onboardingStep', 'AboutProfile');
-    }, []),
+
+      const onBackPress = () => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.replace('ConnectTelegram');
+        }
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [navigation]),
   );
 
-  useEffect(() => {
-    let isMounted = true;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('ConnectTelegram');
+    }
+  };
 
-    const resolveIdentity = async () => {
-      const authSession = await getAuthSession();
-      if (authSession?.token) {
-        if (isMounted) {
-          setIdentityPending(false);
-          setIsResolving(false);
-        }
-        return;
-      }
-
-      resolveAttemptsRef.current += 1;
-      if (resolveAttemptsRef.current >= 3) {
-        if (isMounted) {
-          setIdentityPending(true);
-          setIsResolving(false);
-        }
-        return;
-      }
-
-      retryTimer = setTimeout(resolveIdentity, 2000);
-    };
-
-    resolveIdentity();
-
-    return () => {
-      isMounted = false;
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-      }
-    };
-  }, [navigation]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const preloadImages = async () => {
-      const hasImagesInContext =
-        Array.isArray(images) && images.some(img => Boolean(img));
-      if (hasImagesInContext) return;
-
-      try {
-        const stored = await AsyncStorage.getItem('onboardingImages');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.some(Boolean)) {
-            if (isMounted) setImages?.(parsed);
-            return;
-          }
-        }
-      } catch (e) {}
-
-      try {
-        const authSession = await getAuthSession();
-        const uid = authSession?.userId || authUserId;
-        if (uid) {
-          const res = await getAllImages.mutateAsync(String(uid));
-          const mapped = mapImagesToSlots(res);
-          if (mapped.slots.some(Boolean) && isMounted) {
-            setImages?.(mapped.slots);
-            if (mapped.profileImageUrl) {
-              setProfileImage?.(mapped.profileImageUrl);
-              setProfileImageUrl?.(mapped.profileImageUrl);
-            }
-          }
-        }
-      } catch (e) {}
-    };
-
-    preloadImages();
-    return () => {
-      isMounted = false;
-    };
-  }, [authUserId, getAllImages, images, setImages, setProfileImage, setProfileImageUrl]);
-
-  const handleFinishOnboarding = async (retryCount = 0): Promise<void> => {
-    if (retryCount > 2) {
-      setLoading(false);
-      alert(
-        'Sync Error',
-        'We are having trouble syncing your account. Please try again or contact support.',
-      );
+  const handleNext = async () => {
+    const trimmed = (profileText || '').trim();
+    if (!trimmed) {
       return;
     }
 
     try {
-      setLoading(true);
-
-      const authSession = await getAuthSession();
-      const hasUsableSessionToken = Boolean(authSession?.token);
-
-      if (!hasUsableSessionToken) {
-        setIdentityPending(true);
-        await continueToNextStep();
-        return;
-      }
-
-      const safeDate = date ? new Date(date) : new Date('2000-01-01');
-      const today = new Date();
-      let calculatedAge = today.getFullYear() - safeDate.getFullYear();
-      const monthGap = today.getMonth() - safeDate.getMonth();
-      if (
-        monthGap < 0 ||
-        (monthGap === 0 && today.getDate() < safeDate.getDate())
-      ) {
-        calculatedAge -= 1;
-      }
-
-      const {gender, orientation} = resolveGenderOrientation(selected);
-      let availableImages = (Array.isArray(images) ? images : []).filter(
-        (img): img is string => typeof img === 'string' && img.trim().length > 0,
-      );
-
-      if (availableImages.length === 0) {
-        try {
-          const stored = await AsyncStorage.getItem('onboardingImages');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) {
-              availableImages = parsed.filter(
-                (img): img is string =>
-                  typeof img === 'string' && img.trim().length > 0,
-              );
-              if (availableImages.length > 0) {
-                setImages?.(parsed);
-              }
-            }
-          }
-        } catch (e) {}
-      }
-
-      if (availableImages.length === 0) {
-        try {
-          const uid = authSession?.userId || authUserId;
-          if (uid) {
-            const res = await getAllImages.mutateAsync(String(uid));
-            const mapped = mapImagesToSlots(res);
-            if (mapped.slots.some(Boolean)) {
-              availableImages = mapped.slots.filter(
-                (img): img is string =>
-                  typeof img === 'string' && img.trim().length > 0,
-              );
-              setImages?.(mapped.slots);
-              if (mapped.profileImageUrl) {
-                setProfileImage?.(mapped.profileImageUrl);
-                setProfileImageUrl?.(mapped.profileImageUrl);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[AboutProfile] Failed to fetch server images:', e);
-        }
-      }
-
-      const uploadableImages = availableImages.filter(
-        (image): image is string =>
-          Boolean(image) && !String(image).startsWith('http'),
-      );
-
-      const firstImage =
-        uploadableImages[0] ||
-        availableImages[0] ||
-        profileImage ||
-        profileImageUrl ||
-        null;
-
-      if (!firstImage) {
-        setLoading(false);
-        alert(
-          'Photo Required',
-          'Please go back and add your profile photo first.',
-        );
-        return;
-      }
-
-      const profilePhoto = !String(firstImage).startsWith('http')
-        ? {
-            uri: firstImage,
-            type: 'image/jpeg',
-            name: 'profile.jpg',
-          }
-        : undefined;
-      const storedName =
-        (await AsyncStorage.getItem('name')) ||
-        (await AsyncStorage.getItem('displayName')) ||
-        (await AsyncStorage.getItem('userName'));
-      const effectiveName = normalizeTextValue(
-        displayName || name || storedName,
-        'User',
-      );
-
-      const profileData = {
-        name: effectiveName,
-        displayName: effectiveName,
-        gender,
-        orientation,
-        age: calculatedAge,
-        bio: normalizeTextValue(
-          profileText,
-          'Hello, I am excited to meet new people here.',
-        ),
-        dob: safeDate.toISOString().split('T')[0],
-        language: normalizeJoinedValues(selectedLanguages, 'English'),
-        appearance: normalizeTextValue(selectedAppearance, 'Attractive'),
-        bodyType: normalizeTextValue(selectedBodyType, 'Slim'),
-        height: Number(height) || 165,
-        englishLevel:
-          ['Beginner', 'Intermediate', 'Advanced', 'Native'][
-            englishSkillLevel || 0
-          ] || 'Beginner',
-        ethnicity: normalizeTextValue(selectedEthinicity, 'Indian'),
-        lookingFor: normalizeJoinedValues(selectedLookingFor, 'Relationship'),
-        smoke: normalizeTextValue(selectedSmoking, 'No'),
-        drink: normalizeTextValue(selectedDrinking, 'No'),
-      };
-
-      try {
-        const res = await updateUser.mutateAsync({
-          uid: '',
-          dto: profileData,
-          photo: profilePhoto,
-        });
-
-        console.log('[AboutProfile] Profile setup success:', res);
-
-        const remainingImages = uploadableImages.slice(profilePhoto ? 1 : 0);
-        if (remainingImages.length > 0) {
-          await Promise.allSettled(
-            remainingImages.map((uri, i) =>
-              uploadImage.mutateAsync({
-                photo: {uri, name: `gallery_${i + 1}.jpg`, type: 'image/jpeg'},
-              }),
-            ),
-          );
-        }
-
-        await continueToNextStep();
-      } catch (error: any) {
-        console.warn(
-          '[AboutProfile] Submission Error:',
-          error?.response?.data || error.message,
-        );
-
-        if (isSessionSyncError(error)) {
-          setLoading(false);
-          alert(
-            'Sync Required',
-            'Your account is taking longer than usual to sync. Would you like to try again?',
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel',
-                onPress: () => setLoading(false),
-              },
-              {
-                text: 'Retry Now',
-                onPress: () => handleFinishOnboarding(retryCount + 1),
-              },
-              {text: 'Skip & Finish', onPress: () => continueToNextStep()},
-            ],
-          );
-          return;
-        }
-
-        if (shouldAllowLocalFallback(error)) {
-          await continueToNextStep();
-          return;
-        }
-
-        throw error;
-      }
-    } catch (error) {
-      console.warn('Unexpected error:', error);
-      alert('Error', 'Something went wrong');
-    } finally {
-      setLoading(false);
+      await AsyncStorage.setItem('@onboarding_bio', trimmed);
+    } catch {
+      // ignore
     }
+
+    navigation.navigate('TellUsMore');
   };
 
-  if (isResolving) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
+  const isNextDisabled = !profileText?.trim();
 
   return (
     <View style={styles.container}>
       <StatusBar
-        barStyle="light-content"
-        translucent
-        backgroundColor="transparent"
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={themeColors.background}
       />
-      <LinearGradient
-        colors={[Colors.background, Colors.surface]}
-        style={styles.gradient}>
-        <SafeAreaView style={styles.safeArea}>
-          <KeyboardAvoidingView
-            style={{flex: 1}}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="handled">
-              <View style={styles.progressBackground}>
-                <View style={styles.progressBar} />
-              </View>
-
-              <Text style={styles.heading}>Wow, looking sharp!</Text>
-
-              <Text style={styles.subtext}>
-                Now tell us something about yourself. You can write about your
-                hobbies, values and visions in life.
-              </Text>
-
-              {identityPending ? (
-                <Text style={styles.pendingText}>
-                  Your account is still syncing. You can continue now, and we
-                  will finish profile sync as soon as your numeric account ID is
-                  available.
-                </Text>
-              ) : null}
-
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Your profile text"
-                  placeholderTextColor={Colors.textMuted}
-                  value={profileText}
-                  onChangeText={setProfileText}
-                  maxLength={500}
-                  multiline
-                />
-              </View>
-
-              <Text style={styles.charCount}>
-                {profileText?.length || 0} / 500
-              </Text>
-
-              <Text style={styles.footerText}>
-                For more info, questions, feedback, and perhaps to say hello,
-                kindly send an e-mail to hi@amara.app.
-              </Text>
-
-              <TouchableOpacity
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        {/* Top Header: Back button & 8-step progress bar (Step 6 active) */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+          >
+            <Feather name="chevron-left" size={28} color={isDark ? '#FFFFFF' : '#000000'} />
+          </TouchableOpacity>
+          <View style={styles.progressBarWrapper}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((stepNum) => (
+              <View
+                key={stepNum}
                 style={[
-                  styles.nextButton,
-                  (!profileText?.trim() || loading) && {opacity: 0.5},
+                  styles.progressDash,
+                  stepNum <= 6
+                    ? { backgroundColor: themeColors.primary }
+                    : { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB' },
                 ]}
-                disabled={!profileText?.trim() || loading}
-                onPress={() => handleFinishOnboarding(0)}>
-                <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
-                  start={{x: 0, y: 0}}
-                  end={{x: 1, y: 1}}
-                  style={styles.nextGradient}>
-                  {loading ? (
-                    <ActivityIndicator color={Colors.white} />
-                  ) : (
-                    <Text style={styles.nextButtonText}>Next</Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-        {AlertComponent}
-      </LinearGradient>
+              />
+            ))}
+          </View>
+        </View>
+
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Title & Subtitle matching Image 1 */}
+            <Text style={styles.heading}>{t('onboarding.aboutprofilescreen.about_you')}</Text>
+            <Text style={styles.subtext}>{t('onboarding.aboutprofilescreen.who_are_you_and_what_makes_you_great_company')}</Text>
+
+            {/* Input Card */}
+            <View style={styles.inputCard}>
+              <TextInput
+                style={styles.input}
+                placeholder={t('profile.description.tell_us_about_yourself')}
+                placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                value={profileText}
+                onChangeText={setProfileText}
+                maxLength={150}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Character Counter (e.g. 0 / 150) */}
+            <Text style={styles.charCount}>
+              {profileText?.length || 0} / 150
+            </Text>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Next Button */}
+            <TouchableOpacity
+              style={[
+                styles.nextButton,
+                isNextDisabled && { opacity: 0.5 },
+              ]}
+              disabled={isNextDisabled}
+              onPress={handleNext}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.secondary || themeColors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.nextGradient}
+              >
+                <Text style={styles.nextButtonText}>{t('onboarding.aboutprofilescreen.next')}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {flex: 1},
-  gradient: {flex: 1},
-  safeArea: {flex: 1},
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: Spacing.screenPaddingHorizontal,
-    paddingTop: Platform.OS === 'android' ? Spacing.lg : 0,
-    justifyContent: 'flex-start',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.background,
-  },
-  progressBackground: {
-    height: 4,
-    backgroundColor: Colors.surfaceLighter,
-    borderRadius: 2,
-    marginTop: Spacing.sm + 2,
-    marginBottom: Spacing.xl,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    width: '90%',
-    height: '100%',
-    backgroundColor: Colors.primary,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: Colors.text,
-    marginBottom: Spacing.sm + 2,
-  },
-  subtext: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: Spacing.xl,
-  },
-  pendingText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Colors.primary,
-    marginBottom: Spacing.lg,
-  },
-  inputBox: {
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    borderRadius: Spacing.radiusLg,
-    backgroundColor: Colors.inputBackground,
-    paddingHorizontal: Spacing.lg,
-  },
-  input: {
-    height: 180,
-    paddingTop: Spacing.lg,
-    textAlignVertical: 'top',
-    fontSize: 16,
-    color: Colors.text,
-  },
-  charCount: {
-    textAlign: 'right',
-    color: Colors.textMuted,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
-    fontWeight: '600',
-  },
-  footerText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
-    lineHeight: 18,
-  },
-  nextButton: {
-    borderRadius: Spacing.radiusFull,
-    overflow: 'hidden',
-    marginBottom: Spacing.xl,
-    ...Shadows.md,
-  },
-  nextGradient: {
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextButtonText: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-});
+const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    safeArea: {
+      flex: 1,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    backBtn: {
+      paddingRight: 12,
+      paddingVertical: 4,
+    },
+    progressBarWrapper: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    progressDash: {
+      flex: 1,
+      height: 4,
+      borderRadius: 2,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 24,
+    },
+    heading: {
+      fontSize: 26,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      marginBottom: 8,
+      letterSpacing: -0.3,
+    },
+    subtext: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: isDark ? '#94A3B8' : '#64748B',
+      marginBottom: 24,
+    },
+    inputCard: {
+      backgroundColor: isDark ? '#1A1730' : '#F8FAFC',
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+      padding: 16,
+      minHeight: 180,
+    },
+    input: {
+      fontSize: 16,
+      lineHeight: 22,
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      minHeight: 150,
+      padding: 0,
+    },
+    charCount: {
+      textAlign: 'right',
+      fontSize: 14,
+      fontWeight: '600',
+      color: isDark ? '#94A3B8' : '#64748B',
+      marginTop: 10,
+      marginBottom: 24,
+    },
+    nextButton: {
+      borderRadius: 28,
+      overflow: 'hidden',
+      marginTop: 'auto',
+      marginBottom: Platform.OS === 'ios' ? 8 : 16,
+      ...Shadows.md,
+    },
+    nextGradient: {
+      height: 54,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nextButtonText: {
+      color: Colors.white,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+  });
 
 export default AboutProfileScreen;

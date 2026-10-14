@@ -19,8 +19,10 @@ import { RootParamList } from '../../utils/types/navigation.types';
 import { useSupport } from '../../api/useSupport';
 import { Colors, Spacing, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
+import { t, useTranslation } from '../../i18n';
 
 const SupportScreen = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [description, setDescription] = useState('');
@@ -50,11 +52,11 @@ const SupportScreen = () => {
         if (supported) {
           Linking.openURL(url);
         } else {
-          Linking.openURL('https://t.me/AmaraDatingBot');
+          Linking.openURL('https://t.me/amara_dating_bot');
         }
       })
       .catch(() => {
-        Linking.openURL('https://t.me/AmaraDatingBot');
+        Linking.openURL('https://t.me/amara_dating_bot');
       });
   };
 
@@ -86,9 +88,9 @@ const SupportScreen = () => {
 
   const handleCloseTicket = (ticketId: number) => {
     alert('Close Ticket', 'Mark this support ticket as closed?', [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('profile.additionaluploadsection.cancel'), style: 'cancel' },
       {
-        text: 'Close',
+        text: t('more_info.moreinfoscreen.close'),
         onPress: () => {
           closeTicket.mutate(ticketId, {
             onSuccess: () => {
@@ -106,7 +108,7 @@ const SupportScreen = () => {
     ]);
   };
 
-  const categories = ['Technical', 'Billing', 'Report User', 'Other'];
+  const categories = ['Technical', 'Billing', 'Report User', t('profile.userdetails.other')];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -114,7 +116,7 @@ const SupportScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Icon name="arrow-left" size={26} color={themeColors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Support & Chat</Text>
+        <Text style={styles.headerTitle}>{t('profile.supportscreen.support_chat')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -133,21 +135,19 @@ const SupportScreen = () => {
               <Icon name="telegram" size={26} color="#fff" />
             </View>
             <View style={styles.telegramSupportContent}>
-              <Text style={styles.telegramSupportTitle}>Chat with Live Agent</Text>
-              <Text style={styles.telegramSupportSub}>
-                Instant support via our official Telegram bot
-              </Text>
+              <Text style={styles.telegramSupportTitle}>{t('profile.supportscreen.chat_with_live_agent')}</Text>
+              <Text style={styles.telegramSupportSub}>{t('profile.supportscreen.instant_support_via_our_official_telegram_bot')}</Text>
             </View>
             <Icon name="chevron-right" size={22} color={Colors.textMuted} />
           </TouchableOpacity>
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR SUBMIT A TICKET</Text>
+            <Text style={styles.dividerText}>{t('profile.supportscreen.or_submit_a_ticket')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          <Text style={styles.label}>Category</Text>
+          <Text style={styles.label}>{t('profile.supportscreen.category')}</Text>
           <View style={styles.categoryContainer}>
             {categories.map((cat) => (
               <TouchableOpacity
@@ -170,10 +170,10 @@ const SupportScreen = () => {
             ))}
           </View>
 
-          <Text style={styles.label}>Tell us what's wrong</Text>
+          <Text style={styles.label}>{t('profile.supportscreen.tell_us_whats_wrong')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Describe your issue in detail..."
+            placeholder={t('profile.supportscreen.describe_your_issue_in_detail')}
             multiline
             numberOfLines={5}
             value={description}
@@ -189,13 +189,13 @@ const SupportScreen = () => {
             {createTicket.isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitBtnText}>Submit Ticket</Text>
+              <Text style={styles.submitBtnText}>{t('profile.supportscreen.submit_ticket')}</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.ticketSection}>
             <View style={styles.ticketTitleRow}>
-              <Text style={styles.ticketTitle}>Recent Tickets</Text>
+              <Text style={styles.ticketTitle}>{t('profile.supportscreen.recent_tickets')}</Text>
               {isFetchingTickets ? <ActivityIndicator size="small" color={Colors.primary} /> : null}
             </View>
 
@@ -209,7 +209,7 @@ const SupportScreen = () => {
               </View>
             ) : recentTickets.length === 0 ? (
               <View style={styles.stateCard}>
-                <Text style={styles.stateText}>No support tickets yet.</Text>
+                <Text style={styles.stateText}>{t('profile.supportscreen.no_support_tickets_yet')}</Text>
               </View>
             ) : (
               recentTickets.map((ticket) => {
@@ -229,7 +229,7 @@ const SupportScreen = () => {
                       </Text>
                       {!isClosed ? (
                         <TouchableOpacity onPress={() => handleCloseTicket(ticket.id)}>
-                          <Text style={styles.closeLink}>Close</Text>
+                          <Text style={styles.closeLink}>{t('more_info.moreinfoscreen.close')}</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>

@@ -35,8 +35,10 @@ import {
   saveSearchFilters,
   clearSavedSearchFilters,
 } from '../../utils/types/AsyncStorage';
+import { t, useTranslation } from '../../i18n';
 
 const SearchScreen = ({ navigation }: any) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { alert, AlertComponent } = useAlert();
@@ -74,6 +76,7 @@ const SearchScreen = ({ navigation }: any) => {
     setSelectBodyTypes,
     showMe,
     setShowMe,
+    hydrateSavedFilters,
   } = React.useContext(AppContext);
 
   const [filters, setFilters] = React.useState<any>(() => ({
@@ -81,7 +84,12 @@ const SearchScreen = ({ navigation }: any) => {
     maxAge: ageRange?.[1] ?? 40,
     maxDistanceKm: Math.min(Math.max(Number(distanceRange) || 50, 5), 100),
     worldwide: isChecked || false,
-    gender: ['Female'],
+    gender:
+      showMe === 'both'
+        ? [t('home.userlist.female'), t('home.userlist.male')]
+        : showMe === 'straight_man'
+          ? [t('home.userlist.male')]
+          : [t('home.userlist.female')],
     minHeight: bodyHeight?.[0] ?? 120,
     maxHeight: bodyHeight?.[1] ?? 200,
     bodyType: selectBodyTypes || [],
@@ -115,9 +123,11 @@ const SearchScreen = ({ navigation }: any) => {
             lookingFor: saved.lookingFor || prev.lookingFor,
             gender:
               saved.gender ||
-              (saved.showMe
-                ? [saved.showMe === 'straight_man' ? 'Male' : 'Female']
-                : prev.gender),
+              (saved.showMe === 'both'
+                ? [t('home.userlist.female'), t('home.userlist.male')]
+                : saved.showMe === 'straight_man'
+                  ? [t('home.userlist.male')]
+                  : [t('home.userlist.female')]),
           }));
 
           if (saved.minHeight !== undefined && saved.maxHeight !== undefined) {
@@ -215,6 +225,8 @@ const SearchScreen = ({ navigation }: any) => {
         resolvedUserId
       );
 
+      await hydrateSavedFilters(resolvedUserId);
+
       const result = await filterUsers.mutateAsync(payload);
       const profiles = Array.isArray(result) ? result : (result?.content || []);
       setFilteredProfiles(profiles);
@@ -239,7 +251,7 @@ const SearchScreen = ({ navigation }: any) => {
         alert(
           'Error',
           serverMessage
-            ? `Failed to apply filters: ${String(serverMessage)}`
+            ? t('search.searchscreen.failed_to_apply_filters', { String: String(serverMessage) })
             : 'Failed to apply filters. Please try again.',
         );
       }
@@ -255,7 +267,7 @@ const SearchScreen = ({ navigation }: any) => {
       maxAge: 40,
       maxDistanceKm: 50,
       worldwide: false,
-      gender: ['Female'],
+      gender: [t('home.userlist.female')],
       minHeight: 120,
       maxHeight: 200,
       bodyType: [],
@@ -282,8 +294,9 @@ const SearchScreen = ({ navigation }: any) => {
     setSmokeFilter(undefined);
     setDrinkFilter(undefined);
     setShowMe('straight_woman');
+    setFilters((prev: any) => ({ ...prev, gender: [t('home.userlist.female')] }));
     setIsChecked(false);
-    setLocation('My current location');
+    setLocation(t('search.location.my_current_location'));
     setFilteredProfiles(null);
 
     // Clear saved storage in background
@@ -334,15 +347,13 @@ const SearchScreen = ({ navigation }: any) => {
         <SearchSettingsHeader onClose={() => navigation.goBack()} />
         <View style={styles.disabledLocationContainer}>
           <Icon name="map-marker-off-outline" size={68} color="#8E8E93" style={styles.disabledIcon} />
-          <Text style={styles.disabledLocationText}>
-            Please enable location access so we can show you people nearby.
-          </Text>
+          <Text style={styles.disabledLocationText}>{t('search.searchscreen.please_enable_location_access_so_we_can_show_you_people_nearby')}</Text>
           <TouchableOpacity
             style={styles.enableLocationBtn}
             onPress={handleEnableLocation}
             activeOpacity={0.8}
           >
-            <Text style={styles.enableLocationBtnText}>Enable Location</Text>
+            <Text style={styles.enableLocationBtnText}>{t('search.searchscreen.enable_location')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -359,6 +370,21 @@ const SearchScreen = ({ navigation }: any) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
+          {/* 1. Search radius (with integrated 5-200km and Worldwide toggle) */}
+          <DistanceSlider
+            onChange={(val: number) => {
+              setDistanceRange(val);
+              setFilters((prev: any) => ({ ...prev, maxDistanceKm: val }));
+            }}
+            onWorldwideToggle={(val: boolean) =>
+              setFilters((prev: any) => ({ ...prev, worldwide: val }))
+            }
+          />
+
+          {/* 2. Search location (Search near me / Custom location) */}
+          <Location />
+
+          {/* 3. Age range (18 – 55+) */}
           <AgeRangeSlider
             onChange={(min: number, max: number) => {
               setAgeRange([min, max]);
@@ -366,48 +392,39 @@ const SearchScreen = ({ navigation }: any) => {
             }}
           />
 
-          <DistanceSlider
-            onChange={(val: number) => {
-              setDistanceRange(val);
-              setFilters((prev: any) => ({ ...prev, maxDistanceKm: val }));
-            }}
-          />
-
-          <SearchWorldWide
-            onToggle={(val: boolean) =>
-              setFilters((prev: any) => ({ ...prev, worldwide: val }))
-            }
-          />
-
-          <Location />
-
-          <OnlineOnly
-            value={filters.onlyOnline}
-            onChange={(val: boolean) =>
-              setFilters((prev: any) => ({ ...prev, onlyOnline: val }))
-            }
-          />
-
+          {/* 4. Height range (120 cm – 220 cm) */}
           <BodyHeight
             onChange={(min: number, max: number) => {
               setBodyHeight([min, max]);
               setFilters((prev: any) => ({ ...prev, minHeight: min, maxHeight: max }));
             }}
           />
+
+          {/* 5. Body type */}
           <BodyType onChange={(value) => setFilters((prev: any) => ({ ...prev, bodyType: value }))} />
+
+          {/* 6. Appearance */}
           <Appearance onChange={(value) => setFilters((prev: any) => ({ ...prev, appearance: value }))} />
+
+          {/* 7. Languages */}
           <Languages onChange={(value) => setFilters((prev: any) => ({ ...prev, language: value }))} />
+
+          {/* 8. English level */}
           <EnglishProficiency onChange={(value) => setFilters((prev: any) => ({ ...prev, englishLevel: value }))} />
+
+          {/* 9. Race/ethnicity */}
           <Ethnicity onChange={(value) => setFilters((prev: any) => ({ ...prev, ethnicity: value }))} />
+
+          {/* 10. Smoker */}
           <Smoke
             value={filters.smoke}
             onChange={(value) => setFilters((prev: any) => ({ ...prev, smoke: value }))}
           />
-          <Drinking
-            value={filters.drink}
-            onChange={(value) => setFilters((prev: any) => ({ ...prev, drink: value }))}
-          />
+
+          {/* 11. What are you looking for? */}
           <LookingFor onChange={(value) => setFilters((prev: any) => ({ ...prev, lookingFor: value }))} />
+
+          {/* 12. Show me (Women / Men) */}
           <ShowMe
             onChange={(value) => setFilters((prev: any) => ({ ...prev, gender: value }))}
           />

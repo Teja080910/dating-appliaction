@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Colors, useTheme } from '../../../theme';
+import { t, useTranslation } from '../../../i18n';
 
 const MAX_LENGTH = 150;
 
@@ -10,13 +11,12 @@ interface DescriptionProps {
 }
 
 const DescriptionInput: React.FC<DescriptionProps> = ({ value, onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.prompt, { color: themeColors.textSecondary }]}>
-        Tell us something about yourself. You can write about your hobbies, values and visions in life.
-      </Text>
+      <Text style={[styles.prompt, { color: themeColors.textSecondary }]}>{t('profile.description.tell_us_something_about_yourself_you_can_write_about_your_hobbies_valu')}</Text>
 
       <View
         style={[
@@ -31,7 +31,7 @@ const DescriptionInput: React.FC<DescriptionProps> = ({ value, onChange }) => {
           style={[styles.input, { color: themeColors.text }]}
           value={value}
           onChangeText={onChange}
-          placeholder="Tell us about yourself..."
+          placeholder={t('profile.description.tell_us_about_yourself')}
           placeholderTextColor={themeColors.textMuted}
           multiline
           maxLength={MAX_LENGTH}

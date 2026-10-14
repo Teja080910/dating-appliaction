@@ -26,14 +26,16 @@ import { useConnection } from '../../api/useConnection';
 import { getAbsoluteUrl } from '../../api/apiClient';
 import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
+import { t, useTranslation } from '../../i18n';
 
 export default function MessageScreen() {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { alert, AlertComponent } = useAlert();
   const navigation = useNavigation<any>();
   const [userId, setUserId] = useState<string | null>(null);
-  const [activeMainTab, setActiveMainTab] = useState<'Invitations' | 'Messages'>('Invitations');
+  const [activeMainTab, setActiveMainTab] = useState<'invitations' | 'messages'>('invitations');
   const [activeInviteTab, setActiveInviteTab] = useState<'Sent' | 'Received'>('Sent');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -126,7 +128,7 @@ export default function MessageScreen() {
       '';
     let trimmed = String(raw).trim();
     trimmed = trimmed.replace(/,\s*\d+$/, '').trim();
-    return trimmed || 'User';
+    return trimmed || t('home.usercard.user');
   };
 
   const normalizeInvite = useCallback((request: any, mode: 'sent' | 'received') => {
@@ -155,7 +157,7 @@ export default function MessageScreen() {
     return {
       id: String(request?.id || targetUser?.id || `${status}-${Date.now()}`),
       name: resolveUserName(profile, targetUser),
-      lastMsg: status === 'APPROVED' ? 'You are connected. Start the conversation.' : `Connection status: ${status}`,
+      lastMsg: status === 'APPROVED' ? 'You are connected. Start the conversation.' : t('messages.messagescreen.connection_status', { status }),
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       unread: 0,
       image: resolveUserImage(targetUser, profile),
@@ -201,8 +203,8 @@ export default function MessageScreen() {
         void connection.receivedList.refetch();
         void connection.sentList.refetch();
         void connection.connectionList.refetch();
-        Toast.show({ type: 'success', text1: 'Invitation Accepted!', text2: `You can now chat with ${item.name || item.username || 'them'}.` });
-        setActiveMainTab('Messages');
+        Toast.show({ type: 'success', text1: t('messages.messagescreen.invitation_accepted'), text2: t('messages.messagescreen.you_can_now_chat_with', { item: item.name || item.username || 'them' }) });
+        setActiveMainTab('messages');
       },
       onError: () => { alert('Error', 'Failed to accept invitation.'); },
     });
@@ -248,7 +250,7 @@ export default function MessageScreen() {
           {activeInviteTab === 'Received' ? (
             <>
               <Icon name="clock-check-outline" size={13} color={Colors.secondary} />
-              <Text style={styles.itemStatusLabel}>Invited you</Text>
+              <Text style={styles.itemStatusLabel}>{t('messages.messagescreen.invited_you')}</Text>
             </>
           ) : null}
           {item.time ? (
@@ -271,7 +273,7 @@ export default function MessageScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.actionGradient}
           >
-            <Text style={styles.actionPillText}>Accept</Text>
+            <Text style={styles.actionPillText}>{t('messages.messagescreen.accept')}</Text>
           </LinearGradient>
         </TouchableOpacity>
       ) : null}
@@ -321,33 +323,37 @@ export default function MessageScreen() {
 
       <View style={styles.mainNav}>
         <TouchableOpacity
-          style={[styles.navBtn, activeMainTab === 'Invitations' && styles.activeNavBtn]}
-          onPress={() => setActiveMainTab('Invitations')}
+          style={[styles.navBtn, activeMainTab === 'invitations' && styles.activeNavBtn]}
+          onPress={() => setActiveMainTab('invitations')}
         >
-          <Icon name="email-outline" size={24} color={activeMainTab === 'Invitations' ? Colors.primary : Colors.textMuted} />
-          <Text style={[styles.navText, activeMainTab === 'Invitations' && styles.activeNavText]}>Invitations</Text>
-          {activeMainTab === 'Invitations' && <View style={styles.navIndicator} />}
+          <Icon name="email-outline" size={24} color={activeMainTab === 'invitations' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.navText, activeMainTab === 'invitations' && styles.activeNavText]}>{t('messages.messagescreen.invitations')}</Text>
+          {activeMainTab === 'invitations' && <View style={styles.navIndicator} />}
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.navBtn, activeMainTab === 'Messages' && styles.activeNavBtn]}
-          onPress={() => requireSubscription(() => setActiveMainTab('Messages'))}
+          style={[styles.navBtn, activeMainTab === 'messages' && styles.activeNavBtn]}
+          onPress={() => requireSubscription(() => setActiveMainTab('messages'))}
         >
-          <Icon name="chat-processing-outline" size={24} color={activeMainTab === 'Messages' ? Colors.primary : Colors.textMuted} />
-          <Text style={[styles.navText, activeMainTab === 'Messages' && styles.activeNavText]}>Messages</Text>
-          {activeMainTab === 'Messages' && <View style={styles.navIndicator} />}
+          <Icon name="chat-processing-outline" size={24} color={activeMainTab === 'messages' ? Colors.primary : Colors.textMuted} />
+          <Text style={[styles.navText, activeMainTab === 'messages' && styles.activeNavText]}>{t('messages.messagescreen.messages')}</Text>
+          {activeMainTab === 'messages' && <View style={styles.navIndicator} />}
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        {activeMainTab === 'Invitations' ? (
+        {activeMainTab === 'invitations' ? (
           <View style={{ flex: 1 }}>
             <View style={styles.subTabs}>
               <TouchableOpacity onPress={() => setActiveInviteTab('Sent')} style={[styles.subTab, activeInviteTab === 'Sent' && styles.activeSubTab]}>
-                <Text style={[styles.subTabText, activeInviteTab === 'Sent' && styles.activeSubTabText]}>Sent ({sentInvites?.length || 0})</Text>
+                <Text style={[styles.subTabText, activeInviteTab === 'Sent' && styles.activeSubTabText]}>
+                  {t('messages.messagescreen.sent', { sentInvites: sentInvites?.length || 0 })}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setActiveInviteTab('Received')} style={[styles.subTab, activeInviteTab === 'Received' && styles.activeSubTab]}>
-                <Text style={[styles.subTabText, activeInviteTab === 'Received' && styles.activeSubTabText]}>Received ({receivedInvites?.length || 0})</Text>
+                <Text style={[styles.subTabText, activeInviteTab === 'Received' && styles.activeSubTabText]}>
+                  {t('messages.messagescreen.received', { receivedInvites: receivedInvites?.length || 0 })}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -364,8 +370,8 @@ export default function MessageScreen() {
             ) : (
               <View style={styles.emptyView}>
                 <AvatarGroup />
-                <Text style={styles.emptyTitle}>No invitations yet</Text>
-                <Text style={styles.emptyDesc}>Invite people you like to start a conversation!</Text>
+                <Text style={styles.emptyTitle}>{t('messages.messagescreen.no_invitations_yet')}</Text>
+                <Text style={styles.emptyDesc}>{t('messages.messagescreen.invite_people_you_like_to_start_a_conversation')}</Text>
                 <View style={{ width: '80%', marginTop: Spacing.xl }}><InviteButton /></View>
               </View>
             )}
@@ -374,7 +380,7 @@ export default function MessageScreen() {
           <View style={{ flex: 1 }}>
             <View style={styles.searchContainer}>
               <Icon name="magnify" size={20} color={Colors.textMuted} />
-              <TextInput placeholder="Search messages..." style={styles.searchInput} placeholderTextColor={Colors.textMuted} value={searchQuery} onChangeText={setSearchQuery} />
+              <TextInput placeholder={t('messages.messagescreen.search_messages')} style={styles.searchInput} placeholderTextColor={Colors.textMuted} value={searchQuery} onChangeText={setSearchQuery} />
             </View>
 
             {messagesLoading ? (
@@ -392,8 +398,8 @@ export default function MessageScreen() {
             ) : (
               <View style={styles.emptyView}>
                 <AvatarGroup />
-                <Text style={styles.emptyTitle}>No messages yet</Text>
-                <Text style={styles.emptyDesc}>Accepted connections will appear here for quick access.</Text>
+                <Text style={styles.emptyTitle}>{t('messages.chatdetailscreen.no_messages_yet')}</Text>
+                <Text style={styles.emptyDesc}>{t('messages.messagescreen.accepted_connections_will_appear_here_for_quick_access')}</Text>
                 <View style={{ width: '80%', marginTop: Spacing.xl }}><InviteButton /></View>
               </View>
             )}

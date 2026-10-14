@@ -1,13 +1,18 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const bodyTypes = ['Slim', 'Muscular', 'Athletic', 'Average', 'A few extra pounds', 'Other'];
+const bodyTypeLabel = (val: string) =>
+  val === 'Slim' ? t('profile.userdetails.slim')
+  : val === 'Other' ? t('profile.userdetails.other')
+  : val;
 
 const BodyTypeSelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { selectedBodyType, setSelectedBodyType } = useContext(AppContext);
 
@@ -23,7 +28,7 @@ const BodyTypeSelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="human" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Your body type</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.bodytypeselector.your_body_type')}</Text>
       </View>
       <View style={styles.optionsWrap}>
         {bodyTypes.map((type) => {
@@ -33,16 +38,9 @@ const BodyTypeSelector = () => {
               key={type}
               activeOpacity={0.8}
               onPress={() => toggleBodyType(type)}
-              style={styles.pillActiveWrapper}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
             >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.primaryLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pillActiveGradient}
-              >
-                <Text style={styles.pillTextActive}>{type}</Text>
-              </LinearGradient>
+              <Text style={styles.pillTextActive}>{bodyTypeLabel(type)}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -53,11 +51,11 @@ const BodyTypeSelector = () => {
                 styles.pillInactive,
                 {
                   backgroundColor: themeColors.surfaceLight,
-                  borderColor: themeColors.borderLight,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
-              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{type}</Text>
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{bodyTypeLabel(type)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -102,11 +100,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  pillActiveWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  pillActiveGradient: {
+  pillActive: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
@@ -115,7 +109,7 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     fontSize: 14.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
 });

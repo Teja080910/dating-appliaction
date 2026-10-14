@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProfile } from '../../api/useProfile';
 import Description from '../../components/ProfileTabComponents/ProfileSettings/Description';
@@ -17,14 +16,19 @@ import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/D
 import ProfileSettingsHeader from '../../components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader';
 import ProfilePhotoGrid from '../../components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid';
 import YourBirthday from '../../components/ProfileTabComponents/ProfileSettings/YourBirthday';
+import ContactDetails, { COUNTRIES_LIST } from '../../components/ProfileTabComponents/ProfileSettings/ContactDetails';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
 import { getAuthSession } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
+import { dedupeImageUris } from '../../utils/imageHelpers';
+import { t, useTranslation } from '../../i18n';
 
 const ProfileSettingsScreen = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
@@ -37,30 +41,90 @@ const ProfileSettingsScreen = () => {
     setDate,
     setName,
     images,
+    setImages,
     setProfileImage,
     setProfileImageUrl,
+    phoneNumber: contextPhone,
+    setPhoneNumber: setContextPhone,
   } = useContext(AppContext);
   const [loading, setLoading] = useState(false);
   const [localDisplayName, setLocalDisplayName] = useState(displayName);
   const [localDescription, setLocalDescription] = useState(profileText);
   const [localDob, setLocalDob] = useState(date.toISOString().split('T')[0]);
+
+  // Contact details state (defaults to primary app language country)
+  const [countryCode, setCountryCode] = useState('+44');
+  const [countryName, setCountryName] = useState('United Kingdom');
+  const [countryFlag, setCountryFlag] = useState('🇬🇧');
+  const [localPhoneNumber, setLocalPhoneNumber] = useState('');
+  const [localTelegramUsername, setLocalTelegramUsername] = useState('');
+
+  const isCleanPhoneNumber = (val?: string | null): boolean => {
+    if (!val) return false;
+    const str = String(val).trim();
+    if (!str || str.includes('@') || /[a-zA-Z]/.test(str)) return false;
+    return /\d/.test(str);
+  };
+
   const isInitialized = useRef(false);
   const { updateBasic, updateProfile, useMyProfile } = useProfile();
   const profileQuery = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
 
   useEffect(() => {
-    const loadStoredDob = async () => {
+    const loadStoredDobAndContact = async () => {
       try {
         const storedDob = await AsyncStorage.getItem('userDob');
         if (storedDob) {
           setLocalDob(storedDob);
           setDate(new Date(storedDob));
         }
+
+        const storedPhone = await AsyncStorage.getItem('phoneNumber');
+        if (storedPhone) {
+          if (isCleanPhoneNumber(storedPhone)) {
+            const match = storedPhone.match(/^(\+\d+)\s*(.*)$/);
+            if (match) {
+              const matchedCountry = COUNTRIES_LIST.find((c) => c.code === match[1]);
+              if (matchedCountry) {
+                setCountryCode(matchedCountry.code);
+                setCountryName(matchedCountry.name);
+                setCountryFlag(matchedCountry.flag);
+              } else {
+                setCountryCode(match[1]);
+              }
+              setLocalPhoneNumber(match[2].replace(/[^\d\s-]/g, '').trim());
+            } else {
+              setLocalPhoneNumber(storedPhone.replace(/[^\d\s-]/g, '').trim());
+            }
+          } else {
+            // Clean up any stale/email-contaminated value from storage
+            await AsyncStorage.removeItem('phoneNumber');
+            setLocalPhoneNumber('');
+          }
+        }
+
+        const storedTg = await AsyncStorage.getItem('telegramUsername');
+        if (storedTg) {
+          setLocalTelegramUsername(storedTg.replace(/^@+/, ''));
+        }
       } catch (e) {}
     };
-    void loadStoredDob();
+    void loadStoredDobAndContact();
   }, [setDate]);
+
+  const profilePhotos = useMemo(() => {
+    return dedupeImageUris([
+      profileQuery.data?.photos,
+      profileQuery.data?.images,
+      profileQuery.data?.allImages,
+      profileQuery.data?.profileImageUrl,
+    ]);
+  }, [
+    profileQuery.data?.photos,
+    profileQuery.data?.images,
+    profileQuery.data?.profileImageUrl,
+  ]);
 
   useEffect(() => {
     const profile = profileQuery.data;
@@ -78,8 +142,34 @@ const ProfileSettingsScreen = () => {
       setLocalDob(profile.dob);
       setDate(new Date(profile.dob));
     }
+
+    const candidatePhone = profile.phone || profile.mobile;
+    if (candidatePhone && isCleanPhoneNumber(candidatePhone)) {
+      const rawNum = String(candidatePhone).trim();
+      const match = rawNum.match(/^(\+\d+)\s*(.*)$/);
+      if (match) {
+        const matchedCountry = COUNTRIES_LIST.find((c) => c.code === match[1]);
+        if (matchedCountry) {
+          setCountryCode(matchedCountry.code);
+          setCountryName(matchedCountry.name);
+          setCountryFlag(matchedCountry.flag);
+        } else {
+          setCountryCode(match[1]);
+        }
+        setLocalPhoneNumber(match[2].replace(/[^\d\s-]/g, '').trim());
+      } else {
+        setLocalPhoneNumber(rawNum.replace(/[^\d\s-]/g, '').trim());
+      }
+    } else {
+      setLocalPhoneNumber('');
+    }
+
+    if (profile.telegramUsername) {
+      setLocalTelegramUsername(String(profile.telegramUsername).replace(/^@+/, ''));
+    }
+
     isInitialized.current = true;
-  }, [displayName, profileQuery.data, profileText, setDate, setDisplayName, setName, setProfileText]);
+  }, [profileQuery.data, displayName, profileText, setDate, setDisplayName, setName, setProfileText]);
 
   const computedAge = useMemo(() => {
     const dob = new Date(localDob);
@@ -100,6 +190,12 @@ const ProfileSettingsScreen = () => {
       return;
     }
 
+    const cleanPhoneDigits = localPhoneNumber.replace(/[^\d\s-]/g, '').trim();
+    const fullPhone =
+      cleanPhoneDigits && isCleanPhoneNumber(cleanPhoneDigits)
+        ? `${countryCode} ${cleanPhoneDigits}`
+        : '';
+
     const persistLocalState = async () => {
       setDisplayName(localDisplayName.trim());
       setName(localDisplayName.trim());
@@ -113,6 +209,17 @@ const ProfileSettingsScreen = () => {
         setProfileImage(validPhotos[0]);
         setProfileImageUrl(validPhotos[0]);
       }
+
+      if (fullPhone) {
+        setContextPhone(fullPhone);
+        await AsyncStorage.setItem('phoneNumber', fullPhone);
+      } else {
+        setContextPhone('');
+        await AsyncStorage.removeItem('phoneNumber');
+      }
+      if (localTelegramUsername.trim()) {
+        await AsyncStorage.setItem('telegramUsername', localTelegramUsername.trim());
+      }
     };
 
     const handlePersist = async () => {
@@ -121,7 +228,7 @@ const ProfileSettingsScreen = () => {
       if (!authSession?.token) {
         alert('Session error', 'Please log in again.', [
           {
-            text: 'OK',
+            text: t('profile.profilesettingsscreen.ok'),
             onPress: () => navigation.replace('Login'),
           },
         ]);
@@ -138,14 +245,15 @@ const ProfileSettingsScreen = () => {
           dob: localDob,
           age: computedAge,
           photos: validPhotos,
-        },
+          telegramUsername: localTelegramUsername.trim() || undefined,
+        } as any,
         {
           onSuccess: async () => {
             await persistLocalState();
             await profileQuery.refetch();
-            alert('Saved', 'Profile updated successfully.', [
+            alert(t('search.location.saved'), 'Profile updated successfully.', [
               {
-                text: 'OK',
+                text: t('profile.profilesettingsscreen.ok'),
                 onPress: () => navigation.goBack(),
               },
             ]);
@@ -166,7 +274,7 @@ const ProfileSettingsScreen = () => {
                 'Profile changes are saved in the app and will sync automatically.',
                 [
                   {
-                    text: 'OK',
+                    text: t('profile.profilesettingsscreen.ok'),
                     onPress: () => navigation.goBack(),
                   },
                 ]
@@ -176,7 +284,7 @@ const ProfileSettingsScreen = () => {
 
             alert(
               'Update failed',
-              getUserFriendlyMessage(error, 'We could not save your profile. Please try again.')
+              getUserFriendlyMessage(error, t('profile.profilesettingsscreen.we_could_not_save_your_profile_please_try_again'))
             );
           },
           onSettled: () => setLoading(false),
@@ -207,26 +315,35 @@ const ProfileSettingsScreen = () => {
 
         <Description value={localDescription} onChange={setLocalDescription} />
 
-        <ProfilePhotoGrid />
+        <ProfilePhotoGrid initialPhotos={profilePhotos} />
 
+        {/* Contact Details (Telegram - WhatsApp removed for now) */}
+        <ContactDetails
+          showWhatsApp={false}
+          countryCode={countryCode}
+          setCountryCode={setCountryCode}
+          countryName={countryName}
+          setCountryName={setCountryName}
+          countryFlag={countryFlag}
+          setCountryFlag={setCountryFlag}
+          phoneNumber={localPhoneNumber}
+          setPhoneNumber={setLocalPhoneNumber}
+          telegramUsername={localTelegramUsername}
+          setTelegramUsername={setLocalTelegramUsername}
+        />
+
+        {/* Screenshot 1: Save Pill Button */}
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleSave}
           disabled={loading}
-          style={[styles.saveBtnWrapper, loading && { opacity: 0.7 }]}
+          style={[styles.saveBtn, loading && { opacity: 0.7 }]}
         >
-          <LinearGradient
-            colors={[themeColors.primary, themeColors.primaryLight]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.saveBtnGradient}
-          >
-            {loading ? (
-              <ActivityIndicator color={themeColors.white || '#FFFFFF'} size="small" />
-            ) : (
-              <Text style={styles.saveBtnText}>Save</Text>
-            )}
-          </LinearGradient>
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.saveBtnText}>{t('more_info.savebutton.save')}</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
 
@@ -237,37 +354,36 @@ const ProfileSettingsScreen = () => {
 
 export default ProfileSettingsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollContent: {
-    backgroundColor: Colors.background,
-    flexGrow: 1,
-  },
-  saveBtnWrapper: {
-    marginHorizontal: 20,
-    marginTop: 28,
-    borderRadius: 999,
-    overflow: 'hidden',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveBtnGradient: {
-    paddingVertical: 14,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtnText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      backgroundColor: colors.background,
+      flexGrow: 1,
+    },
+    saveBtn: {
+      backgroundColor: '#E05353',
+      marginHorizontal: 20,
+      marginTop: 32,
+      marginBottom: 16,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 3,
+      shadowColor: '#E05353',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+    },
+    saveBtnText: {
+      color: '#FFFFFF',
+      fontSize: 17,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+    },
+  });
 

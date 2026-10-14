@@ -21,6 +21,7 @@ export type RootParamList = {
   PrivacyPolicy: { type: 'privacy' | 'terms' };
   BottomTabs: undefined;
   AboutProfile: undefined;
+  TellUsMore: undefined;
   ConnectTelegram: undefined;
   ChatDetailScreen: { name: string; image: string | null };
   MoreDetails: undefined;
@@ -34,4 +35,7 @@ export type RootParamList = {
   Sent: undefined;
   SentRequestsScreen: undefined;
   RequestsInboxScreen: undefined;
+  HowToUseScreen: undefined;
+  ResetLocationScreen: undefined;
+  ResetLocation: undefined;
 };

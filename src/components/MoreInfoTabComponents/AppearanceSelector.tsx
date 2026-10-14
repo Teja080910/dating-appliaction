@@ -1,13 +1,16 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const appearances = ['Very attractive', 'Attractive', 'Average', 'Below average'];
+const appearanceLabel = (val: string) =>
+  val === 'Attractive' ? t('profile.userdetails.attractive') : val;
 
 const AppearanceSelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { selectedAppearance, setSelectedAppearance } = useContext(AppContext);
 
@@ -23,7 +26,7 @@ const AppearanceSelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="emoticon-happy-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Your appearance</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.appearanceselector.your_appearance')}</Text>
       </View>
       <View style={styles.optionsWrap}>
         {appearances.map((appearance) => {
@@ -33,16 +36,9 @@ const AppearanceSelector = () => {
               key={appearance}
               activeOpacity={0.8}
               onPress={() => toggleAppearance(appearance)}
-              style={styles.pillActiveWrapper}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
             >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.primaryLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pillActiveGradient}
-              >
-                <Text style={styles.pillTextActive}>{appearance}</Text>
-              </LinearGradient>
+              <Text style={styles.pillTextActive}>{appearanceLabel(appearance)}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -53,11 +49,11 @@ const AppearanceSelector = () => {
                 styles.pillInactive,
                 {
                   backgroundColor: themeColors.surfaceLight,
-                  borderColor: themeColors.borderLight,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
-              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{appearance}</Text>
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{appearanceLabel(appearance)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -102,11 +98,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  pillActiveWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  pillActiveGradient: {
+  pillActive: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
@@ -115,7 +107,7 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     fontSize: 14.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
 });

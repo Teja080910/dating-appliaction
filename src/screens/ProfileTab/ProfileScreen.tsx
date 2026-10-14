@@ -1,9 +1,10 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity, StatusBar, Modal, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, StatusBar, Modal, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Toast from 'react-native-toast-message';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useAuth } from '../../api/useAuth';
 import { clearFullSession } from '../../utils/session';
@@ -14,6 +15,8 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { useMyProfile } from '../../api/useProfile';
 import AttractiveLogo from '../../components/AttractiveLogo';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { t, useTranslation } from '../../i18n';
 
 interface SettingsRowProps {
   icon: string;
@@ -54,6 +57,7 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
 
 
 const ProfileScreen = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
@@ -65,6 +69,14 @@ const ProfileScreen = () => {
   const [userEmail, setUserEmail] = useState<string>('');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [chatModalVisible, setChatModalVisible] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleChatWithUs = () => {
+    setIsCopied(false);
+    Linking.openURL('mailto:hi@amara.com').catch(() => {});
+    setChatModalVisible(true);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -155,7 +167,7 @@ const ProfileScreen = () => {
       <View style={styles.brandHeader}>
         <View style={styles.logoRow}>
           <AttractiveLogo size={28} />
-          <Text style={styles.logoText}>AMARA</Text>
+          <Text style={styles.logoText}>{t('home.homeheader.amara')}</Text>
         </View>
       </View>
 
@@ -163,13 +175,13 @@ const ProfileScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionHeader}>SETTINGS</Text>
+        <Text style={styles.sectionHeader}>{t('profile.profilescreen.settings')}</Text>
 
         {/* Group 1: Profile & Features */}
         <View style={styles.groupContainer}>
           <SettingsRow
             icon="account-outline"
-            label="My Profile"
+            label={t('profile.profilescreen.my_profile')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => {
@@ -179,45 +191,52 @@ const ProfileScreen = () => {
           />
           <SettingsRow
             icon="cog-outline"
-            label="Edit Profile"
+            label={t('profile.profilesettingheader.edit_profile')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('ProfileSettingsScreen')}
           />
           <SettingsRow
             icon="information-outline"
-            label="About me"
+            label={t('more_info.header.about_me')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('MoreInfoScreen')}
           />
           <SettingsRow
             icon="tune-variant"
-            label="Search Settings"
+            label={t('search.searchsettingheader.search_settings')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('SearchSettings')}
           />
           <SettingsRow
             icon="crown-outline"
-            label="Get Premium"
+            label={t('common.subscriptionmodal.get_premium')}
             themeColors={themeColors}
             styles={styles}
-            onPress={() => setPaywallVisible(true)}
+            onPress={() => setPaywallVisible?.(true)}
           />
           <SettingsRow
             icon="send-outline"
-            label="Telegram"
+            label={t('nav.bottomtabs.telegram')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('ConnectTelegram', { fromProfile: true } as any)}
           />
           <SettingsRow
             icon="palette-outline"
-            label="Preferences"
+            label={t('profile.preferencesscreen.preferences')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('PreferencesScreen')}
+          />
+          <SettingsRow
+            icon="map-marker-outline"
+            label="Reset Location"
+            themeColors={themeColors}
+            styles={styles}
+            onPress={() => navigation.navigate('ResetLocationScreen')}
           />
         </View>
 
@@ -227,21 +246,21 @@ const ProfileScreen = () => {
         <View style={styles.groupContainer}>
           <SettingsRow
             icon="help-circle-outline"
-            label="How To Use Amara"
+            label={t('profile.profilescreen.how_to_use_amara')}
             themeColors={themeColors}
             styles={styles}
-            onPress={() => navigation.navigate('SupportScreen')}
+            onPress={() => navigation.navigate('HowToUseScreen')}
           />
           <SettingsRow
             icon="shield-outline"
-            label="Privacy Policy"
+            label={t('auth.forgotpasswordscreen.privacy_policy')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('PrivacyPolicy', { type: 'privacy' })}
           />
           <SettingsRow
             icon="file-document-outline"
-            label="Terms and Conditions"
+            label={t('profile.termsandconditions.terms_and_conditions')}
             themeColors={themeColors}
             styles={styles}
             onPress={() => navigation.navigate('PrivacyPolicy', { type: 'terms' })}
@@ -251,7 +270,7 @@ const ProfileScreen = () => {
             label="Chat With Us"
             themeColors={themeColors}
             styles={styles}
-            onPress={() => navigation.navigate('SupportScreen')}
+            onPress={handleChatWithUs}
           />
         </View>
 
@@ -281,7 +300,7 @@ const ProfileScreen = () => {
           {userEmail ? (
             <Text style={styles.userEmailText}>{userEmail}</Text>
           ) : null}
-          <Text style={styles.versionText}>Amara v5.1.10</Text>
+          <Text style={styles.versionText}>{t('profile.profilescreen.amara_v5_1_10')}</Text>
         </View>
       </ScrollView>
 
@@ -307,9 +326,7 @@ const ProfileScreen = () => {
 
             <Text style={styles.modalTitle}>Delete My Profile</Text>
 
-            <Text style={styles.modalBodyText}>
-              Your profile will be hidden immediately and permanently deleted after 30 days. You can recover your account by logging in again within that period.
-            </Text>
+            <Text style={styles.modalBodyText}>{t('profile.profilescreen.your_profile_will_be_hidden_immediately_and_permanently_deleted_after')}</Text>
 
             <View style={styles.modalButtonsRow}>
               <TouchableOpacity
@@ -318,7 +335,7 @@ const ProfileScreen = () => {
                 disabled={isDeleting}
                 activeOpacity={0.7}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('profile.additionaluploadsection.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -330,10 +347,97 @@ const ProfileScreen = () => {
                 {isDeleting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.deleteBtnText}>Delete</Text>
+                  <Text style={styles.deleteBtnText}>{t('profile.uploadimage.delete')}</Text>
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Chat With Us Modal matching screenshot */}
+      <Modal
+        visible={chatModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setChatModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.chatModalCard,
+              { backgroundColor: isDark ? '#1A1730' : '#FFFFFF' },
+            ]}
+          >
+            <Text
+              style={[
+                styles.chatModalTitle,
+                { color: isDark ? '#FFFFFF' : '#000000' },
+              ]}
+            >
+              Chat With Us
+            </Text>
+
+            <Text
+              style={[
+                styles.chatModalSubtitle,
+                { color: isDark ? '#A5A3B5' : '#333333' },
+              ]}
+            >{t('profile.profilescreen.send_us_an_email_and_well_get_back_to_you_as_soon_as_possible')}</Text>
+
+            <TouchableOpacity
+              style={[
+                styles.chatEmailPill,
+                { backgroundColor: isDark ? '#262244' : '#F1F5F9' },
+              ]}
+              activeOpacity={0.7}
+              onPress={() => {
+                Linking.openURL('mailto:hi@amara.com').catch(() => {});
+              }}
+            >
+              <Text
+                selectable={true}
+                style={[
+                  styles.chatEmailText,
+                  { color: isDark ? '#FFFFFF' : '#000000', flex: 1 },
+                ]}
+              >{t('profile.profilescreen.hi_amara_com')}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Clipboard.setString(t('profile.profilescreen.hi_amara_com'));
+                  setIsCopied(true);
+                  Toast.show({
+                    type: 'success',
+                    text1: t('profile.profilescreen.copied_to_clipboard'),
+                    text2: t('profile.profilescreen.hi_amara_com'),
+                  });
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ padding: 4 }}
+              >
+                <Icon
+                  name={isCopied ? 'check' : 'content-copy'}
+                  size={18}
+                  color={isCopied ? (themeColors.primary || '#7C3AED') : (isDark ? '#FFFFFF' : '#000000')}
+                />
+              </TouchableOpacity>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.chatCloseBtn,
+                { backgroundColor: isDark ? '#262244' : '#F1F5F9' },
+              ]}
+              activeOpacity={0.8}
+              onPress={() => setChatModalVisible(false)}
+            >
+              <Text
+                style={[
+                  styles.chatCloseBtnText,
+                  { color: isDark ? '#FFFFFF' : '#000000' },
+                ]}
+              >{t('more_info.moreinfoscreen.close')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -505,6 +609,51 @@ const createStyles = (colors: any) =>
       fontSize: 15,
       fontWeight: '700',
       color: '#FFFFFF',
+    },
+    chatModalCard: {
+      width: '100%',
+      maxWidth: 360,
+      borderRadius: 24,
+      padding: 24,
+      elevation: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+    },
+    chatModalTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+      marginBottom: 10,
+      letterSpacing: -0.3,
+    },
+    chatModalSubtitle: {
+      fontSize: 14.5,
+      lineHeight: 21,
+      marginBottom: 20,
+    },
+    chatEmailPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 16,
+    },
+    chatEmailText: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    chatCloseBtn: {
+      alignSelf: 'flex-end',
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      borderRadius: 22,
+      marginTop: 22,
+    },
+    chatCloseBtnText: {
+      fontSize: 14.5,
+      fontWeight: '700',
     },
   });
 

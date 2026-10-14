@@ -1,0 +1,4079 @@
+{
+  "home.homeheader.dont_miss_a_new_invite_get_notified_instantly": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 100,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx",
+      "src/components/NotificationBanner.tsx"
+    ]
+  },
+  "home.homeheader.notify_me": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 118,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx",
+      "src/components/NotificationBanner.tsx"
+    ]
+  },
+  "home.homeheader.amara": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 136,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx",
+      "src/components/ProfileTabComponents/AllRightsReserved.tsx",
+      "src/components/ProfileTabComponents/Header.tsx",
+      "src/components/SubscriptionModal.tsx",
+      "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "src/screens/Auth/LoginScreen.tsx",
+      "src/screens/Auth/RegisterScreen.tsx",
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx",
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "home.homeheader.curated_private_matches": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 137,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx"
+    ]
+  },
+  "home.homeheader.last_active": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 175,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx"
+    ]
+  },
+  "home.homeheader.newest": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 200,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx"
+    ]
+  },
+  "home.homeheader.enable_notifications": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 43,
+    "kind": "prop:title",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx",
+      "src/components/NotificationBanner.tsx"
+    ]
+  },
+  "home.homeheader.get_instant_alerts_when_you_receive_a_new_invite_or_match": {
+    "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+    "line": 44,
+    "kind": "prop:message",
+    "files": [
+      "src/components/HomeTabComponents/HomeHeader.tsx",
+      "src/components/NotificationBanner.tsx"
+    ]
+  },
+  "home.usercard.user": {
+    "file": "src/components/HomeTabComponents/UserCard.tsx",
+    "line": 61,
+    "kind": "fallback",
+    "files": [
+      "src/components/HomeTabComponents/UserCard.tsx",
+      "src/components/HomeTabComponents/UserList.tsx",
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/HomeTab/MatchScreen.tsx",
+      "src/screens/MessageTab/MessageScreen.tsx",
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "home.usercard.nearby": {
+    "file": "src/components/HomeTabComponents/UserCard.tsx",
+    "line": 66,
+    "kind": "fallback",
+    "files": [
+      "src/components/HomeTabComponents/UserCard.tsx",
+      "src/components/HomeTabComponents/UserList.tsx",
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "home.usercard.km_away": {
+    "file": "src/components/HomeTabComponents/UserCard.tsx",
+    "line": 144,
+    "kind": "tpl",
+    "files": [
+      "src/components/HomeTabComponents/UserCard.tsx"
+    ]
+  },
+  "home.usercard.away": {
+    "file": "src/components/HomeTabComponents/UserCard.tsx",
+    "line": 145,
+    "kind": "tpl",
+    "files": [
+      "src/components/HomeTabComponents/UserCard.tsx"
+    ]
+  },
+  "home.userlist.no_profiles_found_try_adjusting_your_search_settings": {
+    "file": "src/components/HomeTabComponents/UserList.tsx",
+    "line": 378,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/UserList.tsx"
+    ]
+  },
+  "home.userlist.reset_filters": {
+    "file": "src/components/HomeTabComponents/UserList.tsx",
+    "line": 388,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/UserList.tsx"
+    ]
+  },
+  "home.userlist.refresh": {
+    "file": "src/components/HomeTabComponents/UserList.tsx",
+    "line": 398,
+    "kind": "jsx",
+    "files": [
+      "src/components/HomeTabComponents/UserList.tsx"
+    ]
+  },
+  "home.userlist.male": {
+    "file": "src/components/HomeTabComponents/UserList.tsx",
+    "line": 172,
+    "kind": "array",
+    "files": [
+      "src/components/HomeTabComponents/UserList.tsx",
+      "src/components/SearchSettingsComponents/ShowMe.tsx",
+      "src/screens/SearchSettings/SearchScreen.tsx"
+    ]
+  },
+  "home.userlist.female": {
+    "file": "src/components/HomeTabComponents/UserList.tsx",
+    "line": 172,
+    "kind": "array",
+    "files": [
+      "src/components/HomeTabComponents/UserList.tsx",
+      "src/components/SearchSettingsComponents/ShowMe.tsx",
+      "src/screens/SearchSettings/SearchScreen.tsx"
+    ]
+  },
+  "common.languageselectorheader.select_language": {
+    "file": "src/components/LanguageSelectorHeader.tsx",
+    "line": 55,
+    "kind": "jsx",
+    "files": [
+      "src/components/LanguageSelectorHeader.tsx"
+    ]
+  },
+  "messages.invitebutton.invite_now": {
+    "file": "src/components/MessageTabComponents/InviteButton.tsx",
+    "line": 24,
+    "kind": "jsx",
+    "files": [
+      "src/components/MessageTabComponents/InviteButton.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "more_info.appearanceselector.your_appearance": {
+    "file": "src/components/MoreInfoTabComponents/AppearanceSelector.tsx",
+    "line": 17,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/AppearanceSelector.tsx"
+    ]
+  },
+  "more_info.bodytypeselector.your_body_type": {
+    "file": "src/components/MoreInfoTabComponents/BodyTypeSelector.tsx",
+    "line": 17,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/BodyTypeSelector.tsx"
+    ]
+  },
+  "more_info.doyousmokeselector.do_you_smoke": {
+    "file": "src/components/MoreInfoTabComponents/DoYouSmokeSelector.tsx",
+    "line": 14,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/DoYouSmokeSelector.tsx"
+    ]
+  },
+  "more_info.drinkingselector.do_you_drink": {
+    "file": "src/components/MoreInfoTabComponents/DrinkingSelector.tsx",
+    "line": 14,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/DrinkingSelector.tsx",
+      "src/components/SearchSettingsComponents/Drinking.tsx"
+    ]
+  },
+  "more_info.englishskillselector.how_good_is_your_english": {
+    "file": "src/components/MoreInfoTabComponents/EnglishSkillSelector.tsx",
+    "line": 11,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/EnglishSkillSelector.tsx"
+    ]
+  },
+  "more_info.ethnicityselector.your_race_ethnicity": {
+    "file": "src/components/MoreInfoTabComponents/EthnicitySelector.tsx",
+    "line": 25,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/EthnicitySelector.tsx"
+    ]
+  },
+  "more_info.header.about_me": {
+    "file": "src/components/MoreInfoTabComponents/Header.tsx",
+    "line": 9,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/Header.tsx",
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/Navigations/BottomTabs.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "more_info.header.complete_your_profile_to_get_the_best_matches": {
+    "file": "src/components/MoreInfoTabComponents/Header.tsx",
+    "line": 10,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/Header.tsx"
+    ]
+  },
+  "more_info.heightselector.your_height": {
+    "file": "src/components/MoreInfoTabComponents/HeightSelector.tsx",
+    "line": 11,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/HeightSelector.tsx"
+    ]
+  },
+  "more_info.heightselector.cm": {
+    "file": "src/components/MoreInfoTabComponents/HeightSelector.tsx",
+    "line": 15,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/HeightSelector.tsx"
+    ]
+  },
+  "more_info.kidsselector.how_many_kids_do_you_have": {
+    "file": "src/components/MoreInfoTabComponents/KidsSelector.tsx",
+    "line": 14,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/KidsSelector.tsx"
+    ]
+  },
+  "more_info.languagesselector.languages_you_speak": {
+    "file": "src/components/MoreInfoTabComponents/LanguagesSelector.tsx",
+    "line": 18,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/LanguagesSelector.tsx"
+    ]
+  },
+  "more_info.lookingforselector.what_are_you_looking_for": {
+    "file": "src/components/MoreInfoTabComponents/LookingForSelector.tsx",
+    "line": 25,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/LookingForSelector.tsx",
+      "src/components/SearchSettingsComponents/LookingFor.tsx"
+    ]
+  },
+  "more_info.networthselector.net_worth_usd": {
+    "file": "src/components/MoreInfoTabComponents/NetWorthSelector.tsx",
+    "line": 21,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/NetWorthSelector.tsx"
+    ]
+  },
+  "more_info.savebutton.save": {
+    "file": "src/components/MoreInfoTabComponents/SaveButton.tsx",
+    "line": 23,
+    "kind": "jsx",
+    "files": [
+      "src/components/MoreInfoTabComponents/SaveButton.tsx",
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/components/SearchSettingsComponents/SaveResetButtons.tsx",
+      "src/screens/ProfileTab/ProfileSettingsScreen.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx",
+      "src/screens/onboarding/MoreDetailsScreen.tsx"
+    ]
+  },
+  "profile.additionaluploadsection.set_as_primary_photo": {
+    "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+    "line": 119,
+    "kind": "prop:text",
+    "files": [
+      "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+    ]
+  },
+  "profile.additionaluploadsection.remove_photo": {
+    "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+    "line": 155,
+    "kind": "prop:text",
+    "files": [
+      "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+    ]
+  },
+  "profile.additionaluploadsection.cancel": {
+    "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+    "line": 168,
+    "kind": "prop:text",
+    "files": [
+      "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/components/SubscriptionModal.tsx",
+      "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+      "src/components/UploadImageComponents/UploadImage.tsx",
+      "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx",
+      "src/screens/ProfileTab/SupportScreen.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.additionaluploadsection.this_is_currently_your_primary_photo": {
+    "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+    "line": 170,
+    "kind": "ternary:a",
+    "files": [
+      "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+    ]
+  },
+  "profile.additionaluploadsection.choose_an_action_for_this_photo": {
+    "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+    "line": 170,
+    "kind": "ternary:b",
+    "files": [
+      "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+    ]
+  },
+  "profile.additionaluploadsection.failed_to_upload_image_to_server": {
+    "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+    "line": 222,
+    "kind": "fallback",
+    "files": [
+      "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+    ]
+  },
+  "profile.allrightsreserved.2025_amara_app_all_rights_reserved_v_4_2_2": {
+    "file": "src/components/ProfileTabComponents/AllRightsReserved.tsx",
+    "line": 10,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/AllRightsReserved.tsx"
+    ]
+  },
+  "profile.changelocation.change_location": {
+    "file": "src/components/ProfileTabComponents/ChangeLocation.tsx/ChangeLocation.tsx",
+    "line": 7,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ChangeLocation.tsx/ChangeLocation.tsx",
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "profile.chatwithus.chat_with_us": {
+    "file": "src/components/ProfileTabComponents/ChatWithUs/ChatWithUs.tsx",
+    "line": 7,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ChatWithUs/ChatWithUs.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.connecttelegram.connect_your_telegram": {
+    "file": "src/components/ProfileTabComponents/ConnectTelegram/ConnectTelegram.tsx",
+    "line": 7,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ConnectTelegram/ConnectTelegram.tsx"
+    ]
+  },
+  "profile.deletemyprofile.delete_my_profile": {
+    "file": "src/components/ProfileTabComponents/DeleteMyProfile/DeleteMyProfile.tsx",
+    "line": 9,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/DeleteMyProfile/DeleteMyProfile.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.header.premium": {
+    "file": "src/components/ProfileTabComponents/Header.tsx",
+    "line": 5,
+    "kind": "ternary:a",
+    "files": [
+      "src/components/ProfileTabComponents/Header.tsx"
+    ]
+  },
+  "profile.header.standard": {
+    "file": "src/components/ProfileTabComponents/Header.tsx",
+    "line": 5,
+    "kind": "ternary:b",
+    "files": [
+      "src/components/ProfileTabComponents/Header.tsx"
+    ]
+  },
+  "profile.logout.log_out": {
+    "file": "src/components/ProfileTabComponents/Logout/Logout.tsx",
+    "line": 20,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/Logout/Logout.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.photoverifiedbadge.youre_verified_by_photo": {
+    "file": "src/components/ProfileTabComponents/PhotoVerifiedBadge.tsx",
+    "line": 7,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/PhotoVerifiedBadge.tsx"
+    ]
+  },
+  "profile.privacy.privacy": {
+    "file": "src/components/ProfileTabComponents/Privacy/Privacy.tsx",
+    "line": 7,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/Privacy/Privacy.tsx"
+    ]
+  },
+  "profile.contactdetails.contact_details": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 145,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+    ]
+  },
+  "profile.contactdetails.whatsapp_number": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 150,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+    ]
+  },
+  "profile.contactdetails.or": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 221,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+    ]
+  },
+  "profile.contactdetails.your_telegram": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 234,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+    ]
+  },
+  "profile.contactdetails.connect_telegram": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 255,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.contactdetails.status": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 274,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.contactdetails.select_country": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 316,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+    ]
+  },
+  "profile.contactdetails.enter_your_telegram_username_to_connect_with_the_amara_telegram_bot": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 418,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.contactdetails.disconnect": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 456,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.contactdetails.search_country_or_code": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 334,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+    ]
+  },
+  "profile.contactdetails.manage_telegram": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 410,
+    "kind": "ternary:a",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.contactdetails.link_telegram_account": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 410,
+    "kind": "ternary:b",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.contactdetails.your_telegram_account_is_now_connected": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 116,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.contactdetails.your_telegram_account_is_saved": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 125,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+    ]
+  },
+  "profile.contactdetails.connected": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+    "line": 284,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.description.tell_us_something_about_yourself_you_can_write_about_your_hobbies_valu": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/Description.tsx",
+    "line": 13,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/Description.tsx"
+    ]
+  },
+  "profile.description.tell_us_about_yourself": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/Description.tsx",
+    "line": 30,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/Description.tsx",
+      "src/screens/onboarding/AboutProfileScreen.tsx"
+    ]
+  },
+  "profile.displayname.nickname_first_name": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx",
+    "line": 20,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx",
+      "src/screens/onboarding/DisplayNameScreen.tsx"
+    ]
+  },
+  "profile.displayname.enter_nickname": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx",
+    "line": 25,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx"
+    ]
+  },
+  "profile.profilephotogrid.add_photo": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+    "line": 365,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+      "src/components/UploadImageComponents/UploadImage.tsx"
+    ]
+  },
+  "profile.profilephotogrid.upload_from_gallery": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+    "line": 389,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+    ]
+  },
+  "profile.profilephotogrid.use_camera": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+    "line": 410,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+    ]
+  },
+  "profile.profilephotogrid.face_photo_required": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+    "line": 436,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+    ]
+  },
+  "profile.profilephotogrid.every_user_needs_to_have_at_least_one_face_picture_in_their_profile_to": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+    "line": 458,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+    ]
+  },
+  "profile.profilephotogrid.okay": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+    "line": 471,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+    ]
+  },
+  "profile.profilesetting.account_settings": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx",
+    "line": 6,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx"
+    ]
+  },
+  "profile.profilesetting.profile_settings": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx",
+    "line": 12,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx"
+    ]
+  },
+  "profile.profilesettingheader.edit_profile": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader.tsx",
+    "line": 19,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.yourbirthday.select_your_birthday": {
+    "file": "src/components/ProfileTabComponents/ProfileSettings/YourBirthday.tsx",
+    "line": 25,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ProfileSettings/YourBirthday.tsx"
+    ]
+  },
+  "profile.termsandconditions.terms_and_conditions": {
+    "file": "src/components/ProfileTabComponents/TermsAndConditions/TermsAndConditions.tsx",
+    "line": 7,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/TermsAndConditions/TermsAndConditions.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.termsofuse.terms_of_use": {
+    "file": "src/components/ProfileTabComponents/TermsOfUse/TermsOfUse.tsx",
+    "line": 7,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/TermsOfUse/TermsOfUse.tsx",
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "profile.userdetails.youre_verified_by_photo": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 518,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.active_today": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 533,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.details": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 559,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.edit": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 564,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.userdetails.languages": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 597,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/components/SearchSettingsComponents/Languages.tsx"
+    ]
+  },
+  "profile.userdetails.looking_for": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 600,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.approve_request": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 628,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.report_this_profile": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 642,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.invitation_pending_approval": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 645,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.telegram_contact": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 653,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.open_telegram": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 675,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "profile.userdetails.report_and_block_this_user": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 695,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.we_are_committed_to_maintaining_a_safe_and_respectful_community_if_you": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 698,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.blocking_this_user_will_prevent_them_from_seeing_your_profile_or_conta": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 702,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.to_help_us_take_appropriate_action_please_provide_as_much_detail_as_po": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 707,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.thank_you_for_helping_us_keep_amara_a_safe_and_welcoming_space_for_eve": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 717,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.block_only": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 727,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.report_block": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 731,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.why_are_you_reporting": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 743,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.reason": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 756,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.additional_details": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 806,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.evidence_photos_optional": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 834,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.back": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 902,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.description": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 822,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.done": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 84,
+    "kind": "prop:text",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "profile.userdetails.user_unavailable": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 313,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.account_sync_needed": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 321,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.action_not_allowed": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 335,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.already_invited": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 339,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.invitation_sent": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 359,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.invite_failed": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 365,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.user_blocked": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 414,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.please_select_a_reason": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 445,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.target_user_unavailable": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 461,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.report_submitted": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 487,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.report_failed": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 492,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.this_profile_cannot_be_invited_right_now": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 314,
+    "kind": "prop:text2",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.you_cannot_invite_yourself": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 336,
+    "kind": "prop:text2",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.you_cannot_report_your_own_profile": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 408,
+    "kind": "prop:text2",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.this_user_has_been_blocked": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 414,
+    "kind": "prop:text2",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.thank_you_the_user_has_been_reported_and_blocked": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 487,
+    "kind": "prop:text2",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.we_could_not_approve_this_invitation_right_now": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 91,
+    "kind": "fnmsg",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.please_try_again_in_a_moment": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 366,
+    "kind": "fnmsg",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "profile.userdetails.unable_to_submit_report_please_try_again": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 493,
+    "kind": "fnmsg",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.yes": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 114,
+    "kind": "ternary:a",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/components/SearchSettingsComponents/Drinking.tsx",
+      "src/components/SearchSettingsComponents/Smoke.tsx"
+    ]
+  },
+  "profile.userdetails.no": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 114,
+    "kind": "ternary:b",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/components/SearchSettingsComponents/Drinking.tsx",
+      "src/components/SearchSettingsComponents/Smoke.tsx"
+    ]
+  },
+  "profile.userdetails.your_location": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 274,
+    "kind": "ternary:a",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.your_login_is_missing_a_valid_account_id_from_the_server": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 325,
+    "kind": "ternary:a",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.please_log_in_again_and_try_once_more": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 325,
+    "kind": "ternary:b",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.intermediate": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 594,
+    "kind": "ternary:a",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.medium": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 594,
+    "kind": "ternary:b",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.long_term_relationship": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 28,
+    "kind": "array",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/MoreInfoTab/MoreInfoScreen.tsx"
+    ]
+  },
+  "profile.userdetails.english": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 598,
+    "kind": "array",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.userdetails.casual_dating": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 602,
+    "kind": "array",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.relationship": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 264,
+    "kind": "fallback",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.guest": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 342,
+    "kind": "fallback",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.i_am_good_enough_for_every_good_thing_you_can_imagine": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 554,
+    "kind": "fallback",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.slim": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 574,
+    "kind": "fallback",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.attractive": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 579,
+    "kind": "fallback",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.other": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 584,
+    "kind": "fallback",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.https_t_me": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 105,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.away": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 278,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.reported_reason_details": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 471,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.reported_reason": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 476,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.cm": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 565,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.english_fluency": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 590,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.userdetails.kids": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+    "line": 595,
+    "kind": "tpl",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+    ]
+  },
+  "profile.viewmyprofile.view_my_profile": {
+    "file": "src/components/ProfileTabComponents/ViewMyProfile/ViewMyProfile.tsx",
+    "line": 9,
+    "kind": "jsx",
+    "files": [
+      "src/components/ProfileTabComponents/ViewMyProfile/ViewMyProfile.tsx"
+    ]
+  },
+  "common.razorpaymock.razorpay": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 87,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.pay": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 89,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.select_payment_method": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 100,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.processing_payment": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 140,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.please_do_not_go_back": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 141,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.payment_successful": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 153,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.premium_activated": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 154,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.100_secure_by_razorpay": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 161,
+    "kind": "jsx",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.cards": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 102,
+    "kind": "attr:title",
+    "files": [
+      "src/components/RazorpayMock.tsx"
+    ]
+  },
+  "common.razorpaymock.net_banking": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 108,
+    "kind": "attr:title",
+    "files": [
+      "src/components/RazorpayMock.tsx",
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.razorpaymock.upi": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 114,
+    "kind": "attr:title",
+    "files": [
+      "src/components/RazorpayMock.tsx",
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.razorpaymock.wallet": {
+    "file": "src/components/RazorpayMock.tsx",
+    "line": 120,
+    "kind": "attr:title",
+    "files": [
+      "src/components/RazorpayMock.tsx",
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "search.agerange.age_range": {
+    "file": "src/components/SearchSettingsComponents/AgeRange.tsx",
+    "line": 31,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/AgeRange.tsx"
+    ]
+  },
+  "search.appearance.appearance": {
+    "file": "src/components/SearchSettingsComponents/Appearance.tsx",
+    "line": 19,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Appearance.tsx",
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "search.bodyheight.height_range": {
+    "file": "src/components/SearchSettingsComponents/BodyHeight.tsx",
+    "line": 28,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/BodyHeight.tsx"
+    ]
+  },
+  "search.bodyheight.cm_cm": {
+    "file": "src/components/SearchSettingsComponents/BodyHeight.tsx",
+    "line": 29,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/BodyHeight.tsx"
+    ]
+  },
+  "search.bodytype.body_type": {
+    "file": "src/components/SearchSettingsComponents/BodyType.tsx",
+    "line": 27,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/BodyType.tsx"
+    ]
+  },
+  "search.distancerange.search_radius": {
+    "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+    "line": 41,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/DistanceRange.tsx"
+    ]
+  },
+  "search.distancerange.5_km": {
+    "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+    "line": 75,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/DistanceRange.tsx"
+    ]
+  },
+  "search.distancerange.worldwide": {
+    "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+    "line": 87,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/DistanceRange.tsx"
+    ]
+  },
+  "search.distancerange.km": {
+    "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+    "line": 42,
+    "kind": "tpl",
+    "files": [
+      "src/components/SearchSettingsComponents/DistanceRange.tsx"
+    ]
+  },
+  "search.drinking.sometimes": {
+    "file": "src/components/SearchSettingsComponents/Drinking.tsx",
+    "line": 2,
+    "kind": "prop:label",
+    "files": [
+      "src/components/SearchSettingsComponents/Drinking.tsx",
+      "src/components/SearchSettingsComponents/Smoke.tsx"
+    ]
+  },
+  "search.englishproficiency.english_level": {
+    "file": "src/components/SearchSettingsComponents/EnglishProficiency.tsx",
+    "line": 19,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/EnglishProficiency.tsx"
+    ]
+  },
+  "search.ethnicity.race_ethnicity": {
+    "file": "src/components/SearchSettingsComponents/Ethnicity.tsx",
+    "line": 30,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Ethnicity.tsx"
+    ]
+  },
+  "search.location.search_location": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 443,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.change": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 476,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.no_locations_found": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 582,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.using_gps_location": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 612,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.my_current_location": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 616,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.active": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 622,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.saved": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 635,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.search_above_to_add_a_new_location": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 644,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.save_set_active": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 804,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.search_for_a_city_or_address": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 529,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.hyderabad": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 426,
+    "kind": "fallback",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.location.selected_location": {
+    "file": "src/components/SearchSettingsComponents/Location.tsx",
+    "line": 786,
+    "kind": "fallback",
+    "files": [
+      "src/components/SearchSettingsComponents/Location.tsx"
+    ]
+  },
+  "search.onlineonly.show_active_users_only": {
+    "file": "src/components/SearchSettingsComponents/OnlineOnly.tsx",
+    "line": 18,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/OnlineOnly.tsx"
+    ]
+  },
+  "search.saveresetbuttons.reset": {
+    "file": "src/components/SearchSettingsComponents/SaveResetButtons.tsx",
+    "line": 38,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/SaveResetButtons.tsx"
+    ]
+  },
+  "search.searchsettingheader.search_settings": {
+    "file": "src/components/SearchSettingsComponents/SearchSettingHeader.tsx",
+    "line": 19,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/SearchSettingHeader.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "search.searchworldwide.search_world_wide": {
+    "file": "src/components/SearchSettingsComponents/SearchWorldWide.tsx",
+    "line": 28,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/SearchWorldWide.tsx"
+    ]
+  },
+  "search.showme.show_me": {
+    "file": "src/components/SearchSettingsComponents/ShowMe.tsx",
+    "line": 35,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/ShowMe.tsx"
+    ]
+  },
+  "search.showme.women": {
+    "file": "src/components/SearchSettingsComponents/ShowMe.tsx",
+    "line": 48,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/ShowMe.tsx"
+    ]
+  },
+  "search.showme.men": {
+    "file": "src/components/SearchSettingsComponents/ShowMe.tsx",
+    "line": 54,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/ShowMe.tsx"
+    ]
+  },
+  "search.smoke.smoker": {
+    "file": "src/components/SearchSettingsComponents/Smoke.tsx",
+    "line": 31,
+    "kind": "jsx",
+    "files": [
+      "src/components/SearchSettingsComponents/Smoke.tsx"
+    ]
+  },
+  "common.subscriptionmodal.get_premium": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 580,
+    "kind": "jsx",
+    "files": [
+      "src/components/SubscriptionModal.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "common.subscriptionmodal.get_amara_premium": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 631,
+    "kind": "jsx",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.choose_your_plan": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 632,
+    "kind": "jsx",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.auto_renews_until_cancelled_payment_is_taken_a_few_days_before_each_pe": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 693,
+    "kind": "jsx",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.subscribe": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 716,
+    "kind": "jsx",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.need_help": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 726,
+    "kind": "jsx",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.chat_with_us_support_amara_com": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 728,
+    "kind": "jsx",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.become_a_premium_member": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 35,
+    "kind": "prop:title",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.premium_profile": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 46,
+    "kind": "prop:title",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.worldwide_search": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 59,
+    "kind": "prop:title",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.verified_safe": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 73,
+    "kind": "prop:title",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.monthly": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 19,
+    "kind": "prop:label",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.3_months": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 22,
+    "kind": "prop:label",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.6_months": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 26,
+    "kind": "prop:label",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.card": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 85,
+    "kind": "prop:label",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.invite_up_to_30_members_per_day": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 39,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.stand_out_with_a_premium_badge_and_priority_placement_in_search": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 49,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.find_matches_anywhere_in_the_world_not_just_your_local_area": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 60,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.all_members_are_verified_enjoy_a_safer_higher_quality_experience": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 74,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.google_pay_phonepe": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 83,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.visa_mastercard_rupay": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 85,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.all_indian_banks": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 92,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.paytm_mobikwik": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 96,
+    "kind": "prop:subtitle",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.retry_anyway": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 548,
+    "kind": "prop:text",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.payment_successful": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 402,
+    "kind": "prop:text1",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.inr": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 287,
+    "kind": "fallback",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.your": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 403,
+    "kind": "fallback",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.payment_verification_failed": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 412,
+    "kind": "fallback",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.amara_user": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 442,
+    "kind": "fallback",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.something_went_wrong": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 530,
+    "kind": "fallback",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.membership_is_now_active": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 402,
+    "kind": "tpl",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "common.subscriptionmodal.amara_plan": {
+    "file": "src/components/SubscriptionModal.tsx",
+    "line": 465,
+    "kind": "tpl",
+    "files": [
+      "src/components/SubscriptionModal.tsx"
+    ]
+  },
+  "profile.modaladdphoto.choose_photo_source": {
+    "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+    "line": 143,
+    "kind": "jsx",
+    "files": [
+      "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+    ]
+  },
+  "profile.modaladdphoto.upload_a_bright_clear_photo_that_looks_like_you": {
+    "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+    "line": 144,
+    "kind": "jsx",
+    "files": [
+      "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+    ]
+  },
+  "profile.modaladdphoto.gallery": {
+    "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+    "line": 163,
+    "kind": "jsx",
+    "files": [
+      "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+    ]
+  },
+  "profile.modaladdphoto.camera": {
+    "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+    "line": 175,
+    "kind": "jsx",
+    "files": [
+      "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+    ]
+  },
+  "profile.uploadimage.delete": {
+    "file": "src/components/UploadImageComponents/UploadImage.tsx",
+    "line": 112,
+    "kind": "prop:text",
+    "files": [
+      "src/components/UploadImageComponents/UploadImage.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.uploadimage.unable_to_load_your_uploaded_images": {
+    "file": "src/components/UploadImageComponents/UploadImage.tsx",
+    "line": 49,
+    "kind": "fallback",
+    "files": [
+      "src/components/UploadImageComponents/UploadImage.tsx"
+    ]
+  },
+  "profile.uploadimage.failed_to_delete_image_from_server": {
+    "file": "src/components/UploadImageComponents/UploadImage.tsx",
+    "line": 121,
+    "kind": "fallback",
+    "files": [
+      "src/components/UploadImageComponents/UploadImage.tsx"
+    ]
+  },
+  "profile.uploadimage.photo": {
+    "file": "src/components/UploadImageComponents/UploadImage.tsx",
+    "line": 141,
+    "kind": "tpl",
+    "files": [
+      "src/components/UploadImageComponents/UploadImage.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.reset_password": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 137,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.email": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 144,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "src/screens/Auth/LoginScreen.tsx",
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.send_reset_code": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 166,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.back_to_login": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 177,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.by_signing_up_you_agree_to_our": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 182,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "src/screens/Auth/LoginScreen.tsx",
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.terms": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 189,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "src/screens/Auth/LoginScreen.tsx",
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.privacy_policy": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 194,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "src/screens/Auth/LoginScreen.tsx",
+      "src/screens/Auth/RegisterScreen.tsx",
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx",
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.reset_your_password": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 234,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.choose_a_new_password_well_email_you_a_code_to_confirm": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 239,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.send_code": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 314,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.reset_code_e_g_123456": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 252,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.new_password": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 264,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.confirm_password": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 286,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.forgotpasswordscreen.login": {
+    "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+    "line": 78,
+    "kind": "prop:text",
+    "files": [
+      "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "src/screens/Auth/LoginScreen.tsx"
+    ]
+  },
+  "auth.loginscreen.log_in_to_your_account": {
+    "file": "src/screens/Auth/LoginScreen.tsx",
+    "line": 200,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/LoginScreen.tsx"
+    ]
+  },
+  "auth.loginscreen.password": {
+    "file": "src/screens/Auth/LoginScreen.tsx",
+    "line": 225,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/LoginScreen.tsx",
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.loginscreen.forgot_password": {
+    "file": "src/screens/Auth/LoginScreen.tsx",
+    "line": 255,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/LoginScreen.tsx"
+    ]
+  },
+  "auth.loginscreen.i_dont_have_an_account": {
+    "file": "src/screens/Auth/LoginScreen.tsx",
+    "line": 278,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/LoginScreen.tsx"
+    ]
+  },
+  "auth.loginscreen.invalid_email_or_password": {
+    "file": "src/screens/Auth/LoginScreen.tsx",
+    "line": 88,
+    "kind": "fallback",
+    "files": [
+      "src/screens/Auth/LoginScreen.tsx"
+    ]
+  },
+  "auth.loginscreen.server_did_not_return_a_valid_session": {
+    "file": "src/screens/Auth/LoginScreen.tsx",
+    "line": 96,
+    "kind": "fallback",
+    "files": [
+      "src/screens/Auth/LoginScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.weve_sent_a_6_digit_code_to": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 310,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.didnt_receive_code": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 370,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.verify": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 402,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.go_to_login": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 257,
+    "kind": "prop:text",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.verify_your_email_address": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 305,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.verify_your_mobile_number": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 305,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.your_email": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 314,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.your_mobile": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 314,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.change_email": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 418,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.change_mobile": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 418,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.a_new_verification_code_has_been_sent_to_your": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 136,
+    "kind": "tpl",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.resend_in_s": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 323,
+    "kind": "tpl",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.otpscreen.resend_code_s": {
+    "file": "src/screens/Auth/OTPScreen.tsx",
+    "line": 378,
+    "kind": "tpl",
+    "files": [
+      "src/screens/Auth/OTPScreen.tsx"
+    ]
+  },
+  "auth.registerscreen.create_your_account": {
+    "file": "src/screens/Auth/RegisterScreen.tsx",
+    "line": 238,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.registerscreen.name": {
+    "file": "src/screens/Auth/RegisterScreen.tsx",
+    "line": 245,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.registerscreen.create_account": {
+    "file": "src/screens/Auth/RegisterScreen.tsx",
+    "line": 338,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.registerscreen.already_have_an_account_log_in": {
+    "file": "src/screens/Auth/RegisterScreen.tsx",
+    "line": 350,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "auth.registerscreen.your_full_name": {
+    "file": "src/screens/Auth/RegisterScreen.tsx",
+    "line": 251,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/Auth/RegisterScreen.tsx"
+    ]
+  },
+  "home.matchscreen.invitation_sent": {
+    "file": "src/screens/HomeTab/MatchScreen.tsx",
+    "line": 157,
+    "kind": "jsx",
+    "files": [
+      "src/screens/HomeTab/MatchScreen.tsx"
+    ]
+  },
+  "home.matchscreen.weve_notified_once_she_accepts_her_telegram_handle_will_appear_in_your": {
+    "file": "src/screens/HomeTab/MatchScreen.tsx",
+    "line": 161,
+    "kind": "jsx",
+    "files": [
+      "src/screens/HomeTab/MatchScreen.tsx"
+    ]
+  },
+  "home.matchscreen.view_sent_invitations": {
+    "file": "src/screens/HomeTab/MatchScreen.tsx",
+    "line": 209,
+    "kind": "jsx",
+    "files": [
+      "src/screens/HomeTab/MatchScreen.tsx"
+    ]
+  },
+  "home.matchscreen.keep_browsing": {
+    "file": "src/screens/HomeTab/MatchScreen.tsx",
+    "line": 215,
+    "kind": "jsx",
+    "files": [
+      "src/screens/HomeTab/MatchScreen.tsx"
+    ]
+  },
+  "messages.chatdetailscreen.no_messages_yet": {
+    "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+    "line": 49,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/ChatDetailScreen.tsx",
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.chatdetailscreen.send_a_message_to_start_the_conversation": {
+    "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+    "line": 50,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/ChatDetailScreen.tsx"
+    ]
+  },
+  "messages.chatdetailscreen.online": {
+    "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+    "line": 76,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/ChatDetailScreen.tsx"
+    ]
+  },
+  "messages.chatdetailscreen.messaging_coming_soon": {
+    "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+    "line": 106,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/MessageTab/ChatDetailScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.invited_you": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 225,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.accept": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 246,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx",
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.invitations": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 303,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx",
+      "src/screens/Navigations/BottomTabs.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.messages": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 320,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.sent": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 329,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.received": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 336,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.no_invitations_yet": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 349,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.invite_people_you_like_to_start_a_conversation": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 350,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.accepted_connections_will_appear_here_for_quick_access": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 374,
+    "kind": "jsx",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.search_messages": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 356,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.invitation_accepted": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 184,
+    "kind": "prop:text1",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.pending": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 111,
+    "kind": "fallback",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx",
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.connected": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 128,
+    "kind": "fallback",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.connection_status": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 134,
+    "kind": "tpl",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "messages.messagescreen.you_can_now_chat_with": {
+    "file": "src/screens/MessageTab/MessageScreen.tsx",
+    "line": 185,
+    "kind": "tpl",
+    "files": [
+      "src/screens/MessageTab/MessageScreen.tsx"
+    ]
+  },
+  "more_info.moreinfoscreen.close": {
+    "file": "src/screens/MoreInfoTab/MoreInfoScreen.tsx",
+    "line": 123,
+    "kind": "prop:text",
+    "files": [
+      "src/screens/MoreInfoTab/MoreInfoScreen.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx",
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "more_info.moreinfoscreen.we_could_not_save_your_profile_details_right_now": {
+    "file": "src/screens/MoreInfoTab/MoreInfoScreen.tsx",
+    "line": 129,
+    "kind": "fnmsg",
+    "files": [
+      "src/screens/MoreInfoTab/MoreInfoScreen.tsx"
+    ]
+  },
+  "nav.bottomtabs.profile": {
+    "file": "src/screens/Navigations/BottomTabs.tsx",
+    "line": 212,
+    "kind": "jsx",
+    "files": [
+      "src/screens/Navigations/BottomTabs.tsx"
+    ]
+  },
+  "nav.bottomtabs.discover": {
+    "file": "src/screens/Navigations/BottomTabs.tsx",
+    "line": 217,
+    "kind": "attr:label",
+    "files": [
+      "src/screens/Navigations/BottomTabs.tsx"
+    ]
+  },
+  "nav.bottomtabs.telegram": {
+    "file": "src/screens/Navigations/BottomTabs.tsx",
+    "line": 226,
+    "kind": "attr:label",
+    "files": [
+      "src/screens/Navigations/BottomTabs.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.how_amara_works": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 134,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.exclusive_dating_experience": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 147,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.dating_built_for_real_life": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 149,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.no_endless_swiping_no_spam_just_verified_singles_connecting_for_real_d": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 153,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.for_men": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 170,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.for_women": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 190,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.our_community_standards": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 237,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.photo_verified": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 245,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.every_profile_completes_a_live_gesture_selfie": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 245,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.no_commercial_dating": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 251,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.escorts_prostitution_and_sugar_dating_are_strictly_prohibited": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 251,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.high_quality": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 257,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.profiles_with_low_photo_quality_or_abusive_behavior_are_removed": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 258,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.frequently_asked_questions": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 262,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.common_questions_about_using_the_amara_dating_platform": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 263,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.100_private_profile": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 12,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.send_date_invitations": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 19,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.review_acceptance": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 31,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.connect_on_telegram": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 39,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.100_free_for_women": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 47,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.zero_spam_or_creepy_dms": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 55,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.you_are_always_in_control": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 66,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.chat_directly_on_telegram": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 74,
+    "kind": "prop:title",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.your_profile_is_completely_hidden_from_the_public_feed_women_cannot_se": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 13,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.browse_verified_female_profiles_nearby_or_worldwide_find_someone_you_l": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 21,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.when_the_woman_receives_your_invitation_she_reviews_your_profile_photo": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 31,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.no_endless_in_app_small_talk_once_she_accepts_both_of_your_telegram_ha": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 39,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.amara_is_completely_free_for_all_female_members_you_will_never_be_aske": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 47,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.say_goodbye_to_hundreds_of_unwanted_messages_men_cannot_message_you_di": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 55,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.invitations_arrive_in_your_requests_inbox_review_their_verified_profil": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 66,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.when_you_accept_an_invite_your_telegram_handle_is_shared_with_your_mat": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 74,
+    "kind": "prop:description",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.why_are_mens_profiles_hidden_by_default": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 82,
+    "kind": "prop:question",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.why_do_matches_move_to_telegram": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 90,
+    "kind": "prop:question",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.how_does_selfie_verification_work": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 99,
+    "kind": "prop:question",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.what_is_our_policy_on_sugar_dating_escorting": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 104,
+    "kind": "prop:question",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.amara_follows_a_private_luxury_model_many_successful_ambitious_men_val": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 82,
+    "kind": "prop:answer",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.we_believe_dating_should_lead_to_real_life_meetings_not_endless_in_app": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 90,
+    "kind": "prop:answer",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.every_member_must_complete_a_real_time_selfie_verification_during_onbo": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 99,
+    "kind": "prop:answer",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.amara_strictly_prohibits_compensated_dating_sugar_arrangements_prostit": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 104,
+    "kind": "prop:answer",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.privacy_first": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 15,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.invitation_only": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 30,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.mutual_interest": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 37,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.direct_contact": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 46,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.always_free": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 55,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.spam_free_inbox": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 64,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.your_choice": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 73,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.fast_safe": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 80,
+    "kind": "prop:tag",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.how_it_works_for_men": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 197,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.how_it_works_for_women": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 197,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.private_discreet_and_direct_invitation_process": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 202,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.howtousescreen.safe_spam_free_and_100_free_forever": {
+    "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+    "line": 202,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/ProfileTab/HowToUseScreen.tsx"
+    ]
+  },
+  "profile.notificationsscreen.notifications": {
+    "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+    "line": 75,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/NotificationsScreen.tsx"
+    ]
+  },
+  "profile.notificationsscreen.no_notifications": {
+    "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+    "line": 97,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/NotificationsScreen.tsx"
+    ]
+  },
+  "profile.notificationsscreen.when_you_receive_likes_matches_or_messages_they_will_show_up_here": {
+    "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+    "line": 99,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/NotificationsScreen.tsx"
+    ]
+  },
+  "profile.notificationsscreen.notification": {
+    "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+    "line": 54,
+    "kind": "fallback",
+    "files": [
+      "src/screens/ProfileTab/NotificationsScreen.tsx"
+    ]
+  },
+  "profile.notificationsscreen.m_ago": {
+    "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+    "line": 17,
+    "kind": "tpl",
+    "files": [
+      "src/screens/ProfileTab/NotificationsScreen.tsx"
+    ]
+  },
+  "profile.notificationsscreen.h_ago": {
+    "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+    "line": 19,
+    "kind": "tpl",
+    "files": [
+      "src/screens/ProfileTab/NotificationsScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.preferences": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 100,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.display": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 109,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.language": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 133,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.email_notifications": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 157,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.light": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 201,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.system": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 237,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.dark": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 273,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.no_languages_found": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 386,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.preferencesscreen.search_language": {
+    "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+    "line": 326,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/ProfileTab/PreferencesScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.last_updated_october_2023": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 33,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.welcome_to_amara_we_respect_your_privacy_and_are_committed_to_protecti": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 38,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.personal_data_means_any_information_about_an_individual_from_which_tha": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 46,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.identity_data": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 46,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.includes_username_marital_status_title_date_of_birth_and_gender": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 46,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.contact_data": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 49,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.includes_email_address_and_telephone_numbers": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 49,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.technical_data": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 50,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.includes_ip_address_login_data_device_info": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 50,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.profile_data": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 51,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.includes_interests_preferences_and_photos": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 51,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.we_use_your_data_mainly_to_provide_you_with_matching_partner_recommend": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 52,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.we_retain_your_personal_data_only_as_long_as_necessary_to_fulfil_the_p": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 54,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.by_accessing_the_amara_application_you_are_agreeing_to_be_bound_by_the": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 58,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.permission_is_granted_to_use_materials_on_amaras_app_for_personal_non": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 62,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.always_exercise_caution_when_meeting_new_people_follow_our_safety_guid": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 68,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.1_introduction": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 35,
+    "kind": "attr:title",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.2_the_data_we_collect_about_you": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 45,
+    "kind": "attr:title",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.3_how_we_use_your_data": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 52,
+    "kind": "attr:title",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.4_data_retention": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 54,
+    "kind": "attr:title",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.1_acceptance_of_terms": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 58,
+    "kind": "attr:title",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.2_use_license": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 62,
+    "kind": "attr:title",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.3_safety": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 68,
+    "kind": "attr:title",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.terms_conditions": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 6,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.amara_app_privacy": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 9,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.privacypolicyscreen.amara_app_terms": {
+    "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+    "line": 9,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.settings": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 139,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.amara_v5_1_10": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 256,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.your_profile_will_be_hidden_immediately_and_permanently_deleted_after": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 285,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.send_us_an_email_and_well_get_back_to_you_as_soon_as_possible": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 338,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.hi_amara_com": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 361,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.my_profile": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 142,
+    "kind": "attr:label",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.how_to_use_amara": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 204,
+    "kind": "attr:label",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilescreen.copied_to_clipboard": {
+    "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+    "line": 371,
+    "kind": "prop:text1",
+    "files": [
+      "src/screens/ProfileTab/ProfileScreen.tsx"
+    ]
+  },
+  "profile.profilesettingsscreen.ok": {
+    "file": "src/screens/ProfileTab/ProfileSettingsScreen.tsx",
+    "line": 193,
+    "kind": "prop:text",
+    "files": [
+      "src/screens/ProfileTab/ProfileSettingsScreen.tsx"
+    ]
+  },
+  "profile.profilesettingsscreen.we_could_not_save_your_profile_please_try_again": {
+    "file": "src/screens/ProfileTab/ProfileSettingsScreen.tsx",
+    "line": 248,
+    "kind": "fnmsg",
+    "files": [
+      "src/screens/ProfileTab/ProfileSettingsScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.support_chat": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 100,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.chat_with_live_agent": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 123,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.instant_support_via_our_official_telegram_bot": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 125,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.or_submit_a_ticket": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 134,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.category": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 136,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.tell_us_whats_wrong": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 155,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.submit_ticket": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 176,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.recent_tickets": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 181,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.no_support_tickets_yet": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 199,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.supportscreen.describe_your_issue_in_detail": {
+    "file": "src/screens/ProfileTab/SupportScreen.tsx",
+    "line": 157,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/ProfileTab/SupportScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.upgrade_to_premium": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 633,
+    "kind": "jsx",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.we_could_not_send_your_invitation_right_now": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 354,
+    "kind": "fnmsg",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.invitation_sent": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 711,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.send_invite": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 711,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.beginner": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 409,
+    "kind": "fallback",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.conversational": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 493,
+    "kind": "fallback",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.asian": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 498,
+    "kind": "fallback",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.never": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 502,
+    "kind": "fallback",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.socially": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 504,
+    "kind": "fallback",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "profile.viewmyprofilescreen.long_term": {
+    "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+    "line": 507,
+    "kind": "fallback",
+    "files": [
+      "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.chat": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 187,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.select": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 200,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.accepted": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 215,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.you_have_no_accepted_invitations_yet": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 270,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.you_will_receive_new_invitations_soon": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 276,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.no_invitations_found": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 283,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.when_men_invite_you_they_will_appear_right_here": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 284,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.you_only_see_men_who_invite_you_at_amara_men_approach_you_first_just_l": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 302,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.request_accepted": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 319,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.you_are_now_connected_with": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 320,
+    "kind": "jsx",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.search_by_name": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 241,
+    "kind": "attr:placeholder",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.dating_match": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 90,
+    "kind": "fallback",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.rejected": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 67,
+    "kind": "tpl",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "requests.requestsinboxscreen.invited": {
+    "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+    "line": 75,
+    "kind": "tpl",
+    "files": [
+      "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+    ]
+  },
+  "search.searchscreen.please_enable_location_access_so_we_can_show_you_people_nearby": {
+    "file": "src/screens/SearchSettings/SearchScreen.tsx",
+    "line": 260,
+    "kind": "jsx",
+    "files": [
+      "src/screens/SearchSettings/SearchScreen.tsx"
+    ]
+  },
+  "search.searchscreen.enable_location": {
+    "file": "src/screens/SearchSettings/SearchScreen.tsx",
+    "line": 274,
+    "kind": "jsx",
+    "files": [
+      "src/screens/SearchSettings/SearchScreen.tsx"
+    ]
+  },
+  "search.searchscreen.failed_to_apply_filters": {
+    "file": "src/screens/SearchSettings/SearchScreen.tsx",
+    "line": 177,
+    "kind": "tpl",
+    "files": [
+      "src/screens/SearchSettings/SearchScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.restore_access": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 185,
+    "kind": "jsx",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.pending_reply": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 198,
+    "kind": "jsx",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.you_havent_invited_anyone_yet_dont_wait_invite_someone_today": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 254,
+    "kind": "jsx",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.when_she_accepts_your_invitation_you_can_contact_her_on_whatsapp_or_te": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 257,
+    "kind": "jsx",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.no_invitations": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 361,
+    "kind": "jsx",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.restore_now": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 91,
+    "kind": "prop:text",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.invitations_that_are_accepted_will_appear_here": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 364,
+    "kind": "ternary:a",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.you_have_no_invitations_waiting_for_a_reply": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 364,
+    "kind": "ternary:b",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.year_ago": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 71,
+    "kind": "tpl",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.months_ago": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 74,
+    "kind": "tpl",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.days_ago": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 77,
+    "kind": "tpl",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.hours_ago": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 78,
+    "kind": "tpl",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.would_you_like_to_restore_active_access_to_chat_with": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 88,
+    "kind": "tpl",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "sent.sentrequestsscreen.you_can_now_connect_with": {
+    "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+    "line": 98,
+    "kind": "tpl",
+    "files": [
+      "src/screens/SentTab/SentRequestsScreen.tsx"
+    ]
+  },
+  "onboarding.aboutprofilescreen.about_you": {
+    "file": "src/screens/onboarding/AboutProfileScreen.tsx",
+    "line": 106,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/AboutProfileScreen.tsx"
+    ]
+  },
+  "onboarding.aboutprofilescreen.who_are_you_and_what_makes_you_great_company": {
+    "file": "src/screens/onboarding/AboutProfileScreen.tsx",
+    "line": 111,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/AboutProfileScreen.tsx"
+    ]
+  },
+  "onboarding.aboutprofilescreen.next": {
+    "file": "src/screens/onboarding/AboutProfileScreen.tsx",
+    "line": 151,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/AboutProfileScreen.tsx",
+      "src/screens/onboarding/ConnectTelegramScreen.tsx",
+      "src/screens/onboarding/DOBScreen.tsx",
+      "src/screens/onboarding/DisplayNameScreen.tsx",
+      "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "src/screens/onboarding/TellUsMoreScreen.tsx",
+      "src/screens/onboarding/UploadImageScreen.tsx"
+    ]
+  },
+  "onboarding.connecttelegramscreen.connect_telegram_to_receive_notifications_and_messages_through_the_ama": {
+    "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+    "line": 196,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "onboarding.connecttelegramscreen.set_up_later": {
+    "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+    "line": 274,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "onboarding.connecttelegramscreen.could_not_save_telegram_username": {
+    "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+    "line": 111,
+    "kind": "fallback",
+    "files": [
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "onboarding.connecttelegramscreen.could_not_disconnect_telegram": {
+    "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+    "line": 126,
+    "kind": "fallback",
+    "files": [
+      "src/screens/onboarding/ConnectTelegramScreen.tsx"
+    ]
+  },
+  "onboarding.dobscreen.your_birthday": {
+    "file": "src/screens/onboarding/DOBScreen.tsx",
+    "line": 122,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/DOBScreen.tsx",
+      "src/screens/onboarding/DisplayNameScreen.tsx"
+    ]
+  },
+  "onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register": {
+    "file": "src/screens/onboarding/DOBScreen.tsx",
+    "line": 126,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/DOBScreen.tsx",
+      "src/screens/onboarding/DisplayNameScreen.tsx"
+    ]
+  },
+  "onboarding.displaynamescreen.whats_your_name": {
+    "file": "src/screens/onboarding/DisplayNameScreen.tsx",
+    "line": 143,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/DisplayNameScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.hey_there": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 96,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.whats_your_gender": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 98,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.i_am_a": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 119,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.man": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 122,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.and_like_women": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 130,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.woman": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 147,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.and_like_men": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 156,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.i_am": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 174,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.lgbtq": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 177,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.lesbian_gay_bisexual_trans_queer": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 185,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.genderorientationscreen.your_gender_information_is_private_and_used_only_for_matching": {
+    "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+    "line": 197,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/GenderOrientationScreen.tsx"
+    ]
+  },
+  "onboarding.moredetailsscreen.tell_us_more_about_yourself": {
+    "file": "src/screens/onboarding/MoreDetailsScreen.tsx",
+    "line": 336,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/MoreDetailsScreen.tsx",
+      "src/screens/onboarding/TellUsMoreScreen.tsx"
+    ]
+  },
+  "onboarding.moredetailsscreen.basic": {
+    "file": "src/screens/onboarding/MoreDetailsScreen.tsx",
+    "line": 180,
+    "kind": "fallback",
+    "files": [
+      "src/screens/onboarding/MoreDetailsScreen.tsx"
+    ]
+  },
+  "onboarding.privacyscreen.your_profile_stays_selective_private_and_intentional": {
+    "file": "src/screens/onboarding/PrivacyScreen.tsx",
+    "line": 128,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "onboarding.privacyscreen.we_only_use_your_details_to_improve_matching_safety_and_account_access": {
+    "file": "src/screens/onboarding/PrivacyScreen.tsx",
+    "line": 130,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "onboarding.privacyscreen.by_continuing_you_agree_to_our_terms_of_use_and_privacy_policy_and_all": {
+    "file": "src/screens/onboarding/PrivacyScreen.tsx",
+    "line": 139,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "onboarding.privacyscreen.we_store_location_profile_details_and_activity_state_only_to_personali": {
+    "file": "src/screens/onboarding/PrivacyScreen.tsx",
+    "line": 160,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "onboarding.privacyscreen.accept_terms_and_privacy_policy": {
+    "file": "src/screens/onboarding/PrivacyScreen.tsx",
+    "line": 172,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "onboarding.privacyscreen.unknown_error": {
+    "file": "src/screens/onboarding/PrivacyScreen.tsx",
+    "line": 30,
+    "kind": "fallback",
+    "files": [
+      "src/screens/onboarding/PrivacyScreen.tsx"
+    ]
+  },
+  "onboarding.selfieverificationscreen.initializing_face_verification": {
+    "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+    "line": 180,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/SelfieVerificationScreen.tsx"
+    ]
+  },
+  "onboarding.selfieverificationscreen.move_face_in_front_of_camera": {
+    "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+    "line": 230,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/SelfieVerificationScreen.tsx"
+    ]
+  },
+  "onboarding.selfieverificationscreen.camera_ready": {
+    "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+    "line": 251,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/SelfieVerificationScreen.tsx"
+    ]
+  },
+  "onboarding.selfieverificationscreen.start": {
+    "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+    "line": 294,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/SelfieVerificationScreen.tsx"
+    ]
+  },
+  "onboarding.selfieverificationscreen.center_your_face_and_click_start": {
+    "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+    "line": 300,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/SelfieVerificationScreen.tsx"
+    ]
+  },
+  "onboarding.tellusmorescreen.almost_there": {
+    "file": "src/screens/onboarding/TellUsMoreScreen.tsx",
+    "line": 84,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/TellUsMoreScreen.tsx"
+    ]
+  },
+  "onboarding.uploadimagescreen.nice_to_meet_you": {
+    "file": "src/screens/onboarding/UploadImageScreen.tsx",
+    "line": 106,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/UploadImageScreen.tsx"
+    ]
+  },
+  "onboarding.uploadimagescreen.please_upload_at_least_3_photos_one_must_clearly_show_your_face": {
+    "file": "src/screens/onboarding/UploadImageScreen.tsx",
+    "line": 109,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/UploadImageScreen.tsx"
+    ]
+  },
+  "onboarding.uploadimagescreen.none_of_your_photos_clearly_shows_your_face_please_upload_a_photo_of_y": {
+    "file": "src/screens/onboarding/UploadImageScreen.tsx",
+    "line": 160,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/UploadImageScreen.tsx"
+    ]
+  },
+  "onboarding.uploadimagescreen.no_nudity_and_make_sure_you_appear_in_every_photo": {
+    "file": "src/screens/onboarding/UploadImageScreen.tsx",
+    "line": 172,
+    "kind": "jsx",
+    "files": [
+      "src/screens/onboarding/UploadImageScreen.tsx"
+    ]
+  },
+  "common.geolocation.location_permission": {
+    "file": "src/utils/geolocation.ts",
+    "line": 29,
+    "kind": "prop:title",
+    "files": [
+      "src/utils/geolocation.ts"
+    ]
+  },
+  "common.geolocation.this_app_needs_access_to_your_location_to_find_nearby_matches": {
+    "file": "src/utils/geolocation.ts",
+    "line": 31,
+    "kind": "prop:message",
+    "files": [
+      "src/utils/geolocation.ts"
+    ]
+  },
+  "common.telegramhelper.could_not_open_telegram_directly_n_nusername_nlink": {
+    "file": "src/utils/telegramHelper.ts",
+    "line": 40,
+    "kind": "tpl",
+    "files": [
+      "src/utils/telegramHelper.ts"
+    ]
+  }
+}

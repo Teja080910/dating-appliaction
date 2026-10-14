@@ -1,38 +1,45 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
   FlatList,
   Image,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
   Linking,
-  Alert,
-  RefreshControl,
   Modal,
-  TextInput,
-  Dimensions,
+  RefreshControl,
   Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing, useTheme } from '../../theme';
+import { Colors, useTheme } from '../../theme';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
+import { openTelegramChat } from '../../utils/telegramHelper';
+import { t, useTranslation } from '../../i18n';
 
 const RequestsInboxScreen: React.FC = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
-  const styles = React.useMemo(() => createStyles(themeColors), [themeColors]);
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+
   const { setViewMyProfile, setCardUserName, setCardUserAge, setSelectedUserImage } =
     useContext(AppContext);
   const { receivedList, accept, refreshAll } = useConnection();
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'all'>('pending');
+
+  // Tabs: 'accepted' on left, 'pending' on right (Screenshot 4B & 4C)
+  const [activeTab, setActiveTab] = useState<'accepted' | 'pending'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [approvedMatch, setApprovedMatch] = useState<{
     name: string;
@@ -40,39 +47,55 @@ const RequestsInboxScreen: React.FC = () => {
     username?: string;
   } | null>(null);
 
-
   const { data: requests = [], isLoading, isRefetching } = receivedList;
 
-  const sortedRequests = [...requests].sort((a, b) => {
-    const aTime = new Date(a.createdAt || a.updatedAt || 0).getTime();
-    const bTime = new Date(b.createdAt || b.updatedAt || 0).getTime();
-    return bTime - aTime;
-  });
-  const pendingRequests = sortedRequests.filter((r) => r.status !== 'APPROVED');
-  const approvedRequests = sortedRequests.filter((r) => r.status === 'APPROVED');
-  const tabFilteredRequests =
-    activeTab === 'pending'
-      ? pendingRequests
-      : activeTab === 'approved'
-      ? approvedRequests
-      : sortedRequests;
+  // Split into accepted vs pending
+  const acceptedRequests = useMemo(
+    () => requests.filter((r) => r.status === 'APPROVED'),
+    [requests]
+  );
 
-  const formatRequestTime = (value?: string | null) => {
-    if (!value) return 'Time unavailable';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Time unavailable';
-    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  const pendingRequests = useMemo(
+    () => requests.filter((r) => r.status !== 'APPROVED'),
+    [requests]
+  );
+
+  const currentList = activeTab === 'accepted' ? acceptedRequests : pendingRequests;
+
+  const filteredRequests = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return currentList;
+    return currentList.filter((r) => {
+      const sender = r.sender || {};
+      const name = (sender.displayName || sender.name || '').toLowerCase();
+      return name.includes(q);
+    });
+  }, [currentList, searchQuery]);
+
+  const cleanDisplayName = (name?: string) => {
+    if (!name) return t('home.usercard.user');
+    return String(name).replace(/,\s*\d+$/, '').trim() || t('home.usercard.user');
   };
 
-  const displayedRequests = searchQuery.trim()
-    ? tabFilteredRequests.filter((r) => {
-        const sender = r.sender || {};
-        const q = searchQuery.toLowerCase().trim();
-        const name = (sender.displayName || sender.name || '').toLowerCase();
-        const city = (sender.city || sender.currentCity || '').toLowerCase();
-        return name.includes(q) || city.includes(q);
-      })
-    : tabFilteredRequests;
+  const formatStatusDate = (item: ConnectionRequest) => {
+    if (item.status === 'REJECTED') {
+      const date = item.updatedAt ? new Date(item.updatedAt) : new Date();
+      const formatted = date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+      return t('requests.requestsinboxscreen.rejected', { formatted });
+    }
+
+    const date = item.createdAt ? new Date(item.createdAt) : new Date();
+    const formatted = date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    return t('requests.requestsinboxscreen.invited', { formatted });
+  };
 
   const handleApprove = async (request: ConnectionRequest) => {
     try {
@@ -85,53 +108,16 @@ const RequestsInboxScreen: React.FC = () => {
         'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
 
       setApprovedMatch({
-        name: sender.displayName || sender.name || 'Dating Match',
+        name: sender.displayName || sender.name || t('requests.requestsinboxscreen.dating_match'),
         photo: photoUrl,
         username: approvedRequest?.sender?.telegramUsername || sender.telegramUsername,
       });
     } catch (err: any) {
-      Alert.alert('Could not approve invitation', getUserFriendlyMessage(err, 'Please try again in a moment.'));
+      Alert.alert(
+        'Could not approve invitation',
+        getUserFriendlyMessage(err, t('profile.userdetails.please_try_again_in_a_moment'))
+      );
     }
-  };
-
-  const handleOpenTelegram = (username?: string) => {
-    if (!username) {
-      Alert.alert('Telegram not connected', 'They have not connected Telegram yet. You can still keep in touch here.');
-      return;
-    }
-    const cleanUsername = username.replace('@', '');
-    const url = `https://t.me/${cleanUsername}`;
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert('Open Link', `Open in browser: ${url}`, [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open', onPress: () => Linking.openURL(url) },
-          ]);
-        }
-      })
-  };
-
-  const handleShareTelegram = async (username?: string) => {
-    if (!username) {
-      Alert.alert('Telegram not connected', 'No username available to share.');
-      return;
-    }
-    const cleanUsername = username.replace('@', '');
-    try {
-      await Share.share({
-        message: `@${cleanUsername} (https://t.me/${cleanUsername})`,
-      });
-    } catch {
-      // User dismissed share dialog
-    }
-  };
-
-  const cleanDisplayName = (name?: string) => {
-    if (!name) return 'User';
-    return String(name).replace(/,\s*\d+$/, '').trim() || 'User';
   };
 
   const handleOpenProfile = (item: ConnectionRequest) => {
@@ -142,42 +128,20 @@ const RequestsInboxScreen: React.FC = () => {
       (sender.photos && sender.photos[0]) ||
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
 
-    const fullProfileData = {
-      ...sender,
-      id: targetUserId,
-      userId: targetUserId,
-      targetUserId: targetUserId,
-      name: cleanDisplayName(sender.displayName || sender.name),
-      displayName: cleanDisplayName(sender.displayName || sender.name),
-      age: sender.age,
-      gender: sender.gender || 'man',
-      bio: sender.bio || '',
-      currentCity: sender.city || sender.currentCity || 'Nearby',
-      photos: sender.photos || (photoUrl ? [photoUrl] : []),
-      images: sender.photos || (photoUrl ? [photoUrl] : []),
-      profileImageUrl: photoUrl,
-      image: photoUrl,
-      telegramUsername: sender.telegramUsername || '',
-      smoke: sender.smoke,
-      drink: sender.drink,
-      height: sender.height,
-      bodyType: sender.bodyType,
-      appearance: sender.appearance,
-      language: sender.language,
-      englishLevel: sender.englishLevel,
-      ethnicity: sender.ethnicity,
-      lookingFor: sender.lookingFor,
-    };
-
-    setCardUserName(fullProfileData.name);
-    setCardUserAge(String(fullProfileData.age || '26'));
-    setViewMyProfile(false);
-    setSelectedUserImage(photoUrl);
+    setCardUserName?.(cleanDisplayName(sender.displayName || sender.name));
+    setCardUserAge?.(String(sender.age || '26'));
+    setViewMyProfile?.(false);
+    setSelectedUserImage?.(photoUrl);
 
     navigation.navigate('ViewMyProfileScreen', {
       userId: targetUserId,
       targetUserId: targetUserId,
-      profileData: fullProfileData,
+      profileData: {
+        ...sender,
+        id: targetUserId,
+        displayName: cleanDisplayName(sender.displayName || sender.name),
+        photos: sender.photos || [photoUrl],
+      },
       image: photoUrl,
       requestId: item.id,
       requestRole: 'received',
@@ -185,339 +149,214 @@ const RequestsInboxScreen: React.FC = () => {
     });
   };
 
-  const renderItem = ({ item }: { item: ConnectionRequest }) => {
+  const handleOpenTelegram = (username?: string) => {
+    openTelegramChat(username);
+  };
+
+  const renderCard = ({ item }: { item: ConnectionRequest }) => {
     const sender = item.sender || {};
     const photoUrl =
       sender.photo ||
       (sender.photos && sender.photos[0]) ||
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
+
+    const displayName = cleanDisplayName(sender.displayName || sender.name);
+    const statusText = formatStatusDate(item);
     const isApproved = item.status === 'APPROVED';
 
     return (
       <TouchableOpacity
         style={styles.card}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
         onPress={() => handleOpenProfile(item)}
       >
         <Image source={{ uri: photoUrl }} style={styles.avatar} />
 
-        <View style={styles.cardContent}>
-          <View style={styles.nameRow}>
-            <Text style={styles.nameText} numberOfLines={1}>
-              {cleanDisplayName(sender.displayName || sender.name)}
-              {sender.age ? `, ${sender.age}` : ''}
-            </Text>
-
-            {!isApproved ? (
-              <TouchableOpacity
-                style={styles.smallActionWrapper}
-                activeOpacity={0.8}
-                onPress={() => handleApprove(item)}
-                disabled={accept.isPending}
-              >
-                <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.smallActionGradient}
-                >
-                  {accept.isPending ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.smallActionText}>Approve</Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.approvedActionRow}>
-                <TouchableOpacity
-                  style={styles.smallActionWrapper}
-                  activeOpacity={0.8}
-                  onPress={() => handleOpenTelegram(sender.telegramUsername)}
-                >
-                  <LinearGradient
-                    colors={[Colors.primary, Colors.secondary]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.smallActionGradient}
-                  >
-                    <Text style={styles.smallActionText}>Open Telegram</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                {sender.telegramUsername ? (
-                  <TouchableOpacity
-                    style={styles.shareIconButton}
-                    activeOpacity={0.7}
-                    onPress={() => handleShareTelegram(sender.telegramUsername)}
-                    accessibilityLabel="Share Telegram Handle"
-                  >
-                    <Icon name="share-variant-outline" size={17} color={Colors.primary} />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            )}
-          </View>
-
-          {isApproved && sender.telegramUsername ? (
-            <View style={styles.itemHandleRow}>
-              <Text style={styles.itemHandleLabel}>Telegram: </Text>
-              <Text selectable={true} style={styles.itemHandleText}>
-                @{sender.telegramUsername.replace('@', '')}
-              </Text>
-            </View>
-          ) : null}
-
-          {sender.city ? (
-            <Text style={styles.cityText} numberOfLines={1}>
-              {sender.city}
-            </Text>
-          ) : null}
-
-          {sender.bio ? (
-            <Text style={styles.bioText} numberOfLines={1}>
-              {sender.bio}
-            </Text>
-          ) : null}
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{formatRequestTime(item.createdAt)}</Text>
-          </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.nameText} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <Text style={styles.statusSubtext}>{statusText}</Text>
         </View>
+
+        {!isApproved && (
+          <TouchableOpacity
+            style={styles.approveBtnWrapper}
+            onPress={() => handleApprove(item)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={[themeColors.primary, themeColors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.approveBtn}
+            >
+              <Text style={styles.approveBtnText}>{t('messages.messagescreen.accept')}</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
+
+        {isApproved && (
+          <TouchableOpacity
+            style={styles.telegramBtn}
+            onPress={() => handleOpenTelegram(sender.telegramUsername)}
+            activeOpacity={0.8}
+          >
+            <Icon name="send" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.telegramBtnText}>{t('requests.requestsinboxscreen.chat')}</Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     );
   };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>Dating Requests</Text>
-        <Text style={styles.screenSubtitle}>
-          {pendingRequests.length} pending request{pendingRequests.length === 1 ? '' : 's'}
-        </Text>
+      {/* Brand Header */}
+      <View style={styles.headerRow}>
+        <Text style={styles.brandTitle}>{t('home.homeheader.amara')}</Text>
+        <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
+          <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Clean Tabs */}
-      <View style={styles.tabBar}>
+      {/* Tabs: Accepted | Pending */}
+      <View style={styles.tabsRow}>
         <TouchableOpacity
-          style={styles.tabItemWrapper}
-          activeOpacity={0.8}
+          style={[styles.tabButton, activeTab === 'accepted' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('accepted')}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.tabButtonText,
+              activeTab === 'accepted' ? styles.tabTextActive : styles.tabTextInactive,
+            ]}
+          >{t('requests.requestsinboxscreen.accepted')}</Text>
+          {activeTab === 'accepted' && <View style={styles.tabIndicator} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'pending' && styles.tabButtonActive]}
           onPress={() => setActiveTab('pending')}
+          activeOpacity={0.7}
         >
-          {activeTab === 'pending' ? (
-            <LinearGradient
-              colors={[Colors.primary, Colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.tabItemGradient}
-            >
-              <Text style={styles.tabTextActive}>
-                Pending ({pendingRequests.length})
-              </Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.tabItemInactive}>
-              <Text style={styles.tabTextInactive}>
-                Pending ({pendingRequests.length})
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.tabItemWrapper}
-          activeOpacity={0.8}
-          onPress={() => setActiveTab('approved')}
-        >
-          {activeTab === 'approved' ? (
-            <LinearGradient
-              colors={[Colors.primary, Colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.tabItemGradient}
-            >
-              <Text style={styles.tabTextActive}>
-                Approved ({approvedRequests.length})
-              </Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.tabItemInactive}>
-              <Text style={styles.tabTextInactive}>
-                Approved ({approvedRequests.length})
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.tabItemWrapper}
-          activeOpacity={0.8}
-          onPress={() => setActiveTab('all')}
-        >
-          {activeTab === 'all' ? (
-            <LinearGradient
-              colors={[Colors.primary, Colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.tabItemGradient}
-            >
-              <Text style={styles.tabTextActive}>
-                All ({requests.length})
-              </Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.tabItemInactive}>
-              <Text style={styles.tabTextInactive}>
-                All ({requests.length})
-              </Text>
-            </View>
-          )}
+          <Text
+            style={[
+              styles.tabButtonText,
+              activeTab === 'pending' ? styles.tabTextActive : styles.tabTextInactive,
+            ]}
+          >
+            Pending
+          </Text>
+          {activeTab === 'pending' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Icon name="magnify" size={20} color={Colors.textMuted} />
+      {/* Search Input */}
+      <View style={styles.searchBar}>
+        <Icon name="magnify" size={20} color={themeColors.textMuted} style={styles.searchIcon} />
         <TextInput
-          placeholder="Search requests by name or city..."
           style={styles.searchInput}
-          placeholderTextColor={Colors.textMuted}
+          placeholder={t('requests.requestsinboxscreen.search_by_name')}
+          placeholderTextColor={themeColors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setSearchQuery('')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Icon name="close-circle" size={18} color={Colors.textMuted} />
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Icon name="close-circle" size={18} color={themeColors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* List / Empty State */}
+      {/* Main Content Area */}
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading requests...</Text>
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" color={themeColors.primary} />
         </View>
-      ) : displayedRequests.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Icon
-            name={
-              searchQuery.trim()
-                ? 'account-search-outline'
-                : activeTab === 'approved'
-                ? 'check-circle-outline'
-                : 'email-outline'
-            }
-            size={48}
-            color={Colors.textMuted}
-            style={{ marginBottom: Spacing.md }}
-          />
-          <Text style={styles.emptyTitle}>
-            {searchQuery.trim()
-              ? 'No Results Found'
-              : activeTab === 'approved'
-              ? 'No Approved Requests'
-              : 'No Pending Requests'}
-          </Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery.trim()
-              ? `No ${activeTab} requests match "${searchQuery.trim()}".`
-              : activeTab === 'approved'
-              ? 'Approved requests will appear here with Telegram contacts.'
-              : 'New dating requests from men will appear here.'}
-          </Text>
-          {searchQuery.trim().length > 0 && (
-            <TouchableOpacity
-              style={styles.clearSearchBtn}
-              onPress={() => setSearchQuery('')}
-            >
-              <Text style={styles.clearSearchBtnText}>Clear Search</Text>
-            </TouchableOpacity>
-          )}
+      ) : activeTab === 'accepted' && filteredRequests.length === 0 ? (
+        // Empty Accepted State with Envelope Illustration
+        <View style={styles.emptyAcceptedBox}>
+          <View style={styles.envelopeIconWrap}>
+            <Icon name="email-open-outline" size={72} color={themeColors.primary} />
+          </View>
+          <Text style={styles.emptyAcceptedTitle}>{t('requests.requestsinboxscreen.you_have_no_accepted_invitations_yet')}</Text>
+          <Text style={styles.emptyAcceptedSubtitle}>{t('requests.requestsinboxscreen.you_will_receive_new_invitations_soon')}</Text>
+        </View>
+      ) : filteredRequests.length === 0 ? (
+        <View style={styles.centerBox}>
+          <Icon name="email-outline" size={48} color={themeColors.textMuted} style={{ marginBottom: 12 }} />
+          <Text style={styles.emptyPendingTitle}>{t('requests.requestsinboxscreen.no_invitations_found')}</Text>
+          <Text style={styles.emptyPendingSubtitle}>{t('requests.requestsinboxscreen.when_men_invite_you_they_will_appear_right_here')}</Text>
         </View>
       ) : (
         <FlatList
-          data={displayedRequests}
+          style={styles.list}
+          data={filteredRequests}
           keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          renderItem={renderCard}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(insets.bottom, 16) + 110 },
+          ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
               onRefresh={refreshAll}
-              tintColor={Colors.primary}
+              tintColor={themeColors.primary}
             />
+          }
+          ListFooterComponent={
+            <View style={styles.bottomFooterNotice}>
+              <Text style={styles.bottomNoticeText}>{t('requests.requestsinboxscreen.you_only_see_men_who_invite_you_at_amara_men_approach_you_first_just_l')}</Text>
+            </View>
           }
         />
       )}
 
-      {/* Simple, Clean Approval Popup */}
+      {/* Approval Success Modal */}
       <Modal
         visible={Boolean(approvedMatch)}
         transparent={true}
         animationType="fade"
         onRequestClose={() => setApprovedMatch(null)}
       >
-        <View style={styles.simpleModalOverlay}>
-          <View style={styles.simpleModalCard}>
-            <Image
-              source={{ uri: approvedMatch?.photo }}
-              style={styles.simpleModalAvatar}
-            />
-
-            <Text style={styles.simpleModalTitle}>Request Approved</Text>
-            <Text style={styles.simpleModalSubtitle}>
-              You are now connected with{' '}
-              <Text style={{ fontWeight: '700', color: Colors.text }}>{approvedMatch?.name}</Text>.
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Image source={{ uri: approvedMatch?.photo }} style={styles.modalAvatar} />
+            <Text style={styles.modalTitle}>{t('requests.requestsinboxscreen.request_accepted')}</Text>
+            <Text style={styles.modalSubtitle}>{t('requests.requestsinboxscreen.you_are_now_connected_with')}{' '}
+              <Text style={{ fontWeight: '700', color: themeColors.text }}>{approvedMatch?.name}</Text>.
             </Text>
-
-            <View style={styles.simpleTelegramRow}>
-              <Text selectable={true} style={styles.simpleTelegramHandle}>
-                {approvedMatch?.username
-                  ? `@${approvedMatch.username.replace('@', '')}`
-                  : 'Telegram not connected'}
-              </Text>
-              {approvedMatch?.username ? (
-                <TouchableOpacity
-                  style={styles.modalShareBtn}
-                  activeOpacity={0.7}
-                  onPress={() => handleShareTelegram(approvedMatch.username)}
-                >
-                  <Icon name="share-variant-outline" size={15} color={Colors.primary} />
-                  <Text style={styles.modalShareText}>Share</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
             <TouchableOpacity
-              style={styles.simplePrimaryBtnWrapper}
-              activeOpacity={0.8}
+              style={styles.modalTelegramBtnWrapper}
               onPress={() => {
-                const username = approvedMatch?.username;
+                const u = approvedMatch?.username;
                 setApprovedMatch(null);
-                handleOpenTelegram(username);
+                handleOpenTelegram(u);
               }}
+              activeOpacity={0.85}
             >
               <LinearGradient
-                colors={[Colors.primary, Colors.secondary]}
+                colors={[themeColors.primary, themeColors.secondary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.simplePrimaryGradient}
+                style={styles.modalTelegramBtn}
               >
-                <Text style={styles.simplePrimaryBtnText}>Open Telegram</Text>
+                <Text style={styles.modalTelegramBtnText}>{t('profile.userdetails.open_telegram')}</Text>
               </LinearGradient>
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={styles.simpleSecondaryBtn}
+              style={styles.modalDoneBtn}
               onPress={() => setApprovedMatch(null)}
             >
-              <Text style={styles.simpleSecondaryBtnText}>Done</Text>
+              <Text style={styles.modalDoneBtnText}>{t('profile.userdetails.done')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -534,103 +373,98 @@ const createStyles = (colors: any) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    header: {
-      paddingHorizontal: Spacing.lg,
-      paddingTop: Spacing.md,
-      paddingBottom: Spacing.sm,
-    },
-    screenTitle: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    screenSubtitle: {
-      fontSize: 13,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
-    tabBar: {
+    headerRow: {
       flexDirection: 'row',
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.xs,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 8,
+    },
+    brandTitle: {
+      color: colors.primary,
+      fontSize: 26,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+    },
+    selectBtn: {
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+    },
+    selectText: {
+      color: colors.primary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    tabsRow: {
+      flexDirection: 'row',
       borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
-      gap: 8,
+      borderBottomColor: colors.border,
+      marginHorizontal: 16,
+      marginBottom: 16,
     },
-    tabItemWrapper: {
-      borderRadius: 20,
-      overflow: 'hidden',
-    },
-    tabItemGradient: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      justifyContent: 'center',
+    tabButton: {
+      flex: 1,
       alignItems: 'center',
+      paddingVertical: 12,
+      position: 'relative',
     },
-    tabItemInactive: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
-      justifyContent: 'center',
-      alignItems: 'center',
+    tabButtonActive: {},
+    tabButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
     },
     tabTextActive: {
-      color: '#fff',
-      fontWeight: '700',
-      fontSize: 13,
+      color: colors.primary,
     },
     tabTextInactive: {
-      color: colors.textMuted,
-      fontWeight: '600',
-      fontSize: 13,
+      color: colors.textSecondary,
     },
-    searchContainer: {
+    tabIndicator: {
+      position: 'absolute',
+      bottom: -1,
+      left: 20,
+      right: 20,
+      height: 3,
+      backgroundColor: colors.primary,
+      borderRadius: 2,
+    },
+    searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      marginHorizontal: Spacing.lg,
-      marginTop: Spacing.sm,
-      marginBottom: Spacing.xs,
-      paddingHorizontal: Spacing.md,
-      borderRadius: 22,
-      height: 42,
+      borderRadius: 24,
       borderWidth: 1,
       borderColor: colors.borderLight,
+      marginHorizontal: 20,
+      paddingHorizontal: 16,
+      height: 44,
+      marginBottom: 16,
+    },
+    searchIcon: {
+      marginRight: 10,
     },
     searchInput: {
       flex: 1,
       color: colors.text,
-      fontSize: 14,
-      marginLeft: 8,
+      fontSize: 15,
       paddingVertical: 0,
     },
-    clearSearchBtn: {
-      marginTop: Spacing.md,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 16,
-      backgroundColor: colors.surfaceLight,
-    },
-    clearSearchBtnText: {
-      color: colors.primary,
-      fontWeight: '700',
-      fontSize: 13,
+    list: {
+      flex: 1,
     },
     listContent: {
-      padding: Spacing.md,
-      paddingBottom: 90,
+      paddingHorizontal: 20,
+      gap: 16,
     },
     card: {
       flexDirection: 'row',
-      backgroundColor: colors.surface,
-      borderRadius: 14,
-      padding: Spacing.md,
-      marginBottom: Spacing.sm,
       alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 18,
       borderWidth: 1,
-      borderColor: colors.borderLight,
+      borderColor: colors.border,
+      padding: 14,
     },
     avatar: {
       width: 60,
@@ -638,431 +472,171 @@ const createStyles = (colors: any) =>
       borderRadius: 30,
       backgroundColor: colors.surfaceLight,
     },
-    cardContent: {
+    cardInfo: {
       flex: 1,
-      marginLeft: Spacing.md,
-    },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      marginLeft: 16,
+      justifyContent: 'center',
     },
     nameText: {
-      fontSize: 16,
-      fontWeight: '700',
       color: colors.text,
-      flex: 1,
-      marginRight: 8,
-    },
-    smallActionWrapper: {
-      borderRadius: 14,
-      overflow: 'hidden',
-    },
-    smallActionGradient: {
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: 14,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    smallActionText: {
-      color: '#fff',
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    approvedPill: {
-      backgroundColor: 'rgba(34, 197, 94, 0.15)',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 10,
-    },
-    approvedPillText: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: '#22c55e',
-    },
-    cityText: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
-    bioText: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-    metaRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginTop: 6,
-    },
-    metaText: {
-      fontSize: 11,
-      color: colors.textMuted,
-    },
-    statusText: {
-      fontSize: 10,
-      fontWeight: '800',
-    },
-    approvedStatus: {
-      color: '#22c55e',
-    },
-    pendingStatus: {
-      color: colors.secondary,
-    },
-    actionRow: {
-      marginTop: 8,
-      flexDirection: 'row',
-    },
-    approveButton: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 7,
-      borderRadius: 8,
-      alignSelf: 'flex-start',
-    },
-    approveButtonText: {
-      color: '#fff',
-      fontSize: 13,
-      fontWeight: '700',
-    },
-    telegramPillButtonWrapper: {
-      borderRadius: 14,
-      overflow: 'hidden',
-      alignSelf: 'flex-start',
-    },
-    telegramGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 14,
-    },
-    telegramPillButtonText: {
-      color: '#fff',
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    centerContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: Spacing.xl,
-    },
-    loadingText: {
-      fontSize: 14,
-      color: colors.textMuted,
-      marginTop: Spacing.md,
-    },
-    emptyTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: colors.text,
-    },
-    emptySubtitle: {
-      fontSize: 13,
-      color: colors.textMuted,
-      textAlign: 'center',
-      marginTop: 6,
-      lineHeight: 18,
-    },
-    // Full Profile Modal
-    modalContainer: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: Spacing.md,
-      paddingVertical: Spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.borderLight,
-    },
-    modalBackBtn: {
-      padding: Spacing.xs,
-    },
-    modalTitle: {
-      fontSize: 17,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    modalScroll: {
-      paddingBottom: 80,
-      flexGrow: 1,
-    },
-    photoContainer: {
-      width: '100%',
-      maxWidth: 480,
-      aspectRatio: 0.8,
-      maxHeight: 520,
-      alignSelf: 'center',
-      backgroundColor: colors.surfaceLight,
-      position: 'relative',
-    },
-    modalPhoto: {
-      width: '100%',
-      height: '100%',
-      resizeMode: 'cover',
-      backgroundColor: colors.surfaceLight,
-    },
-    storyBarsContainer: {
-      position: 'absolute',
-      top: 10,
-      left: 12,
-      right: 12,
-      flexDirection: 'row',
-      gap: 5,
-      zIndex: 10,
-    },
-    storyBarTrack: {
-      flex: 1,
-      height: 3,
-      borderRadius: 2,
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-      overflow: 'hidden',
-    },
-    storyBarFill: {
-      flex: 1,
-      borderRadius: 2,
-    },
-    tapZoneLeft: {
-      position: 'absolute',
-      top: 25,
-      left: 0,
-      bottom: 25,
-      width: '45%',
-      zIndex: 5,
-    },
-    tapZoneRight: {
-      position: 'absolute',
-      top: 25,
-      right: 0,
-      bottom: 25,
-      width: '55%',
-      zIndex: 5,
-    },
-    photoCountBadge: {
-      position: 'absolute',
-      bottom: 12,
-      right: 14,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 10,
-      zIndex: 10,
-    },
-    photoCountText: {
-      color: '#fff',
-      fontSize: 11,
-      fontWeight: '700',
-    },
-    modalInfo: {
-      padding: Spacing.lg,
-    },
-    modalName: {
-      fontSize: 22,
-      fontWeight: '800',
-      color: colors.text,
-    },
-    modalCity: {
-      fontSize: 14,
-      color: colors.textMuted,
-      marginTop: 4,
-    },
-    modalSection: {
-      marginTop: Spacing.lg,
-    },
-    sectionLabel: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.textMuted,
-      textTransform: 'uppercase',
       marginBottom: 4,
     },
-    modalBio: {
-      fontSize: 15,
+    statusSubtext: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    approveBtnWrapper: {
+      borderRadius: 18,
+      overflow: 'hidden',
+    },
+    approveBtn: {
+      borderRadius: 18,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    approveBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    telegramBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#0088cc',
+      borderRadius: 18,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+    },
+    telegramBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    emptyAcceptedBox: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
+      marginBottom: 40,
+    },
+    envelopeIconWrap: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: colors.surfaceLight,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+    },
+    emptyAcceptedTitle: {
       color: colors.text,
+      fontSize: 18,
+      fontWeight: '700',
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    emptyAcceptedSubtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      textAlign: 'center',
       lineHeight: 22,
     },
-    modalActionBox: {
-      marginTop: Spacing.xl,
-    },
-    modalApproveBtn: {
-      backgroundColor: colors.primary,
-      paddingVertical: 14,
-      borderRadius: 12,
+    centerBox: {
+      flex: 1,
       alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
     },
-    modalApproveBtnText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '700',
-    },
-    modalConnectedBox: {
-      backgroundColor: colors.surface,
-      padding: Spacing.md,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-      alignItems: 'center',
-    },
-    connectedLabel: {
-      fontSize: 12,
-      color: '#22c55e',
-      fontWeight: '700',
-      textTransform: 'uppercase',
-    },
-    connectedHandle: {
-      fontSize: 16,
-      fontWeight: '700',
+    emptyPendingTitle: {
       color: colors.text,
-      marginVertical: 4,
+      fontSize: 18,
+      fontWeight: '600',
+      marginBottom: 6,
+    },
+    emptyPendingSubtitle: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    bottomFooterNotice: {
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      backgroundColor: colors.background,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    bottomNoticeText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 340,
+      backgroundColor: colors.surface,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      padding: 24,
+      alignItems: 'center',
+    },
+    modalAvatar: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      marginBottom: 16,
+    },
+    modalTitle: {
+      color: colors.text,
+      fontSize: 20,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+    modalSubtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 20,
     },
     modalTelegramBtnWrapper: {
-      borderRadius: 12,
-      overflow: 'hidden',
-      marginTop: 10,
       width: '100%',
+      borderRadius: 24,
+      overflow: 'hidden',
+      marginBottom: 10,
     },
-    modalTelegramGradient: {
-      flexDirection: 'row',
+    modalTelegramBtn: {
+      width: '100%',
+      borderRadius: 24,
+      paddingVertical: 14,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 12,
     },
     modalTelegramBtnText: {
-      color: '#fff',
-      fontSize: 14,
+      color: '#FFFFFF',
+      fontSize: 16,
       fontWeight: '700',
     },
-    // Simple Popup Styles
-    simpleModalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: Spacing.xl,
-    },
-    simpleModalCard: {
-      width: '100%',
-      backgroundColor: colors.surface,
-      borderRadius: 18,
-      padding: Spacing.xl,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-    },
-    simpleModalAvatar: {
-      width: 76,
-      height: 76,
-      borderRadius: 38,
-      marginBottom: Spacing.md,
-    },
-    simpleModalTitle: {
-      fontSize: 20,
-      fontWeight: '800',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    simpleModalSubtitle: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: Spacing.lg,
-    },
-    simpleTelegramRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(124, 58, 237, 0.08)',
-      paddingHorizontal: Spacing.md,
+    modalDoneBtn: {
       paddingVertical: 10,
-      borderRadius: 10,
-      width: '100%',
-      justifyContent: 'center',
-      marginBottom: Spacing.lg,
     },
-    simpleTelegramHandle: {
+    modalDoneBtnText: {
+      color: colors.textSecondary,
       fontSize: 15,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    modalShareBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(124, 58, 237, 0.12)',
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 8,
-      marginLeft: Spacing.sm,
-    },
-    modalShareText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.primary,
-      marginLeft: 4,
-    },
-    approvedActionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    shareIconButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: 'rgba(124, 58, 237, 0.1)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginLeft: 8,
-      borderWidth: 1,
-      borderColor: 'rgba(124, 58, 237, 0.2)',
-    },
-    itemHandleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 2,
-      marginBottom: 4,
-    },
-    itemHandleLabel: {
-      fontSize: 12,
-      color: colors.textMuted,
-      fontWeight: '600',
-    },
-    itemHandleText: {
-      fontSize: 12,
-      color: colors.primary,
-      fontWeight: '700',
-    },
-    simplePrimaryBtnWrapper: {
-      width: '100%',
-      borderRadius: 10,
-      overflow: 'hidden',
-      marginBottom: Spacing.sm,
-    },
-    simplePrimaryGradient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: '100%',
-      paddingVertical: 13,
-      borderRadius: 10,
-    },
-    simplePrimaryBtnText: {
-      color: '#fff',
-      fontSize: 15,
-      fontWeight: '700',
-    },
-    simpleSecondaryBtn: {
-      paddingVertical: 8,
-    },
-    simpleSecondaryBtnText: {
-      color: colors.textMuted,
-      fontSize: 14,
-      fontWeight: '600',
     },
   });
-

@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, useTheme } from '../../../theme';
+import { t, useTranslation } from '../../../i18n';
 
 interface ProfileSettingsHeaderProps {
   onSave?: () => void;
@@ -10,6 +11,7 @@ interface ProfileSettingsHeaderProps {
 }
 
 const ProfileSettingsHeader: React.FC<ProfileSettingsHeaderProps> = () => {
+  useTranslation();
   const navigation = useNavigation();
   const { themeColors } = useTheme();
 
@@ -22,7 +24,7 @@ const ProfileSettingsHeader: React.FC<ProfileSettingsHeaderProps> = () => {
       >
         <Icon name="chevron-left" size={32} color={themeColors.text} />
       </TouchableOpacity>
-      <Text style={[styles.title, { color: themeColors.text }]}>Edit Profile</Text>
+      <Text style={[styles.title, { color: themeColors.text }]}>{t('profile.profilesettingheader.edit_profile')}</Text>
     </View>
   );
 };

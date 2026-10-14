@@ -69,8 +69,16 @@ export const useReport = (userId?: string | number | null) => {
 
   const reportMutation = useMutation({
     mutationFn: async (data: { byUserId: string | number; targetUserId: string | number; reason: string; message: string }) => {
+      let activeBy = data?.byUserId ? String(data.byUserId).trim() : '';
+      if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+        try {
+          activeBy = await resolveBackendUserId();
+        } catch {
+          activeBy = '';
+        }
+      }
       const response = await apiClient.post('/reports/report', {
-        byUserId: String(data.byUserId),
+        byUserId: activeBy,
         targetUserId: String(data.targetUserId),
         reason: data.reason,
         message: data.message,
@@ -126,8 +134,35 @@ export const useReport = (userId?: string | number | null) => {
     },
   });
 
+  const blockMutation = useMutation({
+    mutationFn: async (data: { byUserId?: string | number; targetUserId: string | number }) => {
+      let activeBy = data?.byUserId ? String(data.byUserId).trim() : '';
+      if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+        try {
+          activeBy = await resolveBackendUserId();
+        } catch {
+          activeBy = '';
+        }
+      }
+      const response = await apiClient.post('/users/block', {
+        byUserId: activeBy,
+        targetUserId: String(data.targetUserId),
+      });
+      return response.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
+      await queryClient.invalidateQueries({ queryKey: ['discovery'] });
+      await queryClient.invalidateQueries({ queryKey: ['connections'] });
+    },
+    onError: (err: any) => {
+      console.error('Block Error:', getReportErrorMessage(err, 'Failed to block user.'));
+    },
+  });
+
   return {
     report: reportMutation,
+    block: blockMutation,
     myReports: myReportsQuery.data || [],
     isLoadingMyReports: myReportsQuery.isLoading,
     againstReports: againstReportsQuery.data || [],

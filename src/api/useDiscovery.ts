@@ -115,19 +115,41 @@ const normalizeSmokeDrink = (val: unknown) => {
   return undefined;
 };
 
+const isMaleGender = (g: string) => {
+  const s = String(g).toLowerCase().trim();
+  return s === 'male' || s === 'man' || s === 'straight_man' || (s.includes('male') && !s.includes('female')) || (s.includes('man') && !s.includes('woman'));
+};
+
+const isFemaleGender = (g: string) => {
+  const s = String(g).toLowerCase().trim();
+  return s === 'female' || s === 'woman' || s === 'straight_woman' || s.includes('female') || s.includes('woman');
+};
+
 const normalizeSearchRequest = (data: any) => {
   let resolvedGender: string | undefined = undefined;
-  const rawGender =
-    typeof data?.gender === 'string'
-      ? data.gender
-      : Array.isArray(data?.gender) && data.gender.length > 0
-        ? data.gender[0]
-        : data?.showMe;
-  if (rawGender) {
-    const cleanG = String(rawGender).toLowerCase();
-    if (cleanG.includes('woman') || cleanG.includes('female')) resolvedGender = 'woman';
-    else if (cleanG.includes('man') || cleanG.includes('male')) resolvedGender = 'man';
-    else resolvedGender = String(rawGender);
+  if (Array.isArray(data?.gender) && data.gender.length > 0) {
+    const hasWoman = data.gender.some((g: any) => isFemaleGender(String(g)));
+    const hasMan = data.gender.some((g: any) => isMaleGender(String(g)));
+    if (hasWoman && hasMan) {
+      resolvedGender = 'both';
+    } else if (hasMan) {
+      resolvedGender = 'man';
+    } else if (hasWoman) {
+      resolvedGender = 'woman';
+    } else {
+      resolvedGender = String(data.gender[0]);
+    }
+  } else if (data?.showMe || data?.gender) {
+    const rawGender = String(data?.gender || data?.showMe).toLowerCase();
+    if (rawGender === 'both') {
+      resolvedGender = 'both';
+    } else if (isFemaleGender(rawGender)) {
+      resolvedGender = 'woman';
+    } else if (isMaleGender(rawGender)) {
+      resolvedGender = 'man';
+    } else {
+      resolvedGender = String(data?.gender || data?.showMe);
+    }
   }
 
   return {

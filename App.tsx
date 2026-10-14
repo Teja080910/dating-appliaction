@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import AppContext from './src/context/CreateGlobalStateContext';
 import { getUserId } from './src/utils/sessionHelper';
+import { initLanguage } from './src/i18n';
 import { useServices } from './src/api/useMisc';
 import { useSubscription } from './src/api/useSubscription';
 
@@ -75,6 +76,10 @@ const ServerSync = () => {
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
+
+  useEffect(() => {
+    initLanguage();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

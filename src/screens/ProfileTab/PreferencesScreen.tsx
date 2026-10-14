@@ -1,8 +1,8 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
-  SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Switch,
@@ -12,50 +12,78 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors } from '../../theme';
+import { APP_LANGUAGES, LanguageOption, getLanguageFlag } from '../../utils/languageHelper';
+import { t, useTranslation, setLanguage } from '../../i18n';
+import apiClient from '../../api/apiClient';
 
-export interface LanguageOption {
-  code: string;
-  name: string;
-  englishName: string;
-}
-
-export const APP_LANGUAGES: LanguageOption[] = [
-  { code: 'en', name: 'English', englishName: 'English' },
-  { code: 'mr', name: 'मराठी', englishName: 'Marathi' },
-  { code: 'hi', name: 'हिंदी', englishName: 'Hindi' },
-  { code: 'de', name: 'Deutsch', englishName: 'German' },
-  { code: 'es', name: 'español', englishName: 'Spanish' },
-  { code: 'fr', name: 'français', englishName: 'French' },
-  { code: 'pt-BR', name: 'português do Brasil', englishName: 'Portuguese (Brazil)' },
-  { code: 'ro', name: 'română', englishName: 'Romanian' },
-  { code: 'ru', name: 'русский', englishName: 'Russian' },
-  { code: 'tr', name: 'Türkçe', englishName: 'Turkish' },
-  { code: 'uk', name: 'українська', englishName: 'Ukrainian' },
-];
+export { APP_LANGUAGES, getLanguageFlag };
+export type { LanguageOption };
 
 const PreferencesScreen = () => {
+  useTranslation();
   const navigation = useNavigation<any>();
   const { themeMode, setThemeMode, themeColors } = useContext(AppContext);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('English');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(t('profile.userdetails.english'));
   const [emailNotifications, setEmailNotifications] = useState<boolean>(true);
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const colors = themeColors || Colors;
-  const isDark = colors.background !== '#F8F9FA';
+  const isDark = colors.background !== '#F8F9FA' && colors.background !== '#FFFFFF';
+
+  useEffect(() => {
+    const loadSavedPreferences = async () => {
+      try {
+        const savedCode = await AsyncStorage.getItem('@app_language_code');
+        if (savedCode) {
+          const match = APP_LANGUAGES.find((lang) => lang.code === savedCode);
+          if (match) {
+            setSelectedLanguage(match.name);
+          }
+        } else {
+          const savedLang = await AsyncStorage.getItem('@app_language_name');
+          if (savedLang) {
+            setSelectedLanguage(savedLang);
+          }
+        }
+
+        const savedEmail = await AsyncStorage.getItem('@app_email_notifications');
+        if (savedEmail !== null) {
+          setEmailNotifications(savedEmail === 'true');
+        }
+
+        apiClient
+          .get('/notification/preferences')
+          .then((res) => {
+            if (res?.data && typeof res.data.emailNotifications === 'boolean') {
+              setEmailNotifications(res.data.emailNotifications);
+            }
+          })
+          .catch(() => {});
+      } catch (e) {
+        console.warn('Error reading preferences:', e);
+      }
+    };
+    loadSavedPreferences();
+  }, []);
+
+  const selectedLanguageFlag = useMemo(() => {
+    return getLanguageFlag(selectedLanguage);
+  }, [selectedLanguage]);
 
   const handleSelectLanguage = async (lang: LanguageOption) => {
     setSelectedLanguage(lang.name);
     setIsLanguageModalVisible(false);
     setSearchQuery('');
     try {
-      await AsyncStorage.setItem('@app_language_code', lang.code);
+      await setLanguage(lang.code);
       await AsyncStorage.setItem('@app_language_name', lang.name);
     } catch (e) {
       console.warn('Error saving language preference:', e);
@@ -66,6 +94,11 @@ const PreferencesScreen = () => {
     setEmailNotifications(val);
     try {
       await AsyncStorage.setItem('@app_email_notifications', String(val));
+      await apiClient
+        .put('/notification/preferences', {
+          emailNotifications: val,
+        })
+        .catch(() => {});
     } catch (e) {
       console.warn('Error saving email notification preference:', e);
     }
@@ -87,33 +120,39 @@ const PreferencesScreen = () => {
       (lang) =>
         lang.name.toLowerCase().includes(q) ||
         lang.englishName.toLowerCase().includes(q) ||
-        lang.code.toLowerCase().includes(q)
+        (lang.nativeName && lang.nativeName.toLowerCase().includes(q)) ||
+        lang.code.toLowerCase().includes(q) ||
+        lang.flag.includes(q)
     );
   }, [searchQuery]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
       />
 
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderLight || 'rgba(255, 255, 255, 0.08)' }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backBtn}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="chevron-left" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Preferences</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('profile.preferencesscreen.preferences')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Section: DISPLAY */}
-        <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>DISPLAY</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>{t('profile.preferencesscreen.display')}</Text>
 
         <View
           style={[
@@ -131,15 +170,17 @@ const PreferencesScreen = () => {
             onPress={() => setIsLanguageModalVisible(true)}
           >
             <View style={styles.menuLeft}>
-              <Icon
-                name="translate"
-                size={22}
-                color={isDark ? Colors.primaryLight : '#4B5563'}
-                style={styles.menuIcon}
-              />
-              <Text style={[styles.menuLabel, { color: colors.text }]}>Language</Text>
+              <View style={[styles.menuIconContainer, { backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.1)' }]}>
+                <Icon
+                  name="translate"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.text }]}>{t('profile.preferencesscreen.language')}</Text>
             </View>
             <View style={styles.menuRight}>
+              <Text style={styles.menuValueFlag}>{selectedLanguageFlag}</Text>
               <Text style={[styles.menuValue, { color: colors.textSecondary }]} numberOfLines={1}>
                 {selectedLanguage}
               </Text>
@@ -152,18 +193,19 @@ const PreferencesScreen = () => {
           {/* Email Notifications Row */}
           <View style={styles.menuRow}>
             <View style={styles.menuLeft}>
-              <Icon
-                name="email-outline"
-                size={22}
-                color={isDark ? Colors.primaryLight : '#4B5563'}
-                style={styles.menuIcon}
-              />
-              <Text style={[styles.menuLabel, { color: colors.text }]}>Email notifications</Text>
+              <View style={[styles.menuIconContainer, { backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.1)' }]}>
+                <Icon
+                  name="email-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.text }]}>{t('profile.preferencesscreen.email_notifications')}</Text>
             </View>
             <Switch
               value={emailNotifications}
               onValueChange={handleToggleEmailNotifications}
-              trackColor={{ false: colors.surfaceLighter, true: Colors.success }}
+              trackColor={{ false: colors.surfaceLighter, true: '#10B981' }}
               thumbColor={Colors.white}
               ios_backgroundColor={colors.surfaceLighter}
             />
@@ -171,19 +213,25 @@ const PreferencesScreen = () => {
         </View>
 
         {/* Section: Appearance */}
-        <Text style={[styles.appearanceSectionHeader, { color: colors.text }]}>Appearance</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>{t('search.appearance.appearance')}</Text>
 
         <View style={styles.appearanceRow}>
           {/* Light Theme Card */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.8}
             style={[
               styles.appearanceCard,
               {
-                backgroundColor: isDark ? colors.surface : '#F3F4F6',
-                borderColor: isDark ? colors.border : '#E5E7EB',
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
-              themeMode === 'light' && (isDark ? styles.appearanceCardActiveDark : styles.appearanceCardActiveLight),
+              themeMode === 'light' && [
+                styles.appearanceCardActive,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary,
+                },
+              ],
             ]}
             onPress={() => handleChangeAppearance('light')}
           >
@@ -196,54 +244,62 @@ const PreferencesScreen = () => {
             <Text
               style={[
                 styles.appearanceText,
-                { color: colors.textSecondary },
+                { color: themeMode === 'light' ? Colors.white : colors.textSecondary },
                 themeMode === 'light' && styles.appearanceTextActive,
               ]}
-            >
-              Light
-            </Text>
+            >{t('profile.preferencesscreen.light')}</Text>
           </TouchableOpacity>
 
           {/* System Theme Card */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.8}
             style={[
               styles.appearanceCard,
               {
-                backgroundColor: isDark ? colors.surface : '#F3F4F6',
-                borderColor: isDark ? colors.border : '#E5E7EB',
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
-              themeMode === 'system' && (isDark ? styles.appearanceCardActiveDark : styles.appearanceCardActiveLight),
+              themeMode === 'system' && [
+                styles.appearanceCardActive,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary,
+                },
+              ],
             ]}
             onPress={() => handleChangeAppearance('system')}
           >
             <Icon
               name="laptop"
-              size={24}
+              size={23}
               color={themeMode === 'system' ? Colors.white : colors.textSecondary}
               style={styles.appearanceIcon}
             />
             <Text
               style={[
                 styles.appearanceText,
-                { color: colors.textSecondary },
+                { color: themeMode === 'system' ? Colors.white : colors.textSecondary },
                 themeMode === 'system' && styles.appearanceTextActive,
               ]}
-            >
-              System
-            </Text>
+            >{t('profile.preferencesscreen.system')}</Text>
           </TouchableOpacity>
 
           {/* Dark Theme Card */}
           <TouchableOpacity
-            activeOpacity={0.85}
+            activeOpacity={0.8}
             style={[
               styles.appearanceCard,
               {
-                backgroundColor: isDark ? colors.surface : '#F3F4F6',
-                borderColor: isDark ? colors.border : '#E5E7EB',
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               },
-              themeMode === 'dark' && (isDark ? styles.appearanceCardActiveDark : styles.appearanceCardActiveLight),
+              themeMode === 'dark' && [
+                styles.appearanceCardActive,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.primary,
+                },
+              ],
             ]}
             onPress={() => handleChangeAppearance('dark')}
           >
@@ -256,15 +312,13 @@ const PreferencesScreen = () => {
             <Text
               style={[
                 styles.appearanceText,
-                { color: colors.textSecondary },
+                { color: themeMode === 'dark' ? Colors.white : colors.textSecondary },
                 themeMode === 'dark' && styles.appearanceTextActive,
               ]}
-            >
-              Dark
-            </Text>
+            >{t('profile.preferencesscreen.dark')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
 
       {/* Language Selection Bottom Sheet Modal */}
       <Modal
@@ -307,7 +361,7 @@ const PreferencesScreen = () => {
                     <Feather name="search" size={18} color={colors.placeholder} style={styles.searchIcon} />
                     <TextInput
                       style={[styles.searchInput, { color: colors.text }]}
-                      placeholder="Search language"
+                      placeholder={t('profile.preferencesscreen.search_language')}
                       placeholderTextColor={colors.placeholder}
                       value={searchQuery}
                       onChangeText={setSearchQuery}
@@ -323,9 +377,7 @@ const PreferencesScreen = () => {
                     style={styles.cancelBtn}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.cancelBtnText, { color: isDark ? Colors.primaryLight : '#E11D48' }]}>
-                      Cancel
-                    </Text>
+                    <Text style={[styles.cancelBtnText, { color: isDark ? Colors.primaryLight : '#E11D48' }]}>{t('profile.additionaluploadsection.cancel')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -346,7 +398,10 @@ const PreferencesScreen = () => {
                         activeOpacity={0.7}
                         onPress={() => handleSelectLanguage(item)}
                       >
-                        <Text style={[styles.languageItemName, { color: colors.text }]}>{item.name}</Text>
+                        <View style={styles.languageItemLeft}>
+                          <Text style={styles.languageFlagEmoji}>{item.flag}</Text>
+                          <Text style={[styles.languageItemName, { color: colors.text }]}>{item.name}</Text>
+                        </View>
                         <View
                           style={[
                             styles.checkboxBox,
@@ -363,9 +418,7 @@ const PreferencesScreen = () => {
                   }}
                   ListEmptyComponent={
                     <View style={styles.emptySearchContainer}>
-                      <Text style={[styles.emptySearchText, { color: colors.textMuted }]}>
-                        No languages found
-                      </Text>
+                      <Text style={[styles.emptySearchText, { color: colors.textMuted }]}>{t('profile.preferencesscreen.no_languages_found')}</Text>
                     </View>
                   }
                 />
@@ -389,46 +442,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
   },
   backBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
   headerSpacer: {
-    width: 40,
+    width: 36,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 24,
+    paddingBottom: 40,
   },
   sectionHeader: {
     fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
     marginBottom: 10,
     marginLeft: 4,
+    textTransform: 'uppercase',
   },
   cardGroup: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15,
+    paddingVertical: 14,
     paddingHorizontal: 16,
   },
   menuLeft: {
@@ -436,20 +491,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  menuIcon: {
+  menuIconContainer: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 14,
   },
   menuLabel: {
-    fontSize: 15.5,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  menuTextGroup: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 10,
+  },
+  menuSubLabel: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
   },
   menuRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  menuValue: {
-    fontSize: 15,
+  menuValueFlag: {
+    fontSize: 16,
     marginRight: 6,
+  },
+  menuValue: {
+    fontSize: 14.5,
+    fontWeight: '500',
+    marginRight: 4,
     maxWidth: 140,
   },
   chevron: {
@@ -457,44 +533,38 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     height: 1,
-    marginLeft: 50,
-  },
-  appearanceSectionHeader: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 12,
-    marginLeft: 4,
+    marginLeft: 64,
   },
   appearanceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 12,
   },
   appearanceCard: {
     flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingVertical: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  appearanceCardActiveDark: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  appearanceCardActiveLight: {
-    backgroundColor: '#E11D48',
-    borderColor: '#E11D48',
+  appearanceCardActive: {
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 5,
   },
   appearanceIcon: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
   appearanceText: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '600',
+    letterSpacing: -0.2,
   },
   appearanceTextActive: {
-    color: Colors.white,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   modalOverlay: {
@@ -554,6 +624,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
+  },
+  languageItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  languageFlagEmoji: {
+    fontSize: 22,
+    marginRight: 12,
   },
   languageItemName: {
     fontSize: 15.5,

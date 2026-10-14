@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,563 +6,822 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  SafeAreaView,
-  Platform,
   ActivityIndicator,
   FlatList,
-  ScrollView,
   Keyboard,
+  ScrollView,
 } from "react-native";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
+import { SafeAreaView } from "react-native-safe-area-context";
+import LinearGradient from "react-native-linear-gradient";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import MapView, { Marker } from "react-native-maps";
+import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import MapView, { Marker, Region } from "react-native-maps";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+
 import AppContext from "../../context/CreateGlobalStateContext";
 import { getCurrentLocation } from "../../utils/geolocation";
 import { useLocation } from "../../api/useLocation";
 import { useTheme, ThemeColors, Spacing } from "../../theme";
 import { useAlert } from "../AlertModal";
+import { t, useTranslation } from '../../i18n';
 
-export interface CityItem {
+export interface SavedLocationItem {
   id: string;
   name: string;
-  state: string;
-  country: string;
+  fullAddress: string;
   lat: number;
   lng: number;
-  popular?: boolean;
 }
 
-// Popular dating hubs in India and worldwide (Glambu-style quick pick)
-export const POPULAR_CITIES: CityItem[] = [
-  { id: "mum", name: "Mumbai", state: "Maharashtra", country: "India", lat: 19.076, lng: 72.8777, popular: true },
-  { id: "del", name: "Delhi NCR", state: "Delhi", country: "India", lat: 28.7041, lng: 77.1025, popular: true },
-  { id: "blr", name: "Bengaluru", state: "Karnataka", country: "India", lat: 12.9716, lng: 77.5946, popular: true },
-  { id: "hyd", name: "Hyderabad", state: "Telangana", country: "India", lat: 17.385, lng: 78.4867, popular: true },
-  { id: "goa", name: "Goa", state: "Goa", country: "India", lat: 15.2993, lng: 74.124, popular: true },
-  { id: "pun", name: "Pune", state: "Maharashtra", country: "India", lat: 18.5204, lng: 73.8567, popular: true },
-  { id: "kol", name: "Kolkata", state: "West Bengal", country: "India", lat: 22.5726, lng: 88.3639, popular: true },
-  { id: "dxb", name: "Dubai", state: "Dubai", country: "United Arab Emirates", lat: 25.2048, lng: 55.2708, popular: true },
-  { id: "lon", name: "London", state: "England", country: "United Kingdom", lat: 51.5074, lng: -0.1278, popular: true },
+export interface SuggestionItem {
+  id: string;
+  name: string;
+  fullAddress: string;
+  lat: number;
+  lng: number;
+}
+
+const STORAGE_SAVED_LOCATIONS = "@amara_saved_locations";
+const STORAGE_ACTIVE_LOCATION_TYPE = "@amara_active_location_type";
+
+// Comprehensive database of 120+ major Indian and international cities
+const ALL_CITIES: SuggestionItem[] = [
+  // India - Top Metros & Capitals
+  { id: "hyd_in", name: "Hyderabad", fullAddress: "Hyderabad, Telangana, India", lat: 17.385, lng: 78.4867 },
+  { id: "hyd_pk", name: "Hyderabad", fullAddress: "Hyderabad, Sindh, Pakistan", lat: 25.396, lng: 68.3578 },
+  { id: "hyd_us", name: "Hyder", fullAddress: "Hyder, Alaska, United States", lat: 55.9172, lng: -130.0278 },
+  { id: "hyd_up", name: "Hyderabad", fullAddress: "Hyderabad, Hasanganj, Unnao, Uttar Pradesh, India", lat: 26.6833, lng: 80.65 },
+  { id: "mum", name: "Mumbai", fullAddress: "Mumbai, Maharashtra, India", lat: 19.076, lng: 72.8777 },
+  { id: "del", name: "Delhi", fullAddress: "Delhi NCR, India", lat: 28.7041, lng: 77.1025 },
+  { id: "blr", name: "Bengaluru", fullAddress: "Bengaluru, Karnataka, India", lat: 12.9716, lng: 77.5946 },
+  { id: "chn", name: "Chennai", fullAddress: "Chennai, Tamil Nadu, India", lat: 13.0827, lng: 80.2707 },
+  { id: "kol", name: "Kolkata", fullAddress: "Kolkata, West Bengal, India", lat: 22.5726, lng: 88.3639 },
+  { id: "pun", name: "Pune", fullAddress: "Pune, Maharashtra, India", lat: 18.5204, lng: 73.8567 },
+  { id: "amd", name: "Ahmedabad", fullAddress: "Ahmedabad, Gujarat, India", lat: 23.0225, lng: 72.5714 },
+  { id: "jai", name: "Jaipur", fullAddress: "Jaipur, Rajasthan, India", lat: 26.9124, lng: 75.7873 },
+  { id: "goa", name: "Goa", fullAddress: "Goa, India", lat: 15.2993, lng: 74.124 },
+  { id: "chd", name: "Chandigarh", fullAddress: "Chandigarh, Punjab, India", lat: 30.7333, lng: 76.7794 },
+  { id: "koc", name: "Kochi", fullAddress: "Kochi, Kerala, India", lat: 9.9312, lng: 76.2673 },
+  { id: "lko", name: "Lucknow", fullAddress: "Lucknow, Uttar Pradesh, India", lat: 26.8467, lng: 80.9462 },
+  { id: "ind", name: "Indore", fullAddress: "Indore, Madhya Pradesh, India", lat: 22.7196, lng: 75.8577 },
+  { id: "srt", name: "Surat", fullAddress: "Surat, Gujarat, India", lat: 21.1702, lng: 72.8311 },
+  { id: "ngp", name: "Nagpur", fullAddress: "Nagpur, Maharashtra, India", lat: 21.1458, lng: 79.0882 },
+  { id: "pat", name: "Patna", fullAddress: "Patna, Bihar, India", lat: 25.5941, lng: 85.1376 },
+  { id: "bho", name: "Bhopal", fullAddress: "Bhopal, Madhya Pradesh, India", lat: 23.2599, lng: 77.4126 },
+  { id: "viz", name: "Visakhapatnam", fullAddress: "Visakhapatnam, Andhra Pradesh, India", lat: 17.6868, lng: 83.2185 },
+  { id: "vad", name: "Vadodara", fullAddress: "Vadodara, Gujarat, India", lat: 22.3072, lng: 73.1812 },
+  { id: "ldh", name: "Ludhiana", fullAddress: "Ludhiana, Punjab, India", lat: 30.901, lng: 75.8573 },
+  { id: "agr", name: "Agra", fullAddress: "Agra, Uttar Pradesh, India", lat: 27.1767, lng: 78.0081 },
+  { id: "vns", name: "Varanasi", fullAddress: "Varanasi, Uttar Pradesh, India", lat: 25.3176, lng: 82.9739 },
+  { id: "amr", name: "Amritsar", fullAddress: "Amritsar, Punjab, India", lat: 31.634, lng: 74.8723 },
+  { id: "cbe", name: "Coimbatore", fullAddress: "Coimbatore, Tamil Nadu, India", lat: 11.0168, lng: 76.9558 },
+  { id: "gau", name: "Guwahati", fullAddress: "Guwahati, Assam, India", lat: 26.1445, lng: 91.7362 },
+  { id: "ddn", name: "Dehradun", fullAddress: "Dehradun, Uttarakhand, India", lat: 30.3165, lng: 78.0322 },
+  { id: "udp", name: "Udaipur", fullAddress: "Udaipur, Rajasthan, India", lat: 24.5854, lng: 73.7125 },
+  { id: "mys", name: "Mysore", fullAddress: "Mysore, Karnataka, India", lat: 12.2958, lng: 76.6394 },
+  { id: "mng", name: "Mangalore", fullAddress: "Mangalore, Karnataka, India", lat: 12.9141, lng: 74.856 },
+  { id: "shm", name: "Shimla", fullAddress: "Shimla, Himachal Pradesh, India", lat: 31.1048, lng: 77.1734 },
+  { id: "sri", name: "Srinagar", fullAddress: "Srinagar, Jammu & Kashmir, India", lat: 34.0837, lng: 74.7973 },
+  { id: "noi", name: "Noida", fullAddress: "Noida, Uttar Pradesh, India", lat: 28.5355, lng: 77.391 },
+  { id: "gur", name: "Gurugram", fullAddress: "Gurugram, Haryana, India", lat: 28.4595, lng: 77.0266 },
+
+  // International Hubs
+  { id: "dxb", name: "Dubai", fullAddress: "Dubai, United Arab Emirates", lat: 25.2048, lng: 55.2708 },
+  { id: "auh", name: "Abu Dhabi", fullAddress: "Abu Dhabi, United Arab Emirates", lat: 24.4539, lng: 54.3773 },
+  { id: "lon", name: "London", fullAddress: "London, England, United Kingdom", lat: 51.5074, lng: -0.1278 },
+  { id: "nyc", name: "New York", fullAddress: "New York, NY, United States", lat: 40.7128, lng: -74.006 },
+  { id: "sfo", name: "San Francisco", fullAddress: "San Francisco, CA, United States", lat: 37.7749, lng: -122.4194 },
+  { id: "lax", name: "Los Angeles", fullAddress: "Los Angeles, CA, United States", lat: 34.0522, lng: -118.2437 },
+  { id: "sin", name: "Singapore", fullAddress: "Singapore, Singapore", lat: 1.3521, lng: 103.8198 },
+  { id: "bkk", name: "Bangkok", fullAddress: "Bangkok, Thailand", lat: 13.7563, lng: 100.5018 },
+  { id: "par", name: "Paris", fullAddress: "Paris, France", lat: 48.8566, lng: 2.3522 },
+  { id: "ber", name: "Berlin", fullAddress: "Berlin, Germany", lat: 52.52, lng: 13.405 },
+  { id: "tok", name: "Tokyo", fullAddress: "Tokyo, Japan", lat: 35.6762, lng: 139.6503 },
+  { id: "tor", name: "Toronto", fullAddress: "Toronto, Ontario, Canada", lat: 43.6532, lng: -79.3832 },
+  { id: "syd", name: "Sydney", fullAddress: "Sydney, NSW, Australia", lat: -33.8688, lng: 151.2093 },
+  { id: "mel", name: "Melbourne", fullAddress: "Melbourne, VIC, Australia", lat: -37.8136, lng: 144.9631 },
 ];
 
-// Rich city database for instant real-time autocomplete
-export const ALL_CITIES: CityItem[] = [
-  ...POPULAR_CITIES,
-  { id: "chn", name: "Chennai", state: "Tamil Nadu", country: "India", lat: 13.0827, lng: 80.2707 },
-  { id: "amd", name: "Ahmedabad", state: "Gujarat", country: "India", lat: 23.0225, lng: 72.5714 },
-  { id: "jai", name: "Jaipur", state: "Rajasthan", country: "India", lat: 26.9124, lng: 75.7873 },
-  { id: "chd", name: "Chandigarh", state: "Punjab", country: "India", lat: 30.7333, lng: 76.7794 },
-  { id: "koc", name: "Kochi", state: "Kerala", country: "India", lat: 9.9312, lng: 76.2673 },
-  { id: "lko", name: "Lucknow", state: "Uttar Pradesh", country: "India", lat: 26.8467, lng: 80.9462 },
-  { id: "ind", name: "Indore", state: "Madhya Pradesh", country: "India", lat: 22.7196, lng: 75.8577 },
-  { id: "srt", name: "Surat", state: "Gujarat", country: "India", lat: 21.1702, lng: 72.8311 },
-  { id: "ngp", name: "Nagpur", state: "Maharashtra", country: "India", lat: 21.1458, lng: 79.0882 },
-  { id: "pat", name: "Patna", state: "Bihar", country: "India", lat: 25.5941, lng: 85.1376 },
-  { id: "bho", name: "Bhopal", state: "Madhya Pradesh", country: "India", lat: 23.2599, lng: 77.4126 },
-  { id: "viz", name: "Visakhapatnam", state: "Andhra Pradesh", country: "India", lat: 17.6868, lng: 83.2185 },
-  { id: "vad", name: "Vadodara", state: "Gujarat", country: "India", lat: 22.3072, lng: 73.1812 },
-  { id: "ldh", name: "Ludhiana", state: "Punjab", country: "India", lat: 30.901, lng: 75.8573 },
-  { id: "agr", name: "Agra", state: "Uttar Pradesh", country: "India", lat: 27.1767, lng: 78.0081 },
-  { id: "vns", name: "Varanasi", state: "Uttar Pradesh", country: "India", lat: 25.3176, lng: 82.9739 },
-  { id: "amr", name: "Amritsar", state: "Punjab", country: "India", lat: 31.634, lng: 74.8723 },
-  { id: "cbe", name: "Coimbatore", state: "Tamil Nadu", country: "India", lat: 11.0168, lng: 76.9558 },
-  { id: "gau", name: "Guwahati", state: "Assam", country: "India", lat: 26.1445, lng: 91.7362 },
-  { id: "ddn", name: "Dehradun", state: "Uttarakhand", country: "India", lat: 30.3165, lng: 78.0322 },
-  { id: "udp", name: "Udaipur", state: "Rajasthan", country: "India", lat: 24.5854, lng: 73.7125 },
-  { id: "auh", name: "Abu Dhabi", state: "Abu Dhabi", country: "United Arab Emirates", lat: 24.4539, lng: 54.3773 },
-  { id: "nyc", name: "New York", state: "NY", country: "United States", lat: 40.7128, lng: -74.006 },
-  { id: "sin", name: "Singapore", state: "Singapore", country: "Singapore", lat: 1.3521, lng: 103.8198 },
-  { id: "bkk", name: "Bangkok", state: "Central", country: "Thailand", lat: 13.7563, lng: 100.5018 },
-  { id: "par", name: "Paris", state: "Ile-de-France", country: "France", lat: 48.8566, lng: 2.3522 },
-  { id: "tor", name: "Toronto", state: "Ontario", country: "Canada", lat: 43.6532, lng: -79.3832 },
-  { id: "syd", name: "Sydney", state: "NSW", country: "Australia", lat: -33.8688, lng: 151.2093 },
-];
-
-const DEFAULT_REGION = {
-  latitude: 19.076,
-  longitude: 72.8777,
-  latitudeDelta: 0.1,
-  longitudeDelta: 0.1,
+const DEFAULT_REGION: Region = {
+  latitude: 17.385,
+  longitude: 78.4867,
+  latitudeDelta: 0.08,
+  longitudeDelta: 0.08,
 };
 
-// Sleek dark mode styling for Google Maps
-const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#171822" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#171822" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8c93a8" }] },
-  {
-    featureType: "administrative.locality",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#d4d8e8" }],
-  },
-  {
-    featureType: "poi",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#6f768a" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#252837" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#1b1d28" }],
-  },
-  {
-    featureType: "road",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#9ca3af" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry",
-    stylers: [{ color: "#33374b" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#0f1118" }],
-  },
-  {
-    featureType: "water",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#3d4458" }],
-  },
+// Amara Theme Dark Map styling (Royal Navy & Violet accents)
+const AMARA_DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#0F0D1A" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0F0D1A" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#A5A3B5" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#F5F3FF" }] },
+  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#7C3AED" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1A1730" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#242140" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9CA3AF" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3B2865" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#090712" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#5B21B6" }] },
 ];
 
-const formatCoordinateLabel = (latitude: number, longitude: number) =>
-  `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+const formatCoords = (lat: number, lng: number) => `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
-const buildLocationLabel = (payload: any, latitude: number, longitude: number) => {
-  const source =
-    payload?.data && typeof payload.data === "object"
-      ? payload.data
-      : payload;
+// Distance calculation to find nearest city when GPS is detected
+const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
-  const parts = [source?.city, source?.state, source?.country]
-    .map((item) => String(item || "").trim())
-    .filter(Boolean);
+const findNearestCity = (lat: number, lng: number): SuggestionItem | null => {
+  let nearest: SuggestionItem | null = null;
+  let minDistance = Infinity;
 
-  if (parts.length > 0) {
-    return parts.join(", ");
+  for (const city of ALL_CITIES) {
+    const dist = calculateDistanceKm(lat, lng, city.lat, city.lng);
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearest = city;
+    }
   }
 
-  return `Current location (${formatCoordinateLabel(latitude, longitude)})`;
+  // If within 80km of a known city, use it
+  if (minDistance <= 80 && nearest) {
+    return nearest;
+  }
+  return null;
 };
 
 const Location = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const { alert, AlertComponent } = useAlert();
   const {
     location,
     setLocation,
     locationModalVisible,
     setLocationModalVisible,
-    previousLocations,
-    setPreviousLocations,
   } = useContext(AppContext);
 
-  const [isTypingLocation, setIsTypingLocation] = useState(false);
-  const [isMapVisible, setIsMapVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCity, setSelectedCity] = useState<any>(null);
-  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
-  const [mapRegion, setMapRegion] = useState(DEFAULT_REGION);
   const { addLocation, getLocationErrorMessage } = useLocation();
 
-  // Instant real-time city autocomplete filter
-  const filteredCities = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) {
-      return ALL_CITIES;
+  // State
+  const [activeLocationType, setActiveLocationType] = useState<"gps" | "custom">("custom");
+  const [savedLocations, setSavedLocations] = useState<SavedLocationItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isResolvingGps, setIsResolvingGps] = useState(false);
+
+  // Map view state
+  const [isMapVisible, setIsMapVisible] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<SuggestionItem | null>(null);
+  const [mapRegion, setMapRegion] = useState<Region>(DEFAULT_REGION);
+
+  const searchInputRef = useRef<TextInput>(null);
+  const mapRef = useRef<MapView>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load saved locations and active type from storage on mount
+  useEffect(() => {
+    loadSavedLocations();
+  }, []);
+
+  const loadSavedLocations = async () => {
+    try {
+      const storedList = await AsyncStorage.getItem(STORAGE_SAVED_LOCATIONS);
+      if (storedList) {
+        setSavedLocations(JSON.parse(storedList));
+      }
+      const storedType = await AsyncStorage.getItem(STORAGE_ACTIVE_LOCATION_TYPE);
+      if (storedType === "gps" || storedType === "custom") {
+        setActiveLocationType(storedType);
+      } else {
+        if (!location || location === t('search.location.my_current_location') || location.includes("Current location")) {
+          setActiveLocationType("gps");
+        } else {
+          setActiveLocationType("custom");
+        }
+      }
+    } catch {
+      // ignore
     }
-    return ALL_CITIES.filter((item) => {
-      return (
-        item.name.toLowerCase().includes(q) ||
-        item.state.toLowerCase().includes(q) ||
-        item.country.toLowerCase().includes(q)
-      );
-    });
+  };
+
+  useEffect(() => {
+    if (!location || location === t('search.location.my_current_location') || location.includes("Current location")) {
+      setActiveLocationType("gps");
+    } else {
+      setActiveLocationType("custom");
+    }
+  }, [location]);
+
+  // Real-time Autocomplete search
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+
+    // Instant local matches so user sees results with 0ms delay
+    const lower = q.toLowerCase();
+    const instantMatches = ALL_CITIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(lower) ||
+        c.fullAddress.toLowerCase().includes(lower)
+    );
+    if (instantMatches.length > 0) {
+      setSuggestions(instantMatches.slice(0, 8));
+    }
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Also attempt remote geocoding if online
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await axios.get(
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6`,
+          { timeout: 3000 }
+        );
+
+        if (response.data?.features && response.data.features.length > 0) {
+          const fetched: SuggestionItem[] = response.data.features.map((f: any, idx: number) => {
+            const props = f.properties || {};
+            const [lng, lat] = f.geometry?.coordinates || [0, 0];
+            const name = props.name || props.city || q;
+            const parts = [
+              props.name,
+              props.city !== props.name ? props.city : null,
+              props.district,
+              props.state,
+              props.country,
+            ].filter(Boolean);
+            const fullAddress = parts.length > 0 ? parts.join(", ") : name;
+
+            return {
+              id: `photon_${props.osm_id || idx}_${idx}`,
+              name,
+              fullAddress,
+              lat,
+              lng,
+            };
+          });
+
+          setSuggestions(fetched);
+          setIsSearching(false);
+          return;
+        }
+      } catch {
+        // Fallback to local
+      }
+
+      if (instantMatches.length > 0) {
+        setSuggestions(instantMatches.slice(0, 8));
+      } else {
+        // User typed an unlisted address: allow custom pin
+        setSuggestions([
+          {
+            id: `custom_${Date.now()}`,
+            name: q,
+            fullAddress: q,
+            lat: mapRegion.latitude || 17.385,
+            lng: mapRegion.longitude || 78.4867,
+          },
+        ]);
+      }
+      setIsSearching(false);
+    }, 250);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [searchQuery]);
 
-  const markerCoordinate = useMemo(
-    () => ({
-      latitude: mapRegion.latitude,
-      longitude: mapRegion.longitude,
-    }),
-    [mapRegion.latitude, mapRegion.longitude],
-  );
-
-  const handleSelect = (selectedLoc: string, coords?: { lat: number; lng: number }) => {
-    if (!previousLocations.includes(selectedLoc) && selectedLoc !== location) {
-      setPreviousLocations([selectedLoc, ...previousLocations].slice(0, 5));
-    }
-    setLocation(selectedLoc);
-    setLocationModalVisible(false);
-    setIsTypingLocation(false);
-    setIsMapVisible(false);
-    setSearchQuery("");
-    setSelectedCity(null);
-
-    // Persist to backend if coordinates are available
-    if (coords) {
-      addLocation.mutate({
-        city: selectedLoc.split(",")[0].trim(),
-        state: "",
-        country: "",
-        lat: coords.lat,
-        lng: coords.lng,
-      });
-    }
-  };
-
-  const handleCityPick = (city: any) => {
-    Keyboard.dismiss();
-    setSelectedCity(city);
-    setMapRegion({
-      latitude: city.lat,
-      longitude: city.lng,
-      latitudeDelta: 0.08,
-      longitudeDelta: 0.08,
-    });
-    setIsMapVisible(true);
-  };
-
-  const applyResolvedLocation = async () => {
+  // Real GPS detection
+  const handleSelectGps = async () => {
     try {
-      setIsResolvingLocation(true);
-      const coords = await getCurrentLocation();
-      const nextRegion = {
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
+      setIsResolvingGps(true);
+      const coords = await getCurrentLocation(true);
 
-      setMapRegion(nextRegion);
+      // Determine real city from coordinates
+      const nearest = findNearestCity(coords.latitude, coords.longitude);
+      const resolvedCity = nearest ? nearest.name : t('search.location.my_current_location');
 
-      const response = await addLocation.mutateAsync({
-        city: "",
-        state: "",
-        country: "",
+      setActiveLocationType("gps");
+      setLocation(resolvedCity);
+      await AsyncStorage.setItem(STORAGE_ACTIVE_LOCATION_TYPE, "gps");
+
+      // Sync with backend
+      addLocation.mutate({
+        city: nearest ? nearest.name : "",
+        state: nearest ? nearest.fullAddress.split(",")[1]?.trim() || "" : "",
+        country: "India",
         lat: coords.latitude,
         lng: coords.longitude,
       });
 
-      const nextLocationLabel = buildLocationLabel(response, coords.latitude, coords.longitude);
-      handleSelect(nextLocationLabel, { lat: coords.latitude, lng: coords.longitude });
-    } catch (error) {
-      alert("Location Error", getLocationErrorMessage(error, "Unable to get your current location. Please verify GPS permissions."));
+      setLocationModalVisible(false);
+      setIsMapVisible(false);
+      setSearchQuery("");
+      setSuggestions([]);
+    } catch (err: any) {
+      alert(
+        "Location Error",
+        getLocationErrorMessage(
+          err,
+          "Unable to get your current location. Please verify GPS permissions."
+        )
+      );
     } finally {
-      setIsResolvingLocation(false);
+      setIsResolvingGps(false);
     }
   };
 
+  // Tap a suggestion to open Map
+  const handleSelectSuggestion = (item: SuggestionItem) => {
+    Keyboard.dismiss();
+    setSelectedLocation(item);
+    const newRegion: Region = {
+      latitude: item.lat,
+      longitude: item.lng,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    };
+    setMapRegion(newRegion);
+    setIsMapVisible(true);
+  };
+
+  // Tap a saved location to activate it
+  const handleSelectSavedLocation = async (item: SavedLocationItem) => {
+    setActiveLocationType("custom");
+    setLocation(item.name || item.fullAddress);
+    await AsyncStorage.setItem(STORAGE_ACTIVE_LOCATION_TYPE, "custom");
+
+    addLocation.mutate({
+      city: item.name,
+      state: "",
+      country: "",
+      lat: item.lat,
+      lng: item.lng,
+    });
+
+    setLocationModalVisible(false);
+    setIsMapVisible(false);
+    setSearchQuery("");
+  };
+
+  // Delete saved location
+  const handleDeleteSavedLocation = async (id: string) => {
+    const updated = savedLocations.filter((s) => s.id !== id);
+    setSavedLocations(updated);
+    await AsyncStorage.setItem(STORAGE_SAVED_LOCATIONS, JSON.stringify(updated));
+  };
+
+  // Confirm and set active from Map view
+  const handleConfirmLocation = async () => {
+    if (!selectedLocation) return;
+
+    const locName = selectedLocation.name || selectedLocation.fullAddress.split(",")[0].trim();
+    const fullAddr = selectedLocation.fullAddress;
+    const lat = mapRegion.latitude || selectedLocation.lat;
+    const lng = mapRegion.longitude || selectedLocation.lng;
+
+    const newItem: SavedLocationItem = {
+      id: `saved_${Date.now()}`,
+      name: locName,
+      fullAddress: fullAddr,
+      lat,
+      lng,
+    };
+
+    const exists = savedLocations.some(
+      (s) =>
+        s.name.toLowerCase() === locName.toLowerCase() ||
+        s.fullAddress.toLowerCase() === fullAddr.toLowerCase()
+    );
+
+    let updatedList = savedLocations;
+    if (!exists) {
+      updatedList = [newItem, ...savedLocations].slice(0, 10);
+      setSavedLocations(updatedList);
+      await AsyncStorage.setItem(STORAGE_SAVED_LOCATIONS, JSON.stringify(updatedList));
+    }
+
+    setActiveLocationType("custom");
+    setLocation(locName);
+    await AsyncStorage.setItem(STORAGE_ACTIVE_LOCATION_TYPE, "custom");
+
+    // Sync with backend
+    addLocation.mutate({
+      city: locName,
+      state: "",
+      country: "",
+      lat,
+      lng,
+    });
+
+    setIsMapVisible(false);
+    setLocationModalVisible(false);
+    setSearchQuery("");
+    setSuggestions([]);
+  };
+
+  // Re-center map to original selected coordinates
+  const handleRecenter = () => {
+    if (selectedLocation && mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: selectedLocation.lat,
+          longitude: selectedLocation.lng,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        },
+        500
+      );
+    }
+  };
+
+  const displayTitle = useMemo(() => {
+    if (activeLocationType === "gps") {
+      return location && location !== t('search.location.my_current_location') ? location : t('search.location.my_current_location');
+    }
+    return location || t('search.location.hyderabad');
+  }, [activeLocationType, location]);
+
+  const displaySubtitle = useMemo(() => {
+    if (activeLocationType === "gps") {
+      return t('search.location.using_gps_location');
+    }
+    return "Custom location";
+  }, [activeLocationType]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Location</Text>
+      <Text style={styles.label}>{t('search.location.search_location')}</Text>
 
+      {/* Main Search Location Card (matching media_1791822690914.png) */}
       <TouchableOpacity
-        style={styles.dropdown}
+        style={styles.locationCard}
+        activeOpacity={0.8}
         onPress={() => setLocationModalVisible(true)}
       >
-        <View style={styles.dropdownLeft}>
-          <FontAwesome5 name="map-marker-alt" size={16} color={themeColors.primary} style={{ marginRight: 10 }} />
-          <Text style={styles.text} numberOfLines={1}>{location || "My current location"}</Text>
+        <View style={styles.locationCardLeft}>
+          <Ionicons
+            name="location-outline"
+            size={22}
+            color={themeColors.primary}
+            style={{ marginRight: 12 }}
+          />
+          <View>
+            <Text style={styles.cardTitle} numberOfLines={1}>
+              {displayTitle}
+            </Text>
+            <Text style={styles.cardSubtitle}>
+              {displaySubtitle}
+            </Text>
+          </View>
         </View>
-        <MaterialIcons name="keyboard-arrow-down" size={24} color={themeColors.textSecondary} />
+
+        <TouchableOpacity
+          onPress={() => setLocationModalVisible(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.changeBtnText}>{t('search.location.change')}</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
 
-      <Modal visible={locationModalVisible} animationType="slide" transparent={false}>
-        <SafeAreaView style={styles.modalSafeArea}>
-          {!isTypingLocation ? (
-            // ==========================================
-            // SCREEN 1: GLAMBU-STYLE LOCATION DASHBOARD
-            // ==========================================
-            <View style={styles.fullScreen}>
+      {/* Modal: Change Location */}
+      <Modal
+        visible={locationModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {
+          if (isMapVisible) {
+            setIsMapVisible(false);
+          } else {
+            setLocationModalVisible(false);
+          }
+        }}
+      >
+        <SafeAreaView style={styles.modalSafeArea} edges={["top", "left", "right"]}>
+          {!isMapVisible ? (
+            /* ========================================================= */
+            /* SCREEN 1 & 2: LIST / SEARCH (media_1791822675727.png & media_1791822680523.png) */
+            /* ========================================================= */
+            <View style={styles.modalContent}>
               {/* Header */}
-              <View style={styles.header}>
+              <View style={styles.modalHeader}>
                 <TouchableOpacity
                   onPress={() => setLocationModalVisible(false)}
-                  style={styles.headerIconBtn}
+                  style={styles.backButton}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 >
-                  <Ionicons name="close" size={26} color={themeColors.text} />
+                  <Ionicons name="chevron-back" size={26} color={themeColors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Change Location</Text>
-                <View style={{ width: 36 }} />
+                <Text style={styles.modalHeaderTitle}>{t('profile.changelocation.change_location')}</Text>
               </View>
 
-              <ScrollView
-                style={styles.scrollBody}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {/* 1-Tap GPS Location Card */}
-                <TouchableOpacity
-                  style={styles.gpsCard}
-                  activeOpacity={0.85}
-                  onPress={applyResolvedLocation}
-                  disabled={isResolvingLocation}
-                >
-                  <View style={styles.gpsIconCircle}>
-                    {isResolvingLocation ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Ionicons name="navigate" size={20} color="#FFFFFF" />
-                    )}
-                  </View>
-                  <View style={styles.gpsTextWrapper}>
-                    <Text style={styles.gpsTitle}>Use Current Location</Text>
-                    <Text style={styles.gpsSubtitle} numberOfLines={1}>
-                      {location || "Detect your GPS position automatically"}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
-                </TouchableOpacity>
-
-                {/* Popular Cities Section (Glambu Style Chips) */}
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Popular Dating Hubs</Text>
-                  <Text style={styles.sectionBadge}>Top Cities</Text>
-                </View>
-                <View style={styles.chipsGrid}>
-                  {POPULAR_CITIES.map((city) => {
-                    const isSelected = location?.includes(city.name);
-                    return (
-                      <TouchableOpacity
-                        key={city.id}
-                        style={[styles.cityChip, isSelected && styles.cityChipActive]}
-                        activeOpacity={0.75}
-                        onPress={() => handleSelect(`${city.name}, ${city.country}`, { lat: city.lat, lng: city.lng })}
-                      >
-                        <FontAwesome5
-                          name="fire"
-                          size={11}
-                          color={isSelected ? '#FFFFFF' : themeColors.primary}
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text style={[styles.cityChipText, isSelected && styles.cityChipTextActive]}>
-                          {city.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Previous Locations History */}
-                {previousLocations.length > 0 && (
-                  <View style={styles.historySection}>
-                    <Text style={styles.sectionTitle}>Recent Locations</Text>
-                    {previousLocations.map((prev, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.historyItem}
-                        activeOpacity={0.7}
-                        onPress={() => handleSelect(prev)}
-                      >
-                        <View style={styles.historyLeft}>
-                          <Ionicons name="time-outline" size={18} color={themeColors.textSecondary} style={{ marginRight: 12 }} />
-                          <Text style={styles.historyText} numberOfLines={1}>{prev}</Text>
-                        </View>
-                        <Ionicons name="arrow-forward" size={16} color={themeColors.textSecondary} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+              {/* Search Input Bar */}
+              <View style={styles.searchBarContainer}>
+                <Ionicons
+                  name="search-outline"
+                  size={19}
+                  color={themeColors.textSecondary}
+                  style={{ marginRight: 8 }}
+                />
+                <TextInput
+                  ref={searchInputRef}
+                  style={styles.searchInput}
+                  placeholder={t('search.location.search_for_a_city_or_address')}
+                  placeholderTextColor={themeColors.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setSearchQuery("")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={18} color={themeColors.textSecondary} />
+                  </TouchableOpacity>
                 )}
-              </ScrollView>
-
-              {/* Bottom Floating Add/Search Button */}
-              <View style={styles.bottomBar}>
-                <TouchableOpacity
-                  style={styles.primaryActionButton}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setIsTypingLocation(true);
-                    setIsMapVisible(false);
-                    setSearchQuery("");
-                  }}
-                >
-                  <Ionicons name="search" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.primaryActionText}>Search or Add New Location</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            // ==========================================
-            // SCREEN 2: GLAMBU INSTANT AUTOCOMPLETE & MAP
-            // ==========================================
-            <View style={styles.fullScreen}>
-              {/* Header with Search Bar */}
-              <View style={styles.searchHeader}>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (isMapVisible) {
-                      setIsMapVisible(false);
-                    } else {
-                      setIsTypingLocation(false);
-                    }
-                  }}
-                  style={styles.headerIconBtn}
-                >
-                  <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-                </TouchableOpacity>
-
-                <View style={styles.searchBarBox}>
-                  <Ionicons name="search" size={18} color={themeColors.textSecondary} style={{ marginRight: 8 }} />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search city, state, or country..."
-                    placeholderTextColor={themeColors.textSecondary}
-                    value={searchQuery}
-                    onChangeText={(text) => {
-                      setSearchQuery(text);
-                      if (isMapVisible) setIsMapVisible(false);
-                    }}
-                    autoFocus={!isMapVisible}
-                    returnKeyType="search"
-                  />
-                  {searchQuery.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => setSearchQuery("")}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="close-circle" size={18} color={themeColors.textSecondary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Map/List Toggle */}
-                <TouchableOpacity
-                  style={[styles.mapToggleBtn, isMapVisible && styles.mapToggleBtnActive]}
-                  onPress={() => setIsMapVisible(!isMapVisible)}
-                >
-                  <FontAwesome5
-                    name={isMapVisible ? "list" : "map-marked-alt"}
-                    size={16}
-                    color={isMapVisible ? '#FFFFFF' : themeColors.primary}
-                  />
-                </TouchableOpacity>
+                {isSearching && (
+                  <ActivityIndicator size="small" color={themeColors.primary} style={{ marginLeft: 6 }} />
+                )}
               </View>
 
-              {/* View 1: Live City Autocomplete Search Results */}
-              {!isMapVisible ? (
-                <View style={{ flex: 1 }}>
-                  {/* Quick Popular Pills Bar when search is empty */}
-                  {searchQuery.trim().length === 0 && (
-                    <View style={styles.quickPillsRow}>
-                      <Text style={styles.quickPillTitle}>Popular:</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickPillsScroll}>
-                        {POPULAR_CITIES.slice(0, 6).map((city) => (
-                          <TouchableOpacity
-                            key={city.id}
-                            style={styles.microChip}
-                            onPress={() => handleCityPick(city)}
-                          >
-                            <Text style={styles.microChipText}>{city.name}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-
-                  {/* Instant City List */}
+              {/* Suggestions Dropdown Card (media_1791822680523.png) */}
+              {searchQuery.trim().length > 0 ? (
+                <View style={styles.suggestionsCard}>
                   <FlatList
-                    data={filteredCities}
+                    data={suggestions}
                     keyExtractor={(item) => item.id}
                     keyboardShouldPersistTaps="handled"
-                    contentContainerStyle={styles.cityListContent}
-                    renderItem={({ item }) => (
+                    renderItem={({ item, index }) => (
                       <TouchableOpacity
-                        style={styles.cityRow}
+                        style={[
+                          styles.suggestionRow,
+                          index < suggestions.length - 1 && styles.suggestionBorder,
+                        ]}
                         activeOpacity={0.7}
-                        onPress={() => handleCityPick(item)}
+                        onPress={() => handleSelectSuggestion(item)}
                       >
-                        <View style={styles.cityIconCircle}>
-                          <FontAwesome5 name="map-marker-alt" size={15} color={themeColors.primary} />
-                        </View>
-                        <View style={styles.cityInfo}>
-                          <Text style={styles.cityNameText}>{item.name}</Text>
-                          <Text style={styles.cityMetaText}>
-                            {item.state ? `${item.state}, ` : ""}{item.country}
-                          </Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={18} color={themeColors.textSecondary} />
+                        <Ionicons
+                          name="location-outline"
+                          size={19}
+                          color={themeColors.primary}
+                          style={{ marginRight: 12 }}
+                        />
+                        <Text style={styles.suggestionText} numberOfLines={1}>
+                          {item.fullAddress}
+                        </Text>
                       </TouchableOpacity>
                     )}
                     ListEmptyComponent={
-                      <View style={styles.emptySearchContainer}>
-                        <FontAwesome5 name="search-location" size={48} color={themeColors.textSecondary} style={{ marginBottom: 16 }} />
-                        <Text style={styles.emptySearchTitle}>No matching city found</Text>
-                        <Text style={styles.emptySearchDesc}>
-                          Try checking spelling or tap below to set "{searchQuery}" as custom location.
-                        </Text>
-                        {searchQuery.trim().length > 0 && (
-                          <TouchableOpacity
-                            style={styles.customAddButton}
-                            onPress={() => handleSelect(searchQuery.trim())}
-                          >
-                            <Text style={styles.customAddButtonText}>Set "{searchQuery.trim()}"</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
+                      !isSearching ? (
+                        <View style={{ padding: 18, alignItems: "center" }}>
+                          <Text style={{ color: themeColors.textSecondary, fontSize: 14 }}>{t('search.location.no_locations_found')}</Text>
+                        </View>
+                      ) : null
                     }
                   />
                 </View>
               ) : (
-                // View 2: Interactive Map with Confirmation Card
-                <View style={{ flex: 1 }}>
-                  <MapView
-                    style={styles.map}
-                    region={mapRegion}
-                    onRegionChangeComplete={setMapRegion}
-                    customMapStyle={isDark ? DARK_MAP_STYLE : []}
-                  >
-                    <Marker coordinate={markerCoordinate}>
-                      <View style={styles.customMarker}>
-                        <FontAwesome5 name="map-marker-alt" size={32} color={themeColors.primary} />
+                /* Main Location Card with GPS + Saved (media_1791822675727.png) */
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ paddingBottom: 90 }}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={styles.mainGroupCard}>
+                    {/* Using GPS Location */}
+                    <TouchableOpacity
+                      style={styles.gpsRow}
+                      activeOpacity={0.75}
+                      onPress={handleSelectGps}
+                      disabled={isResolvingGps}
+                    >
+                      <View style={styles.gpsRowLeft}>
+                        <Ionicons
+                          name="navigate-outline"
+                          size={24}
+                          color={themeColors.primary}
+                          style={{ marginRight: 14, transform: [{ rotate: "45deg" }] }}
+                        />
+                        <View>
+                          <Text style={styles.gpsTitle}>{t('search.location.using_gps_location')}</Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                            <Text style={styles.gpsSubtitle}>{t('search.location.my_current_location')}</Text>
+                            {activeLocationType === "gps" && (
+                              <>
+                                <Text style={styles.activeDot}> • </Text>
+                                <Text style={styles.activeBadgeText}>{t('search.location.active')}</Text>
+                              </>
+                            )}
+                          </View>
+                        </View>
                       </View>
-                    </Marker>
-                  </MapView>
 
-                  {/* Floating Bottom Card */}
-                  <View style={styles.floatingConfirmationCard}>
-                    <View style={styles.cardHeaderRow}>
-                      <View style={styles.cardPinCircle}>
-                        <FontAwesome5 name="map-marker-alt" size={18} color={themeColors.primary} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.confirmLocationTitle} numberOfLines={1}>
-                          {selectedCity
-                            ? `${selectedCity.name}, ${selectedCity.country}`
-                            : `${searchQuery || "Selected Location"}`}
-                        </Text>
-                        <Text style={styles.confirmLocationCoords}>
-                          {formatCoordinateLabel(mapRegion.latitude, mapRegion.longitude)}
-                        </Text>
-                      </View>
+                      {isResolvingGps ? (
+                        <ActivityIndicator size="small" color={themeColors.primary} />
+                      ) : activeLocationType === "gps" ? (
+                        <Ionicons name="checkmark" size={22} color={themeColors.primary} />
+                      ) : null}
+                    </TouchableOpacity>
+
+                    {/* Divider with "Saved" */}
+                    <View style={styles.savedDividerRow}>
+                      <View style={styles.dividerLine} />
+                      <Text style={styles.savedDividerText}>{t('search.location.saved')}</Text>
+                      <View style={styles.dividerLine} />
                     </View>
 
-                    <TouchableOpacity
-                      style={styles.primaryActionButton}
-                      activeOpacity={0.85}
-                      onPress={() => {
-                        const finalLabel = selectedCity
-                          ? `${selectedCity.name}, ${selectedCity.country}`
-                          : searchQuery || `Location (${formatCoordinateLabel(mapRegion.latitude, mapRegion.longitude)})`;
-                        handleSelect(finalLabel, { lat: mapRegion.latitude, lng: mapRegion.longitude });
-                      }}
-                    >
-                      <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                      <Text style={styles.primaryActionText}>Confirm & Set Location</Text>
-                    </TouchableOpacity>
+                    {/* Saved Locations List */}
+                    {savedLocations.length === 0 ? (
+                      <View style={styles.savedEmptyBox}>
+                        <Text style={styles.savedEmptyText}>{t('search.location.search_above_to_add_a_new_location')}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.savedList}>
+                        {savedLocations.map((item) => {
+                          const isActive =
+                            activeLocationType === "custom" &&
+                            (location === item.name || location === item.fullAddress);
+                          return (
+                            <TouchableOpacity
+                              key={item.id}
+                              style={styles.savedItemRow}
+                              activeOpacity={0.7}
+                              onPress={() => handleSelectSavedLocation(item)}
+                            >
+                              <View style={styles.savedItemLeft}>
+                                <Ionicons
+                                  name="location-outline"
+                                  size={20}
+                                  color={isActive ? themeColors.primary : themeColors.textSecondary}
+                                  style={{ marginRight: 12 }}
+                                />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.savedItemName} numberOfLines={1}>
+                                    {item.name}
+                                  </Text>
+                                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                    <Text style={styles.savedItemSub} numberOfLines={1}>
+                                      {item.fullAddress}
+                                    </Text>
+                                    {isActive && (
+                                      <>
+                                        <Text style={styles.activeDot}> • </Text>
+                                        <Text style={styles.activeBadgeText}>{t('search.location.active')}</Text>
+                                      </>
+                                    )}
+                                  </View>
+                                </View>
+                              </View>
+
+                              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                {isActive && (
+                                  <Ionicons
+                                    name="checkmark"
+                                    size={20}
+                                    color={themeColors.primary}
+                                    style={{ marginRight: 10 }}
+                                  />
+                                )}
+                                <TouchableOpacity
+                                  onPress={() => handleDeleteSavedLocation(item.id)}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                  <Ionicons name="trash-outline" size={17} color={themeColors.textSecondary} />
+                                </TouchableOpacity>
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
                   </View>
-                </View>
+                </ScrollView>
               )}
+
+              {/* Amara Gradient FAB (+) Button */}
+              <TouchableOpacity
+                style={styles.fabButton}
+                activeOpacity={0.85}
+                onPress={() => {
+                  searchInputRef.current?.focus();
+                }}
+              >
+                <LinearGradient
+                  colors={[themeColors.primary, themeColors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.fabGradient}
+                >
+                  <Ionicons name="add" size={28} color="#FFFFFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            /* ========================================================= */
+            /* SCREEN 3: MAP VIEW (media_1791822686051.png)              */
+            /* ========================================================= */
+            <View style={styles.mapContainer}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <TouchableOpacity
+                  onPress={() => setIsMapVisible(false)}
+                  style={styles.backButton}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                  <Ionicons name="chevron-back" size={26} color={themeColors.text} />
+                </TouchableOpacity>
+                <Text style={styles.modalHeaderTitle}>{t('profile.changelocation.change_location')}</Text>
+              </View>
+
+              {/* Map */}
+              <View style={{ flex: 1, position: "relative" }}>
+                <MapView
+                  ref={mapRef}
+                  style={StyleSheet.absoluteFillObject}
+                  region={mapRegion}
+                  onRegionChangeComplete={setMapRegion}
+                  customMapStyle={isDark ? AMARA_DARK_MAP_STYLE : []}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: mapRegion.latitude,
+                      longitude: mapRegion.longitude,
+                    }}
+                  >
+                    <View style={styles.mapPinContainer}>
+                      <Ionicons name="location-sharp" size={38} color={themeColors.secondary} />
+                    </View>
+                  </Marker>
+                </MapView>
+
+                {/* Top-left Floating Back Button */}
+                <TouchableOpacity
+                  style={styles.floatingBackButton}
+                  activeOpacity={0.85}
+                  onPress={() => setIsMapVisible(false)}
+                >
+                  <Ionicons name="arrow-back" size={20} color={themeColors.text} />
+                </TouchableOpacity>
+
+                {/* Top-right Floating Recenter Button */}
+                <TouchableOpacity
+                  style={styles.floatingRecenterButton}
+                  activeOpacity={0.85}
+                  onPress={handleRecenter}
+                >
+                  <MaterialIcons name="my-location" size={20} color={themeColors.text} />
+                </TouchableOpacity>
+
+                {/* Bottom Sheet Card */}
+                <View style={styles.bottomSheetCard}>
+                  <Text style={styles.bottomSheetTitle} numberOfLines={1}>
+                    {selectedLocation?.fullAddress || selectedLocation?.name || t('search.location.selected_location')}
+                  </Text>
+                  <Text style={styles.bottomSheetCoords}>
+                    {formatCoords(mapRegion.latitude, mapRegion.longitude)}
+                  </Text>
+
+                  {/* Amara Gradient Save & Set Active Button */}
+                  <TouchableOpacity
+                    style={styles.saveActiveButton}
+                    activeOpacity={0.85}
+                    onPress={handleConfirmLocation}
+                  >
+                    <LinearGradient
+                      colors={[themeColors.primary, themeColors.secondary]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.saveActiveGradient}
+                    >
+                      <Text style={styles.saveActiveButtonText}>{t('search.location.save_set_active')}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           )}
         </SafeAreaView>
@@ -572,7 +831,7 @@ const Location = () => {
   );
 };
 
-const createStyles = (themeColors: ThemeColors) =>
+const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
   StyleSheet.create({
     container: {
       padding: Spacing.xl,
@@ -584,375 +843,334 @@ const createStyles = (themeColors: ThemeColors) =>
       borderColor: themeColors.borderLight,
     },
     label: {
-      fontWeight: "600",
-      fontSize: 15,
+      fontWeight: "700",
+      fontSize: 16,
       marginBottom: Spacing.md,
-      color: themeColors.textSecondary,
+      color: themeColors.text,
+      letterSpacing: 0.1,
     },
-    dropdown: {
+    locationCard: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.md + 2,
+      justifyContent: "space-between",
       backgroundColor: themeColors.surfaceLight,
       borderRadius: Spacing.radiusLg,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 14,
       borderWidth: 1,
       borderColor: themeColors.borderLight,
     },
-    dropdownLeft: {
+    locationCardLeft: {
       flexDirection: "row",
       alignItems: "center",
       flex: 1,
+      marginRight: 12,
     },
-    text: {
-      fontSize: 15,
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: "600",
       color: themeColors.text,
-      fontWeight: "500",
     },
+    cardSubtitle: {
+      fontSize: 13,
+      color: themeColors.textSecondary,
+      marginTop: 2,
+    },
+    changeBtnText: {
+      color: themeColors.primary,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+
+    // Modal
     modalSafeArea: {
       flex: 1,
       backgroundColor: themeColors.background,
     },
-    fullScreen: {
+    modalContent: {
       flex: 1,
-      backgroundColor: themeColors.background,
+      position: "relative",
     },
-    header: {
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      backgroundColor: themeColors.background,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: themeColors.borderLight,
+    },
+    backButton: {
+      marginRight: 12,
+    },
+    modalHeaderTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: themeColors.text,
+    },
+
+    // Search input
+    searchBarContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: themeColors.surfaceLight,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      marginHorizontal: 16,
+      marginTop: 14,
+      marginBottom: 14,
+      paddingHorizontal: 12,
+      height: 46,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: themeColors.text,
+      paddingVertical: 0,
+    },
+
+    // Suggestions dropdown
+    suggestionsCard: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 14,
+      marginHorizontal: 16,
+      paddingVertical: 4,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.4 : 0.1,
+      shadowRadius: 10,
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      maxHeight: 360,
+    },
+    suggestionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    suggestionBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: themeColors.borderLight,
+    },
+    suggestionText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: themeColors.text,
+      flex: 1,
+    },
+
+    // Main group card
+    mainGroupCard: {
+      backgroundColor: themeColors.surfaceLight,
+      borderRadius: 16,
+      marginHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 20,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    gpsRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: Spacing.lg,
-      height: 60,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.borderLight,
-      backgroundColor: themeColors.surface,
+      paddingHorizontal: 16,
+      paddingBottom: 14,
     },
-    headerIconBtn: {
-      padding: 6,
-    },
-    headerTitle: {
-      fontSize: 18,
-      color: themeColors.text,
-      fontWeight: "700",
-      letterSpacing: 0.3,
-    },
-    scrollBody: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingHorizontal: Spacing.xl,
-      paddingTop: Spacing.lg,
-      paddingBottom: 100,
-    },
-    gpsCard: {
+    gpsRowLeft: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: themeColors.surface,
-      borderWidth: 1.5,
-      borderColor: themeColors.primary,
-      borderRadius: Spacing.radiusXl,
-      padding: Spacing.lg,
-      marginBottom: Spacing.xl,
-    },
-    gpsIconCircle: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: themeColors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: Spacing.md,
-    },
-    gpsTextWrapper: {
       flex: 1,
     },
     gpsTitle: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: "700",
       color: themeColors.text,
-      marginBottom: 2,
     },
     gpsSubtitle: {
       fontSize: 13,
       color: themeColors.textSecondary,
     },
-    sectionHeaderRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: Spacing.md,
-    },
-    sectionTitle: {
-      fontSize: 16,
-      fontWeight: "700",
-      color: themeColors.text,
-    },
-    sectionBadge: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: themeColors.primary,
-      backgroundColor: "rgba(124, 58, 237, 0.12)",
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 6,
-    },
-    chipsGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 10,
-      marginBottom: Spacing.xxl,
-    },
-    cityChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: themeColors.surfaceLight,
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
-    },
-    cityChipActive: {
-      backgroundColor: themeColors.primary,
-      borderColor: themeColors.primary,
-    },
-    cityChipText: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: themeColors.text,
-    },
-    cityChipTextActive: {
-      color: "#FFFFFF",
-    },
-    historySection: {
-      marginTop: Spacing.sm,
-    },
-    historyItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.borderLight,
-    },
-    historyLeft: {
-      flexDirection: "row",
-      alignItems: "center",
-      flex: 1,
-    },
-    historyText: {
-      fontSize: 15,
-      color: themeColors.text,
-      fontWeight: "500",
-    },
-    bottomBar: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: themeColors.surface,
-      borderTopWidth: 1,
-      borderTopColor: themeColors.borderLight,
-      padding: Spacing.xl,
-      paddingBottom: Platform.OS === "ios" ? 34 : Spacing.xl,
-    },
-    primaryActionButton: {
-      backgroundColor: themeColors.primary,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 16,
-      borderRadius: Spacing.radiusLg,
-    },
-    primaryActionText: {
-      color: "#FFFFFF",
-      fontSize: 16,
-      fontWeight: "700",
-    },
-    searchHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: Spacing.md,
-      paddingVertical: Spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.borderLight,
-      backgroundColor: themeColors.surface,
-    },
-    searchBarBox: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: themeColors.surfaceLight,
-      borderRadius: Spacing.radiusLg,
-      paddingHorizontal: Spacing.md,
-      marginHorizontal: 8,
-      height: 44,
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
-    },
-    searchInput: {
-      flex: 1,
-      fontSize: 15,
-      color: themeColors.text,
-      paddingVertical: 4,
-    },
-    mapToggleBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: Spacing.radiusLg,
-      backgroundColor: themeColors.surfaceLight,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
-    },
-    mapToggleBtnActive: {
-      backgroundColor: themeColors.primary,
-      borderColor: themeColors.primary,
-    },
-    quickPillsRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: 10,
-      backgroundColor: themeColors.surfaceLight,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.borderLight,
-    },
-    quickPillTitle: {
-      fontSize: 12,
-      fontWeight: "700",
-      color: themeColors.textSecondary,
-      marginRight: 8,
-    },
-    quickPillsScroll: {
-      gap: 8,
-    },
-    microChip: {
-      backgroundColor: themeColors.surface,
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
-    },
-    microChipText: {
-      color: themeColors.text,
-      fontSize: 12,
-      fontWeight: "600",
-    },
-    cityListContent: {
-      paddingVertical: Spacing.sm,
-    },
-    cityRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: Spacing.xl,
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: themeColors.borderLight,
-    },
-    cityIconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: themeColors.surfaceLight,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: 14,
-    },
-    cityInfo: {
-      flex: 1,
-    },
-    cityNameText: {
-      fontSize: 16,
-      fontWeight: "700",
-      color: themeColors.text,
-      marginBottom: 2,
-    },
-    cityMetaText: {
+    activeDot: {
       fontSize: 13,
       color: themeColors.textSecondary,
     },
-    emptySearchContainer: {
+    activeBadgeText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: themeColors.secondary,
+      letterSpacing: 0.4,
+    },
+
+    // Divider
+    savedDividerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      marginVertical: 8,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: themeColors.borderLight,
+    },
+    savedDividerText: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+      paddingHorizontal: 10,
+    },
+
+    // Saved locations
+    savedEmptyBox: {
       alignItems: "center",
       justifyContent: "center",
-      paddingTop: 60,
-      paddingHorizontal: Spacing.xxl,
+      paddingVertical: 20,
+      paddingHorizontal: 16,
     },
-    emptySearchTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: themeColors.text,
-      marginBottom: 8,
-    },
-    emptySearchDesc: {
-      fontSize: 14,
+    savedEmptyText: {
+      fontSize: 13,
       color: themeColors.textSecondary,
       textAlign: "center",
-      lineHeight: 20,
-      marginBottom: 20,
     },
-    customAddButton: {
-      backgroundColor: themeColors.surfaceLight,
-      borderWidth: 1,
-      borderColor: themeColors.primary,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 20,
+    savedList: {
+      paddingHorizontal: 16,
+      paddingTop: 4,
     },
-    customAddButtonText: {
-      color: themeColors.primary,
-      fontWeight: "700",
-      fontSize: 14,
+    savedItemRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: themeColors.borderLight,
     },
-    map: {
+    savedItemLeft: {
+      flexDirection: "row",
+      alignItems: "center",
       flex: 1,
+      marginRight: 10,
     },
-    customMarker: {
+    savedItemName: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: themeColors.text,
+    },
+    savedItemSub: {
+      fontSize: 12,
+      color: themeColors.textSecondary,
+      maxWidth: 160,
+    },
+
+    // FAB Button with Amara Gradient
+    fabButton: {
+      position: "absolute",
+      right: 20,
+      bottom: 24,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      shadowColor: themeColors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      elevation: 6,
+      overflow: "hidden",
+    },
+    fabGradient: {
+      width: "100%",
+      height: "100%",
       alignItems: "center",
       justifyContent: "center",
     },
-    floatingConfirmationCard: {
+
+    // Map screen
+    mapContainer: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    mapPinContainer: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    floatingBackButton: {
       position: "absolute",
-      bottom: Platform.OS === "ios" ? 36 : 20,
+      top: 16,
+      left: 16,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: themeColors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.35 : 0.15,
+      shadowRadius: 4,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    floatingRecenterButton: {
+      position: "absolute",
+      top: 16,
+      right: 16,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: themeColors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.35 : 0.15,
+      shadowRadius: 4,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    bottomSheetCard: {
+      position: "absolute",
+      bottom: 20,
       left: 16,
       right: 16,
       backgroundColor: themeColors.surface,
-      borderRadius: Spacing.radiusXl,
-      padding: Spacing.xl,
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
-      elevation: 12,
+      borderRadius: 20,
+      padding: 18,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.25,
-      shadowRadius: 12,
+      shadowOpacity: isDark ? 0.5 : 0.15,
+      shadowRadius: 10,
+      elevation: 6,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
     },
-    cardHeaderRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: Spacing.lg,
-    },
-    cardPinCircle: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      backgroundColor: themeColors.surfaceLight,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: 12,
-    },
-    confirmLocationTitle: {
-      fontSize: 17,
+    bottomSheetTitle: {
+      fontSize: 16,
       fontWeight: "700",
       color: themeColors.text,
+      marginBottom: 3,
     },
-    confirmLocationCoords: {
-      fontSize: 12,
+    bottomSheetCoords: {
+      fontSize: 13,
       color: themeColors.textSecondary,
-      marginTop: 2,
+      marginBottom: 16,
+    },
+    saveActiveButton: {
+      borderRadius: 25,
+      overflow: "hidden",
+    },
+    saveActiveGradient: {
+      paddingVertical: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 25,
+    },
+    saveActiveButtonText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "600",
     },
   });
 

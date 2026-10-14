@@ -2,14 +2,18 @@ import React, { useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const appearanceOptions = ['Very attractive', 'Attractive', 'Average', 'Below average'];
+const appearanceLabel = (val: string) =>
+  val === 'Attractive' ? t('profile.userdetails.attractive') : val;
 
 interface AppearanceProps {
   onChange?: (val: string[]) => void;
 }
 
 const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { selectedOptions, setSelectedOptions } = useContext(AppContext);
@@ -24,7 +28,7 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Appearance</Text>
+      <Text style={styles.label}>{t('search.appearance.appearance')}</Text>
       <View style={styles.optionsWrapper}>
         {appearanceOptions.map((option, index) => (
           <TouchableOpacity
@@ -33,7 +37,7 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
             onPress={() => toggleOption(option)}
           >
             <Text style={[styles.optionText, selectedOptions.includes(option) && styles.optionTextSelected]}>
-              {option}
+              {appearanceLabel(option)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -54,10 +58,11 @@ const createStyles = (themeColors: ThemeColors) =>
       borderColor: themeColors.borderLight,
     },
     label: {
-      fontWeight: '600',
-      fontSize: 15,
+      fontWeight: '700',
+      fontSize: 16,
       marginBottom: Spacing.md,
-      color: themeColors.textSecondary,
+      color: themeColors.text,
+      letterSpacing: 0.1,
     },
     optionsWrapper: {
       flexDirection: 'row',

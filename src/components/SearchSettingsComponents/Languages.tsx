@@ -2,25 +2,17 @@ import React, { useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { getLanguageFlag, PROFILE_LANGUAGES } from '../../utils/languageHelper';
+import { t, useTranslation } from '../../i18n';
 
-const languages = [
-  'English',
-  'Spanish',
-  'Portuguese',
-  'German',
-  'Romanian',
-  'Russian',
-  'French',
-  'Chinese',
-  'Japanese',
-  'Indonesian',
-];
+const languages = PROFILE_LANGUAGES;
 
 interface LanguagesProps {
   onChange?: (val: string[]) => void;
 }
 
 const Languages: React.FC<LanguagesProps> = ({ onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { searchLanguages, setSearchLanguages } = useContext(AppContext);
@@ -35,19 +27,23 @@ const Languages: React.FC<LanguagesProps> = ({ onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Languages</Text>
+      <Text style={styles.label}>{t('profile.userdetails.languages')}</Text>
       <View style={styles.optionsContainer}>
-        {languages.map((lang) => (
-          <TouchableOpacity
-            key={lang}
-            style={[styles.option, searchLanguages.includes(lang) && styles.selectedOption]}
-            onPress={() => toggleLanguage(lang)}
-          >
-            <Text style={[styles.optionText, searchLanguages.includes(lang) && styles.selectedOptionText]}>
-              {lang}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {languages.map((lang) => {
+          const isSelected = searchLanguages.includes(lang);
+          const flag = getLanguageFlag(lang);
+          return (
+            <TouchableOpacity
+              key={lang}
+              style={[styles.option, isSelected && styles.selectedOption]}
+              onPress={() => toggleLanguage(lang)}
+            >
+              <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
+                {flag}  {lang}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -67,10 +63,11 @@ const createStyles = (themeColors: ThemeColors) =>
       borderColor: themeColors.borderLight,
     },
     label: {
-      fontWeight: '600',
-      fontSize: 15,
+      fontWeight: '700',
+      fontSize: 16,
       marginBottom: Spacing.md,
-      color: themeColors.textSecondary,
+      color: themeColors.text,
+      letterSpacing: 0.1,
     },
     optionsContainer: {
       flexDirection: 'row',

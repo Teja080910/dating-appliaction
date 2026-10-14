@@ -1,13 +1,14 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const levels = ['Basic', 'Medium', 'Good', 'Very Good'];
+const getLevels = () => [t('onboarding.moredetailsscreen.basic'), t('profile.userdetails.medium'), 'Good', 'Very Good'];
 
 const EnglishSkillSelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { englishSkillLevel, setEnglishSkillLevel } = useContext(AppContext);
 
@@ -15,26 +16,19 @@ const EnglishSkillSelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="earth" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>How good is your English?</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.englishskillselector.how_good_is_your_english')}</Text>
       </View>
       <View style={styles.optionsWrap}>
-        {levels.map((level, index) => {
+        {getLevels().map((level, index) => {
           const isSelected = englishSkillLevel === index;
           return isSelected ? (
             <TouchableOpacity
               key={level}
               activeOpacity={0.8}
               onPress={() => setEnglishSkillLevel(index)}
-              style={styles.pillActiveWrapper}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
             >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.primaryLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pillActiveGradient}
-              >
-                <Text style={styles.pillTextActive}>{level}</Text>
-              </LinearGradient>
+              <Text style={styles.pillTextActive}>{level}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -45,7 +39,7 @@ const EnglishSkillSelector = () => {
                 styles.pillInactive,
                 {
                   backgroundColor: themeColors.surfaceLight,
-                  borderColor: themeColors.borderLight,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
@@ -94,11 +88,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  pillActiveWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  pillActiveGradient: {
+  pillActive: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
@@ -107,7 +97,7 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     fontSize: 14.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
 });

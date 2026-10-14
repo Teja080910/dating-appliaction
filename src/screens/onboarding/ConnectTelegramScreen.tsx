@@ -6,33 +6,36 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Image,
   BackHandler,
   ActivityIndicator,
   TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
+  Modal,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Feather from 'react-native-vector-icons/Feather';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { completeOnboarding } from '../../utils/session';
 import { useTelegram } from '../../api/useTelegram';
 import { useProfile } from '../../api/useProfile';
-import { Colors, Spacing, Shadows } from '../../theme';
+import { Colors, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
+import { t, useTranslation } from '../../i18n';
 
 const ConnectTelegramScreen = ({ navigation, route }: any) => {
+  useTranslation();
   const fromProfile = Boolean(route?.params?.fromProfile);
-  const { connectTelegram } = useTelegram();
+  const { connectTelegram, disconnectTelegram } = useTelegram();
   const { useMyProfile } = useProfile();
   const { data: profile, refetch: refetchProfile } = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
+  const { themeColors, isDark } = useTheme();
+
   const [loading, setLoading] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const rawConnected = profile?.telegramUsername || '';
   const cleanConnected = rawConnected.replace(/^@+/, '');
@@ -55,7 +58,7 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
           navigation.goBack();
           return true;
         }
-        navigation.replace('AboutProfile');
+        navigation.replace('UploadImage');
         return true;
       };
 
@@ -64,458 +67,536 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
     }, [navigation, fromProfile]),
   );
 
-  const handleSkip = async () => {
-    if (fromProfile) {
-      navigation.goBack();
-      return;
-    }
-    try {
-      await completeOnboarding();
-      navigation.navigate('BottomTabs');
-    } catch (e) {
-      navigation.navigate('BottomTabs');
-    }
-  };
-
   const handleBack = () => {
     if (fromProfile || navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.replace('AboutProfile');
+      navigation.replace('UploadImage');
     }
   };
 
-  const handleUsernameChange = (val: string) => {
-    // Strip leading @ and any internal spaces for effortless input
-    setTelegramUsername(val.replace(/^@+/, '').replace(/\s+/g, ''));
+  const handleNextOrSkip = () => {
+    if (fromProfile) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('AboutProfile');
   };
 
-  const handleConnectTelegram = async () => {
+  const handleConnectTelegramPress = async () => {
+    // Open Telegram bot directly
+    const botUrl = 'https://t.me/amara_dating_bot';
+    const appUrl = 'tg://resolve?domain=amara_dating_bot';
+
+    try {
+      const supported = await Linking.canOpenURL(appUrl);
+      if (supported) {
+        await Linking.openURL(appUrl);
+      } else {
+        await Linking.openURL(botUrl);
+      }
+    } catch {
+      Linking.openURL(botUrl).catch(() => {});
+    }
+
+    // Open username linking modal
+    setModalVisible(true);
+  };
+
+  const handleSaveUsername = async () => {
+    const username = telegramUsername.trim().replace(/^@+/, '');
+    if (!username) {
+      alert('Username Required', 'Please enter your Telegram username.');
+      return;
+    }
+
+    // Telegram username format: 5 to 32 characters, letters, numbers, underscores
+    const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/;
+    if (!TELEGRAM_USERNAME_REGEX.test(username)) {
+      alert(
+        'Invalid Username',
+        'Username must start with a letter and contain 4-32 alphanumeric characters or underscores.'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
-      const username = telegramUsername.trim().replace(/^@+/, '');
-      if (!username) {
-        throw new Error('Please enter your Telegram username.');
-      }
-
-      // Telegram username format: 5 to 32 characters, letters, numbers, underscores, starting with letter
-      const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/;
-      if (!TELEGRAM_USERNAME_REGEX.test(username)) {
-        throw new Error(
-          'Invalid username. It must be 5 to 32 characters, start with a letter, and contain only letters, numbers, and underscores (e.g. yourname).'
-        );
-      }
-
       await connectTelegram.mutateAsync({ userId: '', username });
       await refetchProfile();
-
       setLoading(false);
-
-      if (fromProfile) {
-        alert('Saved', 'Your Telegram username has been updated successfully.', [
-          { text: 'Done', onPress: () => navigation.goBack() },
-        ]);
-      } else {
-        await completeOnboarding();
-        navigation.navigate('BottomTabs');
-      }
-    } catch (error) {
+      setModalVisible(false);
+      alert('Connected', t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
+    } catch (error: any) {
       setLoading(false);
-      console.error('Telegram Error:', error);
-      if (fromProfile) {
-        alert('Notice', error instanceof Error ? error.message : 'Could not save Telegram username right now.');
-      } else {
-        alert('Telegram Connect', error instanceof Error ? error.message : 'We could not save your Telegram username right now. You can continue onboarding and connect Telegram later from your profile.', [
-          {
-            text: 'Continue',
-            onPress: async () => {
-              try {
-                await completeOnboarding();
-              } catch (e) {}
-              navigation.navigate('BottomTabs');
-            },
-          },
-        ]);
-      }
+      alert('Error', error?.message || t('onboarding.connecttelegramscreen.could_not_save_telegram_username'));
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setLoading(true);
+    try {
+      await disconnectTelegram.mutateAsync({ userId: '' });
+      await refetchProfile();
+      setTelegramUsername('');
+      setLoading(false);
+      setModalVisible(false);
+      alert('Disconnected', 'Your Telegram account has been disconnected.');
+    } catch (error: any) {
+      setLoading(false);
+      alert('Error', error?.message || t('onboarding.connecttelegramscreen.could_not_disconnect_telegram'));
     }
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={[Colors.background, '#13111C']} style={styles.gradient}>
-        <SafeAreaView style={styles.safeArea}>
-          {/* Header */}
-          {fromProfile ? (
-            <View style={styles.profileHeader}>
-              <TouchableOpacity
-                onPress={handleBack}
-                style={styles.backBtnTouch}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Icon name="arrow-left" size={24} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.profileHeaderTitle}>Telegram</Text>
-              <View style={styles.headerRightPlaceholder} />
-            </View>
-          ) : (
-            <View style={styles.onboardingTopBar}>
-              <View style={styles.progressBackground}>
-                <View style={styles.progressBar} />
-              </View>
-              <View style={styles.topBarRow}>
-                <TouchableOpacity
-                  onPress={handleBack}
-                  style={styles.backBtnTouch}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Icon name="close" size={24} color={Colors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-                  <Text style={styles.skipBtnText}>Skip</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? themeColors.background : '#FFFFFF' },
+      ]}
+      edges={['top', 'left', 'right']}
+    >
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? themeColors.background : '#FFFFFF'}
+      />
 
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      {/* Header matching screenshot or onboarding 8-step bar */}
+      {fromProfile ? (
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9',
+              backgroundColor: isDark ? themeColors.background : '#FFFFFF',
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backButton}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
           >
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
+            <Feather name="chevron-left" size={28} color={isDark ? '#FFFFFF' : '#000000'} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>{t('nav.bottomtabs.telegram')}</Text>
+        </View>
+      ) : (
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Feather name="chevron-left" size={28} color={isDark ? '#FFFFFF' : '#000000'} />
+          </TouchableOpacity>
+          <View style={styles.progressBarWrapper}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((stepNum) => (
+              <View
+                key={stepNum}
+                style={[
+                  styles.progressDash,
+                  stepNum <= 5
+                    ? { backgroundColor: themeColors.primary }
+                    : { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB' },
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Main Content */}
+      <View style={styles.content}>
+        {/* Description text matching screenshot */}
+        <Text
+          style={[
+            styles.description,
+            { color: isDark ? '#CBD5E1' : '#333333' },
+          ]}
+        >{t('onboarding.connecttelegramscreen.connect_telegram_to_receive_notifications_and_messages_through_the_ama')}</Text>
+
+        {/* Card matching screenshot */}
+        <View
+          style={[
+            styles.cardContainer,
+            {
+              borderColor: isDark ? 'rgba(56, 189, 248, 0.4)' : '#8FD2F8',
+            },
+          ]}
+        >
+          {/* Top Half: Connect Telegram Button */}
+          <TouchableOpacity
+            style={styles.connectButton}
+            activeOpacity={0.85}
+            onPress={handleConnectTelegramPress}
+          >
+            <Icon
+              name="send"
+              size={20}
+              color="#FFFFFF"
+              style={styles.sendIcon}
+            />
+            <Text style={styles.connectButtonText}>{t('profile.contactdetails.connect_telegram')}</Text>
+          </TouchableOpacity>
+
+          {/* Bottom Half: Status Display */}
+          <TouchableOpacity
+            style={[
+              styles.statusArea,
+              {
+                backgroundColor: isDark ? 'rgba(46, 165, 232, 0.12)' : '#E5F3FD',
+              },
+            ]}
+            activeOpacity={cleanConnected ? 0.7 : 1}
+            onPress={() => {
+              if (cleanConnected) setModalVisible(true);
+            }}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                { color: isDark ? '#BAE6FD' : '#0A3960' },
+              ]}
+            >{t('profile.contactdetails.status')}{' '}
+              <Text
+                style={[
+                  styles.statusValue,
+                  cleanConnected ? styles.statusConnected : null,
+                ]}
+              >
+                {cleanConnected ? t('profile.contactdetails.connected', { cleanConnected }) : 'Not connected'}
+              </Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Actions for onboarding */}
+        {!fromProfile && (
+          <View style={styles.onboardingActions}>
+            <TouchableOpacity
+              style={[
+                styles.nextBtn,
+                { backgroundColor: themeColors.primary },
+              ]}
+              onPress={handleNextOrSkip}
+              activeOpacity={0.85}
             >
-              <View style={styles.topSection}>
-                {/* Telegram Icon */}
-                <View style={styles.iconCircle}>
-                  <Image
-                    source={{ uri: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png' }}
-                    style={styles.telegramIcon}
-                  />
-                </View>
+              <Text style={styles.nextBtnText}>{t('onboarding.aboutprofilescreen.next')}</Text>
+            </TouchableOpacity>
 
-                {/* Heading */}
-                <Text style={styles.heading}>
-                  {cleanConnected ? 'Your Telegram Handle' : 'What’s your Telegram?'}
-                </Text>
+            <TouchableOpacity style={styles.bottomSkip} onPress={handleNextOrSkip}>
+              <Text style={styles.bottomSkipText}>{t('onboarding.connecttelegramscreen.set_up_later')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
-                {/* Subtitle */}
-                <Text style={styles.subtitle}>
-                  Approved matches can contact you safely once a date invitation is accepted.
-                </Text>
+      {/* Modal for entering/editing Telegram username or disconnecting */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: isDark ? '#1A1730' : '#FFFFFF' },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: isDark ? '#FFFFFF' : '#0F172A' },
+              ]}
+            >
+              {cleanConnected ? t('profile.contactdetails.manage_telegram') : t('profile.contactdetails.link_telegram_account')}
+            </Text>
 
-                {/* Native Input with Fixed @ Badge */}
-                <View style={[styles.inputContainer, isFocused && styles.inputContainerFocused]}>
-                  <View style={styles.atBadge}>
-                    <Text style={styles.atText}>@</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={telegramUsername}
-                    onChangeText={handleUsernameChange}
-                    placeholder="username"
-                    placeholderTextColor={Colors.textMuted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                  />
-                  {telegramUsername.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => setTelegramUsername('')}
-                      style={styles.clearBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Icon name="close-circle" size={18} color={Colors.textMuted} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+            <Text
+              style={[
+                styles.modalSubtitle,
+                { color: isDark ? '#94A3B8' : '#64748B' },
+              ]}
+            >{t('profile.contactdetails.enter_your_telegram_username_to_connect_with_the_amara_telegram_bot')}</Text>
 
-                {/* Legible Guide Box */}
-                <View style={styles.guideCard}>
-                  <View style={styles.guideHeaderRow}>
-                    <Icon name="lightbulb-on-outline" size={17} color="#facc15" style={{ marginRight: 6 }} />
-                    <Text style={styles.guideTitle}>How to find your username</Text>
-                  </View>
-                  <Text style={styles.guideBody}>
-                    In Telegram, go to <Text style={styles.guideBold}>Settings</Text> →{' '}
-                    <Text style={styles.guideBold}>Username</Text> (or Edit Profile → Username).
-                  </Text>
-                  <Text style={styles.guideNote}>
-                    Use your Telegram handle, not your phone number or display name.
-                  </Text>
-                </View>
-              </View>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: isDark ? '#262244' : '#F8FAFC',
+                  borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E2E8F0',
+                },
+              ]}
+            >
+              <Text style={styles.atPrefix}>@</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  { color: isDark ? '#FFFFFF' : '#0F172A' },
+                ]}
+                placeholder="username"
+                placeholderTextColor="#94A3B8"
+                value={telegramUsername}
+                onChangeText={(val) =>
+                  setTelegramUsername(val.replace(/^@+/, '').replace(/\s+/g, ''))
+                }
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
 
-              {/* Bottom Actions */}
-              <View style={styles.bottomSection}>
+            <View style={styles.modalBtnRow}>
+              {cleanConnected ? (
                 <TouchableOpacity
-                  style={styles.saveBtn}
-                  onPress={handleConnectTelegram}
+                  style={styles.disconnectBtn}
+                  onPress={handleDisconnect}
                   disabled={loading}
-                  activeOpacity={0.85}
                 >
-                  <LinearGradient
-                    colors={[Colors.primary, Colors.secondary]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.saveGradient}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color={Colors.white} />
-                    ) : (
-                      <Text style={styles.saveBtnText}>
-                        {fromProfile || cleanConnected ? 'Save' : 'Continue'}
-                      </Text>
-                    )}
-                  </LinearGradient>
+                  <Text style={styles.disconnectBtnText}>{t('profile.contactdetails.disconnect')}</Text>
                 </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.cancelModalBtn}
+                  onPress={() => setModalVisible(false)}
+                  disabled={loading}
+                >
+                  <Text style={styles.cancelModalBtnText}>{t('profile.additionaluploadsection.cancel')}</Text>
+                </TouchableOpacity>
+              )}
 
-                <Text style={styles.privacyNote}>
-                  🔒 Private & confidential. Never revealed without mutual approval.
-                </Text>
-
-                {!fromProfile && (
-                  <TouchableOpacity style={styles.bottomSkip} onPress={handleSkip}>
-                    <Text style={styles.bottomSkipText}>Set up later</Text>
-                  </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveModalBtn}
+                onPress={handleSaveUsername}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveModalBtnText}>{t('more_info.savebutton.save')}</Text>
                 )}
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {AlertComponent}
-    </View>
+    </SafeAreaView>
   );
 };
 
 export default ConnectTelegramScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  gradient: { flex: 1 },
-  safeArea: { flex: 1 },
-
-  // Profile Header
-  profileHeader: {
+  container: {
+    flex: 1,
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  profileHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
+  backBtn: {
+    paddingRight: 12,
+    paddingVertical: 4,
   },
-  headerRightPlaceholder: {
-    width: 32,
+  progressBarWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-
-  // Onboarding Header
-  onboardingTopBar: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-  },
-  progressBackground: {
+  progressDash: {
+    flex: 1,
     height: 4,
-    backgroundColor: Colors.surfaceLighter,
     borderRadius: 2,
-    marginBottom: Spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    paddingRight: 12,
+    paddingVertical: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  onboardingActions: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  nextBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  nextBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+  },
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '400',
+    marginBottom: 20,
+  },
+  cardContainer: {
+    borderRadius: 18,
+    borderWidth: 1.5,
     overflow: 'hidden',
   },
-  progressBar: {
-    height: 4,
-    width: '95%',
-    backgroundColor: Colors.primary,
-  },
-  topBarRow: {
+  connectButton: {
+    backgroundColor: '#2EA5E8',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: Spacing.sm,
+    justifyContent: 'center',
   },
-  backBtnTouch: {
-    padding: 6,
+  sendIcon: {
+    marginRight: 8,
+    transform: [{ rotate: '-45deg' }],
   },
-  skipBtn: {
-    backgroundColor: Colors.glass,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Spacing.radiusFull,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  skipBtnText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
+  connectButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '700',
   },
-
-  // Scroll Content
-  scrollContent: {
-    flexGrow: 1,
+  statusArea: {
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  statusValue: {
+    fontWeight: '600',
+  },
+  statusConnected: {
+    color: '#059669',
+  },
+  bottomSkip: {
+    marginTop: 36,
+    alignSelf: 'center',
+    paddingVertical: 8,
+  },
+  bottomSkipText: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl + 10,
-    justifyContent: 'space-between',
   },
-  topSection: {
-    alignItems: 'center',
+  modalCard: {
     width: '100%',
+    borderRadius: 20,
+    padding: 24,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
-
-  // Icon
-  iconCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: 'rgba(36, 161, 222, 0.12)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(36, 161, 222, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
+  modalTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    marginBottom: 8,
   },
-  telegramIcon: {
-    width: 44,
-    height: 44,
-  },
-
-  // Heading & Subtitle
-  heading: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: Spacing.xs + 4,
-    letterSpacing: -0.3,
-  },
-  subtitle: {
+  modalSubtitle: {
     fontSize: 14,
-    lineHeight: 21,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
-    paddingHorizontal: 10,
+    lineHeight: 20,
+    marginBottom: 18,
   },
-
-  // Input Field with Fixed @ Prefix
-  inputContainer: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.borderLight,
     borderRadius: 14,
-    width: '100%',
+    borderWidth: 1.5,
     paddingHorizontal: 14,
-    height: 56,
-    marginBottom: Spacing.lg,
+    height: 50,
+    marginBottom: 22,
   },
-  inputContainerFocused: {
-    borderColor: Colors.primary,
-    backgroundColor: 'rgba(124, 58, 237, 0.05)',
-  },
-  atBadge: {
-    paddingRight: 6,
-    justifyContent: 'center',
-  },
-  atText: {
-    fontSize: 18,
+  atPrefix: {
+    fontSize: 17,
     fontWeight: '700',
-    color: Colors.primary,
+    color: '#2EA5E8',
+    marginRight: 4,
   },
-  input: {
+  modalInput: {
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
     paddingVertical: 0,
   },
-  clearBtn: {
-    padding: 4,
-  },
-
-  // Guide Card
-  guideCard: {
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginTop: 4,
-  },
-  guideHeaderRow: {
+  modalBtnRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'flex-end',
+    gap: 12,
   },
-  guideTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: Colors.text,
-    letterSpacing: 0.2,
-  },
-  guideBody: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#CBD5E1', // bright, readable slate-200
-    marginBottom: 4,
-  },
-  guideBold: {
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  guideNote: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: Colors.textMuted,
-  },
-
-  // Bottom Actions
-  bottomSection: {
-    width: '100%',
-    alignItems: 'center',
-    paddingTop: Spacing.xl,
-  },
-  saveBtn: {
-    width: '100%',
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...Shadows.md,
-  },
-  saveGradient: {
-    height: 54,
-    alignItems: 'center',
+  cancelModalBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  saveBtnText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 0.3,
+  cancelModalBtnText: {
+    color: '#64748B',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  privacyNote: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    marginTop: Spacing.md,
-    lineHeight: 16,
+  disconnectBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
-  bottomSkip: {
-    marginTop: Spacing.lg,
-    paddingVertical: 6,
+  disconnectBtnText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  bottomSkipText: {
-    color: Colors.textMuted,
-    fontSize: 14,
+  saveModalBtn: {
+    backgroundColor: '#2EA5E8',
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveModalBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '700',
-    textDecorationLine: 'underline',
   },
 });

@@ -7,8 +7,10 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors } from '../../../theme';
 import { RootParamList } from '../../../utils/types/navigation.types';
+import { t, useTranslation } from '../../../i18n';
 
 const ViewMyProfile = () => {
+  useTranslation();
   const navigation = useNavigation<StackNavigationProp<RootParamList>>();
   const { setViewMyProfile } = useContext(AppContext);
   
@@ -21,7 +23,7 @@ const ViewMyProfile = () => {
     <TouchableOpacity style={styles.row} onPress={onPress}>
       <View style={styles.left}>
         <FontAwesome5 name="user" size={20} style={styles.icon} />
-        <Text style={styles.text}>View my profile</Text>
+        <Text style={styles.text}>{t('profile.viewmyprofile.view_my_profile')}</Text>
       </View>
       <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
     </TouchableOpacity>

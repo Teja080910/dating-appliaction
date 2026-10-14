@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckBox } from 'react-native-elements';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface OnlineOnlyProps {
   value: boolean;
@@ -9,6 +10,7 @@ interface OnlineOnlyProps {
 }
 
 const OnlineOnly: React.FC<OnlineOnlyProps> = ({ value, onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
@@ -21,7 +23,7 @@ const OnlineOnly: React.FC<OnlineOnlyProps> = ({ value, onChange }) => {
           checkedColor={themeColors.primary}
           containerStyle={styles.checkbox}
         />
-        <Text style={styles.label}>Show active users only</Text>
+        <Text style={styles.label}>{t('search.onlineonly.show_active_users_only')}</Text>
       </TouchableOpacity>
     </View>
   );

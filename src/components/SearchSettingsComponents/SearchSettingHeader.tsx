@@ -2,12 +2,14 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useTheme, ThemeColors } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface Props {
   onClose: () => void;
 }
 
 const SearchSettingsHeader = ({ onClose }: Props) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
@@ -21,7 +23,7 @@ const SearchSettingsHeader = ({ onClose }: Props) => {
       >
         <Icon name="chevron-left" size={26} color={themeColors.text} />
       </TouchableOpacity>
-      <Text style={styles.title}>Search Settings</Text>
+      <Text style={styles.title}>{t('search.searchsettingheader.search_settings')}</Text>
     </View>
   );
 };

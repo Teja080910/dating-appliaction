@@ -11,6 +11,7 @@ import {
   BackHandler,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { t, useTranslation } from '../i18n';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -27,16 +28,17 @@ const RazorpayMock = ({
   onSuccess,
   onCancel,
 }: RazorpayMockProps) => {
+  useTranslation();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'selection' | 'processing' | 'success'>('selection');
-  const [selectedMethod, setSelectedMethod] = useState('UPI');
+  const [selectedMethod, setSelectedMethod] = useState(t('common.razorpaymock.upi'));
 
   // ✅ Reset state when modal opens
   useEffect(() => {
     if (visible) {
       setStep('selection');
       setLoading(false);
-      setSelectedMethod('UPI');
+      setSelectedMethod(t('common.razorpaymock.upi'));
     }
   }, [visible]);
 
@@ -88,7 +90,7 @@ const RazorpayMock = ({
               style={styles.logo}
             />
             <View>
-              <Text style={styles.brand}>Razorpay</Text>
+              <Text style={styles.brand}>{t('common.razorpaymock.razorpay')}</Text>
               <Text style={styles.amount}>Pay ₹{amount}</Text>
             </View>
 
@@ -100,29 +102,29 @@ const RazorpayMock = ({
           {/* STEP: SELECT */}
           {step === 'selection' && (
             <View style={styles.body}>
-              <Text style={styles.label}>Select Payment Method</Text>
+              <Text style={styles.label}>{t('common.razorpaymock.select_payment_method')}</Text>
 
               <PaymentOption
-                title="Cards"
-                sub="Visa, MasterCard, RuPay"
+                title={t('common.razorpaymock.cards')}
+                sub={t('common.subscriptionmodal.visa_mastercard_rupay')}
                 selected={selectedMethod}
                 onSelect={setSelectedMethod}
               />
               <PaymentOption
-                title="Net Banking"
+                title={t('common.razorpaymock.net_banking')}
                 sub="All Indian Banks"
                 selected={selectedMethod}
                 onSelect={setSelectedMethod}
               />
               <PaymentOption
-                title="UPI"
-                sub="Google Pay, PhonePe"
+                title={t('common.razorpaymock.upi')}
+                sub={t('common.subscriptionmodal.google_pay_phonepe')}
                 selected={selectedMethod}
                 onSelect={setSelectedMethod}
               />
               <PaymentOption
-                title="Wallet"
-                sub="Paytm, Mobikwik"
+                title={t('common.razorpaymock.wallet')}
+                sub={t('common.subscriptionmodal.paytm_mobikwik')}
                 selected={selectedMethod}
                 onSelect={setSelectedMethod}
               />
@@ -139,10 +141,8 @@ const RazorpayMock = ({
           {step === 'processing' && (
             <View style={styles.loadingBody}>
               <ActivityIndicator size="large" color="#3399FF" />
-              <Text style={styles.loadingText}>Processing payment...</Text>
-              <Text style={styles.subLoadingText}>
-                Please do not go back
-              </Text>
+              <Text style={styles.loadingText}>{t('common.razorpaymock.processing_payment')}</Text>
+              <Text style={styles.subLoadingText}>{t('common.razorpaymock.please_do_not_go_back')}</Text>
             </View>
           )}
 
@@ -152,17 +152,15 @@ const RazorpayMock = ({
               <View style={styles.successCircle}>
                 <Icon name="check-bold" size={40} color="#fff" />
               </View>
-              <Text style={styles.successText}>Payment Successful</Text>
-              <Text style={styles.subSuccess}>Premium Activated 🎉</Text>
+              <Text style={styles.successText}>{t('common.razorpaymock.payment_successful')}</Text>
+              <Text style={styles.subSuccess}>{t('common.razorpaymock.premium_activated')}</Text>
             </View>
           )}
 
           {/* FOOTER */}
           <View style={styles.footer}>
             <Icon name="shield-check" size={16} color="#2ECC71" />
-            <Text style={styles.footerText}>
-              100% Secure by Razorpay
-            </Text>
+            <Text style={styles.footerText}>{t('common.razorpaymock.100_secure_by_razorpay')}</Text>
           </View>
         </View>
       </View>

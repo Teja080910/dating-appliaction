@@ -1,5 +1,6 @@
 import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid, Platform } from 'react-native';
+import { t } from '../i18n';
 
 export const checkLocationPermission = async (): Promise<boolean> => {
   if (Platform.OS === 'ios') {
@@ -37,11 +38,11 @@ export const requestLocationPermission = async () => {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         {
-          title: 'Location Permission',
-          message: 'This app needs access to your location to find nearby matches.',
+          title: t('common.geolocation.location_permission'),
+          message: t('common.geolocation.this_app_needs_access_to_your_location_to_find_nearby_matches'),
           buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
+          buttonNegative: t('profile.additionaluploadsection.cancel'),
+          buttonPositive: t('profile.profilesettingsscreen.ok'),
         },
       );
       return granted === PermissionsAndroid.RESULTS.GRANTED;

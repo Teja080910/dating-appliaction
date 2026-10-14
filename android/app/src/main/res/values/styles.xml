@@ -3,7 +3,11 @@
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
-        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">#0F0D1A</item>
+        <item name="android:colorBackground">#0F0D1A</item>
+        <item name="android:editTextBackground">@android:color/transparent</item>
+        <item name="android:colorControlActivated">#7C3AED</item>
+        <item name="android:colorControlHighlight">#242140</item>
     </style>
 
 </resources>

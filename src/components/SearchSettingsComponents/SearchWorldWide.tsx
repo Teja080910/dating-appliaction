@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckBox } from 'react-native-elements';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface SearchWorldWideProps {
   onToggle?: (val: boolean) => void;
 }
 
 const SearchWorldWide: React.FC<SearchWorldWideProps> = ({ onToggle }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { isChecked, setIsChecked, isSubscribed, setPaywallVisible } = useContext(AppContext);
@@ -32,7 +34,7 @@ const SearchWorldWide: React.FC<SearchWorldWideProps> = ({ onToggle }) => {
           checkedColor={themeColors.primary}
           containerStyle={styles.checkboxContainer}
         />
-        <Text style={styles.label}>Search World Wide</Text>
+        <Text style={styles.label}>{t('search.searchworldwide.search_world_wide')}</Text>
       </TouchableOpacity>
     </View>
   );

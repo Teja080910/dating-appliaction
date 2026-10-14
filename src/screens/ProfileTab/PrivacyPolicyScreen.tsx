@@ -4,8 +4,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const PrivacyPolicyScreen = () => {
+  useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = React.useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation();
@@ -13,8 +15,8 @@ const PrivacyPolicyScreen = () => {
   const { type } = (route.params as any) || { type: 'privacy' };
 
   const isPrivacy = type === 'privacy';
-  const title = isPrivacy ? 'Privacy Policy' : 'Terms & Conditions';
-  const url = isPrivacy ? 'amara.app/privacy' : 'amara.app/terms';
+  const title = isPrivacy ? t('auth.forgotpasswordscreen.privacy_policy') : t('profile.privacypolicyscreen.terms_conditions');
+  const url = isPrivacy ? t('profile.privacypolicyscreen.amara_app_privacy') : t('profile.privacypolicyscreen.amara_app_terms');
 
   return (
     <SafeAreaView style={styles.container}>
@@ -36,45 +38,32 @@ const PrivacyPolicyScreen = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.logoTitle}>AMARA</Text>
+        <Text style={styles.logoTitle}>{t('home.homeheader.amara')}</Text>
         <Text style={styles.pageTitle}>{title}</Text>
-        <Text style={styles.lastUpdated}>Last Updated: October 2023</Text>
+        <Text style={styles.lastUpdated}>{t('profile.privacypolicyscreen.last_updated_october_2023')}</Text>
 
         {isPrivacy ? (
           <>
-            <Section title="1. Introduction" styles={styles}>
-              Welcome to AMARA. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our application and tell you about your privacy rights and how the law protects you.
-            </Section>
+            <Section title={t('profile.privacypolicyscreen.1_introduction')} styles={styles}>{t('profile.privacypolicyscreen.welcome_to_amara_we_respect_your_privacy_and_are_committed_to_protecti')}</Section>
 
-            <Section title="2. The Data We Collect About You" styles={styles}>
+            <Section title={t('profile.privacypolicyscreen.2_the_data_we_collect_about_you')} styles={styles}>
               Personal data means any information about an individual from which that person can be identified.
-              {"\n\n"}• <Bold styles={styles}>Identity Data:</Bold> includes username, marital status, title, date of birth and gender.
-              {"\n"}• <Bold styles={styles}>Contact Data:</Bold> includes email address and telephone numbers.
-              {"\n"}• <Bold styles={styles}>Technical Data:</Bold> includes IP address, login data, device info.
-              {"\n"}• <Bold styles={styles}>Profile Data:</Bold> includes interests, preferences, and photos.
-            </Section>
+              {"\n\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.identity_data')}</Bold> includes username, marital status, title, date of birth and gender.
+              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.contact_data')}</Bold> includes email address and telephone numbers.
+              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.technical_data')}</Bold> includes IP address, login data, device info.
+              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.profile_data')}</Bold>{t('profile.privacypolicyscreen.includes_interests_preferences_and_photos')}</Section>
 
-            <Section title="3. How We Use Your Data" styles={styles}>
-              We use your data mainly to provide you with matching partner recommendations and to register you as a new user.
-            </Section>
+            <Section title={t('profile.privacypolicyscreen.3_how_we_use_your_data')} styles={styles}>{t('profile.privacypolicyscreen.we_use_your_data_mainly_to_provide_you_with_matching_partner_recommend')}</Section>
 
-            <Section title="4. Data Retention" styles={styles}>
-              We retain your personal data only as long as necessary to fulfil the purposes we collected it for.
-            </Section>
+            <Section title={t('profile.privacypolicyscreen.4_data_retention')} styles={styles}>{t('profile.privacypolicyscreen.we_retain_your_personal_data_only_as_long_as_necessary_to_fulfil_the_p')}</Section>
           </>
         ) : (
           <>
-            <Section title="1. Acceptance of Terms" styles={styles}>
-              By accessing the AMARA application, you are agreeing to be bound by these terms of service and all applicable laws.
-            </Section>
+            <Section title={t('profile.privacypolicyscreen.1_acceptance_of_terms')} styles={styles}>{t('profile.privacypolicyscreen.by_accessing_the_amara_application_you_are_agreeing_to_be_bound_by_the')}</Section>
 
-            <Section title="2. Use License" styles={styles}>
-              Permission is granted to use materials on AMARA's app for personal, non-commercial transitory viewing only.
-            </Section>
+            <Section title={t('profile.privacypolicyscreen.2_use_license')} styles={styles}>{t('profile.privacypolicyscreen.permission_is_granted_to_use_materials_on_amaras_app_for_personal_non')}</Section>
 
-            <Section title="3. Safety" styles={styles}>
-              Always exercise caution when meeting new people. Follow our safety guidelines off-app.
-            </Section>
+            <Section title={t('profile.privacypolicyscreen.3_safety')} styles={styles}>{t('profile.privacypolicyscreen.always_exercise_caution_when_meeting_new_people_follow_our_safety_guid')}</Section>
           </>
         )}
 

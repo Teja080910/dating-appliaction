@@ -18,6 +18,7 @@ import { Colors, Spacing, Shadows, useTheme } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
 
 import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
+import { t, useTranslation } from '../../i18n';
 
 interface UserCardProps {
   name?: string;
@@ -57,6 +58,7 @@ const UserCard = ({
   cardWidth,
   cardHeight,
 }: UserCardProps) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const resolvedWidth = cardWidth || Math.floor((windowWidth - 45) / 2);
@@ -76,13 +78,13 @@ const UserCard = ({
   const [imageFailed, setImageFailed] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
-  const safeName = (name ? String(name).replace(/,\s*\d+$/, '').trim() : '') || 'User';
+  const safeName = (name ? String(name).replace(/,\s*\d+$/, '').trim() : '') || t('home.usercard.user');
   const safeAge = age || 'N/A';
   const normalizedImage =
     typeof image === 'string' && SUPPORTED_IMAGE_URI_REGEX.test(image.trim())
       ? image.trim()
       : null;
-  const safeDistance = distance || 'Nearby';
+  const safeDistance = distance || t('home.usercard.nearby');
 
   useEffect(() => {
     setImageFailed(false);
@@ -155,12 +157,12 @@ const UserCard = ({
   };
 
   const formatDistanceDisplay = (val: string) => {
-    if (!val || val === 'Nearby') return 'Nearby';
+    if (!val || val === t('home.usercard.nearby')) return t('home.usercard.nearby');
     const trimmed = String(val).trim();
     if (trimmed.toLowerCase().includes('away')) return trimmed;
-    if (/^\d+(\.\d+)?$/.test(trimmed)) return `${trimmed} km away`;
-    if (/^\d+(\.\d+)?\s*km$/i.test(trimmed)) return `${trimmed} away`;
-    return `${trimmed} away`;
+    if (/^\d+(\.\d+)?$/.test(trimmed)) return t('home.usercard.km_away', { trimmed });
+    if (/^\d+(\.\d+)?\s*km$/i.test(trimmed)) return t('home.usercard.away', { trimmed });
+    return t('home.usercard.away', { trimmed });
   };
 
   const formattedDistance = formatDistanceDisplay(safeDistance);

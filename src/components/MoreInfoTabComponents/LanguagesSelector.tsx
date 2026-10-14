@@ -1,24 +1,15 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { getLanguageFlag, PROFILE_LANGUAGES } from '../../utils/languageHelper';
+import { t, useTranslation } from '../../i18n';
 
-const languages = [
-  'English',
-  'Spanish',
-  'Portuguese',
-  'German',
-  'Romanian',
-  'Russian',
-  'French',
-  'Chinese',
-  'Japanese',
-  'Indonesian',
-];
+const languages = PROFILE_LANGUAGES;
 
 const LanguagesSelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { selectedLanguages, setSelectedLanguages } = useContext(AppContext);
 
@@ -36,27 +27,23 @@ const LanguagesSelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="translate" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Languages you speak</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.languagesselector.languages_you_speak')}</Text>
       </View>
       <View style={styles.optionsWrap}>
         {languages.map((lang) => {
           const list = Array.isArray(selectedLanguages) ? selectedLanguages : [];
           const isSelected = list.some((item) => item.toLowerCase() === lang.toLowerCase());
+          const flag = getLanguageFlag(lang);
           return isSelected ? (
             <TouchableOpacity
               key={lang}
               activeOpacity={0.8}
               onPress={() => toggleLanguage(lang)}
-              style={styles.pillActiveWrapper}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
             >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.primaryLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pillActiveGradient}
-              >
-                <Text style={styles.pillTextActive}>{lang}</Text>
-              </LinearGradient>
+              <Text style={styles.pillTextActive}>
+                {flag}  {lang}
+              </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -67,11 +54,13 @@ const LanguagesSelector = () => {
                 styles.pillInactive,
                 {
                   backgroundColor: themeColors.surfaceLight,
-                  borderColor: themeColors.borderLight,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
-              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{lang}</Text>
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>
+                {flag}  {lang}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -85,12 +74,12 @@ export default LanguagesSelector;
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    marginTop: 22,
+    marginTop: 26,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   headerIcon: {
     marginRight: 10,
@@ -102,12 +91,12 @@ const styles = StyleSheet.create({
   optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   pillInactive: {
     paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 22,
+    paddingVertical: 10,
+    borderRadius: 24,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -116,20 +105,16 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  pillActiveWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  pillActiveGradient: {
+  pillActive: {
     paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 22,
+    paddingVertical: 10,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pillTextActive: {
     fontSize: 14.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
 });

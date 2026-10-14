@@ -1,9 +1,9 @@
 import React, { useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const ETHNICITIES = [
   'Asian',
@@ -17,8 +17,13 @@ const ETHNICITIES = [
   'Indigenous',
   'Other',
 ];
+const ethnicityLabel = (val: string) =>
+  val === 'Asian' ? t('profile.viewmyprofilescreen.asian')
+  : val === 'Other' ? t('profile.userdetails.other')
+  : val;
 
 const EthnicitySelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { selectedEthinicity, setSelectedEthinicity } = useContext(AppContext);
 
@@ -30,7 +35,7 @@ const EthnicitySelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="account-multiple-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Your race/ethnicity</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.ethnicityselector.your_race_ethnicity')}</Text>
       </View>
       <View style={styles.optionsWrap}>
         {ETHNICITIES.map((item) => {
@@ -40,16 +45,9 @@ const EthnicitySelector = () => {
               key={item}
               activeOpacity={0.8}
               onPress={() => toggleSelect(item)}
-              style={styles.pillActiveWrapper}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
             >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.primaryLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pillActiveGradient}
-              >
-                <Text style={styles.pillTextActive}>{item}</Text>
-              </LinearGradient>
+              <Text style={styles.pillTextActive}>{ethnicityLabel(item)}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -60,11 +58,11 @@ const EthnicitySelector = () => {
                 styles.pillInactive,
                 {
                   backgroundColor: themeColors.surfaceLight,
-                  borderColor: themeColors.borderLight,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
-              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{item}</Text>
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{ethnicityLabel(item)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -109,11 +107,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  pillActiveWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  pillActiveGradient: {
+  pillActive: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
@@ -122,7 +116,7 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     fontSize: 14.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
 });

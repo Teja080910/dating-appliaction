@@ -1,13 +1,19 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const OPTIONS = ['Yes', 'No', 'Sometimes'];
+const optionLabel = (opt: string) =>
+  opt === 'Yes' ? t('profile.userdetails.yes')
+  : opt === 'No' ? t('profile.userdetails.no')
+  : opt === 'Sometimes' ? t('search.drinking.sometimes')
+  : opt;
 
 const DoYouSmokeSelector = () => {
+  useTranslation();
   const { themeColors } = useTheme();
   const { selectedSmoking, setSelectedSmoking } = useContext(AppContext);
 
@@ -19,7 +25,7 @@ const DoYouSmokeSelector = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Icon name="smoking" size={22} color={themeColors.text} style={styles.headerIcon} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Do you smoke?</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.doyousmokeselector.do_you_smoke')}</Text>
       </View>
       <View style={styles.optionsWrap}>
         {OPTIONS.map((option) => {
@@ -29,16 +35,9 @@ const DoYouSmokeSelector = () => {
               key={option}
               activeOpacity={0.8}
               onPress={() => toggleSelect(option)}
-              style={styles.pillActiveWrapper}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
             >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.primaryLight]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pillActiveGradient}
-              >
-                <Text style={styles.pillTextActive}>{option}</Text>
-              </LinearGradient>
+              <Text style={styles.pillTextActive}>{optionLabel(option)}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -49,11 +48,11 @@ const DoYouSmokeSelector = () => {
                 styles.pillInactive,
                 {
                   backgroundColor: themeColors.surfaceLight,
-                  borderColor: themeColors.borderLight,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
-              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{option}</Text>
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{optionLabel(option)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -87,7 +86,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pillInactive: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
     borderWidth: 1,
@@ -98,12 +97,8 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
   },
-  pillActiveWrapper: {
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  pillActiveGradient: {
-    paddingHorizontal: 18,
+  pillActive: {
+    paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 22,
     alignItems: 'center',
@@ -111,7 +106,7 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     fontSize: 14.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
 });

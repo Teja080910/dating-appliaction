@@ -1,258 +1,477 @@
-import React, { useContext, useCallback } from 'react';
+import React, { useContext, useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
   StatusBar,
+  Platform,
   ScrollView,
+  BackHandler,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import AppContext from '../../context/CreateGlobalStateContext';
-import { useFocusEffect } from '@react-navigation/native';
+import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, Spacing, Shadows } from '../../theme';
+
+import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
+import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
+import KidsSelector from '../../components/MoreInfoTabComponents/KidsSelector';
+import LookingForSelector from '../../components/MoreInfoTabComponents/LookingForSelector';
+import NetWorthSelector from '../../components/MoreInfoTabComponents/NetWorthSelector';
+
+import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Shadows, useTheme, type ThemeColors } from '../../theme';
+import { useProfile } from '../../api/useProfile';
+import { useUserImages, mapImagesToSlots } from '../../api/useImages';
+import { getAuthSession, completeOnboarding } from '../../utils/session';
+import { useAlert } from '../../components/AlertModal';
+import { mockStore } from '../../mock/mockStore';
+import { t, useTranslation } from '../../i18n';
 
 const MoreDetailsScreen = ({ navigation }: any) => {
+  useTranslation();
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
+  const { alert, AlertComponent } = useAlert();
+
   const {
-    height = 165,
-    setHeight,
+    name,
+    displayName,
+    date,
+    height,
     selectedAppearance,
-    setSelectedAppearance,
     selectedBodyType,
-    setSelectedBodyType,
+    selectedLanguages,
+    englishSkillLevel,
     selectedEthinicity,
-    setSelectedEthinicity,
-    selectedLanguages = [],
-    setSelectedLanguages,
-    englishSkillLevel = 0,
-    setEnglishSkillLevel,
     selectedSmoking,
-    setSelectedSmoking,
     selectedDrinking,
-    setSelectedDrinking,
-    selectedLookingFor = [],
-    setSelectedLookingFor,
+    selectedLookingFor,
+    selectedKids,
+    selectedNetWorth,
+    profileText,
+    images,
+    setImages,
+    profileImage,
+    profileImageUrl,
+    selected,
+    authUserId,
   } = useContext(AppContext);
+
+  const [loading, setLoading] = useState(false);
+  const { updateUser, updateDetails, updatePreferences, useMyProfile } = useProfile();
+  const { getAllImages, uploadImage } = useUserImages();
+  const profileQuery = useMyProfile(undefined);
 
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.setItem('onboardingStep', 'MoreDetails');
-    }, []),
+
+      const onBackPress = () => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.replace('TellUsMore');
+        }
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [navigation]),
   );
 
-  const OPTIONS = {
-    appearance: ['Attractive', 'Average', 'Beautiful', 'Handsome', 'Stunning'],
-    bodyType: ['Slim', 'Athletic', 'Average', 'Curvy', 'Strong'],
-    ethnicity: ['Indian', 'Asian', 'Caucasian', 'Black', 'Hispanic', 'Middle Eastern', 'Mixed'],
-    lookingFor: ['Relationship', 'Friendship', 'Casual', 'Something Serious', 'Marriage'],
-    smoke_drink: ['Yes', 'No', 'Socially'],
-    english: ['Beginner', 'Intermediate', 'Advanced', 'Native'],
-  };
-
-  const LANGUAGES = ['English', 'Hindi', 'Spanish', 'French', 'German', 'Chinese', 'Japanese'];
-
-  const toggleLanguage = (lang: string) => {
-    if (selectedLanguages?.includes(lang)) {
-      setSelectedLanguages(selectedLanguages.filter((l) => l !== lang));
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
     } else {
-      setSelectedLanguages([...selectedLanguages, lang]);
+      navigation.replace('TellUsMore');
     }
   };
 
-  const toggleLookingFor = (item: string) => {
-    const current = Array.isArray(selectedLookingFor) ? selectedLookingFor : [];
-    if (current.includes(item)) {
-      setSelectedLookingFor(current.filter((i) => i !== item));
-    } else {
-      setSelectedLookingFor([...current, item]);
+  const resolveGenderOrientation = (sel?: string | null) => {
+    switch (sel) {
+      case 'straight_woman':
+        return { gender: 'woman', orientation: 'straight' };
+      case 'straight_man':
+        return { gender: 'man', orientation: 'straight' };
+      case 'lgbtqia':
+        return { gender: 'lgbtqia', orientation: 'lgbtqia' };
+      default:
+        return { gender: 'woman', orientation: 'straight' };
     }
   };
 
-  const renderSection = (
-    title: string,
-    options: string[],
-    current: any,
-    setter: Function,
-    isMulti = false
-  ) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.chipContainer}>
-        {options.map((opt) => {
-          const isSelected = isMulti
-            ? Array.isArray(current) && current.includes(opt)
-            : current === opt;
+  const normalizeTextValue = (value: unknown, fallback: string) => {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    return fallback;
+  };
 
-          return (
-            <TouchableOpacity
-              key={opt}
-              style={[styles.chip, isSelected && styles.selectedChip]}
-              onPress={() => setter(opt)}
-            >
-              <Text style={[styles.chipText, isSelected && styles.selectedChipText]}>{opt}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
+  const normalizeJoinedValues = (value: unknown, fallback: string) => {
+    if (Array.isArray(value)) {
+      const joined = value
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .join(', ');
+      return joined || fallback;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    return fallback;
+  };
+
+  const finishAndGoToHome = async () => {
+    try {
+      await completeOnboarding();
+    } catch {
+      // ignore
+    }
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'BottomTabs' }],
+    });
+  };
+
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+
+      const authSession = await getAuthSession();
+      const hasToken = Boolean(authSession?.token);
+
+      // 1. Calculate age & DOB
+      const safeDate = date ? new Date(date) : new Date('2000-01-01');
+      const today = new Date();
+      let calculatedAge = today.getFullYear() - safeDate.getFullYear();
+      const monthGap = today.getMonth() - safeDate.getMonth();
+      if (
+        monthGap < 0 ||
+        (monthGap === 0 && today.getDate() < safeDate.getDate())
+      ) {
+        calculatedAge -= 1;
+      }
+
+      const { gender, orientation } = resolveGenderOrientation(selected);
+
+      // 2. Resolve stored bio if context empty
+      let storedBio = profileText;
+      if (!storedBio) {
+        try {
+          storedBio = (await AsyncStorage.getItem('@onboarding_bio')) || '';
+        } catch {
+          // ignore
+        }
+      }
+
+      // 3. Resolve images
+      let availableImages = (Array.isArray(images) ? images : []).filter(
+        (img): img is string => typeof img === 'string' && img.trim().length > 0,
+      );
+
+      if (availableImages.length === 0) {
+        try {
+          const stored = await AsyncStorage.getItem('onboardingImages');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              availableImages = parsed.filter(
+                (img): img is string =>
+                  typeof img === 'string' && img.trim().length > 0,
+              );
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const uploadableImages = availableImages.filter(
+        (image): image is string =>
+          Boolean(image) && !String(image).startsWith('http'),
+      );
+
+      const firstImage =
+        uploadableImages[0] ||
+        availableImages[0] ||
+        profileImage ||
+        profileImageUrl ||
+        null;
+
+      const profilePhoto =
+        firstImage && !String(firstImage).startsWith('http')
+          ? {
+              uri: firstImage,
+              type: 'image/jpeg',
+              name: 'profile.jpg',
+            }
+          : undefined;
+
+      const storedName =
+        (await AsyncStorage.getItem('name')) ||
+        (await AsyncStorage.getItem('displayName')) ||
+        (await AsyncStorage.getItem('userName'));
+      const effectiveName = normalizeTextValue(
+        displayName || name || storedName,
+        t('home.usercard.user'),
+      );
+
+      const englishLevels = [t('onboarding.moredetailsscreen.basic'), t('profile.userdetails.medium'), 'Good', 'Very Good'];
+      const englishLevelStr = englishLevels[englishSkillLevel || 0] || t('onboarding.moredetailsscreen.basic');
+
+      // 4. Build Profile Data
+      const profileData = {
+        name: effectiveName,
+        displayName: effectiveName,
+        gender,
+        orientation,
+        age: calculatedAge,
+        bio: normalizeTextValue(
+          storedBio,
+          'Hello, I am excited to meet new people here.',
+        ),
+        dob: safeDate.toISOString().split('T')[0],
+        language: normalizeJoinedValues(selectedLanguages, t('profile.userdetails.english')),
+        appearance: normalizeTextValue(selectedAppearance, t('profile.userdetails.attractive')),
+        bodyType: normalizeTextValue(selectedBodyType, t('profile.userdetails.slim')),
+        height: Number(height) || 165,
+        englishLevel: englishLevelStr,
+        ethnicity: normalizeTextValue(selectedEthinicity, t('profile.userdetails.other')),
+        lookingFor: normalizeJoinedValues(selectedLookingFor, t('profile.userdetails.relationship')),
+        smoke: normalizeTextValue(selectedSmoking, t('profile.userdetails.no')),
+        drink: normalizeTextValue(selectedDrinking, t('profile.userdetails.no')),
+      };
+
+      // 5. Build Details and Prefs Payloads
+      const detailsPayload = {
+        language: normalizeJoinedValues(selectedLanguages, t('profile.userdetails.english')),
+        appearance: selectedAppearance || '',
+        bodyType: selectedBodyType || '',
+        height: Number(height) || 165,
+        englishLevel: englishLevelStr,
+        ethnicity: selectedEthinicity || '',
+        kidCount: selectedKids || '',
+        netWorth: selectedNetWorth || '',
+      };
+
+      const prefsPayload = {
+        lookingFor: normalizeJoinedValues(selectedLookingFor, t('profile.userdetails.relationship')),
+        smoke: selectedSmoking || '',
+        drink: selectedDrinking || '',
+        ethnicity: selectedEthinicity || '',
+      };
+
+      // 6. Save persistent locals and mockStore
+      if (selectedKids) {
+        await AsyncStorage.setItem('@amara_kid_count', selectedKids);
+      }
+      if (selectedNetWorth) {
+        await AsyncStorage.setItem('@amara_net_worth', selectedNetWorth);
+      }
+
+      try {
+        const uid =
+          authSession?.userId ||
+          (await AsyncStorage.getItem('userId')) ||
+          (await mockStore.getCurrentUserId());
+        if (uid) {
+          await mockStore.saveProfile({
+            userId: uid,
+            ...profileData,
+            ...detailsPayload,
+            ...prefsPayload,
+            photos: availableImages,
+          });
+        }
+      } catch (err) {
+        console.warn('[MoreDetails] mockStore profile save error:', err);
+      }
+
+      // 7. Submit to backend if token available
+      if (hasToken) {
+        try {
+          await updateUser.mutateAsync({
+            uid: '',
+            dto: profileData,
+            photo: profilePhoto,
+          });
+
+          const remainingImages = uploadableImages.slice(profilePhoto ? 1 : 0);
+          if (remainingImages.length > 0) {
+            await Promise.allSettled(
+              remainingImages.map((uri, i) =>
+                uploadImage.mutateAsync({
+                  photo: { uri, name: `gallery_${i + 1}.jpg`, type: 'image/jpeg' },
+                }),
+              ),
+            );
+          }
+
+          await updateDetails.mutateAsync(detailsPayload);
+          await updatePreferences.mutateAsync(prefsPayload);
+        } catch (err) {
+          console.warn('[MoreDetails] Background sync warning:', err);
+        }
+      }
+
+      await finishAndGoToHome();
+    } catch (error: any) {
+      console.warn('[MoreDetails] Save error:', error);
+      // Fallback: allow finishing even if server is unreachable
+      await finishAndGoToHome();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
-        <SafeAreaView style={{ flex: 1 }}>
-          
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Icon name="chevron-left" size={28} color={Colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.headerText}>Personal Details</Text>
-            <View style={{ width: 40 }} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={themeColors.background}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        {/* Top Header: Back button & 8-step progress bar (Step 8 active) */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+          >
+            <Feather name="chevron-left" size={28} color={isDark ? '#FFFFFF' : '#000000'} />
+          </TouchableOpacity>
+          <View style={styles.progressBarWrapper}>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((stepNum) => (
+              <View
+                key={stepNum}
+                style={[
+                  styles.progressDash,
+                  stepNum <= 8
+                    ? { backgroundColor: themeColors.primary }
+                    : { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB' },
+                ]}
+              />
+            ))}
           </View>
+        </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.glassCard}>
-              <Text style={styles.introText}>Let's refine your profile for better matches!</Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Headline matching Image 4 */}
+          <Text style={styles.heading}>{t('onboarding.moredetailsscreen.tell_us_more_about_yourself')}</Text>
 
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Height (cm)</Text>
-                <View style={styles.heightContainer}>
-                  <TouchableOpacity onPress={() => setHeight(Math.max(120, height - 1))} style={styles.stepBtn}>
-                    <Icon name="minus" size={20} color={Colors.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.heightValue}>{height}</Text>
-                  <TouchableOpacity onPress={() => setHeight(Math.min(220, height + 1))} style={styles.stepBtn}>
-                    <Icon name="plus" size={20} color={Colors.primary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
+          {/* Second half of About me components */}
+          <EthnicitySelector />
+          <DoYouSmokeSelector />
+          <KidsSelector />
+          <LookingForSelector />
+          <NetWorthSelector />
 
-              {renderSection('Looking For', OPTIONS.lookingFor, selectedLookingFor, toggleLookingFor, true)}
-              {renderSection('Appearance', OPTIONS.appearance, selectedAppearance, setSelectedAppearance)}
-              {renderSection('Body Type', OPTIONS.bodyType, selectedBodyType, setSelectedBodyType)}
-              {renderSection('Ethnicity', OPTIONS.ethnicity, selectedEthinicity, setSelectedEthinicity)}
-              {renderSection('Languages', LANGUAGES, selectedLanguages, toggleLanguage, true)}
-              
-              {renderSection(
-                'English Proficiency', 
-                OPTIONS.english, 
-                OPTIONS.english[englishSkillLevel] || 'Beginner', 
-                (val: string) => setEnglishSkillLevel(OPTIONS.english.indexOf(val))
-              )}
-              
-              {renderSection('Do you Smoke?', OPTIONS.smoke_drink, selectedSmoking, setSelectedSmoking)}
-              {renderSection('Do you Drink?', OPTIONS.smoke_drink, selectedDrinking, setSelectedDrinking)}
-
-              <TouchableOpacity 
-                style={styles.nextButton}
-                onPress={() => navigation.navigate('AboutProfile')}
+          {/* Save / Done Button */}
+          <View style={styles.bottomSection}>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSave}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.secondary || themeColors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.saveGradient}
               >
-                <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.nextGradient}
-                >
-                  <Text style={styles.nextButtonText}>NEXT STEP</Text>
-                  <Icon name="arrow-right" size={20} color={Colors.white} />
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </LinearGradient>
+                {loading ? (
+                  <ActivityIndicator color={Colors.white} size="small" />
+                ) : (
+                  <Text style={styles.saveButtonText}>{t('more_info.savebutton.save')}</Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+      {AlertComponent}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  gradient: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.glass,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  headerText: { color: Colors.text, fontSize: 18, fontWeight: 'bold' },
-  scrollContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xl + 16 },
-  glassCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Spacing.radiusXxl,
-    padding: Spacing.xl,
-    marginTop: Spacing.sm + 2,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    ...Shadows.xl,
-  },
-  introText: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: Spacing.xl, lineHeight: 20 },
-  section: { marginBottom: Spacing.xl },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.textSecondary, marginBottom: Spacing.md },
-  chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chip: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
-    backgroundColor: Colors.inputBackground,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    marginBottom: Spacing.sm,
-  },
-  selectedChip: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  chipText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  selectedChipText: { color: Colors.white },
-  heightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.inputBackground,
-    borderRadius: Spacing.radiusLg,
-    padding: Spacing.sm + 2,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  heightValue: { fontSize: 24, fontWeight: '900', color: Colors.text, marginHorizontal: Spacing.xl },
-  stepBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.glass,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  nextButton: {
-    borderRadius: Spacing.radiusFull,
-    overflow: 'hidden',
-    marginTop: Spacing.sm + 2,
-    ...Shadows.md,
-  },
-  nextGradient: {
-    height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextButtonText: { color: Colors.white, fontWeight: '900', fontSize: 16, marginRight: Spacing.sm + 2, letterSpacing: 1 },
-});
+const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    safeArea: {
+      flex: 1,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    backBtn: {
+      paddingRight: 12,
+      paddingVertical: 4,
+    },
+    progressBarWrapper: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    progressDash: {
+      flex: 1,
+      height: 4,
+      borderRadius: 2,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: 32,
+    },
+    heading: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      paddingHorizontal: 20,
+      marginTop: 12,
+      marginBottom: 10,
+      letterSpacing: -0.3,
+    },
+    bottomSection: {
+      paddingHorizontal: 20,
+      marginTop: 28,
+      alignItems: 'center',
+    },
+    saveButton: {
+      width: '100%',
+      borderRadius: 28,
+      overflow: 'hidden',
+      marginBottom: Platform.OS === 'ios' ? 8 : 16,
+      ...Shadows.md,
+    },
+    saveGradient: {
+      height: 54,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveButtonText: {
+      color: Colors.white,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+  });
 
 export default MoreDetailsScreen;

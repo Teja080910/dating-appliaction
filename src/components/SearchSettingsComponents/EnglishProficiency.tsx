@@ -2,14 +2,20 @@ import React, { useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
+const englishLevelLabel = (val: string) =>
+  val === 'Basic' ? t('onboarding.moredetailsscreen.basic')
+  : val === 'Medium' ? t('profile.userdetails.medium')
+  : val;
 
 interface EnglishProficiencyProps {
   onChange?: (val: string[]) => void;
 }
 
 const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => {
+  useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { englishProficiency, setEnglishProficiency } = useContext(AppContext);
@@ -24,7 +30,7 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>How good is English?</Text>
+      <Text style={styles.label}>{t('search.englishproficiency.english_level')}</Text>
       <View style={styles.optionsWrapper}>
         {englishLevels.map((level, index) => (
           <TouchableOpacity
@@ -33,7 +39,7 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
             onPress={() => toggleOption(level)}
           >
             <Text style={[styles.optionText, englishProficiency.includes(level) && styles.optionTextSelected]}>
-              {level}
+              {englishLevelLabel(level)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -54,10 +60,11 @@ const createStyles = (themeColors: ThemeColors) =>
       borderColor: themeColors.borderLight,
     },
     label: {
-      fontWeight: '600',
-      fontSize: 15,
+      fontWeight: '700',
+      fontSize: 16,
       marginBottom: Spacing.md,
-      color: themeColors.textSecondary,
+      color: themeColors.text,
+      letterSpacing: 0.1,
     },
     optionsWrapper: {
       flexDirection: 'row',
