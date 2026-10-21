@@ -36,6 +36,8 @@
       android:usesCleartextTraffic="true"
       android:supportsRtl="true">
 
+      <!-- Optional: only used if the native react-native-maps MapView is restored.
+           The location picker currently renders keyless OpenStreetMap tiles. -->
       <meta-data
         android:name="com.google.android.geo.API_KEY"
         android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE"/>

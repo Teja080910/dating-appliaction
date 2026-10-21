@@ -15,7 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import MapView, { Marker, Region } from "react-native-maps";
+import OsmMapView from "./OsmMapView";
+import type { MapRegion as Region } from "./OsmMapView";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
@@ -110,21 +111,6 @@ const DEFAULT_REGION: Region = {
   longitudeDelta: 0.08,
 };
 
-// Amara Theme Dark Map styling (Royal Navy & Violet accents)
-const AMARA_DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#0F0D1A" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0F0D1A" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#A5A3B5" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#F5F3FF" }] },
-  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#7C3AED" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1A1730" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#242140" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9CA3AF" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3B2865" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#090712" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#5B21B6" }] },
-];
-
 const formatCoords = (lat: number, lng: number) => `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
 // Distance calculation to find nearest city when GPS is detected
@@ -189,7 +175,6 @@ const Location = () => {
   const [mapRegion, setMapRegion] = useState<Region>(DEFAULT_REGION);
 
   const searchInputRef = useRef<TextInput>(null);
-  const mapRef = useRef<MapView>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load saved locations and active type from storage on mount
@@ -444,17 +429,13 @@ const Location = () => {
 
   // Re-center map to original selected coordinates
   const handleRecenter = () => {
-    if (selectedLocation && mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: selectedLocation.lat,
-          longitude: selectedLocation.lng,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        },
-        500
-      );
-    }
+    if (!selectedLocation) return;
+    setMapRegion({
+      latitude: selectedLocation.lat,
+      longitude: selectedLocation.lng,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    });
   };
 
   const displayTitle = useMemo(() => {
@@ -759,24 +740,13 @@ const Location = () => {
 
               {/* Map */}
               <View style={{ flex: 1, position: "relative" }}>
-                <MapView
-                  ref={mapRef}
-                  style={StyleSheet.absoluteFillObject}
+                <OsmMapView
                   region={mapRegion}
                   onRegionChangeComplete={setMapRegion}
-                  customMapStyle={isDark ? AMARA_DARK_MAP_STYLE : []}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: mapRegion.latitude,
-                      longitude: mapRegion.longitude,
-                    }}
-                  >
-                    <View style={styles.mapPinContainer}>
-                      <Ionicons name="location-sharp" size={38} color={themeColors.secondary} />
-                    </View>
-                  </Marker>
-                </MapView>
+                  markerTitle={selectedLocation?.name || selectedLocation?.fullAddress}
+                  markerColor={themeColors.secondary}
+                  isDark={isDark}
+                />
 
                 {/* Top-left Floating Back Button */}
                 <TouchableOpacity
@@ -804,6 +774,7 @@ const Location = () => {
                   <Text style={styles.bottomSheetCoords}>
                     {formatCoords(mapRegion.latitude, mapRegion.longitude)}
                   </Text>
+                  <Text style={styles.mapAttribution}>© OpenStreetMap contributors</Text>
 
                   {/* Amara Gradient Save & Set Active Button */}
                   <TouchableOpacity
@@ -1090,10 +1061,6 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
       flex: 1,
       backgroundColor: themeColors.background,
     },
-    mapPinContainer: {
-      alignItems: "center",
-      justifyContent: "center",
-    },
     floatingBackButton: {
       position: "absolute",
       top: 16,
@@ -1155,7 +1122,12 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
     bottomSheetCoords: {
       fontSize: 13,
       color: themeColors.textSecondary,
-      marginBottom: 16,
+      marginBottom: 2,
+    },
+    mapAttribution: {
+      fontSize: 10,
+      color: themeColors.textSecondary,
+      marginBottom: 14,
     },
     saveActiveButton: {
       borderRadius: 25,

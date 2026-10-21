@@ -132,7 +132,7 @@ Chat is only a UI stub (no backend chat API, input disabled, "Messaging coming s
 | G-13 | API is HTTP and hardcoded | `environment/ApiConfig.ts` | Get HTTPS URL; move to environment config (dev/staging/prod). |
 | G-14 | Release build uses debug keystore | `android/app/build.gradle` | Create release keystore + signing config. |
 | G-15 | Firebase push not configured | `google-services.json` missing | Either set up FCM or skip push for v1 (not required for the simple flow). |
-| G-16 | Google Maps key placeholder | `AndroidManifest.xml` | Add a restricted key, or hide the map location picker in the simple version. |
+| G-16 | ~~Google Maps key placeholder~~ | `components/SearchSettingsComponents/OsmMapView.tsx` | Fixed: the location picker now renders keyless OpenStreetMap tiles, so no Google Maps key is required. For production-scale traffic, swap the tile URL for a paid/self-hosted provider or configure a real Google Maps key. |
 | G-17 | Location history/current broken (backend) | `api/useLocation.ts` | Not needed for the simple flow — hide those screens. |
 | G-18 | Subscription plan mismatch (only `BASIC` works) | `SubscriptionModal.tsx`, backend | Fix the backend plan catalog if payments stay; otherwise hide the paywall. |
 | G-19 | No tests / CI | — | At minimum keep `npm run lint` + manual test checklist (Section 6). |
