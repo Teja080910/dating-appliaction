@@ -390,6 +390,11 @@ export const useProfile = () => {
         payload.displayName = data.displayName || data.name;
       }
 
+      // Profile photos are managed strictly via dedicated /profile/upload-image and /users/images/{id} endpoints.
+      // Backend /profile/update rejects the photos field with HTTP 400 BAD_REQUEST.
+      delete payload.photos;
+      delete payload.images;
+
       const res = await apiClient.put('/profile/update', payload).catch(() =>
         apiClient.put('/profile/update-basic', payload)
       );

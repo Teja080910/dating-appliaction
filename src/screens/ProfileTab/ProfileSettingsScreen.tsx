@@ -244,7 +244,6 @@ const ProfileSettingsScreen = () => {
           bio: localDescription.trim(),
           dob: localDob,
           age: computedAge,
-          photos: validPhotos,
           telegramUsername: localTelegramUsername.trim() || undefined,
         } as any,
         {

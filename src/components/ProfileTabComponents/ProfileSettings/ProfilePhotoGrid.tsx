@@ -15,7 +15,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAbsoluteUrl, isApiHostedUrl } from '../../../api/apiClient';
-import { mapImagesToSlots, useUserImages } from '../../../api/useImages';
+import { mapImagesToSlots, useUserImages, NormalizedUserImage } from '../../../api/useImages';
 import { useProfile } from '../../../api/useProfile';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../../theme';
@@ -45,9 +45,10 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
     setAuthUserId,
   } = useContext(AppContext);
 
-  const { uploadImage, getAllImages, deleteImage } = useUserImages();
+  const { uploadImage, getAllImages, deleteImage, setProfilePhoto } = useUserImages();
   const { updateProfile } = useProfile();
   const [imageMap, setImageMap] = useState<Record<number, number>>({});
+  const [serverImages, setServerImages] = useState<NormalizedUserImage[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [localUserId, setLocalUserId] = useState<string | null>(null);
@@ -123,7 +124,6 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
                 setProfileImage(slots[0]);
                 setProfileImageUrl(slots[0]);
               }
-              return;
             }
           }
         } catch {}
@@ -144,6 +144,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
               }
               setImages(resolvedSlots);
               setImageMap(mapped.imageIdByIndex);
+              setServerImages(mapped.normalized);
               if (mapped.profileImageUrl) {
                 setProfileImage(mapped.profileImageUrl);
                 setProfileImageUrl(mapped.profileImageUrl);
@@ -206,6 +207,17 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
               },
             },
             {
+              onSuccess: () => {
+                if (localUserId) {
+                  getAllImagesRef.current(localUserId, {
+                    onSuccess: (data: any) => {
+                      const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
+                      setImageMap(mapped.imageIdByIndex);
+                      setServerImages(mapped.normalized);
+                    },
+                  });
+                }
+              },
               onError: (err) => {
                 console.error('Image upload failed:', err);
                 alert(t('profile.profilephotogrid.upload_failed'), t('profile.profilephotogrid.failed_to_upload_image_please_try_again'));
@@ -226,14 +238,24 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
     const currentList = [...(images || [])];
     const nonNullCount = currentList.filter(Boolean).length;
 
-    // Requirement 3: When clicking delete icon on first photo OR when only 1 photo exists
-    if (index === 0 || nonNullCount <= 1) {
+    // Requirement: A profile must have at least 1 photo. Prevent deleting the only remaining photo.
+    if (nonNullCount <= 1) {
       setShowFacePhotoModal(true);
       return;
     }
 
     hasUserEdited.current = true;
-    const imageId = imageMap[index];
+
+    // Resolve target image ID from imageMap or fallback to matching serverImages by URL
+    const targetUri = currentList[index];
+    const matched = serverImages.find(
+      (img) =>
+        img.id !== null &&
+        img.imageUrl &&
+        targetUri &&
+        (img.imageUrl === targetUri || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri))
+    );
+    const imageId = imageMap[index] ?? matched?.id;
 
     // 1. Instant optimistic update: filter out deleted image and shift remaining forward
     const remainingPhotos = currentList.filter((item, i) => i !== index && Boolean(item)) as string[];
@@ -244,7 +266,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
     setImages(nextSlots);
 
     // 2. Update primary profile photo in context
-    const newPrimary = nextSlots.find(Boolean) || null;
+    const newPrimary = nextSlots[0] || null;
     setProfileImage(newPrimary);
     setProfileImageUrl(newPrimary);
 
@@ -269,25 +291,37 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
       return updated;
     });
 
-    // 5. Delete on server if image ID is present
+    // 5. Update serverImages list
+    if (imageId) {
+      setServerImages((prev) => prev.filter((img) => img.id !== imageId));
+    }
+
+    // 6. Delete on server if image ID is present
     if (imageId) {
       deleteImage.mutate(imageId, {
+        onSuccess: () => {
+          // If the deleted photo was slot 0 (primary) and we have remaining photos, promote slot 0 on backend
+          if (index === 0 && localUserId && nextSlots[0]) {
+            const nextPrimaryId = serverImages.find(
+              (img) =>
+                img.id !== imageId &&
+                img.imageUrl &&
+                nextSlots[0] &&
+                (img.imageUrl === nextSlots[0] || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(nextSlots[0]))
+            )?.id;
+            if (nextPrimaryId) {
+              setProfilePhoto.mutate({ uid: localUserId, imageId: nextPrimaryId });
+            }
+          }
+        },
         onError: (err) => {
           console.warn('Delete image server error:', err);
         },
       });
     }
 
-    // 6. Synchronize profile photos array on backend
-    updateProfile.mutate(
-      {
-        userId: localUserId || undefined,
-        photos: remainingPhotos,
-      },
-      {
-        onError: (err) => console.warn('Update profile photos sync error:', err),
-      }
-    );
+    // Note: Dedicated image endpoints (/users/images/{id}) manage photos.
+    // The backend rejects 'photos' in /profile/update with HTTP 400.
   };
 
   const itemWidth = Math.floor((width - 40 - 20) / 3);
