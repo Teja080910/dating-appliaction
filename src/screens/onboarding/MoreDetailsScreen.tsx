@@ -300,22 +300,22 @@ const MoreDetailsScreen = ({ navigation }: any) => {
       // 7. Submit to backend if token available
       if (hasToken) {
         try {
-          await updateUser.mutateAsync({
-            uid: '',
-            dto: profileData,
-            photo: profilePhoto,
-          });
-
-          const remainingImages = uploadableImages.slice(profilePhoto ? 1 : 0);
-          if (remainingImages.length > 0) {
+          // Upload any local gallery images first so backend gallery count >= 3
+          if (uploadableImages.length > 0) {
             await Promise.allSettled(
-              remainingImages.map((uri, i) =>
+              uploadableImages.map((uri, i) =>
                 uploadImage.mutateAsync({
                   photo: { uri, name: `gallery_${i + 1}.jpg`, type: 'image/jpeg' },
                 }),
               ),
             );
           }
+
+          await updateUser.mutateAsync({
+            uid: '',
+            dto: profileData,
+            photo: profilePhoto,
+          });
 
           await updateDetails.mutateAsync(detailsPayload);
           await updatePreferences.mutateAsync(prefsPayload);

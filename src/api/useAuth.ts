@@ -40,6 +40,8 @@ type ForgotPasswordResetRequest = {
   email: string;
   otp: string;
   newPassword: string;
+  confirmPassword?: string;
+  sessionId?: string;
   mobile?: string;
 };
 
@@ -279,7 +281,7 @@ export const useAuth = () => {
       }
 
       const res = await apiClient.post('/forgot-password/send-otp', payload);
-      return normalizePlainApiResponse(res.data);
+      return res.data;
     },
   });
 
@@ -293,6 +295,8 @@ export const useAuth = () => {
         ...(mobile ? { mobile: mobile.trim() } : {}),
         otp: String(data.otp ?? '').trim(),
         newPassword: String(data.newPassword ?? '').trim(),
+        confirmPassword: String(data.confirmPassword ?? data.newPassword ?? '').trim(),
+        ...(data.sessionId ? { sessionId: String(data.sessionId).trim() } : {}),
       };
 
       if ((!payload.email && !payload.mobile) || !payload.otp || !payload.newPassword) {
@@ -300,7 +304,7 @@ export const useAuth = () => {
       }
 
       const res = await apiClient.post('/forgot-password/reset', payload);
-      return normalizePlainApiResponse(res.data);
+      return res.data;
     },
   });
 

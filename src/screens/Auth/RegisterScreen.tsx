@@ -200,8 +200,10 @@ const RegisterScreen = ({ navigation }: any) => {
       );
       setLoading(false);
       const payload = Array.isArray(res) ? res[0] || {} : res || {};
-      const sessionId = payload?.sessionId || payload?.data?.sessionId || res?.sessionId || 'sess_mock';
-      await AsyncStorage.setItem('registerSessionId', String(sessionId).trim());
+      const sessionId = payload?.sessionId || payload?.data?.sessionId || res?.sessionId;
+      if (sessionId) {
+        await AsyncStorage.setItem('registerSessionId', String(sessionId).trim());
+      }
       navigation.navigate('OTPScreen', {
         email: cleanEmail,
         name: name.trim(),
@@ -211,14 +213,12 @@ const RegisterScreen = ({ navigation }: any) => {
       });
     } catch (error: any) {
       setLoading(false);
-      await AsyncStorage.setItem('registerSessionId', 'sess_mock');
-      navigation.navigate('OTPScreen', {
-        email: cleanEmail,
-        name: name.trim(),
-        password: password.trim(),
-        confirmPassword: confirmPassword.trim(),
-        sessionId: 'sess_mock',
-      });
+      const serverMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        t('auth.registerscreen.registration_failed');
+      alert(t('auth.registerscreen.registration_failed'), String(serverMsg));
     } finally {
       setTimeout(() => {
         isSubmittingRef.current = false;

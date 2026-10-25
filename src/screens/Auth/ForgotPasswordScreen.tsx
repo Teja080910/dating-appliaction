@@ -31,6 +31,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
 
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -63,8 +64,12 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     forgotPasswordSendOtp.mutate(
       { email: cleanEmail },
       {
-        onSuccess: () => {
+        onSuccess: (data: any) => {
           setLoading(false);
+          const sId = data?.sessionId || data?.data?.sessionId;
+          if (sId) {
+            setSessionId(String(sId).trim());
+          }
           setStep(2);
           alert(t('auth.forgotpasswordscreen.code_sent'), t('auth.forgotpasswordscreen.we_have_sent_a_verification_code_to_your_email_c', { cleanEmail }));
         },
@@ -103,6 +108,8 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
         email: cleanEmail,
         otp: otpCode.trim(),
         newPassword: newPassword.trim(),
+        confirmPassword: confirmPassword.trim(),
+        sessionId: sessionId || undefined,
       },
       {
         onSuccess: () => {
