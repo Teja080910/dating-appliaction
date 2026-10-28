@@ -177,7 +177,9 @@ const probeProfileById = async (userId: number, token: string) => {
     },
   };
 
-  const response = await sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId } });
+  const response = await sessionHttpClient
+    .get(`${APIURL}/profile/me/${userId}`, requestConfig)
+    .catch(() => sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId } }));
   return response?.data;
 };
 
@@ -448,8 +450,13 @@ const syncStoredSessionState = async (session: {
     const uid = session.userId;
     const [privacyResult, completionResult, profileResult] = await Promise.allSettled([
       sessionHttpClient.get(`${APIURL}/privacy/status`, { ...requestConfig, params: { userId: uid } }),
-      sessionHttpClient.post(`${APIURL}/profile/completion`, null, { ...requestConfig, params: { userId: uid } }),
-      sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId: uid } }),
+      sessionHttpClient
+        .get(`${APIURL}/profile/completion/${uid}`, requestConfig)
+        .catch(() => sessionHttpClient.get(`${APIURL}/profile/completion`, { ...requestConfig, params: { userId: uid } }))
+        .catch(() => sessionHttpClient.post(`${APIURL}/profile/completion`, null, { ...requestConfig, params: { userId: uid } })),
+      sessionHttpClient
+        .get(`${APIURL}/profile/me/${uid}`, requestConfig)
+        .catch(() => sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId: uid } })),
     ]);
 
     if (privacyResult.status === 'fulfilled' && privacyResult.value?.data === true) {

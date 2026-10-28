@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
+import { getAuthSession } from '../utils/session';
 
 const HEARTBEAT_MS = 60_000;
 
@@ -17,7 +18,11 @@ export const usePresence = () => {
       if (!mounted || requestInFlight.current) return;
       requestInFlight.current = true;
       try {
-        const userId = await getUserId();
+        let userId = await getUserId().catch(() => null);
+        if (!userId) {
+          const session = await getAuthSession();
+          userId = session?.userId || null;
+        }
         if (!userId || !mounted) return;
         await apiClient.put(`/status/${status}`, null, { params: { userId } });
       } catch (error) {

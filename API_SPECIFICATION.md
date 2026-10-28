@@ -694,74 +694,173 @@ The AMARA platform unlocks authentic 1-on-1 private messaging via Telegram upon 
 
 ---
 
-### 7.3 Backend Developer Guide: Production Setup & 24/7 Hosting for `telegram-bot/`
+### 7.3 Backend Developer Guide: Production Setup & Hosting for the Telegram Bot
 
 > [!IMPORTANT]
-> The mobile frontend connects to the Telegram Bot via `tg://resolve?domain=amara_dating_bot`. For this bot to actively respond to users when they install the APK and tap "Open Bot", the backend developer **must host and run `telegram-bot/bot.js` continuously (24/7)** on the production backend server.
+> The mobile frontend connects to the official Telegram Bot via `tg://resolve?domain=amara_dating_bot` (or `https://t.me/amara_dating_bot`). For the bot to actively greet users, handle commands (`/start`, `/help`, `/login`, `/connect`), and dispatch alerts, the backend must run a Telegram Bot service.
+> 
+> *Note on Direct Chatting*: When two users mutually match or approve an invitation, the mobile app opens their 1-on-1 personal Telegram chat directly (`https://t.me/<username>`). **User-to-user chatting does NOT require a bot.** The bot is used strictly for onboarding assistance, account linking, customer support handoff, and optional match notification alerts.
+
+---
 
 #### Step 1: Create or Confirm the Production Bot with Telegram @BotFather
 1. Open Telegram and search for **`@BotFather`**.
-2. Run `/newbot` (or `/mybots` to manage an existing bot).
-3. Set the Bot Name (e.g. `Amara Dating`) and Username (e.g. `amara_dating_bot`).
+2. Run `/newbot` (or `/mybots` to inspect an existing bot).
+3. Set the Bot Name (e.g., `Amara Dating`) and Username (e.g., `amara_dating_bot`).
 4. Copy the API Token provided by BotFather (format: `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`).
-5. *(Note: If you choose a different username, inform the frontend team to update `AMARA_BOT_USERNAME` in `src/utils/telegramHelper.ts`)*.
+5. *(Note: If a different username is chosen, inform the frontend team to update `AMARA_BOT_USERNAME` in `src/utils/telegramHelper.ts`)*.
 
-#### Step 2: Configure Environment Variables
-Inside the `telegram-bot/` directory on your server, create or update `.env`:
+---
+
+#### Step 2: Implementation Architecture
+
+Since the AMARA backend is built in **Java (Spring Boot)**, the backend team can choose between two straightforward approaches:
+
+##### Option A: Native Java Spring Boot Integration (Recommended)
+Integrate the bot directly into the Spring Boot backend using the official Telegram Spring Boot Starter.
+
+**1. Add Maven Dependency (`pom.xml`):**
+```xml
+<dependency>
+    <groupId>org.telegram</groupId>
+    <artifactId>telegrambots-spring-boot-starter</artifactId>
+    <version>6.9.7.1</version>
+</dependency>
+```
+
+**2. Configure Application Properties (`application.properties` / `application.yml`):**
+```properties
+# Telegram Bot Configuration
+telegram.bot.username=amara_dating_bot
+telegram.bot.token=${TELEGRAM_BOT_TOKEN:123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ}
+```
+
+**3. Java Bot Component (`AmaraTelegramBot.java`):**
+```java
+package com.amara.bot;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+@Component
+public class AmaraTelegramBot extends TelegramLongPollingBot {
+
+    @Value("${telegram.bot.username}")
+    private String botUsername;
+
+    @Value("${telegram.bot.token}")
+    private String botToken;
+
+    @Override
+    public String getBotUsername() {
+        return botUsername;
+    }
+
+    @Override
+    public String getBotToken() {
+        return botToken;
+    }
+
+    @Override
+    public void onUpdateReceived(Update update) {
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            String text = update.getMessage().getText();
+            long chatId = update.getMessage().getChatId();
+            String firstName = update.getMessage().getFrom().getFirstName() != null 
+                ? update.getMessage().getFrom().getFirstName() : "there";
+
+            if (text.startsWith("/start")) {
+                sendReply(chatId, "👋 *Welcome to Amara Dating, " + firstName + "!*\n\n"
+                    + "Your Telegram account is connected.\n\n"
+                    + "Quick commands:\n"
+                    + "• /help - Support and how matching works\n"
+                    + "• /login - Open Amara login instructions\n"
+                    + "• /connect - Link your Telegram username in app");
+            } else if (text.startsWith("/help")) {
+                sendReply(chatId, "✨ *Amara Support & Help*\n\n"
+                    + "• *How Amara Works:* When someone sends an invite and both profiles accept, your handles connect for private conversation.\n\n"
+                    + "• *Support:* Open the Amara app, go to *Profile* ➔ *Support* to submit a ticket.");
+            } else if (text.startsWith("/login")) {
+                sendReply(chatId, "🔐 *Log In to Amara*\n\n"
+                    + "1. Open the Amara app on your mobile device.\n"
+                    + "2. Sign in with your registered phone or email.\n"
+                    + "3. Go to *Profile* ➔ *Telegram* to confirm your handle is linked.");
+            } else if (text.startsWith("/connect")) {
+                String username = update.getMessage().getFrom().getUserName();
+                if (username != null && !username.isBlank()) {
+                    sendReply(chatId, "🔗 *Your Telegram Username:* @" + username + "\n\n"
+                        + "To link it to Amara:\n"
+                        + "1. Open the Amara app.\n"
+                        + "2. Go to *Profile* ➔ *Telegram*.\n"
+                        + "3. Enter `" + username + "` and tap *Connect*.");
+                } else {
+                    sendReply(chatId, "⚠️ *No Telegram Username Set*\nPlease set a public username in Telegram Settings before connecting.");
+                }
+            }
+        }
+    }
+
+    public void sendReply(long chatId, String messageMarkdown) {
+        try {
+            execute(SendMessage.builder()
+                .chatId(String.valueOf(chatId))
+                .text(messageMarkdown)
+                .parseMode("Markdown")
+                .build());
+        } catch (TelegramApiException e) {
+            System.err.println("Error sending Telegram message: " + e.getMessage());
+        }
+    }
+}
+```
+
+**4. Dispatching Automated Match Push Notifications from Java Service:**
+When a connection request is accepted (`PUT /connections/accept`), the Spring service can automatically notify the users via Telegram:
+```java
+@Autowired
+private AmaraTelegramBot telegramBot;
+
+public void notifyUserOnMatch(Long telegramChatId, String matchedUserName) {
+    if (telegramChatId != null && telegramChatId > 0) {
+        telegramBot.sendReply(telegramChatId, 
+            "🎉 *It's a Match!*\n\n"
+            + "You and *" + matchedUserName + "* liked each other on Amara!\n"
+            + "Open Amara or start chatting directly on Telegram.");
+    }
+}
+```
+
+---
+
+##### Option B: Standalone Node.js Microservice (Alternative)
+If the backend team prefers keeping the bot completely decoupled from the Spring Boot JVM process, the codebase includes a pre-built standalone bot daemon in the `telegram-bot/` directory.
+
+**1. Configure Environment (`telegram-bot/.env`):**
 ```env
 TELEGRAM_BOT_TOKEN="YOUR_REAL_BOT_TOKEN_FROM_BOTFATHER"
 APP_LOGIN_URL="amara://login"
 ```
 
-#### Step 3: Deploy & Run 24/7 on the Linux Backend Server using PM2
-The bot is a standard Node.js daemon using the Telegraf framework. To ensure it runs 24/7 and automatically restarts if the server reboots:
-
+**2. Run 24/7 on the Linux Server using PM2:**
 ```bash
-# 1. Navigate to the bot directory
-cd /path/to/amara/telegram-bot
-
-# 2. Install production dependencies
+cd telegram-bot
 npm install --production
-
-# 3. Install PM2 process manager globally (if not already installed)
 sudo npm install -g pm2
-
-# 4. Start the bot daemon
 pm2 start bot.js --name "amara-telegram-bot"
-
-# 5. Save the PM2 process list
 pm2 save
-
-# 6. Configure PM2 to auto-start on server reboot
 pm2 startup
 ```
 
-#### Step 4: Verification & Logs
-* To check bot status: `pm2 status amara-telegram-bot`
-* To view live bot logs: `pm2 logs amara-telegram-bot`
-* Open Telegram on your phone and send `/start` to `@amara_dating_bot`. The bot will immediately reply with the welcome card and action buttons.
+---
 
-#### Step 5: (Optional) Sending Automated Match Notifications via the Bot
-When a user receives a new invitation or mutual match, the backend can trigger the bot to dispatch an instant push message to the user's Telegram:
-```javascript
-// Example backend notification dispatch:
-const { Telegraf } = require('telegraf');
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-
-async function notifyUserOnMatch(telegramChatId, matchedUserName) {
-  try {
-    await bot.telegram.sendMessage(
-      telegramChatId,
-      `🎉 *It's a Match!*
-
-You and *${matchedUserName}* liked each other on Amara! Open Amara or tap below to start chatting.`,
-      { parse_mode: 'Markdown' }
-    );
-  } catch (error) {
-    console.error('Failed to dispatch Telegram message:', error);
-  }
-}
-```
+#### Step 3: Verification & Health Check
+1. Search for your bot handle (e.g. `@amara_dating_bot`) on Telegram.
+2. Send `/start`. The bot will immediately reply with the welcome card and instructions.
+3. Send `/help` and `/connect` to verify all commands respond correctly.
 
 ---
 

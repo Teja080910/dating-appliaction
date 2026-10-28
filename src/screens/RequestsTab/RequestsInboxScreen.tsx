@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import LinearGradient from 'react-native-linear-gradient';
@@ -49,14 +49,33 @@ const RequestsInboxScreen: React.FC = () => {
 
   const { data: requests = [], isLoading, isRefetching } = receivedList;
 
+  // Auto-refetch when user focuses this screen
+  useFocusEffect(
+    useCallback(() => {
+      refreshAll();
+    }, [])
+  );
+
+  const isAcceptedStatus = (status?: string) => {
+    const s = String(status || '').trim().toUpperCase();
+    return s === 'ACCEPTED' || s === 'APPROVED';
+  };
+
   // Split into accepted vs pending
   const acceptedRequests = useMemo(
-    () => requests.filter((r) => r.status === 'APPROVED'),
+    () => requests.filter((r) => isAcceptedStatus(r.status)),
     [requests]
   );
 
   const pendingRequests = useMemo(
-    () => requests.filter((r) => r.status !== 'APPROVED'),
+    () =>
+      requests.filter(
+        (r) =>
+          !isAcceptedStatus(r.status) &&
+          r.status !== 'DECLINED' &&
+          r.status !== 'CANCELLED' &&
+          r.status !== 'REJECTED'
+      ),
     [requests]
   );
 
@@ -100,6 +119,7 @@ const RequestsInboxScreen: React.FC = () => {
   const handleApprove = async (request: ConnectionRequest) => {
     try {
       const approvalResponse = await accept.mutateAsync(request.id);
+      refreshAll();
       const approvedRequest = approvalResponse?.data || approvalResponse;
       const sender = request.sender || {};
       const photoUrl =
@@ -162,7 +182,7 @@ const RequestsInboxScreen: React.FC = () => {
 
     const displayName = cleanDisplayName(sender.displayName || sender.name);
     const statusText = formatStatusDate(item);
-    const isApproved = item.status === 'APPROVED';
+    const isApproved = isAcceptedStatus(item.status);
 
     return (
       <TouchableOpacity
@@ -354,7 +374,10 @@ const RequestsInboxScreen: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.modalDoneBtn}
-              onPress={() => setApprovedMatch(null)}
+              onPress={() => {
+                setApprovedMatch(null);
+                setActiveTab('accepted');
+              }}
             >
               <Text style={styles.modalDoneBtnText}>{t('profile.userdetails.done')}</Text>
             </TouchableOpacity>

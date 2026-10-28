@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
@@ -58,15 +59,55 @@ const MoreInfoScreen = () => {
   const { updateDetails, updatePreferences, useMyProfile } = useProfile();
   const profileQuery = useMyProfile(undefined);
 
+  useFocusEffect(
+    useCallback(() => {
+      profileQuery.refetch();
+    }, [])
+  );
+
   useEffect(() => {
-    // Check local storage for kids & net worth in case backend doesn't store them yet
-    AsyncStorage.getItem('@amara_kid_count').then((val) => {
-      if (val) setSelectedKids(val);
+    // Check local storage for all lifestyle keys in case backend sync is pending
+    AsyncStorage.multiGet([
+      '@amara_kid_count',
+      '@amara_net_worth',
+      '@amara_height',
+      '@amara_appearance',
+      '@amara_body_type',
+      '@amara_ethnicity',
+      '@amara_smoking',
+      '@amara_looking_for',
+      '@amara_languages',
+      '@amara_english_level',
+    ]).then((pairs) => {
+      pairs.forEach(([key, val]) => {
+        if (!val) return;
+        if (key === '@amara_kid_count') setSelectedKids((prev: any) => prev || val);
+        if (key === '@amara_net_worth') setSelectedNetWorth((prev: any) => prev || val);
+        if (key === '@amara_height') setHeight((prev: any) => prev || Number(val));
+        if (key === '@amara_appearance') setSelectedAppearance((prev: any) => prev || val);
+        if (key === '@amara_body_type') setSelectedBodyType((prev: any) => prev || val);
+        if (key === '@amara_ethnicity') setSelectedEthinicity((prev: any) => prev || val);
+        if (key === '@amara_smoking') setSelectedSmoking((prev: any) => prev || val);
+        if (key === '@amara_english_level') setEnglishSkillLevel((prev: any) => (prev !== undefined && prev !== null ? prev : Number(val)));
+        if (key === '@amara_looking_for') {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setSelectedLookingFor((prev: any) => (Array.isArray(prev) && prev.length > 0 ? prev : parsed));
+            }
+          } catch {}
+        }
+        if (key === '@amara_languages') {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setSelectedLanguages((prev: any) => (Array.isArray(prev) && prev.length > 0 ? prev : parsed));
+            }
+          } catch {}
+        }
+      });
     });
-    AsyncStorage.getItem('@amara_net_worth').then((val) => {
-      if (val) setSelectedNetWorth(val);
-    });
-  }, [setSelectedKids, setSelectedNetWorth]);
+  }, [setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
 
   useEffect(() => {
     const profile = profileQuery.data;
@@ -106,12 +147,24 @@ const MoreInfoScreen = () => {
     if (profile.height) {
       setHeight(Number(profile.height));
     }
-    setSelectedAppearance(profile.appearance || null);
-    setSelectedBodyType(profile.bodyType || null);
-    setSelectedLanguages(visibleLanguages);
-    setSelectedEthinicity(profile.ethnicity || null);
-    setSelectedSmoking(profile.smoke || null);
-    setSelectedLookingFor(visibleLookingFor);
+    if (profile.appearance) {
+      setSelectedAppearance(profile.appearance);
+    }
+    if (profile.bodyType) {
+      setSelectedBodyType(profile.bodyType);
+    }
+    if (visibleLanguages.length > 0) {
+      setSelectedLanguages(visibleLanguages);
+    }
+    if (profile.ethnicity) {
+      setSelectedEthinicity(profile.ethnicity);
+    }
+    if (profile.smoke) {
+      setSelectedSmoking(profile.smoke);
+    }
+    if (visibleLookingFor.length > 0) {
+      setSelectedLookingFor(visibleLookingFor);
+    }
     if (profile.kidCount || profile.kids) {
       setSelectedKids(profile.kidCount || profile.kids);
     }
@@ -158,16 +211,19 @@ const MoreInfoScreen = () => {
         ethnicity: selectedEthinicity || '',
       };
 
-      if (selectedKids) {
-        await AsyncStorage.setItem('@amara_kid_count', selectedKids);
-      } else {
-        await AsyncStorage.removeItem('@amara_kid_count');
-      }
-      if (selectedNetWorth) {
-        await AsyncStorage.setItem('@amara_net_worth', selectedNetWorth);
-      } else {
-        await AsyncStorage.removeItem('@amara_net_worth');
-      }
+      await AsyncStorage.multiSet([
+        ['@amara_height', String(height || '')],
+        ['@amara_appearance', selectedAppearance || ''],
+        ['@amara_body_type', selectedBodyType || ''],
+        ['@amara_ethnicity', selectedEthinicity || ''],
+        ['@amara_smoking', selectedSmoking || ''],
+        ['@amara_drinking', selectedDrinking || ''],
+        ['@amara_looking_for', JSON.stringify(selectedLookingFor || [])],
+        ['@amara_languages', JSON.stringify(selectedLanguages || [])],
+        ['@amara_english_level', String(englishSkillLevel ?? 0)],
+        ['@amara_kid_count', selectedKids || ''],
+        ['@amara_net_worth', selectedNetWorth || ''],
+      ]);
 
       await updateDetails.mutateAsync(detailsPayload);
       await updatePreferences.mutateAsync(prefsPayload);

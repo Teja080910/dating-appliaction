@@ -856,13 +856,13 @@ class MockStore {
     }
 
     const dailyLimit =
-      subscription.plan === 'BASIC'
+      subscription.plan === 'STANDARD' || subscription.plan === 'BASIC'
         ? 10
-        : subscription.plan === 'GOLD'
+        : subscription.plan === 'PREMIUM' || subscription.plan === 'GOLD'
         ? 20
-        : subscription.plan === 'MONTHLY' || subscription.plan === 'YEARLY'
-        ? 30
-        : Infinity;
+        : subscription.plan === 'ELITE' || subscription.plan === 'YEARLY'
+        ? Infinity
+        : 30;
     if (Number.isFinite(dailyLimit)) {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);

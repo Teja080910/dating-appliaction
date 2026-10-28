@@ -241,6 +241,22 @@ export const saveBlockedUser = async (
   }
 };
 
+export const removeBlockedUser = async (
+  currentUserId: string | number,
+  targetUserId: string | number
+): Promise<void> => {
+  try {
+    const key = `${BLOCKED_USERS_PREFIX}${currentUserId}`;
+    const raw = await AsyncStorage.getItem(key);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    const targetStr = String(targetUserId).trim();
+    const updated = list.filter((id) => id !== targetStr);
+    await AsyncStorage.setItem(key, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Failed to remove blocked user locally:', e);
+  }
+};
+
 export const getLocalBlockedUsers = async (
   currentUserId?: string | number | null
 ): Promise<string[]> => {

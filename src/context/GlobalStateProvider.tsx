@@ -146,6 +146,8 @@ const GlobalStateProvider = ({ children }: any) => {
           storedProfileImage,
           storedIsLoggedIn,
           storedTheme,
+          storedBio,
+          storedDob,
         ] = await Promise.all([
           AsyncStorage.getItem('name'),
           AsyncStorage.getItem('displayName'),
@@ -155,6 +157,8 @@ const GlobalStateProvider = ({ children }: any) => {
           AsyncStorage.getItem('profileImage'),
           AsyncStorage.getItem('isLoggedIn'),
           AsyncStorage.getItem('@app_appearance_theme'),
+          AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
+          AsyncStorage.getItem('userDob'),
         ]);
         if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
           setThemeMode(storedTheme);
@@ -167,6 +171,12 @@ const GlobalStateProvider = ({ children }: any) => {
         if (storedIsLoggedIn === 'true') {
           if (storedName) setName(storedName);
           if (storedDisplayName) setDisplayName(storedDisplayName);
+          if (storedBio) setProfileText(storedBio);
+          if (storedDob) {
+            try {
+              setDate(new Date(storedDob));
+            } catch {}
+          }
           const resolvedGender = storedGender || storedUserGender;
           if (resolvedGender) setGender(resolvedGender);
 

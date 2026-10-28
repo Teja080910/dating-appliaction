@@ -1003,9 +1003,16 @@ export const handleMockRequest = async (
         startDate: sub.startDate,
         endDate: sub.endDate,
         status: 'ACTIVE',
-        priorityHandoff: plan === 'GOLD' || plan === 'PREMIUM' || plan === 'MONTHLY' || plan === 'YEARLY',
-        eliteBadge: plan === 'PREMIUM' || plan === 'YEARLY',
-        dailyRequestLimit: plan === 'BASIC' ? 10 : plan === 'GOLD' ? 20 : plan === 'MONTHLY' || plan === 'YEARLY' ? 30 : null,
+        priorityHandoff: plan === 'PREMIUM' || plan === 'ELITE' || plan === 'GOLD' || plan === 'YEARLY',
+        eliteBadge: plan === 'ELITE' || plan === 'PREMIUM' || plan === 'YEARLY',
+        dailyRequestLimit:
+          plan === 'STANDARD' || plan === 'BASIC'
+            ? 10
+            : plan === 'PREMIUM' || plan === 'GOLD'
+            ? 20
+            : plan === 'ELITE'
+            ? null
+            : 30,
       });
     }
 

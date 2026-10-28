@@ -1,6 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
+import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 
 /**
  * Hook for Telegram Connection
@@ -29,22 +31,32 @@ const normalizeTelegramResponse = (payload: unknown) => {
   return '';
 };
 
+const resolveBackendTelegramUserId = async (candidate?: string | number) => {
+  const trimmed = String(candidate ?? '').trim();
+  if (trimmed && isResolvedApiUserId(trimmed)) return trimmed;
+  const stored = await getUserId();
+  if (stored && isResolvedApiUserId(stored)) return stored;
+  const session = await getAuthSession();
+  if (session?.userId && isResolvedApiUserId(session.userId)) {
+    return String(session.userId);
+  }
+  if (stored) return stored;
+  throw new Error('Unable to resolve backend userId from session.');
+};
+
 export const useTelegram = () => {
   const queryClient = useQueryClient();
   const profileQueryKeys = ['myProfile', 'profile-me', 'telegram-link'];
-  const resolveBackendUserId = async (candidate?: string | number) => {
-    const resolvedUserId = String(candidate ?? '').trim() || await getUserId();
-    if (!resolvedUserId) {
-      throw new Error('Unable to resolve backend userId from session.');
-    }
-    return resolvedUserId;
-  };
 
   const getTelegramLink = useMutation({
-    mutationFn: async (variables?: { userId?: string | number }) => {
-      const resolvedUserId = await resolveBackendUserId(variables?.userId);
+    mutationFn: async (variables?: { userId?: string | number; targetUserId?: string | number }) => {
+      const resolvedUserId = await resolveBackendTelegramUserId(variables?.userId);
+      const targetId = variables?.targetUserId ? String(variables.targetUserId).trim() : undefined;
       const res = await apiClient.get('/telegram/link', {
-        params: { userId: resolvedUserId },
+        params: {
+          userId: resolvedUserId,
+          ...(targetId ? { targetUserId: targetId } : {}),
+        },
       });
       return normalizeTelegramResponse(res.data);
     },
@@ -55,19 +67,24 @@ export const useTelegram = () => {
 
   // ✅ Connect Telegram
   const connectTelegram = useMutation({
-    mutationFn: async ({ userId, username }: { userId: string | number; username?: string }) => {
-      const resolvedUserId = await resolveBackendUserId(userId);
-      const normalizedUsername = String(username || '').trim().replace(/^@/, '');
+    mutationFn: async ({ userId, username }: { userId?: string | number; username?: string }) => {
+      const resolvedUserId = await resolveBackendTelegramUserId(userId);
+      const normalizedUsername = String(username || '').trim().replace(/^@+/, '');
       if (!normalizedUsername) {
         throw new Error('Telegram username is required.');
       }
-      // Endpoint usually initiates connection or maps username
-      const res = await apiClient.post('/telegram/connect', null, {
-        params: {
-          userId: resolvedUserId,
-          username: normalizedUsername,
-        },
+      const payload = {
+        userId: resolvedUserId,
+        username: normalizedUsername,
+        telegramUsername: normalizedUsername,
+      };
+
+      const res = await apiClient.post('/telegram/connect', payload, {
+        params: payload,
       });
+
+      // Cache locally
+      await AsyncStorage.setItem('@telegram_username', normalizedUsername);
       return normalizeTelegramResponse(res.data);
     },
     onSuccess: () => {
@@ -82,10 +99,13 @@ export const useTelegram = () => {
 
   const disconnectTelegram = useMutation({
     mutationFn: async (variables?: { userId?: string | number }) => {
-      const resolvedUserId = await resolveBackendUserId(variables?.userId);
+      const resolvedUserId = await resolveBackendTelegramUserId(variables?.userId);
+      const payload = { userId: resolvedUserId };
       const res = await apiClient.delete('/telegram/disconnect', {
-        params: { userId: resolvedUserId },
+        params: payload,
+        data: payload,
       });
+      await AsyncStorage.removeItem('@telegram_username');
       return normalizeTelegramResponse(res.data);
     },
     onSuccess: () => {
@@ -103,4 +123,22 @@ export const useTelegram = () => {
     getTelegramLink,
     disconnectTelegram,
   };
+};
+
+export const useTargetTelegramLink = (targetUserId?: string | number | null) => {
+  return useQuery({
+    queryKey: ['telegram-link', targetUserId ? String(targetUserId) : 'me'],
+    queryFn: async () => {
+      const resolvedUserId = await resolveBackendTelegramUserId();
+      const res = await apiClient.get('/telegram/link', {
+        params: {
+          userId: resolvedUserId,
+          ...(targetUserId ? { targetUserId: String(targetUserId) } : {}),
+        },
+      });
+      return normalizeTelegramResponse(res.data);
+    },
+    enabled: Boolean(targetUserId !== undefined && targetUserId !== null),
+    retry: false,
+  });
 };

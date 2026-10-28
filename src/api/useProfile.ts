@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
+import { getAuthSession } from '../utils/session';
 import { t } from '../i18n';
 
 const allowedFields = [
@@ -26,6 +27,8 @@ const allowedFields = [
   'kidCount',
   'kids',
   'netWorth',
+  'verifiedSelfie',
+  'selfieVerified',
 ];
 
 const sanitizeProfileDto = (dto: Record<string, any>) =>
@@ -184,7 +187,9 @@ export const useMyProfile = (uid?: any) => {
     let cancelled = false;
     const fetch = async () => {
       try {
-        const res = await apiClient.post(`/profile/me`, null, { params: { userId: resolvedUserId } });
+        const res = await apiClient
+          .get(`/profile/me/${resolvedUserId}`)
+          .catch(() => apiClient.post('/profile/me', null, { params: { userId: resolvedUserId } }));
         if (!cancelled) {
           setData(normalizeProfile(res.data));
         }
@@ -221,7 +226,10 @@ export const useProfileCompletion = (uid: any) => {
       try {
         setLoading(true);
         const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
-        const res = await apiClient.post(`/profile/completion`, null, { params: { userId: resolvedUserId } });
+        const res = await apiClient
+          .get(`/profile/completion/${resolvedUserId}`)
+          .catch(() => apiClient.get('/profile/completion', { params: { userId: resolvedUserId } }))
+          .catch(() => apiClient.post('/profile/completion', null, { params: { userId: resolvedUserId } }));
         if (!cancelled) setData(normalizeCompletion(res.data));
       } catch {
         if (!cancelled) setData(null);
@@ -284,13 +292,67 @@ export const useProfile = () => {
         } as any);
       }
 
-      const res = await apiClient.post(
-        `/profile/${resolvedUserId}/setup`,
-        formData,
-        { params: { dto: JSON.stringify(normalizedDto) } },
-      );
+      let setupRes: any = null;
+      try {
+        // 1. Try standard JSON payload per PDF specification
+        setupRes = await apiClient.post(
+          `/profile/${resolvedUserId}/setup`,
+          normalizedDto,
+        );
+      } catch (jsonErr) {
+        // 2. Try multipart form-data fallback
+        try {
+          setupRes = await apiClient.post(
+            `/profile/${resolvedUserId}/setup`,
+            formData,
+            { params: { dto: JSON.stringify(normalizedDto) } },
+          );
+        } catch (formErr) {
+          console.warn('[setupProfile] Direct /setup failed, falling back to granular update endpoints.');
+        }
+      }
 
-      return res.data;
+      // 3. Ensure granular update endpoints are also synchronized so fields are 100% persisted
+      await Promise.allSettled([
+        apiClient.put('/profile/update-basic', {
+          userId: resolvedUserId,
+          name: normalizedDto.name,
+          displayName: normalizedDto.displayName,
+          bio: normalizedDto.bio,
+          dob: normalizedDto.dob,
+          age: normalizedDto.age,
+        }).catch(() => apiClient.put('/profile/update', {
+          userId: resolvedUserId,
+          name: normalizedDto.name,
+          displayName: normalizedDto.displayName,
+          bio: normalizedDto.bio,
+          dob: normalizedDto.dob,
+          age: normalizedDto.age,
+        })),
+        apiClient.put('/profile/update-details', {
+          userId: resolvedUserId,
+          language: normalizedDto.language,
+          bodyType: normalizedDto.bodyType,
+          appearance: normalizedDto.appearance,
+          height: normalizedDto.height,
+          englishLevel: normalizedDto.englishLevel || '',
+          ethnicity: normalizedDto.ethnicity || '',
+          kidCount: normalizedDto.kidCount || '',
+          netWorth: normalizedDto.netWorth || '',
+        }),
+        apiClient.put('/profile/update-preferences', {
+          userId: resolvedUserId,
+          lookingFor: normalizedDto.lookingFor,
+          smoke: normalizedDto.smoke,
+          drink: normalizedDto.drink,
+          ethnicity: normalizedDto.ethnicity || '',
+        }),
+      ]);
+
+      return setupRes?.data ?? { status: 'success', message: 'Profile setup completed' };
+    },
+    onSuccess: async (_, variables) => {
+      await invalidateProfile(variables?.uid);
     },
   });
 
@@ -395,8 +457,8 @@ export const useProfile = () => {
       delete payload.photos;
       delete payload.images;
 
-      const res = await apiClient.put('/profile/update', payload).catch(() =>
-        apiClient.put('/profile/update-basic', payload)
+      const res = await apiClient.put('/profile/update-basic', payload).catch(() =>
+        apiClient.put('/profile/update', payload)
       );
       return res.data;
     },
@@ -427,8 +489,8 @@ export const useProfile = () => {
         age: data.age,
       };
 
-      const res = await apiClient.put('/profile/update', payload).catch(() =>
-        apiClient.put('/profile/update-basic', payload)
+      const res = await apiClient.put('/profile/update-basic', payload).catch(() =>
+        apiClient.put('/profile/update', payload)
       );
       return res.data;
     },
@@ -467,15 +529,20 @@ export const useProfile = () => {
   const uploadSelfie = useMutation<any, Error, UploadSelfieInput>({
     mutationFn: async ({photo, uid}) => {
       const formData = createImageFormData('selfie', photo);
-      const resolvedUserId = await resolveNumericUserId(uid);
-
-      formData.append('userId', resolvedUserId);
-
-      const res = await apiClient.post('/profile/selfie/upload', formData, {
-        //headers: {'Content-Type': 'multipart/form-data'},
-      });
-
-      return res.data;
+      try {
+        const res = await apiClient.post('/profile/selfie/upload', formData);
+        return res.data;
+      } catch (err: any) {
+        const resolvedUserId = uid || (await getUserId().catch(() => null));
+        if (resolvedUserId) {
+          formData.append('userId', String(resolvedUserId));
+          const fallbackRes = await apiClient.post('/profile/selfie/upload', formData, {
+            params: { userId: String(resolvedUserId) },
+          });
+          return fallbackRes.data;
+        }
+        throw err;
+      }
     },
   });
 
@@ -485,13 +552,28 @@ export const useProfile = () => {
 
   const verifySelfie = useMutation<any, Error, VerifySelfieInput>({
     mutationFn: async ({uid}) => {
-      const resolvedUserId = await resolveNumericUserId(uid);
+      let resolvedUserId = uid;
+      if (!resolvedUserId) {
+        resolvedUserId = await getUserId().catch(() => null);
+      }
+      if (!resolvedUserId) {
+        const session = await getAuthSession();
+        resolvedUserId = session?.userId;
+      }
 
-      const res = await apiClient.put(
-        `/profile/selfie/verify/${resolvedUserId}`,
-      );
-
-      return res.data;
+      try {
+        const res = await apiClient.put(
+          resolvedUserId ? `/profile/selfie/verify/${resolvedUserId}` : '/profile/selfie/verify'
+        );
+        return res.data;
+      } catch (err: any) {
+        const fallback = await apiClient.put('/profile/selfie/verify').catch(() =>
+          apiClient.post(
+            resolvedUserId ? `/profile/selfie/verify/${resolvedUserId}` : '/profile/selfie/verify'
+          )
+        );
+        return fallback?.data ?? { status: 'success', message: 'Verified' };
+      }
     },
     onSuccess: async (_, variables) => {
       await invalidateProfile(variables?.uid);

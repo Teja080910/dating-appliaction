@@ -68,6 +68,8 @@ const AboutProfileScreen = ({ navigation }: any) => {
     }
 
     try {
+      await AsyncStorage.setItem('bio', trimmed);
+      await AsyncStorage.setItem('profileText', trimmed);
       await AsyncStorage.setItem('@onboarding_bio', trimmed);
     } catch {
       // ignore

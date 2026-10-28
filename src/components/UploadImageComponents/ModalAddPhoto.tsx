@@ -101,6 +101,15 @@ const ModalAddPhoto = () => {
       setImages(nextSlots);
       AsyncStorage.setItem('onboardingImages', JSON.stringify(nextSlots)).catch(() => {});
 
+      // Cache local file URI for Face Validation service sync
+      AsyncStorage.getItem('@local_onboarding_photos')
+        .then((raw) => {
+          const list = raw ? JSON.parse(raw) : Array(MAX_PROFILE_IMAGES).fill(null);
+          list[targetIndex] = asset.uri;
+          return AsyncStorage.setItem('@local_onboarding_photos', JSON.stringify(list));
+        })
+        .catch(() => {});
+
       if (targetIndex === 0 || !images?.[0]) {
         setProfileImage(imageUrl);
         setProfileImageUrl(imageUrl);

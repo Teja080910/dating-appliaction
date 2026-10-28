@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
+import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 
 export interface SupportTicket {
   id: number;
@@ -53,11 +54,18 @@ export const useSupport = (userId?: string | null) => {
   const queryClient = useQueryClient();
   const queryKey = ['support', 'my'];
   const resolveBackendUserId = async (candidate?: string | number | null) => {
-    const resolvedUserId = String(candidate ?? userId ?? '').trim() || await getUserId();
-    if (!resolvedUserId) {
-      throw new Error('Unable to resolve backend userId from session.');
+    if (candidate && isResolvedApiUserId(String(candidate))) return String(candidate);
+    if (userId && isResolvedApiUserId(String(userId))) return String(userId);
+    const stored = await getUserId().catch(() => null);
+    if (stored && isResolvedApiUserId(stored)) return stored;
+    const session = await getAuthSession();
+    if (session?.userId && isResolvedApiUserId(session.userId)) {
+      return String(session.userId);
     }
-    return resolvedUserId;
+    if (stored) return stored;
+    if (userId) return String(userId);
+    if (candidate) return String(candidate);
+    throw new Error('Unable to resolve backend userId from session.');
   };
 
   const createTicket = useMutation({

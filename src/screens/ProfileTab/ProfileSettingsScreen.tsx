@@ -1,5 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -66,14 +66,31 @@ const ProfileSettingsScreen = () => {
     return /\d/.test(str);
   };
 
-  const isInitialized = useRef(false);
   const { updateBasic, updateProfile, useMyProfile } = useProfile();
   const profileQuery = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
 
+  useFocusEffect(
+    useCallback(() => {
+      profileQuery.refetch();
+    }, [])
+  );
+
   useEffect(() => {
     const loadStoredDobAndContact = async () => {
       try {
+        const storedName = (await AsyncStorage.getItem('displayName')) || (await AsyncStorage.getItem('name'));
+        if (storedName) {
+          setLocalDisplayName((prev) => prev || storedName);
+          setDisplayName((prev) => prev || storedName);
+        }
+
+        const storedBio = (await AsyncStorage.getItem('bio')) || (await AsyncStorage.getItem('@onboarding_bio'));
+        if (storedBio) {
+          setLocalDescription((prev) => prev || storedBio);
+          setProfileText((prev) => prev || storedBio);
+        }
+
         const storedDob = await AsyncStorage.getItem('userDob');
         if (storedDob) {
           setLocalDob(storedDob);
@@ -111,7 +128,7 @@ const ProfileSettingsScreen = () => {
       } catch (e) {}
     };
     void loadStoredDobAndContact();
-  }, [setDate]);
+  }, [setDate, setDisplayName, setProfileText]);
 
   const profilePhotos = useMemo(() => {
     return dedupeImageUris([
@@ -128,16 +145,20 @@ const ProfileSettingsScreen = () => {
 
   useEffect(() => {
     const profile = profileQuery.data;
-    if (!profile || isInitialized.current) return;
+    if (!profile) return;
 
-    const nextName = profile.displayName || profile.name || displayName;
-    const nextBio = profile.bio || profileText || '';
+    const nextName = profile.displayName || profile.name;
+    if (nextName) {
+      setLocalDisplayName(nextName);
+      setDisplayName(nextName);
+      setName(nextName);
+    }
 
-    setLocalDisplayName(nextName);
-    setLocalDescription(nextBio);
-    setDisplayName(nextName);
-    setName(profile.name || nextName);
-    setProfileText(nextBio);
+    if (profile.bio) {
+      setLocalDescription(profile.bio);
+      setProfileText(profile.bio);
+    }
+
     if (profile.dob) {
       setLocalDob(profile.dob);
       setDate(new Date(profile.dob));
@@ -160,16 +181,12 @@ const ProfileSettingsScreen = () => {
       } else {
         setLocalPhoneNumber(rawNum.replace(/[^\d\s-]/g, '').trim());
       }
-    } else {
-      setLocalPhoneNumber('');
     }
 
     if (profile.telegramUsername) {
       setLocalTelegramUsername(String(profile.telegramUsername).replace(/^@+/, ''));
     }
-
-    isInitialized.current = true;
-  }, [profileQuery.data, displayName, profileText, setDate, setDisplayName, setName, setProfileText]);
+  }, [profileQuery.data, setDate, setDisplayName, setName, setProfileText]);
 
   const computedAge = useMemo(() => {
     const dob = new Date(localDob);

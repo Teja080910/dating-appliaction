@@ -30,6 +30,7 @@ import NotificationsScreen from '../ProfileTab/NotificationsScreen';
 import PreferencesScreen from '../ProfileTab/PreferencesScreen';
 import HowToUseScreen from '../ProfileTab/HowToUseScreen';
 import ResetLocationScreen from '../ProfileTab/ResetLocationScreen';
+import BlockedUsersScreen from '../ProfileTab/BlockedUsersScreen';
 import { SESSION_EXPIRED_EVENT } from '../../api/apiClient';
 import { resolveInitialRoute } from '../../utils/session';
 import SubscriptionModal from '../../components/SubscriptionModal';
@@ -164,6 +165,8 @@ const Routes = () => {
         <Stack.Screen name="HowToUseScreen" component={HowToUseScreen} />
         <Stack.Screen name="ResetLocationScreen" component={ResetLocationScreen} />
         <Stack.Screen name="ResetLocation" component={ResetLocationScreen} />
+        <Stack.Screen name="BlockedUsersScreen" component={BlockedUsersScreen} />
+        <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       </Stack.Navigator>
       <SubscriptionModal
         visible={paywallVisible}

@@ -157,7 +157,10 @@ export default function MessageScreen() {
     return {
       id: String(request?.id || targetUser?.id || `${status}-${Date.now()}`),
       name: resolveUserName(profile, targetUser),
-      lastMsg: status === 'APPROVED' ? 'You are connected. Start the conversation.' : t('messages.messagescreen.connection_status', { status }),
+      lastMsg:
+        status === 'APPROVED' || status === 'ACCEPTED'
+          ? 'You are connected. Start the conversation.'
+          : t('messages.messagescreen.connection_status', { status }),
       time: formatInviteTime(request?.updatedAt || request?.createdAt),
       unread: 0,
       image: resolveUserImage(targetUser, profile),

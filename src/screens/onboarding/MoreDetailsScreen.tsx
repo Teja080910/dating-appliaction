@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQueryClient } from '@tanstack/react-query';
 
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
 import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
@@ -59,10 +60,12 @@ const MoreDetailsScreen = ({ navigation }: any) => {
     profileImageUrl,
     selected,
     authUserId,
+    verifiedSelfie,
   } = useContext(AppContext);
 
   const [loading, setLoading] = useState(false);
-  const { updateUser, updateDetails, updatePreferences, useMyProfile } = useProfile();
+  const queryClient = useQueryClient();
+  const { updateUser, updateBasic, updateDetails, updatePreferences, useMyProfile } = useProfile();
   const { getAllImages, uploadImage } = useUserImages();
   const profileQuery = useMyProfile(undefined);
 
@@ -224,6 +227,9 @@ const MoreDetailsScreen = ({ navigation }: any) => {
       const englishLevels = [t('onboarding.moredetailsscreen.basic'), t('profile.userdetails.medium'), 'Good', 'Very Good'];
       const englishLevelStr = englishLevels[englishSkillLevel || 0] || t('onboarding.moredetailsscreen.basic');
 
+      const storedSelfie = (await AsyncStorage.getItem('@selfie_verified')) === 'true';
+      const isSelfieVerified = Boolean(verifiedSelfie || storedSelfie);
+
       // 4. Build Profile Data
       const profileData = {
         name: effectiveName,
@@ -246,6 +252,8 @@ const MoreDetailsScreen = ({ navigation }: any) => {
         smoke: normalizeTextValue(selectedSmoking, t('profile.userdetails.no')),
         drink: normalizeTextValue(selectedDrinking, t('profile.userdetails.no')),
         photos: availableImages,
+        verifiedSelfie: isSelfieVerified,
+        selfieVerified: isSelfieVerified,
       };
 
       // 5. Build Details and Prefs Payloads
@@ -268,16 +276,24 @@ const MoreDetailsScreen = ({ navigation }: any) => {
       };
 
       // 6. Save persistent locals and mockStore
-      if (selectedKids) {
-        await AsyncStorage.setItem('@amara_kid_count', selectedKids);
-      } else {
-        await AsyncStorage.removeItem('@amara_kid_count');
-      }
-      if (selectedNetWorth) {
-        await AsyncStorage.setItem('@amara_net_worth', selectedNetWorth);
-      } else {
-        await AsyncStorage.removeItem('@amara_net_worth');
-      }
+      await AsyncStorage.multiSet([
+        ['name', effectiveName],
+        ['displayName', effectiveName],
+        ['bio', profileData.bio],
+        ['@onboarding_bio', profileData.bio],
+        ['userDob', profileData.dob],
+        ['@amara_height', String(profileData.height)],
+        ['@amara_appearance', selectedAppearance || ''],
+        ['@amara_body_type', selectedBodyType || ''],
+        ['@amara_ethnicity', selectedEthinicity || ''],
+        ['@amara_smoking', selectedSmoking || ''],
+        ['@amara_drinking', selectedDrinking || ''],
+        ['@amara_looking_for', JSON.stringify(selectedLookingFor || [])],
+        ['@amara_languages', JSON.stringify(selectedLanguages || [])],
+        ['@amara_english_level', String(englishSkillLevel || 0)],
+        ['@amara_kid_count', selectedKids || ''],
+        ['@amara_net_worth', selectedNetWorth || ''],
+      ]);
 
       try {
         const uid =
@@ -300,6 +316,11 @@ const MoreDetailsScreen = ({ navigation }: any) => {
       // 7. Submit to backend if token available
       if (hasToken) {
         try {
+          const uid =
+            authSession?.userId ||
+            (await AsyncStorage.getItem('userId')) ||
+            (await mockStore.getCurrentUserId());
+
           // Upload any local gallery images first so backend gallery count >= 3
           if (uploadableImages.length > 0) {
             await Promise.allSettled(
@@ -311,14 +332,35 @@ const MoreDetailsScreen = ({ navigation }: any) => {
             );
           }
 
-          await updateUser.mutateAsync({
-            uid: '',
-            dto: profileData,
-            photo: profilePhoto,
-          });
+          // Persist via both combined setup and granular update endpoints
+          await Promise.allSettled([
+            updateUser.mutateAsync({
+              uid: uid ? String(uid) : undefined,
+              dto: profileData,
+              photo: profilePhoto,
+            }),
+            updateBasic.mutateAsync({
+              userId: uid ? String(uid) : undefined,
+              name: effectiveName,
+              displayName: effectiveName,
+              bio: profileData.bio,
+              dob: profileData.dob,
+              age: calculatedAge,
+            }),
+            updateDetails.mutateAsync({
+              userId: uid ? String(uid) : undefined,
+              ...detailsPayload,
+            }),
+            updatePreferences.mutateAsync({
+              userId: uid ? String(uid) : undefined,
+              ...prefsPayload,
+            }),
+          ]);
 
-          await updateDetails.mutateAsync(detailsPayload);
-          await updatePreferences.mutateAsync(prefsPayload);
+          // Invalidate and refetch cached profile queries
+          await queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+          await queryClient.invalidateQueries({ queryKey: ['profileCompletion'] });
+          profileQuery.refetch();
         } catch (err) {
           console.warn('[MoreDetails] Background sync warning:', err);
         }

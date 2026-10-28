@@ -1,5 +1,8 @@
 import React, { useCallback, useContext, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  BackHandler,
   Dimensions,
   Image,
   ScrollView,
@@ -8,7 +11,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,6 +21,9 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme, type ThemeColors } from '../../theme';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import { t, useTranslation } from '../../i18n';
+import { useFaceValidation } from '../../api/useFaceValidation';
+import { getUserId } from '../../utils/sessionHelper';
+import { getAuthSession } from '../../utils/session';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TOTAL_STEPS = 8;
@@ -35,7 +40,10 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     name,
     setIsModalVisible,
     setSelectedIndex,
+    verifiedSelfie,
   } = useContext(AppContext);
+  const { uploadVerificationPhotos } = useFaceValidation();
+  const [isCheckingPhotos, setIsCheckingPhotos] = useState(false);
 
   // We enforce 6 slots
   const slots = [0, 1, 2, 3, 4, 5];
@@ -44,13 +52,8 @@ const UploadPhotosScreen = ({ navigation }: any) => {
   const validImages = Array.isArray(images) ? images.filter(Boolean) : [];
   const uploadedCount = validImages.length;
 
-  // Face validation simulation:
-  // If user uploaded photos, we simulate face detection
-  // To allow user to test the red warning card or valid state:
-  const [faceCheckPassed] = useState(true);
-
-  // Next is enabled if at least 3 photos uploaded and face check passed
-  const isNextEnabled = uploadedCount >= 3 && faceCheckPassed;
+  // Next is enabled if at least 3 photos are uploaded (Selfie verification bypassed for now)
+  const isNextEnabled = uploadedCount >= 3;
 
   useFocusEffect(
     useCallback(() => {
@@ -79,9 +82,68 @@ const UploadPhotosScreen = ({ navigation }: any) => {
   };
 
   const handleNext = async () => {
-    if (!isNextEnabled) return;
+    if (!isNextEnabled || isCheckingPhotos) return;
     const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
     await AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots));
+
+    setIsCheckingPhotos(true);
+    try {
+      const authSession = await getAuthSession();
+      const uid = authSession?.userId || (await getUserId().catch(() => null));
+      let photoUrisToSync = currentSlots.filter(
+        (u): u is string => typeof u === 'string' && u.length > 0
+      );
+
+      // Prefer device local URIs saved during photo selection for FormData upload
+      try {
+        const rawLocal = await AsyncStorage.getItem('@local_onboarding_photos');
+        if (rawLocal) {
+          const locals = JSON.parse(rawLocal);
+          if (Array.isArray(locals)) {
+            const validLocals = locals.filter(
+              (u): u is string => typeof u === 'string' && u.length > 0
+            );
+            if (validLocals.length > 0) {
+              photoUrisToSync = validLocals;
+            }
+          }
+        }
+      } catch {}
+
+      if (photoUrisToSync.length > 0) {
+        try {
+          const syncRes = await uploadVerificationPhotos.mutateAsync({
+            userId: uid ? String(uid) : undefined,
+            photoUris: photoUrisToSync,
+          });
+
+          // Check if all uploaded photos have no face detected
+          if (syncRes?.results && Array.isArray(syncRes.results) && syncRes.results.length > 0) {
+            const noFaceCount = syncRes.results.filter(
+              (r: any) =>
+                r.reason === 'No face detected' ||
+                (r.match_found === false && Number(r.similarity || 0) === 0)
+            ).length;
+
+            if (noFaceCount === syncRes.results.length) {
+              setIsCheckingPhotos(false);
+              Alert.alert(
+                'Face Required in Photos',
+                'None of your uploaded photos contain a clear, recognizable human face. Amara requires photos showing yourself. Please replace them with clear photos of your face.'
+              );
+              return;
+            }
+          }
+        } catch (err: any) {
+          console.warn('[FaceValidation] Verification photo check warning:', err?.message || err);
+        }
+      }
+    } catch (e) {
+      console.warn('[FaceValidation] Failed to trigger background photo sync:', e);
+    } finally {
+      setIsCheckingPhotos(false);
+    }
+
     // Navigate to Step 5: ConnectTelegram
     navigation.navigate('ConnectTelegram');
   };
@@ -164,41 +226,34 @@ const UploadPhotosScreen = ({ navigation }: any) => {
             })}
           </View>
 
-          {/* Warning / Error Banners */}
-          {!faceCheckPassed && uploadedCount >= 3 ? (
-            // Red Face Error Card (Screenshot 4B)
-            <View style={styles.faceErrorCard}>
-              <View style={styles.errorIconWrap}>
-                <Icon name="close-circle-outline" size={24} color={colors.error || '#EF4444'} />
-              </View>
-              <Text style={styles.faceErrorText}>{t('onboarding.uploadimagescreen.none_of_your_photos_clearly_shows_your_face_please_upload_a_photo_of_y')}</Text>
-            </View>
-          ) : (
-            // Yellow Policy Banner (Screenshot 4A)
-            <View style={styles.nudityWarningCard}>
-              <Icon name="alert-outline" size={24} color={isDark ? '#D4A017' : '#D97706'} style={styles.warningIcon} />
-              <Text style={styles.nudityWarningText}>{t('onboarding.uploadimagescreen.no_nudity_and_make_sure_you_appear_in_every_photo')}</Text>
-            </View>
-          )}
+          {/* Policy Banner */}
+          <View style={styles.nudityWarningCard}>
+            <Icon name="alert-outline" size={24} color={isDark ? '#D4A017' : '#D97706'} style={styles.warningIcon} />
+            <Text style={styles.nudityWarningText}>{t('onboarding.uploadimagescreen.no_nudity_and_make_sure_you_appear_in_every_photo')}</Text>
+          </View>
 
           {/* Bottom Next Button */}
           <TouchableOpacity
             style={[
               styles.nextBtn,
-              isNextEnabled
+              isNextEnabled && !isCheckingPhotos
                 ? { backgroundColor: colors.primary }
                 : styles.nextBtnDisabled,
             ]}
             onPress={handleNext}
-            disabled={!isNextEnabled}
+            disabled={!isNextEnabled || isCheckingPhotos}
             activeOpacity={0.85}
           >
-            <Text
-              style={[
-                styles.nextBtnText,
-                !isNextEnabled && styles.nextBtnTextDisabled,
-              ]}
-            >{t('onboarding.aboutprofilescreen.next')}</Text>
+            {isCheckingPhotos ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text
+                style={[
+                  styles.nextBtnText,
+                  !isNextEnabled && styles.nextBtnTextDisabled,
+                ]}
+              >{t('onboarding.aboutprofilescreen.next')}</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

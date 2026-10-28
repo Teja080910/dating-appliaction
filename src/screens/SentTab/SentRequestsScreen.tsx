@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import LinearGradient from 'react-native-linear-gradient';
@@ -48,18 +48,37 @@ const SentRequestsScreen: React.FC = () => {
   const { sentList, refreshAll } = useConnection();
   const { data: requests = [], isLoading, isRefetching } = sentList;
 
+  // Auto-refetch when user focuses this screen
+  useFocusEffect(
+    useCallback(() => {
+      refreshAll();
+    }, [])
+  );
+
   const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>('accepted');
   const [searchQuery, setSearchQuery] = useState('');
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
+  const isAcceptedStatus = (status?: string) => {
+    const s = String(status || '').trim().toUpperCase();
+    return s === 'ACCEPTED' || s === 'APPROVED';
+  };
+
   // Group requests into pending vs accepted
   const pendingRequests = useMemo(
-    () => requests.filter((r) => r.status === 'PENDING'),
+    () =>
+      requests.filter(
+        (r) =>
+          !isAcceptedStatus(r.status) &&
+          r.status !== 'CANCELLED' &&
+          r.status !== 'DECLINED' &&
+          r.status !== 'REJECTED'
+      ),
     [requests]
   );
 
   const acceptedRequests = useMemo(
-    () => requests.filter((r) => r.status === 'APPROVED'),
+    () => requests.filter((r) => isAcceptedStatus(r.status)),
     [requests]
   );
 

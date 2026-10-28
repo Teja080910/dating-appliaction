@@ -22,6 +22,8 @@ import { Colors } from '../../theme';
 import { APP_LANGUAGES, LanguageOption, getLanguageFlag } from '../../utils/languageHelper';
 import { t, useTranslation, setLanguage } from '../../i18n';
 import apiClient from '../../api/apiClient';
+import { getUserId } from '../../utils/sessionHelper';
+import { getAuthSession } from '../../utils/session';
 
 export { APP_LANGUAGES, getLanguageFlag };
 export type { LanguageOption };
@@ -59,8 +61,16 @@ const PreferencesScreen = () => {
           setEmailNotifications(savedEmail === 'true');
         }
 
+        let uid = await getUserId().catch(() => null);
+        if (!uid) {
+          const sess = await getAuthSession();
+          uid = sess?.userId || null;
+        }
+
         apiClient
-          .get('/notification/preferences')
+          .get('/notification/preferences', {
+            params: uid ? { userId: uid } : undefined,
+          })
           .then((res) => {
             if (res?.data && typeof res.data.emailNotifications === 'boolean') {
               setEmailNotifications(res.data.emailNotifications);
@@ -94,10 +104,23 @@ const PreferencesScreen = () => {
     setEmailNotifications(val);
     try {
       await AsyncStorage.setItem('@app_email_notifications', String(val));
+      let uid = await getUserId().catch(() => null);
+      if (!uid) {
+        const sess = await getAuthSession();
+        uid = sess?.userId || null;
+      }
+
       await apiClient
-        .put('/notification/preferences', {
-          emailNotifications: val,
-        })
+        .put(
+          '/notification/preferences',
+          {
+            emailNotifications: val,
+            ...(uid ? { userId: uid } : {}),
+          },
+          {
+            params: uid ? { userId: uid } : undefined,
+          },
+        )
         .catch(() => {});
     } catch (e) {
       console.warn('Error saving email notification preference:', e);

@@ -38,4 +38,6 @@ export type RootParamList = {
   HowToUseScreen: undefined;
   ResetLocationScreen: undefined;
   ResetLocation: undefined;
+  BlockedUsersScreen: undefined;
+  BlockedUsers: undefined;
 };

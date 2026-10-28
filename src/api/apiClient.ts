@@ -24,16 +24,23 @@ const isPublicAuthRequest = (url: string | null | undefined) => {
   return PUBLIC_AUTH_PATHS.some((path) => normalizedUrl.includes(path));
 };
 
-const summarizeApiError = (error: any) => ({
-  status: Number(error?.response?.status || 0) || null,
-  url: String(error?.config?.url || '').trim() || null,
-  message: String(error?.message || 'Unknown API error'),
-  details:
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    (typeof error?.response?.data === 'string' ? error.response.data : null) ||
-    null,
-});
+const summarizeApiError = (error: any) => {
+  const respData = error?.response?.data;
+  let detailsText: string | null = null;
+  if (typeof respData === 'string') {
+    detailsText = respData;
+  } else if (respData && typeof respData === 'object') {
+    detailsText = respData.message || respData.error || respData.details || JSON.stringify(respData);
+  }
+
+  return {
+    status: Number(error?.response?.status || 0) || null,
+    url: String(error?.config?.url || '').trim() || null,
+    message: String(error?.message || 'Unknown API error'),
+    details: detailsText,
+    data: respData,
+  };
+};
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -42,7 +49,7 @@ const apiClient = axios.create({
   headers: {
     Accept: '*/*',
   },
-  adapter: USE_MOCK ? handleMockRequest : undefined,
+  adapter: (USE_MOCK || process.env.NODE_ENV === 'test') ? handleMockRequest : undefined,
 });
 
 const pendingRequests = new Map<string, Promise<any>>();
@@ -78,7 +85,7 @@ apiClient.interceptors.request.use(
       }
 
       if (__DEV__) {
-        console.log(`➡️ [API REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
+        console.log(`➡️ [API REQUEST] ${config.method?.toUpperCase()} ${config.url}`, config.params ? { params: config.params } : '');
       }
 
       return config;
@@ -123,8 +130,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    console.log(`[API DEBUG] Request to ${url} failed: ${summary.message}`);
-    console.log('❌ API ERROR:', summary);
+    console.log(`[API DEBUG] Request to ${url} failed: ${summary.details || summary.message}`);
+    console.log('❌ API ERROR:', JSON.stringify(summary));
 
     if (status === 401 && !isPublicAuthRequest(url)) {
       const isIdentityMismatch =

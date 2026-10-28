@@ -31,6 +31,7 @@ jest.mock('react-native-vector-icons/Feather', () => 'Feather');
 jest.mock('react-native-vision-camera', () => ({
   Camera: 'Camera',
   useCameraDevice: () => ({ id: 'front' }),
+  useCameraDevices: () => [{ id: '1', position: 'front' }],
   useCameraPermission: () => ({
     hasPermission: false,
     requestPermission: jest.fn(async () => true),
@@ -156,7 +157,7 @@ describe('Glambu-style Auth and Verification Screens with Amara Theme', () => {
     });
   });
 
-  test('SelfieVerificationScreen renders Photo 3 "Allow Camera Access" screen initially', () => {
+  test('SelfieVerificationScreen renders camera viewfinder screen', () => {
     let tree: any;
     ReactTestRenderer.act(() => {
       tree = ReactTestRenderer.create(
@@ -164,8 +165,7 @@ describe('Glambu-style Auth and Verification Screens with Amara Theme', () => {
       );
     });
     const str = JSON.stringify(tree.toJSON());
-    expect(str).toContain('Allow Camera Access');
-    expect(str).toContain('Camera');
+    expect(str).toContain('Center your face');
     expect(str).toContain('Allow Camera');
     ReactTestRenderer.act(() => {
       tree.unmount();

@@ -21,7 +21,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection } from '../../../api/useConnection';
-import { useReport } from '../../../api/useReport';
+import { useReport, normalizeReportReason } from '../../../api/useReport';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../../theme';
 import { isResolvedApiUserId, repairStoredSessionIdentity } from '../../../utils/session';
@@ -125,8 +125,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const connection = useConnection(currentUserId || undefined);
   const reportApi = useReport(currentUserId || undefined);
   const { alert, AlertComponent } = useAlert();
+  const isAcceptedStatus = (s?: string | null) => {
+    const upper = String(s || '').trim().toUpperCase();
+    return upper === 'ACCEPTED' || upper === 'APPROVED';
+  };
   const isReceivedPendingRequest =
-    requestRole === 'received' && String(requestStatus || '').toUpperCase() !== 'APPROVED';
+    requestRole === 'received' && !isAcceptedStatus(requestStatus);
 
   const handleApproveRequest = () => {
     if (!requestId) return;
@@ -287,9 +291,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   });
   const isAlreadyInvited = Boolean(matchingInvitation);
   const isApprovedInvitation =
-    matchingInvitation?.status === 'APPROVED' ||
-    matchingReceived?.status === 'APPROVED' ||
-    String(requestStatus || '').toUpperCase() === 'APPROVED';
+    isAcceptedStatus(matchingInvitation?.status) ||
+    isAcceptedStatus(matchingReceived?.status) ||
+    isAcceptedStatus(requestStatus);
 
   const targetTelegramUsername =
     resolvedProfile?.telegramUsername ||
@@ -541,7 +545,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       {
         byUserId: activeBy,
         targetUserId: activeTarget,
-        reason: selectedReason,
+        reason: normalizeReportReason(selectedReason),
         message: additionalDetails.trim()
           ? t('profile.userdetails.reported_reason_details', { finalDisplayName: finalDisplayName || t('home.usercard.user'), selectedReason, additionalDetails: additionalDetails.trim() })
           : t('profile.userdetails.reported_reason', { finalDisplayName: finalDisplayName || t('home.usercard.user'), selectedReason }),
