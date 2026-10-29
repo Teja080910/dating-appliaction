@@ -189,9 +189,18 @@ export const useNotification = (userId?: string | number) => {
           resolvedUserId = await resolveBackendUserId();
         } catch (_) {}
 
-        const response = await apiClient.get('/emails/my', {
-          params: resolvedUserId ? { userId: toApiUserId(resolvedUserId) } : undefined,
-        });
+        let response;
+        try {
+          response = await apiClient.get('/emails/my', {
+            params: resolvedUserId ? { userId: resolvedUserId } : undefined,
+          });
+        } catch (err: any) {
+          if (err?.response?.status === 403 || err?.response?.data?.code === 'ACCESS_DENIED') {
+            response = await apiClient.get('/emails/my');
+          } else {
+            throw err;
+          }
+        }
 
         const data = response?.data;
         if (Array.isArray(data)) return data as EmailLogItem[];
