@@ -86,7 +86,7 @@ describe('Edit Profile New Features', () => {
     expect(json).toContain('Your Telegram');
   });
 
-  it('renders ProfilePhotoGrid containing Add Photo and Face photo required modal templates', () => {
+  it('renders ProfilePhotoGrid containing Add Photo and Face photo required modal templates', async () => {
     const mockContext = {
       images: ['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg'],
       setImages: jest.fn(),
@@ -97,7 +97,7 @@ describe('Edit Profile New Features', () => {
     };
 
     let renderer: ReactTestRenderer.ReactTestRenderer;
-    act(() => {
+    await act(async () => {
       renderer = ReactTestRenderer.create(
         <QueryClientProvider client={queryClient}>
           <AppContext.Provider value={mockContext as any}>
@@ -115,5 +115,9 @@ describe('Edit Profile New Features', () => {
     expect(root).toBeDefined();
     // Test that the component rendered slots
     expect(json).toContain('https://example.com/photo1.jpg');
+
+    act(() => {
+      renderer!.unmount();
+    });
   });
 });

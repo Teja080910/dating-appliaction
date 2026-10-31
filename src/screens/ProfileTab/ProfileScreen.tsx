@@ -61,12 +61,13 @@ const ProfileScreen = () => {
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId } =
+  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender } =
     useContext(AppContext);
   const { logout, deleteAccount } = useAuth();
   const { alert, AlertComponent } = useAlert();
   const { data: myProfile } = useMyProfile();
   const [userEmail, setUserEmail] = useState<string>('');
+  const [userGender, setUserGender] = useState<string | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [chatModalVisible, setChatModalVisible] = useState(false);
@@ -80,37 +81,54 @@ const ProfileScreen = () => {
 
   useEffect(() => {
     let isMounted = true;
-    const loadEmail = async () => {
+    const loadUserData = async () => {
       try {
-        const storedEmail = await AsyncStorage.getItem('userEmail');
-        const u = await AsyncStorage.getItem('user');
-        const userData = await AsyncStorage.getItem('userData');
+        const [storedEmail, storedGender1, storedGender2, u, userData] = await Promise.all([
+          AsyncStorage.getItem('userEmail'),
+          AsyncStorage.getItem('selectedGender'),
+          AsyncStorage.getItem('userGender'),
+          AsyncStorage.getItem('user'),
+          AsyncStorage.getItem('userData'),
+        ]);
+
         let emailFound = storedEmail || contextEmail || '';
-        if (!emailFound && u) {
-          try {
-            const parsed = JSON.parse(u);
-            emailFound = parsed?.email || parsed?.user?.email || '';
-          } catch {}
+        let genderFound = storedGender1 || storedGender2 || '';
+
+        for (const json of [u, userData]) {
+          if (json) {
+            try {
+              const parsed = JSON.parse(json);
+              if (!emailFound) {
+                emailFound = parsed?.email || parsed?.user?.email || '';
+              }
+              if (!genderFound) {
+                genderFound = parsed?.gender || parsed?.user?.gender || parsed?.profile?.gender || '';
+              }
+            } catch {}
+          }
         }
-        if (!emailFound && userData) {
-          try {
-            const parsed = JSON.parse(userData);
-            emailFound = parsed?.email || parsed?.user?.email || '';
-          } catch {}
-        }
+
         if (!emailFound && myProfile?.email) {
           emailFound = myProfile.email;
         }
-        if (isMounted && emailFound) {
-          setUserEmail(emailFound);
+        if (!genderFound && myProfile?.gender) {
+          genderFound = myProfile.gender;
+        }
+
+        if (isMounted) {
+          if (emailFound) setUserEmail(emailFound);
+          if (genderFound) setUserGender(genderFound);
         }
       } catch {}
     };
-    void loadEmail();
+    void loadUserData();
     return () => {
       isMounted = false;
     };
   }, [myProfile, contextEmail]);
+
+  const rawGender = String(gender || userGender || myProfile?.gender || '').toLowerCase();
+  const isWoman = rawGender.includes('woman') || rawGender.includes('female');
 
   const handleLogout = async () => {
     try {
@@ -203,20 +221,24 @@ const ProfileScreen = () => {
             styles={styles}
             onPress={() => navigation.navigate('MoreInfoScreen')}
           />
-          <SettingsRow
-            icon="tune-variant"
-            label={t('search.searchsettingheader.search_settings')}
-            themeColors={themeColors}
-            styles={styles}
-            onPress={() => navigation.navigate('SearchSettings')}
-          />
-          <SettingsRow
-            icon="crown-outline"
-            label={t('common.subscriptionmodal.get_premium')}
-            themeColors={themeColors}
-            styles={styles}
-            onPress={() => setPaywallVisible?.(true)}
-          />
+          {!isWoman && (
+            <>
+              <SettingsRow
+                icon="tune-variant"
+                label={t('search.searchsettingheader.search_settings')}
+                themeColors={themeColors}
+                styles={styles}
+                onPress={() => navigation.navigate('SearchSettings')}
+              />
+              <SettingsRow
+                icon="crown-outline"
+                label={t('common.subscriptionmodal.get_premium')}
+                themeColors={themeColors}
+                styles={styles}
+                onPress={() => setPaywallVisible?.(true)}
+              />
+            </>
+          )}
           <SettingsRow
             icon="send-outline"
             label={t('nav.bottomtabs.telegram')}

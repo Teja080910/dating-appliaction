@@ -39,21 +39,43 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
   resolveConnectionArray(payload).map((item) => {
     const rawSender = item?.sender && typeof item.sender === 'object' ? item.sender : {};
     const rawReceiver = item?.receiver && typeof item.receiver === 'object' ? item.receiver : {};
+    const rawSenderProfile = item?.senderProfile && typeof item.senderProfile === 'object' ? item.senderProfile : {};
+    const rawReceiverProfile = item?.receiverProfile && typeof item.receiverProfile === 'object' ? item.receiverProfile : {};
 
-    const sender = item?.sender || {
-      id: item?.senderId ?? '0',
-      userId: item?.senderId ?? '0',
-      displayName: item?.senderName || item?.senderDisplayName || rawSender?.displayName || rawSender?.name,
-      photos: item?.senderPhoto ? [item.senderPhoto] : item?.senderPhotos || rawSender?.photos,
-      telegramUsername: item?.senderTelegram || item?.senderTelegramUsername || rawSender?.telegramUsername,
+    const senderPhotos =
+      item?.senderPhoto ? [item.senderPhoto]
+      : Array.isArray(rawSenderProfile?.photos) && rawSenderProfile.photos.length > 0 ? rawSenderProfile.photos
+      : Array.isArray(rawSender?.photos) && rawSender.photos.length > 0 ? rawSender.photos
+      : item?.senderPhotos || [];
+
+    const sender = {
+      ...rawSenderProfile,
+      ...rawSender,
+      id: item?.senderId ?? rawSender?.id ?? rawSenderProfile?.userId ?? '0',
+      userId: item?.senderId ?? rawSender?.userId ?? rawSenderProfile?.userId ?? '0',
+      displayName: item?.senderName || item?.senderDisplayName || rawSenderProfile?.displayName || rawSender?.displayName || rawSender?.name || 'User',
+      photos: senderPhotos,
+      photo: senderPhotos[0] || rawSenderProfile?.photo || rawSender?.photo,
+      telegramUsername: item?.senderTelegram || item?.senderTelegramUsername || rawSenderProfile?.telegramUsername || rawSender?.telegramUsername,
+      age: rawSenderProfile?.age || rawSender?.age,
     };
 
-    const receiver = item?.receiver || {
-      id: item?.receiverId ?? '0',
-      userId: item?.receiverId ?? '0',
-      displayName: item?.receiverName || item?.receiverDisplayName || rawReceiver?.displayName || rawReceiver?.name,
-      photos: item?.receiverPhoto ? [item.receiverPhoto] : item?.receiverPhotos || rawReceiver?.photos,
-      telegramUsername: item?.receiverTelegram || item?.receiverTelegramUsername || rawReceiver?.telegramUsername,
+    const receiverPhotos =
+      item?.receiverPhoto ? [item.receiverPhoto]
+      : Array.isArray(rawReceiverProfile?.photos) && rawReceiverProfile.photos.length > 0 ? rawReceiverProfile.photos
+      : Array.isArray(rawReceiver?.photos) && rawReceiver.photos.length > 0 ? rawReceiver.photos
+      : item?.receiverPhotos || [];
+
+    const receiver = {
+      ...rawReceiverProfile,
+      ...rawReceiver,
+      id: item?.receiverId ?? rawReceiver?.id ?? rawReceiverProfile?.userId ?? '0',
+      userId: item?.receiverId ?? rawReceiver?.userId ?? rawReceiverProfile?.userId ?? '0',
+      displayName: item?.receiverName || item?.receiverDisplayName || rawReceiverProfile?.displayName || rawReceiver?.displayName || rawReceiver?.name || 'User',
+      photos: receiverPhotos,
+      photo: receiverPhotos[0] || rawReceiverProfile?.photo || rawReceiver?.photo,
+      telegramUsername: item?.receiverTelegram || item?.receiverTelegramUsername || rawReceiverProfile?.telegramUsername || rawReceiver?.telegramUsername,
+      age: rawReceiverProfile?.age || rawReceiver?.age,
     };
 
     const rawStatus = String(item?.status || 'PENDING').trim().toUpperCase();
@@ -141,19 +163,23 @@ export const useConnection = (userId?: string | number) => {
       const targetReceiverId = toApiUserId(receiverId);
 
       const payload = {
-        senderId: resolvedSenderId,
-        receiverId: targetReceiverId,
-        byUserId: resolvedSenderId,
-        targetUserId: targetReceiverId,
+        senderId: String(resolvedSenderId),
+        receiverId: String(targetReceiverId),
       };
 
-      const res = await apiClient.post('/connections/send', payload, {
-        params: {
-          senderId: resolvedSenderId,
-          receiverId: targetReceiverId,
-        },
-      });
-      return res.data;
+      try {
+        const res = await apiClient.post('/connections/send', payload);
+        return res.data;
+      } catch (err: any) {
+        // Fallback with params if server was expecting query params in some builds
+        if (err?.response?.status === 400 || err?.response?.status === 404) {
+          const res = await apiClient.post('/connections/send', payload, {
+            params: payload,
+          });
+          return res.data;
+        }
+        throw err;
+      }
     },
     onSuccess: async () => {
       await refreshQueries();
@@ -163,17 +189,15 @@ export const useConnection = (userId?: string | number) => {
   const accept = useMutation({
     mutationFn: async (requestId: number | string) => {
       const resolvedUserId = await resolveBackendUserId();
-      const numRequestId = Number(requestId) && Number(requestId) > 0 ? Number(requestId) : requestId;
+      const reqIdStr = String(requestId);
 
       const payload = {
-        requestId: numRequestId,
-        userId: resolvedUserId,
+        requestId: reqIdStr,
+        userId: String(resolvedUserId),
       };
 
       try {
-        const res = await apiClient.put('/connections/accept', payload, {
-          params: payload,
-        });
+        const res = await apiClient.put('/connections/accept', payload);
         return res.data;
       } catch (err: any) {
         const status = Number(err?.response?.status || 0);
@@ -185,13 +209,13 @@ export const useConnection = (userId?: string | number) => {
           return {
             status: 'success',
             message: 'Connection approved',
-            data: { id: numRequestId, status: 'ACCEPTED' },
+            data: { id: reqIdStr, status: 'ACCEPTED' },
           };
         }
 
-        // Try body-only (in case query params caused issue)
+        // Try with params
         try {
-          const res = await apiClient.put('/connections/accept', payload);
+          const res = await apiClient.put('/connections/accept', payload, { params: payload });
           return res.data;
         } catch (bodyErr: any) {
           const bStatus = Number(bodyErr?.response?.status || 0);
@@ -200,7 +224,7 @@ export const useConnection = (userId?: string | number) => {
             return {
               status: 'success',
               message: 'Connection approved',
-              data: { id: numRequestId, status: 'ACCEPTED' },
+              data: { id: reqIdStr, status: 'ACCEPTED' },
             };
           }
           throw bodyErr;
@@ -228,27 +252,27 @@ export const useConnection = (userId?: string | number) => {
   const reject = useMutation({
     mutationFn: async (requestId: number | string) => {
       const resolvedUserId = await resolveBackendUserId();
-      const numRequestId = Number(requestId) && Number(requestId) > 0 ? Number(requestId) : requestId;
+      const reqIdStr = String(requestId);
 
       const payload = {
-        requestId: numRequestId,
-        userId: resolvedUserId,
+        requestId: reqIdStr,
+        userId: String(resolvedUserId),
       };
 
       try {
-        const res = await apiClient.put('/connections/decline', payload, { params: payload });
+        const res = await apiClient.put('/connections/reject', payload);
         return res.data;
       } catch (err: any) {
         const status = Number(err?.response?.status || 0);
         const errorMsg = String(err?.response?.data?.message || err?.message || '').toLowerCase();
         if (status === 409 || errorMsg.includes('already')) {
-          return { status: 'success', message: 'Invitation declined', data: { id: numRequestId, status: 'DECLINED' } };
+          return { status: 'success', message: 'Invitation declined', data: { id: reqIdStr, status: 'DECLINED' } };
         }
 
         const res = await apiClient
           .put('/connections/decline', payload)
           .catch(() => apiClient.put('/connections/reject', payload, { params: payload }))
-          .catch(() => apiClient.put('/connections/reject', payload));
+          .catch(() => apiClient.put('/connections/decline', payload, { params: payload }));
         return res.data;
       }
     },
@@ -267,23 +291,23 @@ export const useConnection = (userId?: string | number) => {
   const cancel = useMutation({
     mutationFn: async (requestId: number | string) => {
       const resolvedUserId = await resolveBackendUserId();
-      const numRequestId = Number(requestId) && Number(requestId) > 0 ? Number(requestId) : requestId;
+      const reqIdStr = String(requestId);
 
       const payload = {
-        requestId: numRequestId,
-        userId: resolvedUserId,
+        requestId: reqIdStr,
+        userId: String(resolvedUserId),
       };
 
       try {
-        const res = await apiClient.put('/connections/cancel', payload, { params: payload });
+        const res = await apiClient.put('/connections/cancel', payload);
         return res.data;
       } catch (err: any) {
         const status = Number(err?.response?.status || 0);
         const errorMsg = String(err?.response?.data?.message || err?.message || '').toLowerCase();
         if (status === 409 || errorMsg.includes('already')) {
-          return { status: 'success', message: 'Invitation cancelled', data: { id: numRequestId, status: 'CANCELLED' } };
+          return { status: 'success', message: 'Invitation cancelled', data: { id: reqIdStr, status: 'CANCELLED' } };
         }
-        const res = await apiClient.put('/connections/cancel', payload);
+        const res = await apiClient.put('/connections/cancel', payload, { params: payload });
         return res.data;
       }
     },

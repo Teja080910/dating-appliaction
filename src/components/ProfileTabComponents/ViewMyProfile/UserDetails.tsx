@@ -32,6 +32,7 @@ import { openTelegramChat } from '../../../utils/telegramHelper';
 import { getLanguageFlag } from '../../../utils/languageHelper';
 import { t, useTranslation } from '../../../i18n';
 import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
+import { mockStore } from '../../../mock/mockStore';
 
 const getReportReasons = () => [
   'Scam / Fraud',
@@ -93,6 +94,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     selectedDrinking,
     setPaywallVisible,
     isSubscribed,
+    setIsSubscribed,
     verifiedSelfie,
     profileText,
     selectedAppearance,
@@ -336,11 +338,31 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const canAttemptInvite = Boolean(resolvedTargetUserId);
 
   const handleInvite = async () => {
-    // Always show the paywall first for unsubscribed users.
-    // Invite-specific identity validation should happen only after payment intent.
-    if (!isSubscribed) {
-        setPaywallVisible(true);
-        return;
+    // Always check both state and persisted/mock storage for subscription
+    let activeSubscribed = isSubscribed;
+    if (!activeSubscribed) {
+      try {
+        const storedSub = await AsyncStorage.getItem('isSubscribed');
+        if (storedSub === 'true') {
+          activeSubscribed = true;
+          setIsSubscribed?.(true);
+        } else {
+          const checkId = currentUserId || (await getUserId().catch(() => null));
+          if (checkId) {
+            const sub = await mockStore.getSubscriptionStatus(String(checkId));
+            if (sub && sub.status === 'ACTIVE') {
+              activeSubscribed = true;
+              await AsyncStorage.setItem('isSubscribed', 'true');
+              setIsSubscribed?.(true);
+            }
+          }
+        }
+      } catch {}
+    }
+
+    if (!activeSubscribed) {
+      setPaywallVisible(true);
+      return;
     }
 
     const repairedCurrentUserId =
@@ -417,6 +439,24 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         Toast.show({ type: 'success', text1: t('profile.userdetails.invitation_sent') });
       },
       onError: (error: any) => {
+        const errorDetails = String(
+          error?.response?.data?.details ||
+          error?.response?.data?.message ||
+          error?.response?.data?.code ||
+          (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+          error?.message ||
+          ''
+        ).toLowerCase();
+
+        if (
+          error?.response?.status === 409 ||
+          ((error?.response?.status === 400) &&
+            (errorDetails.includes('duplicate') || errorDetails.includes('already')))
+        ) {
+          connection.sentList.refetch();
+          Toast.show({ type: 'info', text1: t('profile.userdetails.already_invited') });
+          return;
+        }
         if (isSubscriptionGateError(error)) {
           setPaywallVisible(true);
           return;

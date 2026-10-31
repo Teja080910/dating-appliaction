@@ -798,8 +798,21 @@ export const handleMockRequest = async (
         request: newRequest,
       });
     } catch (err: any) {
-      const message = err.message || 'Duplicate request';
-      const status = message.includes('BR-01') ? 403 : 409;
+      const message = String(err?.message || 'Duplicate request');
+      const lower = message.toLowerCase();
+      if (
+        lower.includes('active subscription is required') ||
+        lower.includes('subscription required') ||
+        lower.includes('daily request limit') ||
+        lower.includes('daily invitation limit') ||
+        lower.includes('quota exceeded')
+      ) {
+        throw createMockError(config, 403, message, 'SUBSCRIPTION_REQUIRED');
+      }
+      if (lower.includes('already') || lower.includes('duplicate')) {
+        throw createMockError(config, 400, message, 'DUPLICATE_REQUEST');
+      }
+      const status = 400;
       throw createMockError(config, status, message);
     }
   }
@@ -838,8 +851,8 @@ export const handleMockRequest = async (
     }
   }
 
-  // PUT or POST /connections/reject
-  if ((method === 'PUT' || method === 'POST') && url.includes('/connections/reject')) {
+  // PUT or POST /connections/reject or /connections/decline
+  if ((method === 'PUT' || method === 'POST') && (url.includes('/connections/reject') || url.includes('/connections/decline'))) {
     const requestId = body.requestId || queryParams.requestId;
     return createMockResponse(config, 200, {
       status: 'success',
@@ -998,6 +1011,7 @@ export const handleMockRequest = async (
       const plan = String(sub.plan || '').toUpperCase();
       return createMockResponse(config, 200, {
         active: true,
+        isSubscriber: true,
         plan,
         planType: plan,
         startDate: sub.startDate,
@@ -1018,6 +1032,7 @@ export const handleMockRequest = async (
 
     return createMockResponse(config, 200, {
       active: false,
+      isSubscriber: false,
       plan: null,
       startDate: null,
       endDate: null,

@@ -88,10 +88,10 @@ const normalizeRazorpayResponse = (payload: any) => {
 
 export const toBackendPlanName = (plan: unknown): string => {
   const p = String(plan || '').trim().toUpperCase();
-  if (p === 'STANDARD' || p === 'MONTHLY' || p === 'BASIC' || p === 'SILVER') return 'STANDARD';
-  if (p === 'PREMIUM' || p === 'GOLD' || p === 'VIP') return 'PREMIUM';
-  if (p === 'ELITE' || p === 'YEARLY' || p === 'ANNUAL' || p === 'PLATINUM') return 'ELITE';
-  return p || 'STANDARD';
+  if (p === 'STANDARD' || p === 'MONTHLY' || p === 'BASIC' || p === 'SILVER') return 'BASIC';
+  if (p === 'PREMIUM' || p === 'GOLD' || p === 'VIP') return 'GOLD';
+  if (p === 'ELITE' || p === 'YEARLY' || p === 'ANNUAL' || p === 'PLATINUM') return 'GOLD';
+  return p || 'BASIC';
 };
 
 /**
@@ -197,18 +197,57 @@ export const useSubscription = (userId?: string | null) => {
   const subStatus = useQuery({
     queryKey: statusQueryKey,
     queryFn: async () => {
-      const resolvedUserId = await resolveBackendUserId();
-      const response = await apiClient
-        .get('/subscription/status', {
-          params: { userId: resolvedUserId },
-        })
-        .catch(() =>
-          apiClient.get('/subscriber/status', {
+      const resolvedUserId = await resolveBackendUserId().catch(() => null);
+      try {
+        if (!resolvedUserId) throw new Error('No user id');
+        const response = await apiClient
+          .get('/subscriber/status', {
             params: { userId: resolvedUserId },
           })
-        );
+          .catch(() =>
+            apiClient.get('/subscription/status', {
+              params: { userId: resolvedUserId },
+            })
+          );
 
-      return normalizeSubscriptionStatus(response.data);
+        const normalized = normalizeSubscriptionStatus(response.data);
+        if (normalized?.active) {
+          return normalized;
+        }
+
+        const localSub = await AsyncStorage.getItem('isSubscribed');
+        const localPlan = await AsyncStorage.getItem('@subscription_plan');
+        if (localSub === 'true') {
+          return {
+            active: true,
+            plan: localPlan || 'BASIC',
+            startDate: null,
+            endDate: null,
+            priorityHandoff: true,
+            eliteBadge: true,
+            dailyRequestLimit: 20,
+            raw: { isSubscribed: true },
+          };
+        }
+
+        return normalized;
+      } catch (err: any) {
+        const localSub = await AsyncStorage.getItem('isSubscribed');
+        const localPlan = await AsyncStorage.getItem('@subscription_plan');
+        if (localSub === 'true') {
+          return {
+            active: true,
+            plan: localPlan || 'BASIC',
+            startDate: null,
+            endDate: null,
+            priorityHandoff: true,
+            eliteBadge: true,
+            dailyRequestLimit: 20,
+            raw: { isSubscribed: true },
+          };
+        }
+        return normalizeSubscriptionStatus(null);
+      }
     },
   });
 
@@ -247,17 +286,15 @@ export const useSubscription = (userId?: string | null) => {
 
       const requestOrder = async (planToTry: string) => {
         const payload = {
-          userId: resolvedUserId,
+          userId: String(resolvedUserId),
           plan: planToTry,
         };
 
         const response = await apiClient
-          .post('/razorpay/create-order', payload, {
-            params: payload,
-          })
+          .post('/razorpay/create-order', payload)
           .catch(async (err: any) => {
             if (err?.response?.status === 404) {
-              return apiClient.post('/order/create', payload, { params: payload });
+              return apiClient.post('/order/create', payload);
             }
             throw err;
           });
@@ -269,12 +306,15 @@ export const useSubscription = (userId?: string | null) => {
         return await requestOrder(targetPlan);
       } catch (err: any) {
         if (err?.response?.status === 400) {
-          const capitalized = targetPlan.charAt(0) + targetPlan.slice(1).toLowerCase();
-          console.log(`[Subscription] Server rejected plan ${targetPlan}, retrying with ${capitalized}...`);
-          try {
-            return await requestOrder(capitalized);
-          } catch {
-            return await requestOrder('STANDARD');
+          const alternatives = ['BASIC', 'GOLD', 'STANDARD', 'PREMIUM', 'ELITE']
+            .filter((p) => p !== targetPlan);
+          for (const alt of alternatives) {
+            try {
+              console.log(`[Subscription] Server rejected plan ${targetPlan}, retrying with ${alt}...`);
+              return await requestOrder(alt);
+            } catch (retryErr: any) {
+              if (retryErr?.response?.status !== 400) throw retryErr;
+            }
           }
         }
         throw err;

@@ -27,13 +27,17 @@ const ServerSync = () => {
   }, [setOffline, setOnline]);
 
   useEffect(() => {
+    let isMounted = true;
     getUserId()
       .then((id) => {
-        if (id) {
+        if (isMounted && id) {
           setUserId(String(id));
         }
       })
       .catch(() => null);
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {

@@ -62,10 +62,13 @@ export interface MockRequest {
 }
 
 export interface MockSubscriptionPlan {
-  id: 'BASIC' | 'GOLD' | 'PREMIUM' | string;
+  id: 'BASIC' | 'GOLD' | 'PREMIUM' | 'STANDARD' | 'ELITE' | string;
   name: string;
-  durationMonths: number;
+  durationMonths?: number;
+  durationDays?: number;
   price: number;
+  amount?: number;
+  contactView?: string;
   tagline?: string;
   popular?: boolean;
   features: string[];

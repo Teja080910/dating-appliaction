@@ -23,6 +23,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
+import { getAbsoluteUrl } from '../../api/apiClient';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import { openTelegramChat } from '../../utils/telegramHelper';
 import { t, useTranslation } from '../../i18n';
@@ -175,10 +176,19 @@ const RequestsInboxScreen: React.FC = () => {
 
   const renderCard = ({ item }: { item: ConnectionRequest }) => {
     const sender = item.sender || {};
-    const photoUrl =
+    const rawPhoto =
       sender.photo ||
-      (sender.photos && sender.photos[0]) ||
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
+      sender.profileImageUrl ||
+      sender.photoUrl ||
+      sender.image ||
+      (Array.isArray(sender.photos) && sender.photos[0]) ||
+      (Array.isArray(sender.images) && sender.images[0]) ||
+      (item as any).senderPhoto ||
+      (item as any).senderImage ||
+      null;
+    const photoUrl = rawPhoto
+      ? getAbsoluteUrl(rawPhoto) || rawPhoto
+      : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
 
     const displayName = cleanDisplayName(sender.displayName || sender.name);
     const statusText = formatStatusDate(item);

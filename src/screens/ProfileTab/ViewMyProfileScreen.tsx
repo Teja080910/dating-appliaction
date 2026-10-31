@@ -29,6 +29,7 @@ import AppContext from "../../context/CreateGlobalStateContext";
 import { Colors, useTheme } from "../../theme";
 import { useAlert } from "../../components/AlertModal";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
+import { mockStore } from "../../mock/mockStore";
 
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
@@ -131,6 +132,7 @@ const ViewMyProfileScreen = () => {
   const {
     name,
     displayName,
+    gender,
     date,
     height,
     profileText,
@@ -153,7 +155,33 @@ const ViewMyProfileScreen = () => {
     location,
     setPaywallVisible,
     isSubscribed,
+    setIsSubscribed,
   } = useContext(AppContext);
+
+  const [viewerGender, setViewerGender] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchViewerGender = async () => {
+      try {
+        const [g1, g2] = await Promise.all([
+          AsyncStorage.getItem('selectedGender'),
+          AsyncStorage.getItem('userGender'),
+        ]);
+        const found = g1 || g2 || '';
+        if (isMounted && found) {
+          setViewerGender(found);
+        }
+      } catch {}
+    };
+    void fetchViewerGender();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const rawViewerGender = String(gender || viewerGender || '').toLowerCase();
+  const isViewerWoman = rawViewerGender.includes('woman') || rawViewerGender.includes('female');
 
   // userId from params if we are viewing someone else
   const {
@@ -320,7 +348,25 @@ const ViewMyProfileScreen = () => {
   }, [sentConnections, numericTargetId]);
 
   const handleLike = async () => {
-    if (!isSubscribed) {
+    let activeSubscribed = isSubscribed;
+    if (!activeSubscribed) {
+      try {
+        const storedSub = await AsyncStorage.getItem('isSubscribed');
+        if (storedSub === 'true') {
+          activeSubscribed = true;
+          setIsSubscribed?.(true);
+        } else if (myId) {
+          const sub = await mockStore.getSubscriptionStatus(String(myId));
+          if (sub && sub.status === 'ACTIVE') {
+            activeSubscribed = true;
+            await AsyncStorage.setItem('isSubscribed', 'true');
+            setIsSubscribed?.(true);
+          }
+        }
+      } catch {}
+    }
+
+    if (!activeSubscribed) {
       setPaywallVisible(true);
       return;
     }
@@ -386,7 +432,7 @@ const ViewMyProfileScreen = () => {
         ).toLowerCase();
 
         if (
-          error?.response?.status === 400 &&
+          (error?.response?.status === 400 || error?.response?.status === 409) &&
           (errorDetails.includes('duplicate') || errorDetails.includes('already') || errorDetails.includes('invalid data') || errorDetails.includes('cannot send request to yourself'))
         ) {
           connection.sentList.refetch();
@@ -670,11 +716,11 @@ const ViewMyProfileScreen = () => {
                 }
                 style={styles.image}
                 resizeMode="cover"
-                blurRadius={!isViewingSelf && !isSubscribed ? (Platform.OS === 'android' ? 22 : 16) : 0}
+                blurRadius={!isViewingSelf && !isSubscribed && !isViewerWoman ? (Platform.OS === 'android' ? 22 : 16) : 0}
               />
 
-              {/* Upgrade to premium blur overlay card when viewing another user and not subscribed */}
-              {!isViewingSelf && !isSubscribed && (
+              {/* Upgrade to premium blur overlay card when viewing another user and not subscribed (men only) */}
+              {!isViewingSelf && !isSubscribed && !isViewerWoman && (
                 <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
                   <View style={styles.blurCardOverlay}>
                     <TouchableOpacity

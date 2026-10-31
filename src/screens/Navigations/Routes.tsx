@@ -50,7 +50,9 @@ const Routes = () => {
     paywallVisible,
     setPaywallVisible,
     themeColors,
+    gender,
   } = useContext(AppContext);
+  const isWoman = String(gender || '').toLowerCase().includes('woman') || String(gender || '').toLowerCase().includes('female');
 
   const activeColors = themeColors || Colors;
   const isDark = activeColors.background !== '#F8F9FA' && activeColors.background !== '#FFFFFF';
@@ -168,10 +170,12 @@ const Routes = () => {
         <Stack.Screen name="BlockedUsersScreen" component={BlockedUsersScreen} />
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       </Stack.Navigator>
-      <SubscriptionModal
-        visible={paywallVisible}
-        onClose={() => setPaywallVisible(false)}
-      />
+      {!isWoman && (
+        <SubscriptionModal
+          visible={paywallVisible}
+          onClose={() => setPaywallVisible(false)}
+        />
+      )}
     </NavigationContainer>
   );
 };

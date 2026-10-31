@@ -1,6 +1,62 @@
 {
   "plans": [
     {
+      "id": "STANDARD",
+      "name": "Standard",
+      "durationDays": 120,
+      "durationMonths": 4,
+      "price": 1,
+      "amount": 1,
+      "contactView": "10",
+      "tagline": "Standard plan with 10 daily connection requests.",
+      "popular": false,
+      "features": [
+        "10 connection requests per day",
+        "Browse all verified profiles",
+        "Standard Telegram handoff upon approval",
+        "120 Days duration"
+      ],
+      "gradient": ["#6366F1", "#8B5CF6"]
+    },
+    {
+      "id": "PREMIUM",
+      "name": "Premium",
+      "durationDays": 180,
+      "durationMonths": 6,
+      "price": 2,
+      "amount": 2,
+      "contactView": "20",
+      "tagline": "Premium plan with 20 daily connection requests.",
+      "popular": true,
+      "features": [
+        "20 connection requests per day",
+        "Browse all verified profiles",
+        "Priority Telegram handoff",
+        "180 Days duration",
+        "Dedicated customer support"
+      ],
+      "gradient": ["#7C3AED", "#EC4899"]
+    },
+    {
+      "id": "ELITE",
+      "name": "Elite",
+      "durationDays": 365,
+      "durationMonths": 12,
+      "price": 3,
+      "amount": 3,
+      "contactView": "UNLIMITED",
+      "tagline": "Elite plan with unlimited daily connection requests.",
+      "popular": false,
+      "features": [
+        "Unlimited connection requests",
+        "VIP Elite Profile Badge",
+        "Top placement on discovery feed",
+        "Instant priority handoff",
+        "365 Days duration"
+      ],
+      "gradient": ["#F59E0B", "#EF4444"]
+    },
+    {
       "id": "MONTHLY",
       "name": "Monthly",
       "durationMonths": 1,
@@ -61,23 +117,6 @@
         "Dedicated customer support"
       ],
       "gradient": ["#7C3AED", "#EC4899"]
-    },
-    {
-      "id": "PREMIUM",
-      "name": "Elite",
-      "durationMonths": 6,
-      "price": 499,
-      "tagline": "VIP Treatment",
-      "popular": false,
-      "features": [
-        "Unlimited Dating Requests",
-        "VIP Elite Profile Badge",
-        "Top placement on discovery feed",
-        "Instant priority handoff",
-        "Read receipts & activity status",
-        "VIP Concierge support"
-      ],
-      "gradient": ["#F59E0B", "#EF4444"]
     }
   ],
   "userSubscriptions": {

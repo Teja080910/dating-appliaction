@@ -26,13 +26,33 @@ export interface UserPhotosResponse {
 }
 
 export const faceValidationClient = axios.create({
-  baseURL: FACE_VALIDATION_URL,
+  baseURL: (FACE_VALIDATION_URL || 'https://clutch-unashamed-lunacy.ngrok-free.dev').trim().replace(/\/+$/, ''),
   timeout: 30000,
   headers: {
     Accept: 'application/json',
     'ngrok-skip-browser-warning': '1',
   },
 });
+
+faceValidationClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error?.config;
+    if (config && !config._retryCount) {
+      const isNetworkError =
+        !error.response ||
+        error.code === 'ECONNABORTED' ||
+        error.message === 'Network Error';
+      if (isNetworkError) {
+        config._retryCount = 1;
+        console.log(`[FaceValidation] Retrying failed request to ${config.url}...`);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return faceValidationClient.request(config);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const checkFaceValidationHealth = async (): Promise<FaceValidationHealthResponse> => {
   try {
@@ -84,13 +104,17 @@ export const uploadLivePhotoApi = async ({
   const cleanUri = photoUri.startsWith('file://') ? photoUri : `file://${photoUri}`;
   const name = fileName || `selfie_${cleanUserId}_${Date.now()}.jpg`;
 
-  const formData = new FormData();
-  formData.append('user_id', cleanUserId);
-  formData.append('photo', {
+  const fileObj = {
     uri: cleanUri,
     name,
     type: mimeType,
-  } as any);
+  } as any;
+
+  const formData = new FormData();
+  formData.append('user_id', cleanUserId);
+  formData.append('photo', fileObj);
+  formData.append('live_photo', fileObj);
+  formData.append('file', fileObj);
 
   console.log(`[FaceValidation] Uploading live photo for user ${cleanUserId}...`);
   try {
@@ -157,6 +181,7 @@ export const uploadVerificationPhotosApi = async ({
     // Backend Python service expects 'photos'
     formData.append('photos', fileObj);
     formData.append('photos[]', fileObj);
+    formData.append('files', fileObj);
   });
 
   console.log(`[FaceValidation] Uploading ${validUris.length} verification photos for user ${cleanUserId}...`);

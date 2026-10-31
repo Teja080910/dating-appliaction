@@ -28,6 +28,17 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('react-native-linear-gradient', () => 'LinearGradient');
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'Icon');
 jest.mock('react-native-vector-icons/Feather', () => 'Feather');
+jest.mock('../src/api/useFaceValidation', () => ({
+  useFaceValidation: () => ({
+    uploadLivePhoto: { mutate: jest.fn(), mutateAsync: jest.fn() },
+    uploadVerificationPhotos: { mutate: jest.fn(), mutateAsync: jest.fn() },
+    checkUserStatus: { mutate: jest.fn(), mutateAsync: jest.fn() },
+    isHealthy: true,
+    isCheckingHealth: false,
+    health: { status: 'healthy' },
+  }),
+  checkFaceValidationHealth: jest.fn(() => Promise.resolve({ status: 'healthy' })),
+}));
 jest.mock('react-native-vision-camera', () => ({
   Camera: 'Camera',
   useCameraDevice: () => ({ id: 'front' }),

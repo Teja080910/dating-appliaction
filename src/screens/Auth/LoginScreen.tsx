@@ -33,6 +33,7 @@ import {
   buildLoginPayload,
 } from '../../utils/authPayload';
 import { t, useTranslation } from '../../i18n';
+import { mockStore } from '../../mock/mockStore';
 
 const LoginScreen = ({ navigation }: any) => {
   useTranslation();
@@ -44,6 +45,7 @@ const LoginScreen = ({ navigation }: any) => {
     setDisplayName,
     setGender,
     setAuthUserId,
+    setIsSubscribed,
   } = useContext(AppContext);
 
   const [email, setEmail] = useState('');
@@ -153,6 +155,27 @@ const LoginScreen = ({ navigation }: any) => {
         if (resolvedUid) {
           asyncStorageItems.push(['userId', resolvedUid], ['user_id', resolvedUid]);
         }
+
+        // Check subscription status from server response, mockStore, or storage
+        try {
+          const sub = resolvedUid ? await mockStore.getSubscriptionStatus(resolvedUid) : null;
+          const hasActiveSub = Boolean(
+            user.isSubscribed ||
+            user.subscription?.isActive ||
+            user.subscriptionStatus === 'active' ||
+            user.plan ||
+            (sub && sub.status === 'ACTIVE')
+          );
+          if (hasActiveSub) {
+            asyncStorageItems.push(['isSubscribed', 'true']);
+            setIsSubscribed?.(true);
+          } else {
+            const existingSub = await AsyncStorage.getItem('isSubscribed');
+            if (existingSub === 'true') {
+              setIsSubscribed?.(true);
+            }
+          }
+        } catch {}
 
         setLoading(false);
         await AsyncStorage.multiSet(asyncStorageItems);

@@ -7,6 +7,7 @@ import { clearFullSession } from '../utils/session';
 import { MAX_PROFILE_IMAGES } from '../api/useImages';
 import { getSavedSearchFilters, clearSavedSearchFilters, getActiveFilterCount } from '../utils/types/AsyncStorage';
 import { getThemeColors, Colors } from '../theme/colors';
+import { mockStore } from '../mock/mockStore';
 
 const GlobalStateProvider = ({ children }: any) => {
   const systemColorScheme = useColorScheme();
@@ -198,8 +199,24 @@ const GlobalStateProvider = ({ children }: any) => {
           setProfileImageUrl(null);
         }
 
+        const effectiveGender = storedGender || storedUserGender;
         const subStatus = await AsyncStorage.getItem('isSubscribed');
-        if (subStatus === 'true') setIsSubscribed(true);
+        let activeSub = subStatus === 'true';
+        const isWoman =
+          effectiveGender === 'straight_woman' ||
+          effectiveGender === 'woman';
+        if (isWoman) {
+          activeSub = true;
+        } else if (!activeSub && id) {
+          try {
+            const sub = await mockStore.getSubscriptionStatus(String(id));
+            if (sub && sub.status === 'ACTIVE') {
+              activeSub = true;
+              await AsyncStorage.setItem('isSubscribed', 'true');
+            }
+          } catch {}
+        }
+        if (activeSub) setIsSubscribed(true);
 
         await hydrateSavedFilters(id);
       } catch (e) {

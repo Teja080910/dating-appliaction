@@ -22,7 +22,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
-import apiClient from '../../api/apiClient';
+import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
 import NotificationBanner from '../../components/NotificationBanner';
 import { openTelegramChat } from '../../utils/telegramHelper';
 import { t, useTranslation } from '../../i18n';
@@ -55,7 +55,7 @@ const SentRequestsScreen: React.FC = () => {
     }, [])
   );
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>('accepted');
+  const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -150,10 +150,19 @@ const SentRequestsScreen: React.FC = () => {
   const handleOpenProfile = (item: ConnectionRequest) => {
     const receiver = item.receiver || {};
     const targetUserId = receiver.id || receiver.userId || (item as any).receiverId;
-    const photoUrl =
+    const rawPhoto =
       receiver.photo ||
-      (receiver.photos && receiver.photos[0]) ||
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
+      receiver.profileImageUrl ||
+      receiver.photoUrl ||
+      receiver.image ||
+      (Array.isArray(receiver.photos) && receiver.photos[0]) ||
+      (Array.isArray(receiver.images) && receiver.images[0]) ||
+      (item as any).receiverPhoto ||
+      (item as any).receiverImage ||
+      null;
+    const photoUrl = rawPhoto
+      ? getAbsoluteUrl(rawPhoto) || rawPhoto
+      : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
 
     setCardUserName?.(cleanDisplayName(receiver.displayName || receiver.name));
     setCardUserAge?.(String(receiver.age || '25'));
@@ -175,10 +184,19 @@ const SentRequestsScreen: React.FC = () => {
 
   const renderCard = ({ item }: { item: ConnectionRequest }) => {
     const receiver = item.receiver || {};
-    const photoUrl =
+    const rawPhoto =
       receiver.photo ||
-      (receiver.photos && receiver.photos[0]) ||
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
+      receiver.profileImageUrl ||
+      receiver.photoUrl ||
+      receiver.image ||
+      (Array.isArray(receiver.photos) && receiver.photos[0]) ||
+      (Array.isArray(receiver.images) && receiver.images[0]) ||
+      (item as any).receiverPhoto ||
+      (item as any).receiverImage ||
+      null;
+    const photoUrl = rawPhoto
+      ? getAbsoluteUrl(rawPhoto) || rawPhoto
+      : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
 
     const displayName = cleanDisplayName(receiver.displayName || receiver.name);
     const age = receiver.age ? `, ${receiver.age}` : '';
@@ -346,20 +364,24 @@ const SentRequestsScreen: React.FC = () => {
                   style={styles.segmentPillActive}
                 >
                   <Text style={styles.segmentTextActive}>{t('requests.requestsinboxscreen.accepted')}</Text>
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>
-                      {acceptedRequests.length > 9 ? '9+' : acceptedRequests.length || '9+'}
-                    </Text>
-                  </View>
+                  {acceptedRequests.length > 0 && (
+                    <View style={styles.countBadge}>
+                      <Text style={styles.countBadgeText}>
+                        {acceptedRequests.length > 9 ? '9+' : acceptedRequests.length}
+                      </Text>
+                    </View>
+                  )}
                 </LinearGradient>
               ) : (
                 <View style={styles.segmentPillInactive}>
                   <Text style={styles.segmentTextInactive}>{t('requests.requestsinboxscreen.accepted')}</Text>
-                  <View style={styles.countBadgeInactive}>
-                    <Text style={styles.countBadgeInactiveText}>
-                      {acceptedRequests.length > 9 ? '9+' : acceptedRequests.length || '9+'}
-                    </Text>
-                  </View>
+                  {acceptedRequests.length > 0 && (
+                    <View style={styles.countBadgeInactive}>
+                      <Text style={styles.countBadgeInactiveText}>
+                        {acceptedRequests.length > 9 ? '9+' : acceptedRequests.length}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
             </TouchableOpacity>

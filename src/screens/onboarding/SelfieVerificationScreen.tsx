@@ -290,14 +290,45 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
     } catch (err: any) {
       if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
       setIsVerifying(false);
+
+      const serverError = err?.response?.data?.error || err?.response?.data?.message;
+      const rawMessage = String(serverError || err?.message || '');
+      const isNetworkErr =
+        !err?.response ||
+        rawMessage === 'Network Error' ||
+        rawMessage.toLowerCase().includes('network') ||
+        rawMessage.toLowerCase().includes('timeout') ||
+        rawMessage.toLowerCase().includes('econnrefused');
+
+      if (isNetworkErr) {
+        console.warn('[SelfieVerification] AI service unreachable over ngrok:', rawMessage);
+        alert(
+          'Verification Connection',
+          'Could not reach the AI face verification service right now. You can retry or proceed with this selfie.',
+          [
+            {
+              text: 'Retry',
+              onPress: () => startFaceVerification(photoUri),
+            },
+            {
+              text: 'Use This Selfie',
+              onPress: () => {
+                setScanProgress(100);
+                setVerificationStageText('Selfie captured! ✓');
+                setScanComplete(true);
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       setScanComplete(false);
       setScanProgress(0);
       setVerificationStageText('No face detected ✕');
 
       const message =
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        err?.message ||
+        serverError ||
         'No valid human face was detected. Please ensure your face is well-lit, clearly visible inside the oval frame, and not blurry.';
 
       alert(
