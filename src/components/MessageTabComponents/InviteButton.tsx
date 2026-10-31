@@ -6,21 +6,27 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 
 import { Colors } from '../../utils/colors';
+import { t, useTranslation } from '../../i18n';
 
 type NavigationProp = StackNavigationProp<RootParamList>;
 
 const InviteButton = () => {
+  useTranslation();
   const navigation = useNavigation<NavigationProp>();
 
   const handlePress = () => {
     try {
-      console.log('Navigating to Home...');
-      
-      // ✅ SAFE NAVIGATION (Tab ya Stack dono handle karega)
-      navigation.navigate('Home' as never);
-      
-    } catch (error) {
-      console.error('Navigation Error:', error);
+      if (typeof (navigation as any).jumpTo === 'function') {
+        (navigation as any).jumpTo('Home');
+      } else {
+        (navigation as any).navigate('BottomTabs', { screen: 'Home' });
+      }
+    } catch {
+      try {
+        (navigation as any).navigate('BottomTabs', { screen: 'Home' });
+      } catch {
+        (navigation as any).navigate('Home');
+      }
     }
   };
 
@@ -36,7 +42,7 @@ const InviteButton = () => {
         color="#fff"
         style={styles.icon}
       />
-      <Text style={styles.text}>Invite now</Text>
+      <Text style={styles.text}>{t('messages.invitebutton.invite_now')}</Text>
     </TouchableOpacity>
   );
 };

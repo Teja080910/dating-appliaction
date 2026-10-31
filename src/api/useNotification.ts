@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from './apiClient';
+import apiClient, { toApiUserId } from './apiClient';
+import { getUserId } from '../utils/sessionHelper';
+import { getAuthSession, isResolvedApiUserId } from '../utils/session';
+import { t } from '../i18n';
 
 export interface NotificationItem {
   id: number;
@@ -9,6 +12,15 @@ export interface NotificationItem {
   read: boolean;
   createdAt: string | null;
   raw: any;
+}
+
+export interface EmailLogItem {
+  id?: string | number;
+  recipient?: string;
+  subject?: string;
+  body?: string;
+  sentAt?: string | null;
+  status?: string;
 }
 
 const resolveNotificationArray = (payload: unknown): any[] => {
@@ -44,7 +56,7 @@ const normalizeNotifications = (payload: unknown): NotificationItem[] =>
     }
     return {
       id: typeof item?.id === 'number' ? item.id : 0,
-      title: String(item?.title || item?.subject || 'Notification').trim(),
+      title: String(item?.title || item?.subject || t('profile.notificationsscreen.notification')).trim(),
       body: String(item?.body || item?.message || '').trim(),
       message: String(item?.message || item?.body || '').trim(),
       read: Boolean(item?.read ?? item?.isRead ?? false),
@@ -60,16 +72,38 @@ const getNotificationErrorMessage = (error: any, fallback: string) =>
   error?.message ||
   fallback;
 
-export const useNotification = (userId?: string) => {
+export interface NotificationPreferences {
+  emailNotifications: boolean;
+  pushNotifications?: boolean;
+}
+
+export const useNotification = (userId?: string | number) => {
   const queryClient = useQueryClient();
-  void userId;
-  const queryKey = ['notifications'];
+
+  const resolveBackendUserId = async () => {
+    if (userId && isResolvedApiUserId(String(userId))) return String(userId);
+    const stored = await getUserId().catch(() => null);
+    if (stored && isResolvedApiUserId(stored)) return stored;
+    const session = await getAuthSession();
+    if (session?.userId && isResolvedApiUserId(session.userId)) {
+      return String(session.userId);
+    }
+    if (stored) return stored;
+    if (userId) return String(userId);
+    throw new Error('Unable to resolve backend userId for notifications.');
+  };
+
+  const queryKey = ['notifications', userId ? String(userId) : 'current'];
+  const prefQueryKey = ['notification-preferences', userId ? String(userId) : 'current'];
 
   const useNotificationList = () =>
     useQuery({
       queryKey,
       queryFn: async () => {
-        const response = await apiClient.get('/notification');
+        const resolvedUserId = await resolveBackendUserId();
+        const response = await apiClient.get('/notification', {
+          params: { userId: toApiUserId(resolvedUserId) },
+        });
 
         return normalizeNotifications(response.data);
       },
@@ -77,11 +111,63 @@ export const useNotification = (userId?: string) => {
 
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: number) => {
-      const response = await apiClient.put(`/notification/read/${notificationId}`);
+      let resolvedUserId: string | null = null;
+      try {
+        resolvedUserId = await resolveBackendUserId();
+      } catch (_) {}
+
+      const response = await apiClient.put(
+        `/notification/read/${notificationId}`,
+        null,
+        {
+          params: {
+            notificationId,
+            ...(resolvedUserId ? { userId: toApiUserId(resolvedUserId) } : {}),
+          },
+        },
+      );
       return response.data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const usePreferences = () =>
+    useQuery({
+      queryKey: prefQueryKey,
+      queryFn: async () => {
+        let resolvedUserId: string | null = null;
+        try {
+          resolvedUserId = await resolveBackendUserId();
+        } catch (_) {}
+
+        const response = await apiClient.get('/notification/preferences', {
+          params: resolvedUserId ? { userId: toApiUserId(resolvedUserId) } : undefined,
+        });
+        return response.data as NotificationPreferences;
+      },
+    });
+
+  const updatePreferences = useMutation({
+    mutationFn: async (prefs: Partial<NotificationPreferences>) => {
+      let resolvedUserId: string | null = null;
+      try {
+        resolvedUserId = await resolveBackendUserId();
+      } catch (_) {}
+
+      const payload = {
+        ...prefs,
+        ...(resolvedUserId ? { userId: toApiUserId(resolvedUserId) } : {}),
+      };
+
+      const response = await apiClient.put('/notification/preferences', payload, {
+        params: resolvedUserId ? { userId: toApiUserId(resolvedUserId) } : undefined,
+      });
+      return response.data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['notification-preferences'] });
     },
   });
 
@@ -92,10 +178,47 @@ export const useNotification = (userId?: string) => {
     },
   });
 
+  const emailsQueryKey = ['emails', 'my', userId ? String(userId) : 'current'];
+
+  const useMyEmails = () =>
+    useQuery({
+      queryKey: emailsQueryKey,
+      queryFn: async () => {
+        let resolvedUserId = '';
+        try {
+          resolvedUserId = await resolveBackendUserId();
+        } catch (_) {}
+
+        let response;
+        try {
+          response = await apiClient.get('/emails/my', {
+            params: resolvedUserId ? { userId: resolvedUserId } : undefined,
+          });
+        } catch (err: any) {
+          if (err?.response?.status === 403 || err?.response?.data?.code === 'ACCESS_DENIED') {
+            response = await apiClient.get('/emails/my');
+          } else {
+            throw err;
+          }
+        }
+
+        const data = response?.data;
+        if (Array.isArray(data)) return data as EmailLogItem[];
+        if (data && typeof data === 'object' && Array.isArray((data as any).data)) {
+          return (data as any).data as EmailLogItem[];
+        }
+        return [];
+      },
+    });
+
   return {
     useNotificationList,
     markRead: markReadMutation,
+    usePreferences,
+    updatePreferences,
     pushNotification,
+    useMyEmails,
+    useEmails: useMyEmails,
     getNotificationErrorMessage,
     notificationList: useNotificationList,
     notificationVisit: markReadMutation,

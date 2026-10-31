@@ -1,15 +1,21 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const appearanceOptions = ['Very attractive', 'Attractive', 'Average', 'Below Average'];
+const appearanceOptions = ['Very attractive', 'Attractive', 'Average', 'Below average'];
+const appearanceLabel = (val: string) =>
+  val === 'Attractive' ? t('profile.userdetails.attractive') : val;
 
 interface AppearanceProps {
   onChange?: (val: string[]) => void;
 }
 
 const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { selectedOptions, setSelectedOptions } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
@@ -22,7 +28,7 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Appearance</Text>
+      <Text style={styles.label}>{t('search.appearance.appearance')}</Text>
       <View style={styles.optionsWrapper}>
         {appearanceOptions.map((option, index) => (
           <TouchableOpacity
@@ -31,7 +37,7 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
             onPress={() => toggleOption(option)}
           >
             <Text style={[styles.optionText, selectedOptions.includes(option) && styles.optionTextSelected]}>
-              {option}
+              {appearanceLabel(option)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -40,49 +46,51 @@ const Appearance: React.FC<AppearanceProps> = ({ onChange }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
-  },
-  optionsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  option: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
-  },
-  optionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  optionText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  optionTextSelected: {
-    color: Colors.white,
-    fontWeight: '600',
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      padding: Spacing.xl,
+      backgroundColor: themeColors.surface,
+      marginHorizontal: Spacing.screenPaddingHorizontal,
+      marginTop: Spacing.lg,
+      borderRadius: Spacing.radiusXl,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    label: {
+      fontWeight: '700',
+      fontSize: 16,
+      marginBottom: Spacing.md,
+      color: themeColors.text,
+      letterSpacing: 0.1,
+    },
+    optionsWrapper: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+    },
+    option: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderRadius: Spacing.radiusFull,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      backgroundColor: themeColors.surfaceLight,
+      marginBottom: Spacing.sm,
+    },
+    optionSelected: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    optionText: {
+      fontSize: 14,
+      color: themeColors.text,
+      fontWeight: '500',
+    },
+    optionTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+  });
 
 export default Appearance;

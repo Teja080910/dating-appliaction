@@ -6,9 +6,12 @@ import { getUserId } from '../utils/sessionHelper';
 import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 
 type VerifyRegisterOtpRequest = {
-  mobile: string;
+  email?: string;
+  name?: string;
+  password?: string;
   otp: string;
-  sessionId: string;
+  mobile?: string;
+  sessionId?: string;
 };
 
 type InitRegisterRequest = Omit<RegisterRequest, 'otp'> & {
@@ -18,21 +21,28 @@ type CompleteRegisterRequest = RegisterRequest & {
   sessionId?: string;
 };
 type VerifyOtpRequest = {
-  userId?: number | string;
-  mobile: string;
+  email: string;
   otp: string;
+  mobile?: string;
+  userId?: number | string;
+  sessionId?: string;
 };
 type SendOtpRequest = {
-  mobile: string;
+  email: string;
+  mobile?: string;
   otp?: string;
 };
 type ForgotPasswordSendOtpRequest = {
-  mobile: string;
+  email: string;
+  mobile?: string;
 };
 type ForgotPasswordResetRequest = {
-  mobile: string;
+  email: string;
   otp: string;
   newPassword: string;
+  confirmPassword?: string;
+  sessionId?: string;
+  mobile?: string;
 };
 
 const normalizePlainApiResponse = (payload: unknown) => {
@@ -86,17 +96,20 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
     sessionId:
       payload?.sessionId ||
       nestedData?.sessionId ||
+      payload?.session_id ||
+      nestedData?.session_id ||
       payload?.verificationSessionId ||
       nestedData?.verificationSessionId ||
+      payload?.verification_session_id ||
+      nestedData?.verification_session_id ||
       null,
   };
 };
 
 export const useAuth = () => {
   const persistSessionIfAvailable = async (data: any) => {
-    // 🔍 DEBUG: Log the FULL response from login/register to understand its structure
     if (__DEV__) {
-      console.log('🔍 [AUTH] Raw response from server:', JSON.stringify(data, null, 2));
+      console.log('[AUTH] Server response received.');
     }
 
     if (hasSessionToken(data)) {
@@ -150,7 +163,12 @@ export const useAuth = () => {
   // 🔹 LOGIN
   const login = useMutation({
     mutationFn: async (data: LoginRequest) => {
-      const res = await apiClient.post('/login', data);
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const payload = {
+        ...data,
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+      };
+      const res = await apiClient.post('/login', payload);
       const normalizedResponse = normalizeAuthResponse(res.data, res.headers);
       const persisted = await persistSessionIfAvailable(normalizedResponse);
 
@@ -158,9 +176,12 @@ export const useAuth = () => {
       const cleanUserId = extractUserId(persisted?.userId);
 
       if (persisted?.token) {
+        const userEmail = String(payload.email || persisted?.user?.email || '').trim().toLowerCase();
         await AsyncStorage.multiSet([
           ['userToken', persisted.token],
-          ['userMobile', String(data?.mobile ?? '').trim()],
+          ['userEmail', userEmail],
+          ['email', userEmail],
+          ['userMobile', String(data?.mobile ?? persisted?.user?.mobile ?? '').trim()],
           ['userId', String(cleanUserId ?? '')],
           ['sessionId', String(persisted?.sessionId ?? '')],
           ['username', String(persisted?.username ?? '')],
@@ -169,6 +190,7 @@ export const useAuth = () => {
         if (__DEV__) {
           console.log('✅ Stored session:', {
             token: persisted.token,
+            email: userEmail,
             rawUserId: persisted.userId,
             cleanUserId: cleanUserId, // 🔥 important debug
             sessionId: persisted.sessionId,
@@ -188,9 +210,14 @@ export const useAuth = () => {
   // 🔹 VERIFY REGISTER OTP (Legacy alias or if needed)
   const verifyRegisterOtp = useMutation({
     mutationFn: async (data: VerifyRegisterOtpRequest) => {
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
       const payload = {
-        mobile: data.mobile,
         otp: data.otp,
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile } : {}),
+        ...(data.name ? { name: String(data.name).trim() } : {}),
+        ...(data.password ? { password: String(data.password).trim() } : {}),
         ...(String(data.sessionId ?? '').trim() ? { sessionId: String(data.sessionId).trim() } : {}),
       };
       const res = await apiClient.post('/verify-register/otp', payload);
@@ -198,28 +225,41 @@ export const useAuth = () => {
     },
   });
 
-
-  // 🔹 SEND OTP (Generic)
+  // 🔹 SEND OTP (Generic Email OTP)
   const sendOtp = useMutation({
     mutationFn: async (data: SendOtpRequest) => {
-      const res = await apiClient.post('/auth/send-otp', data);
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
+      const payload = {
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
+        ...(data.otp ? { otp: String(data.otp).trim() } : {}),
+      };
+      if (!payload.email && !payload.mobile) {
+        throw new Error('Email is required');
+      }
+      const res = await apiClient.post('/auth/send-otp', payload);
       return res.data;
     },
   });
 
-  // 🔹 VERIFY OTP (Generic)
+  // 🔹 VERIFY OTP (Generic Email OTP)
   const verifyOtp = useMutation({
     mutationFn: async (data: VerifyOtpRequest) => {
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
       const payload = {
-        mobile: String(data.mobile ?? '').trim(),
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
         otp: String(data.otp ?? '').trim(),
+        ...(data.sessionId ? { sessionId: String(data.sessionId).trim() } : {}),
         ...(data.userId === '' || data.userId == null
           ? {}
           : { userId: Number.isFinite(Number(data.userId)) ? Number(data.userId) : data.userId }),
       };
 
-      if (!payload.mobile || !payload.otp) {
-        throw new Error('Mobile and OTP are required');
+      if ((!payload.email && !payload.mobile) || !payload.otp) {
+        throw new Error('Email and OTP are required');
       }
 
       const res = await apiClient.post('/auth/verify-otp', payload);
@@ -230,33 +270,41 @@ export const useAuth = () => {
   // 🔹 FORGOT PASSWORD - SEND OTP
   const forgotPasswordSendOtp = useMutation({
     mutationFn: async (data: ForgotPasswordSendOtpRequest) => {
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
       const payload = {
-        mobile: String(data.mobile ?? '').trim(),
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
       };
-      if (!payload.mobile) {
-        throw new Error('Mobile is required');
+      if (!payload.email && !payload.mobile) {
+        throw new Error('Email is required');
       }
 
       const res = await apiClient.post('/forgot-password/send-otp', payload);
-      return normalizePlainApiResponse(res.data);
+      return res.data;
     },
   });
 
   // 🔹 FORGOT PASSWORD - RESET
   const forgotPasswordReset = useMutation({
     mutationFn: async (data: ForgotPasswordResetRequest) => {
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
       const payload = {
-        mobile: String(data.mobile ?? '').trim(),
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
         otp: String(data.otp ?? '').trim(),
         newPassword: String(data.newPassword ?? '').trim(),
+        confirmPassword: String(data.confirmPassword ?? data.newPassword ?? '').trim(),
+        ...(data.sessionId ? { sessionId: String(data.sessionId).trim() } : {}),
       };
 
-      if (!payload.mobile || !payload.otp || !payload.newPassword) {
-        throw new Error('Mobile, OTP, and new password are required');
+      if ((!payload.email && !payload.mobile) || !payload.otp || !payload.newPassword) {
+        throw new Error('Email, OTP, and new password are required');
       }
 
       const res = await apiClient.post('/forgot-password/reset', payload);
-      return normalizePlainApiResponse(res.data);
+      return res.data;
     },
   });
 

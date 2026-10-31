@@ -5,7 +5,8 @@
 export interface User {
   id: number;
   name: string;
-  mobile: string;
+  email: string;
+  mobile?: string;
   password?: string;
   role?: string;
   isDeleted?: boolean;
@@ -80,15 +81,17 @@ export interface SearchFilterRequest {
 
 export interface RegisterRequest {
   name: string;
-  mobile: string;
+  email: string;
   password: string;
   confirmPassword: string;
-  otp: string;
+  otp?: string;
+  mobile?: string;
 }
 
 export interface LoginRequest {
-  mobile: string;
+  email: string;
   password: string;
+  mobile?: string;
 }
 
 export interface ProfileRequestDTO {
@@ -113,7 +116,7 @@ export interface ConnectionRequest {
   id: number;
   sender: User;
   receiver: User;
-  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED';
   createdAt: string;
   updatedAt: string;
 }

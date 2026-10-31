@@ -1,18 +1,16 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Feather';
-import { Colors, Spacing } from '../../theme';
+import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const Header = () => {
-  const navigation = useNavigation();
+  useTranslation();
+  const { themeColors } = useTheme();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>More info</Text>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-        <Icon name="x" size={24} color={Colors.textSecondary} />
-      </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.header.about_me')}</Text>
+      <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>{t('more_info.header.complete_your_profile_to_get_the_best_matches')}</Text>
     </View>
   );
 };
@@ -21,20 +19,19 @@ export default Header;
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.glassBorder,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: Colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  closeButton: {
-    padding: 8,
+  subtitle: {
+    fontSize: 14,
+    marginTop: 6,
+    lineHeight: 20,
+    fontWeight: '400',
   },
 });

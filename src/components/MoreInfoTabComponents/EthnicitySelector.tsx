@@ -1,22 +1,30 @@
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 const ETHNICITIES = [
   'Asian',
-  'Black / African Descent',
-  'Latin / Hispanic',
-  'East Indian',
+  'Black/African descent',
+  'South Asian',
   'Middle Eastern',
-  'Mixed',
-  'Native American',
   'Pacific Islander',
-  'White / Caucasian',
+  'White/Caucasian',
+  'Latin/Hispanic',
+  'Mixed',
+  'Indigenous',
   'Other',
 ];
+const ethnicityLabel = (val: string) =>
+  val === 'Asian' ? t('profile.viewmyprofilescreen.asian')
+  : val === 'Other' ? t('profile.userdetails.other')
+  : val;
 
 const EthnicitySelector = () => {
+  useTranslation();
+  const { themeColors } = useTheme();
   const { selectedEthinicity, setSelectedEthinicity } = useContext(AppContext);
 
   const toggleSelect = (item: string) => {
@@ -25,67 +33,90 @@ const EthnicitySelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Your ethnicity</Text>
-      <View style={styles.optionsContainer}>
-        {ETHNICITIES.map(item => (
-          <Pressable
-            key={item}
-            style={[styles.option, selectedEthinicity === item && styles.optionSelected]}
-            onPress={() => toggleSelect(item)}
-          >
-            <Text style={[styles.optionText, selectedEthinicity === item && styles.optionTextSelected]}>
-              {item}
-            </Text>
-          </Pressable>
-        ))}
+      <View style={styles.headerRow}>
+        <Icon name="account-multiple-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.ethnicityselector.your_race_ethnicity')}</Text>
+      </View>
+      <View style={styles.optionsWrap}>
+        {ETHNICITIES.map((item) => {
+          const isSelected = selectedEthinicity === item;
+          return isSelected ? (
+            <TouchableOpacity
+              key={item}
+              activeOpacity={0.8}
+              onPress={() => toggleSelect(item)}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
+            >
+              <Text style={styles.pillTextActive}>{ethnicityLabel(item)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={item}
+              activeOpacity={0.7}
+              onPress={() => toggleSelect(item)}
+              style={[
+                styles.pillInactive,
+                {
+                  backgroundColor: themeColors.surfaceLight,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{ethnicityLabel(item)}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
 };
 
+export default EthnicitySelector;
+
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
+    paddingHorizontal: 20,
+    marginTop: 22,
   },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  optionsContainer: {
+  headerIcon: {
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: 8,
   },
-  option: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
+  pillInactive: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  optionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  optionText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
+  pillTextInactive: {
+    fontSize: 14.5,
     fontWeight: '500',
   },
-  optionTextSelected: {
-    color: Colors.white,
+  pillActive: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillTextActive: {
+    fontSize: 14.5,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
-
-export default EthnicitySelector;

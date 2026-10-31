@@ -1,0 +1,5070 @@
+{
+  "count": 494,
+  "items": [
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 100,
+      "kind": "jsx",
+      "text": "Don't miss a new invite — get notified instantly",
+      "count": 2,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx",
+        "src/components/NotificationBanner.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 118,
+      "kind": "jsx",
+      "text": "Notify me!",
+      "count": 2,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx",
+        "src/components/NotificationBanner.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 136,
+      "kind": "jsx",
+      "text": "Amara",
+      "count": 11,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx",
+        "src/components/ProfileTabComponents/AllRightsReserved.tsx",
+        "src/components/ProfileTabComponents/Header.tsx",
+        "src/components/SubscriptionModal.tsx",
+        "src/screens/Auth/ForgotPasswordScreen.tsx",
+        "src/screens/Auth/LoginScreen.tsx",
+        "src/screens/Auth/RegisterScreen.tsx",
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx",
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 137,
+      "kind": "jsx",
+      "text": "Curated private matches",
+      "count": 1,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 175,
+      "kind": "jsx",
+      "text": "Last Active",
+      "count": 2,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 200,
+      "kind": "jsx",
+      "text": "Newest",
+      "count": 2,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 43,
+      "kind": "prop:title",
+      "text": "Enable Notifications",
+      "count": 2,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx",
+        "src/components/NotificationBanner.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/HomeHeader.tsx",
+      "line": 44,
+      "kind": "prop:message",
+      "text": "Get instant alerts when you receive a new invite or match!",
+      "count": 2,
+      "files": [
+        "src/components/HomeTabComponents/HomeHeader.tsx",
+        "src/components/NotificationBanner.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserCard.tsx",
+      "line": 61,
+      "kind": "fallback",
+      "text": "User",
+      "count": 15,
+      "files": [
+        "src/components/HomeTabComponents/UserCard.tsx",
+        "src/components/HomeTabComponents/UserList.tsx",
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/HomeTab/MatchScreen.tsx",
+        "src/screens/MessageTab/MessageScreen.tsx",
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserCard.tsx",
+      "line": 66,
+      "kind": "fallback",
+      "text": "Nearby",
+      "count": 4,
+      "files": [
+        "src/components/HomeTabComponents/UserCard.tsx",
+        "src/components/HomeTabComponents/UserList.tsx",
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserCard.tsx",
+      "line": 144,
+      "kind": "tpl",
+      "text": "{trimmed} km away",
+      "count": 1,
+      "files": [
+        "src/components/HomeTabComponents/UserCard.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserCard.tsx",
+      "line": 145,
+      "kind": "tpl",
+      "text": "{trimmed} away",
+      "count": 2,
+      "files": [
+        "src/components/HomeTabComponents/UserCard.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserList.tsx",
+      "line": 378,
+      "kind": "jsx",
+      "text": "No profiles found. Try adjusting your search settings.",
+      "count": 1,
+      "files": [
+        "src/components/HomeTabComponents/UserList.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserList.tsx",
+      "line": 388,
+      "kind": "jsx",
+      "text": "Reset Filters",
+      "count": 1,
+      "files": [
+        "src/components/HomeTabComponents/UserList.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserList.tsx",
+      "line": 398,
+      "kind": "jsx",
+      "text": "Refresh",
+      "count": 1,
+      "files": [
+        "src/components/HomeTabComponents/UserList.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserList.tsx",
+      "line": 172,
+      "kind": "array",
+      "text": "Male",
+      "count": 6,
+      "files": [
+        "src/components/HomeTabComponents/UserList.tsx",
+        "src/components/SearchSettingsComponents/ShowMe.tsx",
+        "src/screens/SearchSettings/SearchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/HomeTabComponents/UserList.tsx",
+      "line": 172,
+      "kind": "array",
+      "text": "Female",
+      "count": 8,
+      "files": [
+        "src/components/HomeTabComponents/UserList.tsx",
+        "src/components/SearchSettingsComponents/ShowMe.tsx",
+        "src/screens/SearchSettings/SearchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/LanguageSelectorHeader.tsx",
+      "line": 55,
+      "kind": "jsx",
+      "text": "Select Language",
+      "count": 1,
+      "files": [
+        "src/components/LanguageSelectorHeader.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MessageTabComponents/InviteButton.tsx",
+      "line": 24,
+      "kind": "jsx",
+      "text": "Invite now",
+      "count": 2,
+      "files": [
+        "src/components/MessageTabComponents/InviteButton.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/AppearanceSelector.tsx",
+      "line": 17,
+      "kind": "jsx",
+      "text": "Your appearance",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/AppearanceSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/BodyTypeSelector.tsx",
+      "line": 17,
+      "kind": "jsx",
+      "text": "Your body type",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/BodyTypeSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/DoYouSmokeSelector.tsx",
+      "line": 14,
+      "kind": "jsx",
+      "text": "Do you smoke?",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/DoYouSmokeSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/DrinkingSelector.tsx",
+      "line": 14,
+      "kind": "jsx",
+      "text": "Do you drink?",
+      "count": 2,
+      "files": [
+        "src/components/MoreInfoTabComponents/DrinkingSelector.tsx",
+        "src/components/SearchSettingsComponents/Drinking.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/EnglishSkillSelector.tsx",
+      "line": 11,
+      "kind": "jsx",
+      "text": "How good is your English?",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/EnglishSkillSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/EthnicitySelector.tsx",
+      "line": 25,
+      "kind": "jsx",
+      "text": "Your race/ethnicity",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/EthnicitySelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/Header.tsx",
+      "line": 9,
+      "kind": "jsx",
+      "text": "About me",
+      "count": 6,
+      "files": [
+        "src/components/MoreInfoTabComponents/Header.tsx",
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/Navigations/BottomTabs.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/Header.tsx",
+      "line": 10,
+      "kind": "jsx",
+      "text": "Complete your profile to get the best matches",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/Header.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/HeightSelector.tsx",
+      "line": 11,
+      "kind": "jsx",
+      "text": "Your height",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/HeightSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/HeightSelector.tsx",
+      "line": 15,
+      "kind": "jsx",
+      "text": "{currentHeight} cm",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/HeightSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/KidsSelector.tsx",
+      "line": 14,
+      "kind": "jsx",
+      "text": "How many kids do you have?",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/KidsSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/LanguagesSelector.tsx",
+      "line": 18,
+      "kind": "jsx",
+      "text": "Languages you speak",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/LanguagesSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/LookingForSelector.tsx",
+      "line": 25,
+      "kind": "jsx",
+      "text": "What are you looking for?",
+      "count": 2,
+      "files": [
+        "src/components/MoreInfoTabComponents/LookingForSelector.tsx",
+        "src/components/SearchSettingsComponents/LookingFor.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/NetWorthSelector.tsx",
+      "line": 21,
+      "kind": "jsx",
+      "text": "Net Worth (USD)",
+      "count": 1,
+      "files": [
+        "src/components/MoreInfoTabComponents/NetWorthSelector.tsx"
+      ]
+    },
+    {
+      "file": "src/components/MoreInfoTabComponents/SaveButton.tsx",
+      "line": 23,
+      "kind": "jsx",
+      "text": "Save",
+      "count": 6,
+      "files": [
+        "src/components/MoreInfoTabComponents/SaveButton.tsx",
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/components/SearchSettingsComponents/SaveResetButtons.tsx",
+        "src/screens/ProfileTab/ProfileSettingsScreen.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx",
+        "src/screens/onboarding/MoreDetailsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "line": 119,
+      "kind": "prop:text",
+      "text": "Set as Primary Photo",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "line": 155,
+      "kind": "prop:text",
+      "text": "Remove Photo",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "line": 168,
+      "kind": "prop:text",
+      "text": "Cancel",
+      "count": 11,
+      "files": [
+        "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/components/SubscriptionModal.tsx",
+        "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+        "src/components/UploadImageComponents/UploadImage.tsx",
+        "src/screens/ProfileTab/PreferencesScreen.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx",
+        "src/screens/ProfileTab/SupportScreen.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "line": 170,
+      "kind": "ternary:a",
+      "text": "This is currently your primary photo.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "line": 170,
+      "kind": "ternary:b",
+      "text": "Choose an action for this photo:",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/AdditionalUploadSection.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+      "line": 222,
+      "kind": "fallback",
+      "text": "Failed to upload image to server.",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/AdditionalUploadSection.tsx",
+        "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/AllRightsReserved.tsx",
+      "line": 10,
+      "kind": "jsx",
+      "text": "2025 © Amara app. All rights reserved. v. 4.2.2",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/AllRightsReserved.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ChangeLocation.tsx/ChangeLocation.tsx",
+      "line": 7,
+      "kind": "jsx",
+      "text": "Change location",
+      "count": 3,
+      "files": [
+        "src/components/ProfileTabComponents/ChangeLocation.tsx/ChangeLocation.tsx",
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ChatWithUs/ChatWithUs.tsx",
+      "line": 7,
+      "kind": "jsx",
+      "text": "Chat with us",
+      "count": 4,
+      "files": [
+        "src/components/ProfileTabComponents/ChatWithUs/ChatWithUs.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ConnectTelegram/ConnectTelegram.tsx",
+      "line": 7,
+      "kind": "jsx",
+      "text": "Connect Your Telegram",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ConnectTelegram/ConnectTelegram.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/DeleteMyProfile/DeleteMyProfile.tsx",
+      "line": 9,
+      "kind": "jsx",
+      "text": "Delete my profile",
+      "count": 4,
+      "files": [
+        "src/components/ProfileTabComponents/DeleteMyProfile/DeleteMyProfile.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/Header.tsx",
+      "line": 5,
+      "kind": "ternary:a",
+      "text": "PREMIUM",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/Header.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/Header.tsx",
+      "line": 5,
+      "kind": "ternary:b",
+      "text": "STANDARD",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/Header.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/Logout/Logout.tsx",
+      "line": 20,
+      "kind": "jsx",
+      "text": "Log out",
+      "count": 3,
+      "files": [
+        "src/components/ProfileTabComponents/Logout/Logout.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/PhotoVerifiedBadge.tsx",
+      "line": 7,
+      "kind": "jsx",
+      "text": "You’re verified by photo!",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/PhotoVerifiedBadge.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/Privacy/Privacy.tsx",
+      "line": 7,
+      "kind": "jsx",
+      "text": "Privacy",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/Privacy/Privacy.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 145,
+      "kind": "jsx",
+      "text": "Contact details",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 150,
+      "kind": "jsx",
+      "text": "WhatsApp number",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 221,
+      "kind": "jsx",
+      "text": "OR",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 234,
+      "kind": "jsx",
+      "text": "Your Telegram",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 255,
+      "kind": "jsx",
+      "text": "Connect Telegram",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 274,
+      "kind": "jsx",
+      "text": "Status:",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 316,
+      "kind": "jsx",
+      "text": "Select Country",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 418,
+      "kind": "jsx",
+      "text": "Enter your Telegram username to connect with the Amara Telegram bot:",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 456,
+      "kind": "jsx",
+      "text": "Disconnect",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 334,
+      "kind": "attr:placeholder",
+      "text": "Search country or code...",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 410,
+      "kind": "ternary:a",
+      "text": "Manage Telegram",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 410,
+      "kind": "ternary:b",
+      "text": "Link Telegram Account",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 116,
+      "kind": "tpl",
+      "text": "Your Telegram account @{username} is now connected!",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 125,
+      "kind": "tpl",
+      "text": "Your Telegram account @{username} is saved.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+      "line": 284,
+      "kind": "tpl",
+      "text": "Connected (@{cleanConnected})",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ContactDetails.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/Description.tsx",
+      "line": 13,
+      "kind": "jsx",
+      "text": "Tell us something about yourself. You can write about your hobbies, values and visions in life.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/Description.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/Description.tsx",
+      "line": 30,
+      "kind": "attr:placeholder",
+      "text": "Tell us about yourself...",
+      "count": 4,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/Description.tsx",
+        "src/screens/onboarding/AboutProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx",
+      "line": 20,
+      "kind": "jsx",
+      "text": "Nickname / First name",
+      "count": 3,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx",
+        "src/screens/onboarding/DisplayNameScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx",
+      "line": 25,
+      "kind": "attr:placeholder",
+      "text": "Enter nickname",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/DisplayName.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+      "line": 365,
+      "kind": "jsx",
+      "text": "Add Photo",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+        "src/components/UploadImageComponents/UploadImage.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+      "line": 389,
+      "kind": "jsx",
+      "text": "Upload from Gallery",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+      "line": 410,
+      "kind": "jsx",
+      "text": "Use Camera",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+      "line": 436,
+      "kind": "jsx",
+      "text": "Face photo required",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+      "line": 458,
+      "kind": "jsx",
+      "text": "Every user needs to have at least one face picture in their profile. To delete this picture, please first upload another face picture. Afterward, you can delete this picture.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx",
+      "line": 471,
+      "kind": "jsx",
+      "text": "Okay",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx",
+      "line": 6,
+      "kind": "jsx",
+      "text": "ACCOUNT SETTINGS",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx",
+      "line": 12,
+      "kind": "jsx",
+      "text": "Profile settings",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfileSetting.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader.tsx",
+      "line": 19,
+      "kind": "jsx",
+      "text": "Edit Profile",
+      "count": 3,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ProfileSettings/YourBirthday.tsx",
+      "line": 25,
+      "kind": "jsx",
+      "text": "Select your birthday",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ProfileSettings/YourBirthday.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/TermsAndConditions/TermsAndConditions.tsx",
+      "line": 7,
+      "kind": "jsx",
+      "text": "Terms and Conditions",
+      "count": 3,
+      "files": [
+        "src/components/ProfileTabComponents/TermsAndConditions/TermsAndConditions.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/TermsOfUse/TermsOfUse.tsx",
+      "line": 7,
+      "kind": "jsx",
+      "text": "Terms of use",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/TermsOfUse/TermsOfUse.tsx",
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 518,
+      "kind": "jsx",
+      "text": "You're verified by photo!",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 533,
+      "kind": "jsx",
+      "text": "Active today",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 559,
+      "kind": "jsx",
+      "text": "Details",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 564,
+      "kind": "jsx",
+      "text": "Edit",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 597,
+      "kind": "jsx",
+      "text": "Languages",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/components/SearchSettingsComponents/Languages.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 600,
+      "kind": "jsx",
+      "text": "Looking for",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 628,
+      "kind": "jsx",
+      "text": "Approve Request",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 642,
+      "kind": "jsx",
+      "text": "Report this profile",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 645,
+      "kind": "jsx",
+      "text": "Invitation pending approval",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 653,
+      "kind": "jsx",
+      "text": "TELEGRAM CONTACT",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 675,
+      "kind": "jsx",
+      "text": "Open Telegram",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 695,
+      "kind": "jsx",
+      "text": "Report and block this user",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 698,
+      "kind": "jsx",
+      "text": "We are committed to maintaining a safe and respectful community. If you have experienced any issues or inappropriate behavior with this user, please report them to us.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 702,
+      "kind": "jsx",
+      "text": "Blocking this user will prevent them from seeing your profile or contacting you on Amara.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 707,
+      "kind": "jsx",
+      "text": "To help us take appropriate action, please provide as much detail as possible about why you are reporting this user.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 717,
+      "kind": "jsx",
+      "text": "Thank you for helping us keep Amara a safe and welcoming space for everyone.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 727,
+      "kind": "jsx",
+      "text": "Block only",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 731,
+      "kind": "jsx",
+      "text": "Report & Block",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 743,
+      "kind": "jsx",
+      "text": "Why are you reporting?",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 756,
+      "kind": "jsx",
+      "text": "Reason",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 806,
+      "kind": "jsx",
+      "text": "Additional details",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 834,
+      "kind": "jsx",
+      "text": "Evidence photos (optional)",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 902,
+      "kind": "jsx",
+      "text": "Back",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 822,
+      "kind": "attr:placeholder",
+      "text": "Description",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 84,
+      "kind": "prop:text",
+      "text": "Done",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 313,
+      "kind": "prop:text1",
+      "text": "User unavailable",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 321,
+      "kind": "prop:text1",
+      "text": "Account Sync Needed",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 335,
+      "kind": "prop:text1",
+      "text": "Action not allowed",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 339,
+      "kind": "prop:text1",
+      "text": "Already invited!",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 359,
+      "kind": "prop:text1",
+      "text": "Invitation sent!",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 365,
+      "kind": "prop:text1",
+      "text": "Invite failed",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 414,
+      "kind": "prop:text1",
+      "text": "User blocked",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 445,
+      "kind": "prop:text1",
+      "text": "Please select a reason",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 461,
+      "kind": "prop:text1",
+      "text": "Target user unavailable",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 487,
+      "kind": "prop:text1",
+      "text": "Report submitted",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 492,
+      "kind": "prop:text1",
+      "text": "Report failed",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 314,
+      "kind": "prop:text2",
+      "text": "This profile cannot be invited right now.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 336,
+      "kind": "prop:text2",
+      "text": "You cannot invite yourself.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 408,
+      "kind": "prop:text2",
+      "text": "You cannot report your own profile.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 414,
+      "kind": "prop:text2",
+      "text": "This user has been blocked.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 487,
+      "kind": "prop:text2",
+      "text": "Thank you. The user has been reported and blocked.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 91,
+      "kind": "fnmsg",
+      "text": "We could not approve this invitation right now.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 366,
+      "kind": "fnmsg",
+      "text": "Please try again in a moment.",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 493,
+      "kind": "fnmsg",
+      "text": "Unable to submit report. Please try again.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 114,
+      "kind": "ternary:a",
+      "text": "Yes",
+      "count": 3,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/components/SearchSettingsComponents/Drinking.tsx",
+        "src/components/SearchSettingsComponents/Smoke.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 114,
+      "kind": "ternary:b",
+      "text": "No",
+      "count": 4,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/components/SearchSettingsComponents/Drinking.tsx",
+        "src/components/SearchSettingsComponents/Smoke.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 274,
+      "kind": "ternary:a",
+      "text": "Your location",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 325,
+      "kind": "ternary:a",
+      "text": "Your login is missing a valid account id from the server.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 325,
+      "kind": "ternary:b",
+      "text": "Please log in again and try once more.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 594,
+      "kind": "ternary:a",
+      "text": "Intermediate",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 594,
+      "kind": "ternary:b",
+      "text": "Medium",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 28,
+      "kind": "array",
+      "text": "long-term relationship",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/MoreInfoTab/MoreInfoScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 598,
+      "kind": "array",
+      "text": "English",
+      "count": 2,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 602,
+      "kind": "array",
+      "text": "Casual dating",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 264,
+      "kind": "fallback",
+      "text": "Relationship",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 342,
+      "kind": "fallback",
+      "text": "Guest",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 554,
+      "kind": "fallback",
+      "text": "I am good enough for every good thing you can imagine..",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 574,
+      "kind": "fallback",
+      "text": "Slim",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 579,
+      "kind": "fallback",
+      "text": "Attractive",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 584,
+      "kind": "fallback",
+      "text": "Other",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 105,
+      "kind": "tpl",
+      "text": "@{cleanUsername} (https://t.me/{cleanUsername})",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 278,
+      "kind": "tpl",
+      "text": "{distanceRaw} away",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 471,
+      "kind": "tpl",
+      "text": "Reported: {finalDisplayName}. Reason: {selectedReason}. Details: {additionalDetails}",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 476,
+      "kind": "tpl",
+      "text": "Reported: {finalDisplayName}. Reason: {selectedReason}.",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 565,
+      "kind": "tpl",
+      "text": "{normalizeTextValue} cm",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 590,
+      "kind": "tpl",
+      "text": "English Fluency: {capitalizeLabel}",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx",
+      "line": 595,
+      "kind": "tpl",
+      "text": "Kids: {normalizeTextValue}",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/UserDetails.tsx"
+      ]
+    },
+    {
+      "file": "src/components/ProfileTabComponents/ViewMyProfile/ViewMyProfile.tsx",
+      "line": 9,
+      "kind": "jsx",
+      "text": "View my profile",
+      "count": 1,
+      "files": [
+        "src/components/ProfileTabComponents/ViewMyProfile/ViewMyProfile.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 87,
+      "kind": "jsx",
+      "text": "Razorpay",
+      "count": 1,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 89,
+      "kind": "jsx",
+      "text": "Pay ₹{amount}",
+      "count": 2,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 100,
+      "kind": "jsx",
+      "text": "Select Payment Method",
+      "count": 1,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 140,
+      "kind": "jsx",
+      "text": "Processing payment...",
+      "count": 1,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 141,
+      "kind": "jsx",
+      "text": "Please do not go back",
+      "count": 1,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 153,
+      "kind": "jsx",
+      "text": "Payment Successful",
+      "count": 1,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 154,
+      "kind": "jsx",
+      "text": "Premium Activated 🎉",
+      "count": 1,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 161,
+      "kind": "jsx",
+      "text": "100% Secure by Razorpay",
+      "count": 1,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 102,
+      "kind": "attr:title",
+      "text": "Cards",
+      "count": 2,
+      "files": [
+        "src/components/RazorpayMock.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 108,
+      "kind": "attr:title",
+      "text": "Net Banking",
+      "count": 3,
+      "files": [
+        "src/components/RazorpayMock.tsx",
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 114,
+      "kind": "attr:title",
+      "text": "UPI",
+      "count": 3,
+      "files": [
+        "src/components/RazorpayMock.tsx",
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/RazorpayMock.tsx",
+      "line": 120,
+      "kind": "attr:title",
+      "text": "Wallet",
+      "count": 3,
+      "files": [
+        "src/components/RazorpayMock.tsx",
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/AgeRange.tsx",
+      "line": 31,
+      "kind": "jsx",
+      "text": "Age range",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/AgeRange.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Appearance.tsx",
+      "line": 19,
+      "kind": "jsx",
+      "text": "Appearance",
+      "count": 2,
+      "files": [
+        "src/components/SearchSettingsComponents/Appearance.tsx",
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/BodyHeight.tsx",
+      "line": 28,
+      "kind": "jsx",
+      "text": "Height range",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/BodyHeight.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/BodyHeight.tsx",
+      "line": 29,
+      "kind": "jsx",
+      "text": "{currentValues} cm – {currentValues} cm",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/BodyHeight.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/BodyType.tsx",
+      "line": 27,
+      "kind": "jsx",
+      "text": "Body type",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/BodyType.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+      "line": 41,
+      "kind": "jsx",
+      "text": "Search radius",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/DistanceRange.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+      "line": 75,
+      "kind": "jsx",
+      "text": "5 km",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/DistanceRange.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+      "line": 87,
+      "kind": "jsx",
+      "text": "Worldwide",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/DistanceRange.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/DistanceRange.tsx",
+      "line": 42,
+      "kind": "tpl",
+      "text": "{currentDistance} km",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/DistanceRange.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Drinking.tsx",
+      "line": 2,
+      "kind": "prop:label",
+      "text": "Sometimes",
+      "count": 2,
+      "files": [
+        "src/components/SearchSettingsComponents/Drinking.tsx",
+        "src/components/SearchSettingsComponents/Smoke.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/EnglishProficiency.tsx",
+      "line": 19,
+      "kind": "jsx",
+      "text": "English level",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/EnglishProficiency.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Ethnicity.tsx",
+      "line": 30,
+      "kind": "jsx",
+      "text": "Race/ethnicity",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Ethnicity.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 443,
+      "kind": "jsx",
+      "text": "Search location",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 476,
+      "kind": "jsx",
+      "text": "Change",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 582,
+      "kind": "jsx",
+      "text": "No locations found",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 612,
+      "kind": "jsx",
+      "text": "Using GPS location",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 616,
+      "kind": "jsx",
+      "text": "My current location",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 622,
+      "kind": "jsx",
+      "text": "ACTIVE",
+      "count": 2,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 635,
+      "kind": "jsx",
+      "text": "Saved",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 644,
+      "kind": "jsx",
+      "text": "Search above to add a new location.",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 804,
+      "kind": "jsx",
+      "text": "Save & set active",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 529,
+      "kind": "attr:placeholder",
+      "text": "Search for a city or address",
+      "count": 2,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 426,
+      "kind": "fallback",
+      "text": "Hyderabad",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Location.tsx",
+      "line": 786,
+      "kind": "fallback",
+      "text": "Selected Location",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Location.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/OnlineOnly.tsx",
+      "line": 18,
+      "kind": "jsx",
+      "text": "Show active users only",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/OnlineOnly.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/SaveResetButtons.tsx",
+      "line": 38,
+      "kind": "jsx",
+      "text": "Reset",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/SaveResetButtons.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/SearchSettingHeader.tsx",
+      "line": 19,
+      "kind": "jsx",
+      "text": "Search Settings",
+      "count": 3,
+      "files": [
+        "src/components/SearchSettingsComponents/SearchSettingHeader.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/SearchWorldWide.tsx",
+      "line": 28,
+      "kind": "jsx",
+      "text": "Search World Wide",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/SearchWorldWide.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/ShowMe.tsx",
+      "line": 35,
+      "kind": "jsx",
+      "text": "Show me",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/ShowMe.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/ShowMe.tsx",
+      "line": 48,
+      "kind": "jsx",
+      "text": "Women",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/ShowMe.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/ShowMe.tsx",
+      "line": 54,
+      "kind": "jsx",
+      "text": "Men",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/ShowMe.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SearchSettingsComponents/Smoke.tsx",
+      "line": 31,
+      "kind": "jsx",
+      "text": "Smoker",
+      "count": 1,
+      "files": [
+        "src/components/SearchSettingsComponents/Smoke.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 580,
+      "kind": "jsx",
+      "text": "Get Premium",
+      "count": 3,
+      "files": [
+        "src/components/SubscriptionModal.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 631,
+      "kind": "jsx",
+      "text": "Get Amara Premium",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 632,
+      "kind": "jsx",
+      "text": "Choose your plan",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 693,
+      "kind": "jsx",
+      "text": "Auto-renews until cancelled. Payment is taken a few days before each period ends. Cancel anytime.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 716,
+      "kind": "jsx",
+      "text": "Subscribe",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 726,
+      "kind": "jsx",
+      "text": "Need help?",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 728,
+      "kind": "jsx",
+      "text": "Chat with us support@amara.com",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 35,
+      "kind": "prop:title",
+      "text": "Become a Premium member",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 46,
+      "kind": "prop:title",
+      "text": "Premium Profile",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 59,
+      "kind": "prop:title",
+      "text": "Worldwide Search",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 73,
+      "kind": "prop:title",
+      "text": "Verified & Safe",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 19,
+      "kind": "prop:label",
+      "text": "MONTHLY",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 22,
+      "kind": "prop:label",
+      "text": "3 MONTHS",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 26,
+      "kind": "prop:label",
+      "text": "6 MONTHS",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 85,
+      "kind": "prop:label",
+      "text": "Card",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 39,
+      "kind": "prop:subtitle",
+      "text": "Invite up to 30 members per day.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 49,
+      "kind": "prop:subtitle",
+      "text": "Stand out with a premium badge and priority placement in search.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 60,
+      "kind": "prop:subtitle",
+      "text": "Find matches anywhere in the world, not just your local area.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 74,
+      "kind": "prop:subtitle",
+      "text": "All members are verified. Enjoy a safer, higher quality experience.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 83,
+      "kind": "prop:subtitle",
+      "text": "Google Pay, PhonePe",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 85,
+      "kind": "prop:subtitle",
+      "text": "Visa, MasterCard, RuPay",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 92,
+      "kind": "prop:subtitle",
+      "text": "All Indian banks",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 96,
+      "kind": "prop:subtitle",
+      "text": "Paytm, Mobikwik",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 548,
+      "kind": "prop:text",
+      "text": "Retry Anyway",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 402,
+      "kind": "prop:text1",
+      "text": "Payment Successful 💎",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 287,
+      "kind": "fallback",
+      "text": "INR",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 403,
+      "kind": "fallback",
+      "text": "Your",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 412,
+      "kind": "fallback",
+      "text": "Payment verification failed.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 442,
+      "kind": "fallback",
+      "text": "AMARA User",
+      "count": 2,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 530,
+      "kind": "fallback",
+      "text": "Something went wrong.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 402,
+      "kind": "tpl",
+      "text": "{activatedPlan} membership is now active.",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/SubscriptionModal.tsx",
+      "line": 465,
+      "kind": "tpl",
+      "text": "AMARA {selectedPlanId} Plan",
+      "count": 1,
+      "files": [
+        "src/components/SubscriptionModal.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+      "line": 143,
+      "kind": "jsx",
+      "text": "Choose Photo Source",
+      "count": 1,
+      "files": [
+        "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+      "line": 144,
+      "kind": "jsx",
+      "text": "Upload a bright, clear photo that looks like you.",
+      "count": 1,
+      "files": [
+        "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+      "line": 163,
+      "kind": "jsx",
+      "text": "Gallery",
+      "count": 1,
+      "files": [
+        "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/ModalAddPhoto.tsx",
+      "line": 175,
+      "kind": "jsx",
+      "text": "Camera",
+      "count": 1,
+      "files": [
+        "src/components/UploadImageComponents/ModalAddPhoto.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/UploadImage.tsx",
+      "line": 112,
+      "kind": "prop:text",
+      "text": "Delete",
+      "count": 2,
+      "files": [
+        "src/components/UploadImageComponents/UploadImage.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/UploadImage.tsx",
+      "line": 49,
+      "kind": "fallback",
+      "text": "Unable to load your uploaded images.",
+      "count": 1,
+      "files": [
+        "src/components/UploadImageComponents/UploadImage.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/UploadImage.tsx",
+      "line": 121,
+      "kind": "fallback",
+      "text": "Failed to delete image from server.",
+      "count": 1,
+      "files": [
+        "src/components/UploadImageComponents/UploadImage.tsx"
+      ]
+    },
+    {
+      "file": "src/components/UploadImageComponents/UploadImage.tsx",
+      "line": 141,
+      "kind": "tpl",
+      "text": "Photo {index}",
+      "count": 1,
+      "files": [
+        "src/components/UploadImageComponents/UploadImage.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 137,
+      "kind": "jsx",
+      "text": "Reset Password",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 144,
+      "kind": "jsx",
+      "text": "EMAIL",
+      "count": 3,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx",
+        "src/screens/Auth/LoginScreen.tsx",
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 166,
+      "kind": "jsx",
+      "text": "Send reset code",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 177,
+      "kind": "jsx",
+      "text": "Back to login",
+      "count": 2,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 182,
+      "kind": "jsx",
+      "text": "By signing up, you agree to our",
+      "count": 3,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx",
+        "src/screens/Auth/LoginScreen.tsx",
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 189,
+      "kind": "jsx",
+      "text": "Terms",
+      "count": 3,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx",
+        "src/screens/Auth/LoginScreen.tsx",
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 194,
+      "kind": "jsx",
+      "text": "Privacy Policy",
+      "count": 7,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx",
+        "src/screens/Auth/LoginScreen.tsx",
+        "src/screens/Auth/RegisterScreen.tsx",
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx",
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 234,
+      "kind": "jsx",
+      "text": "Reset your password",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 239,
+      "kind": "jsx",
+      "text": "Choose a new password. We'll email you a code to confirm.",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 314,
+      "kind": "jsx",
+      "text": "Send code",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 252,
+      "kind": "attr:placeholder",
+      "text": "Reset Code (e.g. 123456)",
+      "count": 2,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 264,
+      "kind": "attr:placeholder",
+      "text": "New Password",
+      "count": 2,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 286,
+      "kind": "attr:placeholder",
+      "text": "Confirm Password",
+      "count": 3,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx",
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/ForgotPasswordScreen.tsx",
+      "line": 78,
+      "kind": "prop:text",
+      "text": "Login",
+      "count": 3,
+      "files": [
+        "src/screens/Auth/ForgotPasswordScreen.tsx",
+        "src/screens/Auth/LoginScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/LoginScreen.tsx",
+      "line": 200,
+      "kind": "jsx",
+      "text": "Log in to your account",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/LoginScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/LoginScreen.tsx",
+      "line": 225,
+      "kind": "jsx",
+      "text": "PASSWORD",
+      "count": 2,
+      "files": [
+        "src/screens/Auth/LoginScreen.tsx",
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/LoginScreen.tsx",
+      "line": 255,
+      "kind": "jsx",
+      "text": "Forgot Password?",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/LoginScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/LoginScreen.tsx",
+      "line": 278,
+      "kind": "jsx",
+      "text": "I don't have an account",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/LoginScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/LoginScreen.tsx",
+      "line": 88,
+      "kind": "fallback",
+      "text": "Invalid email or password.",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/LoginScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/LoginScreen.tsx",
+      "line": 96,
+      "kind": "fallback",
+      "text": "Server did not return a valid session.",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/LoginScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 310,
+      "kind": "jsx",
+      "text": "We've sent a 6-digit code to",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 370,
+      "kind": "jsx",
+      "text": "Didn't receive code?",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 402,
+      "kind": "jsx",
+      "text": "Verify",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 257,
+      "kind": "prop:text",
+      "text": "Go to Login",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 305,
+      "kind": "ternary:a",
+      "text": "Verify your email address.",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 305,
+      "kind": "ternary:b",
+      "text": "Verify your mobile number.",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 314,
+      "kind": "ternary:a",
+      "text": "your email",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 314,
+      "kind": "ternary:b",
+      "text": "your mobile",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 418,
+      "kind": "ternary:a",
+      "text": "Change email",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 418,
+      "kind": "ternary:b",
+      "text": "Change mobile",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 136,
+      "kind": "tpl",
+      "text": "A new verification code has been sent to your {isEmail}.",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 323,
+      "kind": "tpl",
+      "text": "Resend in {timer}s",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/OTPScreen.tsx",
+      "line": 378,
+      "kind": "tpl",
+      "text": "Resend code ({timer}s)",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/OTPScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/RegisterScreen.tsx",
+      "line": 238,
+      "kind": "jsx",
+      "text": "Create your account",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/RegisterScreen.tsx",
+      "line": 245,
+      "kind": "jsx",
+      "text": "NAME",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/RegisterScreen.tsx",
+      "line": 338,
+      "kind": "jsx",
+      "text": "Create account",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/RegisterScreen.tsx",
+      "line": 350,
+      "kind": "jsx",
+      "text": "Already have an account? Log in",
+      "count": 1,
+      "files": [
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Auth/RegisterScreen.tsx",
+      "line": 251,
+      "kind": "attr:placeholder",
+      "text": "Your full name",
+      "count": 2,
+      "files": [
+        "src/screens/Auth/RegisterScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/HomeTab/MatchScreen.tsx",
+      "line": 157,
+      "kind": "jsx",
+      "text": "Invitation Sent! 💌",
+      "count": 1,
+      "files": [
+        "src/screens/HomeTab/MatchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/HomeTab/MatchScreen.tsx",
+      "line": 161,
+      "kind": "jsx",
+      "text": "We've notified {theirName}. Once she accepts, her Telegram handle will appear in your Sent Invitations.",
+      "count": 1,
+      "files": [
+        "src/screens/HomeTab/MatchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/HomeTab/MatchScreen.tsx",
+      "line": 209,
+      "kind": "jsx",
+      "text": "View Sent Invitations",
+      "count": 1,
+      "files": [
+        "src/screens/HomeTab/MatchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/HomeTab/MatchScreen.tsx",
+      "line": 215,
+      "kind": "jsx",
+      "text": "Keep Browsing",
+      "count": 1,
+      "files": [
+        "src/screens/HomeTab/MatchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+      "line": 49,
+      "kind": "jsx",
+      "text": "No messages yet",
+      "count": 2,
+      "files": [
+        "src/screens/MessageTab/ChatDetailScreen.tsx",
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+      "line": 50,
+      "kind": "jsx",
+      "text": "Send a message to start the conversation!",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/ChatDetailScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+      "line": 76,
+      "kind": "jsx",
+      "text": "Online",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/ChatDetailScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/ChatDetailScreen.tsx",
+      "line": 106,
+      "kind": "attr:placeholder",
+      "text": "Messaging coming soon...",
+      "count": 2,
+      "files": [
+        "src/screens/MessageTab/ChatDetailScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 225,
+      "kind": "jsx",
+      "text": "Invited you",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 246,
+      "kind": "jsx",
+      "text": "Accept",
+      "count": 2,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx",
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 303,
+      "kind": "jsx",
+      "text": "Invitations",
+      "count": 4,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx",
+        "src/screens/Navigations/BottomTabs.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 320,
+      "kind": "jsx",
+      "text": "Messages",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 329,
+      "kind": "jsx",
+      "text": "Sent ({sentInvites})",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 336,
+      "kind": "jsx",
+      "text": "Received ({receivedInvites})",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 349,
+      "kind": "jsx",
+      "text": "No invitations yet",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 350,
+      "kind": "jsx",
+      "text": "Invite people you like to start a conversation!",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 374,
+      "kind": "jsx",
+      "text": "Accepted connections will appear here for quick access.",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 356,
+      "kind": "attr:placeholder",
+      "text": "Search messages...",
+      "count": 2,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 184,
+      "kind": "prop:text1",
+      "text": "Invitation Accepted!",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 111,
+      "kind": "fallback",
+      "text": "PENDING",
+      "count": 6,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx",
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 128,
+      "kind": "fallback",
+      "text": "CONNECTED",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 134,
+      "kind": "tpl",
+      "text": "Connection status: {status}",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MessageTab/MessageScreen.tsx",
+      "line": 185,
+      "kind": "tpl",
+      "text": "You can now chat with {item}.",
+      "count": 1,
+      "files": [
+        "src/screens/MessageTab/MessageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MoreInfoTab/MoreInfoScreen.tsx",
+      "line": 123,
+      "kind": "prop:text",
+      "text": "Close",
+      "count": 4,
+      "files": [
+        "src/screens/MoreInfoTab/MoreInfoScreen.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx",
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/MoreInfoTab/MoreInfoScreen.tsx",
+      "line": 129,
+      "kind": "fnmsg",
+      "text": "We could not save your profile details right now.",
+      "count": 1,
+      "files": [
+        "src/screens/MoreInfoTab/MoreInfoScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Navigations/BottomTabs.tsx",
+      "line": 212,
+      "kind": "jsx",
+      "text": "Profile",
+      "count": 1,
+      "files": [
+        "src/screens/Navigations/BottomTabs.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Navigations/BottomTabs.tsx",
+      "line": 217,
+      "kind": "attr:label",
+      "text": "Discover",
+      "count": 4,
+      "files": [
+        "src/screens/Navigations/BottomTabs.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/Navigations/BottomTabs.tsx",
+      "line": 226,
+      "kind": "attr:label",
+      "text": "Telegram",
+      "count": 5,
+      "files": [
+        "src/screens/Navigations/BottomTabs.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 134,
+      "kind": "jsx",
+      "text": "How Amara Works",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 147,
+      "kind": "jsx",
+      "text": "EXCLUSIVE DATING EXPERIENCE",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 149,
+      "kind": "jsx",
+      "text": "Dating Built for Real Life.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 153,
+      "kind": "jsx",
+      "text": "No endless swiping. No spam. Just verified singles connecting for real dates.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 170,
+      "kind": "jsx",
+      "text": "For Men",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 190,
+      "kind": "jsx",
+      "text": "For Women",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 237,
+      "kind": "jsx",
+      "text": "Our Community Standards",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 245,
+      "kind": "jsx",
+      "text": "Photo Verified:",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 245,
+      "kind": "jsx",
+      "text": "Every profile completes a live gesture selfie.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 251,
+      "kind": "jsx",
+      "text": "No Commercial Dating:",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 251,
+      "kind": "jsx",
+      "text": "Escorts, prostitution, and sugar dating are strictly prohibited.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 257,
+      "kind": "jsx",
+      "text": "High Quality:",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 258,
+      "kind": "jsx",
+      "text": "Profiles with low photo quality or abusive behavior are removed.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 262,
+      "kind": "jsx",
+      "text": "Frequently Asked Questions",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 263,
+      "kind": "jsx",
+      "text": "Common questions about using the Amara dating platform.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 12,
+      "kind": "prop:title",
+      "text": "100% Private Profile",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 19,
+      "kind": "prop:title",
+      "text": "Send Date Invitations",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 31,
+      "kind": "prop:title",
+      "text": "Review & Acceptance",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 39,
+      "kind": "prop:title",
+      "text": "Connect on Telegram",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 47,
+      "kind": "prop:title",
+      "text": "100% Free For Women",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 55,
+      "kind": "prop:title",
+      "text": "Zero Spam or Creepy DMs",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 66,
+      "kind": "prop:title",
+      "text": "You Are Always in Control",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 74,
+      "kind": "prop:title",
+      "text": "Chat Directly on Telegram",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 13,
+      "kind": "prop:description",
+      "text": "Your profile is completely hidden from the public feed. Women cannot search or see your pictures unless you choose to send them an invitation first.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 21,
+      "kind": "prop:description",
+      "text": "Browse verified female profiles nearby or worldwide. Find someone you like and send a direct date invitation (membership required).",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 31,
+      "kind": "prop:description",
+      "text": "When the woman receives your invitation, she reviews your profile, photos, and date proposal. Only she can decide to accept or decline.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 39,
+      "kind": "prop:description",
+      "text": "No endless in-app small talk! Once she accepts, both of your Telegram handles are securely unlocked so you can chat and plan your date directly.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 47,
+      "kind": "prop:description",
+      "text": "Amara is completely free for all female members. You will never be asked to pay for invitations, membership, or chatting.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 55,
+      "kind": "prop:description",
+      "text": "Say goodbye to hundreds of unwanted messages. Men cannot message you directly; they can only send a formal date invitation for you to review.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 66,
+      "kind": "prop:description",
+      "text": "Invitations arrive in your Requests Inbox. Review their verified profile, photos, and background. You decide who you want to meet.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 74,
+      "kind": "prop:description",
+      "text": "When you accept an invite, your Telegram handle is shared with your match so you can chat conveniently where you already spend your time.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 82,
+      "kind": "prop:question",
+      "text": "Why are men’s profiles hidden by default?",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 90,
+      "kind": "prop:question",
+      "text": "Why do matches move to Telegram?",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 99,
+      "kind": "prop:question",
+      "text": "How does selfie verification work?",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 104,
+      "kind": "prop:question",
+      "text": "What is our policy on sugar dating & escorting?",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 82,
+      "kind": "prop:answer",
+      "text": "Amara follows a private luxury model. Many successful, ambitious men value discretion. By hiding male profiles from the public feed, your identity remains private until you choose to invite someone.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 90,
+      "kind": "prop:answer",
+      "text": "We believe dating should lead to real-life meetings, not endless in-app texting. Once mutual interest is confirmed, exchanging Telegram handles allows convenient, encrypted, and direct communication.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 99,
+      "kind": "prop:answer",
+      "text": "Every member must complete a real-time selfie verification during onboarding. This guarantees that every profile belongs to an authentic, live human and eliminates catfishing.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 104,
+      "kind": "prop:answer",
+      "text": "Amara strictly prohibits compensated dating, sugar arrangements, prostitution, or any financial exchange between members. Accounts violating these standards are banned permanently.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 15,
+      "kind": "prop:tag",
+      "text": "PRIVACY FIRST",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 30,
+      "kind": "prop:tag",
+      "text": "INVITATION ONLY",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 37,
+      "kind": "prop:tag",
+      "text": "MUTUAL INTEREST",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 46,
+      "kind": "prop:tag",
+      "text": "DIRECT CONTACT",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 55,
+      "kind": "prop:tag",
+      "text": "ALWAYS FREE",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 64,
+      "kind": "prop:tag",
+      "text": "SPAM-FREE INBOX",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 73,
+      "kind": "prop:tag",
+      "text": "YOUR CHOICE",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 80,
+      "kind": "prop:tag",
+      "text": "FAST & SAFE",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 197,
+      "kind": "ternary:a",
+      "text": "How It Works For Men",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 197,
+      "kind": "ternary:b",
+      "text": "How It Works For Women",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 202,
+      "kind": "ternary:a",
+      "text": "Private, discreet, and direct invitation process.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/HowToUseScreen.tsx",
+      "line": 202,
+      "kind": "ternary:b",
+      "text": "Safe, spam-free, and 100% free forever.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/HowToUseScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+      "line": 75,
+      "kind": "jsx",
+      "text": "Notifications",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/NotificationsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+      "line": 97,
+      "kind": "jsx",
+      "text": "No notifications",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/NotificationsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+      "line": 99,
+      "kind": "jsx",
+      "text": "When you receive likes, matches or messages, they will show up here.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/NotificationsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+      "line": 54,
+      "kind": "fallback",
+      "text": "Notification",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/NotificationsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+      "line": 17,
+      "kind": "tpl",
+      "text": "{minutes}m ago",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/NotificationsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/NotificationsScreen.tsx",
+      "line": 19,
+      "kind": "tpl",
+      "text": "{hours}h ago",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/NotificationsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 100,
+      "kind": "jsx",
+      "text": "Preferences",
+      "count": 3,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx",
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 109,
+      "kind": "jsx",
+      "text": "DISPLAY",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 133,
+      "kind": "jsx",
+      "text": "Language",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 157,
+      "kind": "jsx",
+      "text": "Email notifications",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 201,
+      "kind": "jsx",
+      "text": "Light",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 237,
+      "kind": "jsx",
+      "text": "System",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 273,
+      "kind": "jsx",
+      "text": "Dark",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 386,
+      "kind": "jsx",
+      "text": "No languages found",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PreferencesScreen.tsx",
+      "line": 326,
+      "kind": "attr:placeholder",
+      "text": "Search language",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PreferencesScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 33,
+      "kind": "jsx",
+      "text": "Last Updated: October 2023",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 38,
+      "kind": "jsx",
+      "text": "Welcome to Amara. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our application and tell you about your privacy rights and how the law protects you.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 46,
+      "kind": "jsx",
+      "text": "Personal data means any information about an individual from which that person can be identified. •",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 46,
+      "kind": "jsx",
+      "text": "Identity Data:",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 46,
+      "kind": "jsx",
+      "text": "includes username, marital status, title, date of birth and gender. •",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 49,
+      "kind": "jsx",
+      "text": "Contact Data:",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 49,
+      "kind": "jsx",
+      "text": "includes email address and telephone numbers. •",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 50,
+      "kind": "jsx",
+      "text": "Technical Data:",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 50,
+      "kind": "jsx",
+      "text": "includes IP address, login data, device info. •",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 51,
+      "kind": "jsx",
+      "text": "Profile Data:",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 51,
+      "kind": "jsx",
+      "text": "includes interests, preferences, and photos.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 52,
+      "kind": "jsx",
+      "text": "We use your data mainly to provide you with matching partner recommendations and to register you as a new user.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 54,
+      "kind": "jsx",
+      "text": "We retain your personal data only as long as necessary to fulfil the purposes we collected it for.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 58,
+      "kind": "jsx",
+      "text": "By accessing the Amara application, you are agreeing to be bound by these terms of service and all applicable laws.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 62,
+      "kind": "jsx",
+      "text": "Permission is granted to use materials on Amara's app for personal, non-commercial transitory viewing only.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 68,
+      "kind": "jsx",
+      "text": "Always exercise caution when meeting new people. Follow our safety guidelines off-app.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 35,
+      "kind": "attr:title",
+      "text": "1. Introduction",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 45,
+      "kind": "attr:title",
+      "text": "2. The Data We Collect About You",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 52,
+      "kind": "attr:title",
+      "text": "3. How We Use Your Data",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 54,
+      "kind": "attr:title",
+      "text": "4. Data Retention",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 58,
+      "kind": "attr:title",
+      "text": "1. Acceptance of Terms",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 62,
+      "kind": "attr:title",
+      "text": "2. Use License",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 68,
+      "kind": "attr:title",
+      "text": "3. Safety",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 6,
+      "kind": "ternary:b",
+      "text": "Terms & Conditions",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 9,
+      "kind": "ternary:a",
+      "text": "amara.app/privacy",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/PrivacyPolicyScreen.tsx",
+      "line": 9,
+      "kind": "ternary:b",
+      "text": "amara.app/terms",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/PrivacyPolicyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 139,
+      "kind": "jsx",
+      "text": "SETTINGS",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 256,
+      "kind": "jsx",
+      "text": "Amara v5.1.10",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 285,
+      "kind": "jsx",
+      "text": "Your profile will be hidden immediately and permanently deleted after 30 days. You can recover your account by logging in again within that period.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 338,
+      "kind": "jsx",
+      "text": "Send us an email and we'll get back to you as soon as possible.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 361,
+      "kind": "jsx",
+      "text": "hi@amara.com",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 142,
+      "kind": "attr:label",
+      "text": "My Profile",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 204,
+      "kind": "attr:label",
+      "text": "How To Use Amara",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileScreen.tsx",
+      "line": 371,
+      "kind": "prop:text1",
+      "text": "Copied to clipboard!",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileSettingsScreen.tsx",
+      "line": 193,
+      "kind": "prop:text",
+      "text": "OK",
+      "count": 3,
+      "files": [
+        "src/screens/ProfileTab/ProfileSettingsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ProfileSettingsScreen.tsx",
+      "line": 248,
+      "kind": "fnmsg",
+      "text": "We could not save your profile. Please try again.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ProfileSettingsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 100,
+      "kind": "jsx",
+      "text": "Support & Chat",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 123,
+      "kind": "jsx",
+      "text": "Chat with Live Agent",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 125,
+      "kind": "jsx",
+      "text": "Instant support via our official Telegram bot",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 134,
+      "kind": "jsx",
+      "text": "OR SUBMIT A TICKET",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 136,
+      "kind": "jsx",
+      "text": "Category",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 155,
+      "kind": "jsx",
+      "text": "Tell us what's wrong",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 176,
+      "kind": "jsx",
+      "text": "Submit Ticket",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 181,
+      "kind": "jsx",
+      "text": "Recent Tickets",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 199,
+      "kind": "jsx",
+      "text": "No support tickets yet.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/SupportScreen.tsx",
+      "line": 157,
+      "kind": "attr:placeholder",
+      "text": "Describe your issue in detail...",
+      "count": 2,
+      "files": [
+        "src/screens/ProfileTab/SupportScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 633,
+      "kind": "jsx",
+      "text": "Upgrade to premium",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 354,
+      "kind": "fnmsg",
+      "text": "We could not send your invitation right now.",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 711,
+      "kind": "ternary:a",
+      "text": "Invitation Sent",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 711,
+      "kind": "ternary:b",
+      "text": "Send Invite",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 409,
+      "kind": "fallback",
+      "text": "Beginner",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 493,
+      "kind": "fallback",
+      "text": "Conversational",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 498,
+      "kind": "fallback",
+      "text": "Asian",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 502,
+      "kind": "fallback",
+      "text": "Never",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 504,
+      "kind": "fallback",
+      "text": "Socially",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/ProfileTab/ViewMyProfileScreen.tsx",
+      "line": 507,
+      "kind": "fallback",
+      "text": "Long-term",
+      "count": 1,
+      "files": [
+        "src/screens/ProfileTab/ViewMyProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 187,
+      "kind": "jsx",
+      "text": "Chat",
+      "count": 2,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 200,
+      "kind": "jsx",
+      "text": "Select",
+      "count": 2,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 215,
+      "kind": "jsx",
+      "text": "Accepted",
+      "count": 3,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 270,
+      "kind": "jsx",
+      "text": "You have no accepted invitations yet.",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 276,
+      "kind": "jsx",
+      "text": "You will receive new invitations soon!",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 283,
+      "kind": "jsx",
+      "text": "No invitations found",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 284,
+      "kind": "jsx",
+      "text": "When men invite you, they will appear right here.",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 302,
+      "kind": "jsx",
+      "text": "You only see men who invite you. At Amara men approach you first, just like the old days.",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 319,
+      "kind": "jsx",
+      "text": "Request Accepted",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 320,
+      "kind": "jsx",
+      "text": "You are now connected with",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 241,
+      "kind": "attr:placeholder",
+      "text": "Search by name",
+      "count": 4,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 90,
+      "kind": "fallback",
+      "text": "Dating Match",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 67,
+      "kind": "tpl",
+      "text": "Rejected {formatted}",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/RequestsTab/RequestsInboxScreen.tsx",
+      "line": 75,
+      "kind": "tpl",
+      "text": "Invited {formatted}",
+      "count": 1,
+      "files": [
+        "src/screens/RequestsTab/RequestsInboxScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SearchSettings/SearchScreen.tsx",
+      "line": 260,
+      "kind": "jsx",
+      "text": "Please enable location access so we can show you people nearby.",
+      "count": 1,
+      "files": [
+        "src/screens/SearchSettings/SearchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SearchSettings/SearchScreen.tsx",
+      "line": 274,
+      "kind": "jsx",
+      "text": "Enable Location",
+      "count": 1,
+      "files": [
+        "src/screens/SearchSettings/SearchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SearchSettings/SearchScreen.tsx",
+      "line": 177,
+      "kind": "tpl",
+      "text": "Failed to apply filters: {String}",
+      "count": 1,
+      "files": [
+        "src/screens/SearchSettings/SearchScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 185,
+      "kind": "jsx",
+      "text": "Restore access",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 198,
+      "kind": "jsx",
+      "text": "Pending reply",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 254,
+      "kind": "jsx",
+      "text": "You haven't invited anyone yet. Don't wait. Invite someone today!",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 257,
+      "kind": "jsx",
+      "text": "When she accepts your invitation, you can contact her on Whatsapp or Telegram. Only a woman you invited can see your profile.",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 361,
+      "kind": "jsx",
+      "text": "No {activeTab} invitations",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 91,
+      "kind": "prop:text",
+      "text": "Restore Now",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 364,
+      "kind": "ternary:a",
+      "text": "Invitations that are accepted will appear here.",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 364,
+      "kind": "ternary:b",
+      "text": "You have no invitations waiting for a reply.",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 71,
+      "kind": "tpl",
+      "text": "{Math} year ago",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 74,
+      "kind": "tpl",
+      "text": "{Math} months ago",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 77,
+      "kind": "tpl",
+      "text": "{diffDays} days ago",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 78,
+      "kind": "tpl",
+      "text": "{diffHours} hours ago",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 88,
+      "kind": "tpl",
+      "text": "Would you like to restore active access to chat with {name}?",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/SentTab/SentRequestsScreen.tsx",
+      "line": 98,
+      "kind": "tpl",
+      "text": "You can now connect with {name}!",
+      "count": 1,
+      "files": [
+        "src/screens/SentTab/SentRequestsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/AboutProfileScreen.tsx",
+      "line": 106,
+      "kind": "jsx",
+      "text": "About you",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/AboutProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/AboutProfileScreen.tsx",
+      "line": 111,
+      "kind": "jsx",
+      "text": "Who are you, and what makes you great company?",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/AboutProfileScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/AboutProfileScreen.tsx",
+      "line": 151,
+      "kind": "jsx",
+      "text": "Next",
+      "count": 7,
+      "files": [
+        "src/screens/onboarding/AboutProfileScreen.tsx",
+        "src/screens/onboarding/ConnectTelegramScreen.tsx",
+        "src/screens/onboarding/DOBScreen.tsx",
+        "src/screens/onboarding/DisplayNameScreen.tsx",
+        "src/screens/onboarding/GenderOrientationScreen.tsx",
+        "src/screens/onboarding/TellUsMoreScreen.tsx",
+        "src/screens/onboarding/UploadImageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+      "line": 196,
+      "kind": "jsx",
+      "text": "Connect Telegram to receive notifications and messages through the Amara Telegram bot.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+      "line": 274,
+      "kind": "jsx",
+      "text": "Set up later",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+      "line": 111,
+      "kind": "fallback",
+      "text": "Could not save Telegram username.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/ConnectTelegramScreen.tsx",
+      "line": 126,
+      "kind": "fallback",
+      "text": "Could not disconnect Telegram.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/ConnectTelegramScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/DOBScreen.tsx",
+      "line": 122,
+      "kind": "jsx",
+      "text": "Your birthday?",
+      "count": 2,
+      "files": [
+        "src/screens/onboarding/DOBScreen.tsx",
+        "src/screens/onboarding/DisplayNameScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/DOBScreen.tsx",
+      "line": 126,
+      "kind": "jsx",
+      "text": "You must be at least 18 years old to register.",
+      "count": 2,
+      "files": [
+        "src/screens/onboarding/DOBScreen.tsx",
+        "src/screens/onboarding/DisplayNameScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/DisplayNameScreen.tsx",
+      "line": 143,
+      "kind": "jsx",
+      "text": "What's your name?",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/DisplayNameScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 96,
+      "kind": "jsx",
+      "text": "Hey there!",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 98,
+      "kind": "jsx",
+      "text": "What's your gender?",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 119,
+      "kind": "jsx",
+      "text": "I am a",
+      "count": 2,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 122,
+      "kind": "jsx",
+      "text": "Man",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 130,
+      "kind": "jsx",
+      "text": "and like women",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 147,
+      "kind": "jsx",
+      "text": "Woman",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 156,
+      "kind": "jsx",
+      "text": "and like men",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 174,
+      "kind": "jsx",
+      "text": "I am",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 177,
+      "kind": "jsx",
+      "text": "LGBTQ+",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 185,
+      "kind": "jsx",
+      "text": "(Lesbian, Gay, Bisexual, Trans, Queer, ...)",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/GenderOrientationScreen.tsx",
+      "line": 197,
+      "kind": "jsx",
+      "text": "Your gender information is private and used only for matching.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/GenderOrientationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/MoreDetailsScreen.tsx",
+      "line": 336,
+      "kind": "jsx",
+      "text": "Tell us more about yourself",
+      "count": 2,
+      "files": [
+        "src/screens/onboarding/MoreDetailsScreen.tsx",
+        "src/screens/onboarding/TellUsMoreScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/MoreDetailsScreen.tsx",
+      "line": 180,
+      "kind": "fallback",
+      "text": "Basic",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/MoreDetailsScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/PrivacyScreen.tsx",
+      "line": 128,
+      "kind": "jsx",
+      "text": "Your profile stays selective, private, and intentional.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/PrivacyScreen.tsx",
+      "line": 130,
+      "kind": "jsx",
+      "text": "We only use your details to improve matching, safety, and account access. Nothing gets shared outside the experience you control.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/PrivacyScreen.tsx",
+      "line": 139,
+      "kind": "jsx",
+      "text": "By continuing, you agree to our terms of use and privacy policy and allow account data needed for safer matching.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/PrivacyScreen.tsx",
+      "line": 160,
+      "kind": "jsx",
+      "text": "We store location, profile details, and activity state only to personalize the app, verify sessions, and surface better nearby matches.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/PrivacyScreen.tsx",
+      "line": 172,
+      "kind": "jsx",
+      "text": "Accept terms and privacy policy",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/PrivacyScreen.tsx",
+      "line": 30,
+      "kind": "fallback",
+      "text": "Unknown error",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/PrivacyScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+      "line": 180,
+      "kind": "jsx",
+      "text": "Initializing face verification... {scanProgress}%",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/SelfieVerificationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+      "line": 230,
+      "kind": "jsx",
+      "text": "Move face in front of camera",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/SelfieVerificationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+      "line": 251,
+      "kind": "jsx",
+      "text": "Camera Ready",
+      "count": 2,
+      "files": [
+        "src/screens/onboarding/SelfieVerificationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+      "line": 294,
+      "kind": "jsx",
+      "text": "Start",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/SelfieVerificationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/SelfieVerificationScreen.tsx",
+      "line": 300,
+      "kind": "jsx",
+      "text": "Center your face and click \"Start\"",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/SelfieVerificationScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/TellUsMoreScreen.tsx",
+      "line": 84,
+      "kind": "jsx",
+      "text": "Almost there!",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/TellUsMoreScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/UploadImageScreen.tsx",
+      "line": 106,
+      "kind": "jsx",
+      "text": "Nice to meet you, {name}!",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/UploadImageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/UploadImageScreen.tsx",
+      "line": 109,
+      "kind": "jsx",
+      "text": "Please upload at least 3 photos. One must clearly show your face.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/UploadImageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/UploadImageScreen.tsx",
+      "line": 160,
+      "kind": "jsx",
+      "text": "None of your photos clearly shows your face. Please upload a photo of your face to continue.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/UploadImageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/screens/onboarding/UploadImageScreen.tsx",
+      "line": 172,
+      "kind": "jsx",
+      "text": "No nudity, and make sure you appear in every photo.",
+      "count": 1,
+      "files": [
+        "src/screens/onboarding/UploadImageScreen.tsx"
+      ]
+    },
+    {
+      "file": "src/utils/geolocation.ts",
+      "line": 29,
+      "kind": "prop:title",
+      "text": "Location Permission",
+      "count": 1,
+      "files": [
+        "src/utils/geolocation.ts"
+      ]
+    },
+    {
+      "file": "src/utils/geolocation.ts",
+      "line": 31,
+      "kind": "prop:message",
+      "text": "This app needs access to your location to find nearby matches.",
+      "count": 1,
+      "files": [
+        "src/utils/geolocation.ts"
+      ]
+    },
+    {
+      "file": "src/utils/telegramHelper.ts",
+      "line": 40,
+      "kind": "tpl",
+      "text": "Could not open Telegram directly.\\n\\nUsername: @{clean}\\nLink: {webUrl}",
+      "count": 1,
+      "files": [
+        "src/utils/telegramHelper.ts"
+      ]
+    }
+  ]
+}

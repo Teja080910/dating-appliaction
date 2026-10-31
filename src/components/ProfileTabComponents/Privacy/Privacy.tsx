@@ -3,13 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Icon from 'react-native-vector-icons/Feather';
 import { Colors, Spacing } from '../../../theme';
+import { t, useTranslation } from '../../../i18n';
 
 const Privacy = ({ onPress }: any) => {
+  useTranslation();
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={styles.leftSection}>
         <FontAwesome5 name="file-alt" size={18} color={Colors.text} style={styles.icon} />
-        <Text style={styles.text}>Privacy</Text>
+        <Text style={styles.text}>{t('profile.privacy.privacy')}</Text>
       </View>
     <Icon name="chevron-right" size={23} color={Colors.textMuted} style={styles.chevron} />
     </TouchableOpacity>

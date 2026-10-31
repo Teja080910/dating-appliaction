@@ -1,14 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, PermissionsAndroid, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { RootParamList } from '../../utils/types/navigation.types';
-import { StackNavigationProp } from '@react-navigation/stack';
 import AttractiveLogo from '../AttractiveLogo';
-import { Colors, Spacing, Shadows, Typography } from '../../theme';
+import AppContext from '../../context/CreateGlobalStateContext';
+import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface Props {
   selectedFilter: 'online' | 'newest';
@@ -16,192 +17,398 @@ interface Props {
   onMenuPress?: () => void;
 }
 
-type HomeHeaderNavigationProp = StackNavigationProp<RootParamList, 'SearchSettings'>;
+const NOTIFICATION_BANNER_KEY = 'notification_banner_dismissed';
 
 const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
-  const navigation = useNavigation<HomeHeaderNavigationProp>();
+  useTranslation();
+  const { themeColors, isDark } = useTheme();
+  const { activeFilterCount } = useContext(AppContext);
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
+  const [bannerVisible, setBannerVisible] = useState(false);
 
-  const handleSearchSettingsPress = () => {
-    navigation.navigate('SearchSettings');
+  useEffect(() => {
+    let isMounted = true;
+    const checkBannerState = async () => {
+      try {
+        const dismissed = await AsyncStorage.getItem(NOTIFICATION_BANNER_KEY);
+        if (dismissed === 'true') {
+          if (isMounted) setBannerVisible(false);
+          return;
+        }
+
+        if (Platform.OS === 'android' && Platform.Version >= 33) {
+          const hasPermission = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+          );
+          if (hasPermission) {
+            if (isMounted) setBannerVisible(false);
+            return;
+          }
+        }
+
+        if (isMounted) setBannerVisible(true);
+      } catch {
+        if (isMounted) setBannerVisible(true);
+      }
+    };
+
+    checkBannerState();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleDismissBanner = async () => {
+    try {
+      await AsyncStorage.setItem(NOTIFICATION_BANNER_KEY, 'true');
+    } catch {}
+    setBannerVisible(false);
+  };
+
+  const handleNotifyMe = async () => {
+    try {
+      if (Platform.OS === 'android' && Platform.Version >= 33) {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          {
+            title: t('home.homeheader.enable_notifications'),
+            message: t('home.homeheader.get_instant_alerts_when_you_receive_a_new_invite_or_match'),
+            buttonPositive: 'Allow',
+            buttonNegative: 'Not Now',
+          }
+        );
+
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          await AsyncStorage.setItem(NOTIFICATION_BANNER_KEY, 'true');
+          await AsyncStorage.setItem('notifications_enabled', 'true');
+          setBannerVisible(false);
+          Alert.alert('Notifications Enabled', "You'll be notified of new invites instantly!");
+          return;
+        } else {
+          Alert.alert(
+            'Notifications Off',
+            'You can enable notifications in your phone Settings at any time.'
+          );
+          await AsyncStorage.setItem(NOTIFICATION_BANNER_KEY, 'true');
+          setBannerVisible(false);
+          return;
+        }
+      }
+
+      await AsyncStorage.setItem(NOTIFICATION_BANNER_KEY, 'true');
+      setBannerVisible(false);
+      Alert.alert('Notifications Enabled', "You'll be notified of new invites instantly!");
+    } catch {
+      await AsyncStorage.setItem(NOTIFICATION_BANNER_KEY, 'true');
+      setBannerVisible(false);
+    }
   };
 
   return (
-    <View style={[styles.wrapper, { paddingTop: insets.top + Spacing.md }]}>
-      <View style={styles.topBar}>
-        <View style={styles.logoContainer}>
-          <AttractiveLogo size={36} />
-          <View style={styles.logoTextWrap}>
-            <Text style={styles.logoText}>AMARA</Text>
-            <Text style={styles.logoSubtext}>Curated private matches</Text>
+    <View style={[styles.wrapper, { paddingTop: insets.top + Spacing.xs }]}>
+      {/* Top Notification Banner */}
+      {bannerVisible && (
+        <View style={styles.bannerContainer}>
+          <TouchableOpacity
+            style={styles.bannerLeft}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('NotificationsScreen')}
+          >
+            <View style={styles.bannerIconWrap}>
+              <Icon name="bell" size={15} color={themeColors.primaryLight} />
+            </View>
+            <Text style={styles.bannerText} numberOfLines={2}>{t('home.homeheader.dont_miss_a_new_invite_get_notified_instantly')}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.bannerActions}>
+            <TouchableOpacity
+              style={styles.notifyButton}
+              activeOpacity={0.85}
+              onPress={handleNotifyMe}
+            >
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.notifyGradient}
+              >
+                <Text style={styles.notifyButtonText}>{t('home.homeheader.notify_me')}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dismissButton}
+              activeOpacity={0.7}
+              onPress={handleDismissBanner}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="x" size={14} color={themeColors.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
+      )}
 
-        <TouchableOpacity
-          onPress={handleSearchSettingsPress}
-          style={styles.settingsButton}
-          activeOpacity={0.7}
-        >
-          <LinearGradient
-            colors={[Colors.glass, Colors.glassLight]}
-            style={styles.settingsGradient}
-          >
-            <Icon name="sliders" size={20} color={Colors.textSecondary} />
-          </LinearGradient>
-        </TouchableOpacity>
+      {/* Brand Header */}
+      <View style={styles.brandRow}>
+        <View style={styles.logoContainer}>
+          <AttractiveLogo size={34} />
+          <View style={styles.logoTextWrap}>
+            <Text style={styles.logoText}>{t('home.homeheader.amara')}</Text>
+            <Text style={styles.logoSubtext}>{t('home.homeheader.curated_private_matches')}</Text>
+          </View>
+        </View>
       </View>
 
-      <View style={styles.segmentedControl}>
+      {/* Filter and Tabs Row */}
+      <View style={styles.controlsRow}>
         <TouchableOpacity
+          style={[styles.filterButton, activeFilterCount > 0 && styles.filterButtonWithBadge]}
           activeOpacity={0.8}
-          style={[
-            styles.toggleButton,
-            selectedFilter === 'online' ? styles.activeButton : styles.inactiveButton,
-          ]}
-          onPress={() => onFilterChange('online')}
+          onPress={() => navigation.navigate('SearchSettings')}
         >
-          {selectedFilter === 'online' ? (
-            <LinearGradient
-              colors={[Colors.primary, Colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.activeGradient}
-            >
-              <MaterialCommunityIcons name="access-point" size={16} color={Colors.white} style={styles.toggleIcon} />
-              <Text style={styles.activeText}>Active now</Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.inactiveContent}>
-              <MaterialCommunityIcons name="access-point" size={16} color={Colors.textMuted} style={styles.toggleIcon} />
-              <Text style={styles.inactiveText}>Active now</Text>
+          <Icon name="sliders" size={18} color={themeColors.textSecondary} />
+          {activeFilterCount > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
             </View>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={[
-            styles.toggleButton,
-            selectedFilter === 'newest' ? styles.activeButton : styles.inactiveButton,
-          ]}
-          onPress={() => onFilterChange('newest')}
-        >
-          {selectedFilter === 'newest' ? (
-            <LinearGradient
-              colors={[Colors.primary, Colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.activeGradient}
-            >
-              <MaterialCommunityIcons name="fire" size={16} color={Colors.white} style={styles.toggleIcon} />
-              <Text style={styles.activeText}>Just joined</Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.inactiveContent}>
-              <MaterialCommunityIcons name="fire" size={16} color={Colors.textMuted} style={styles.toggleIcon} />
-              <Text style={styles.inactiveText}>Just joined</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.dividerLine} />
+
+        <View style={styles.segmentedControl}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.toggleButton,
+              selectedFilter === 'online' ? styles.activeButton : styles.inactiveButton,
+            ]}
+            onPress={() => onFilterChange('online')}
+          >
+            {selectedFilter === 'online' ? (
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.activeGradient}
+              >
+                <Text style={styles.activeText}>{t('home.homeheader.last_active')}</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.inactiveContent}>
+                <Text style={styles.inactiveText}>{t('home.homeheader.last_active')}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.toggleButton,
+              selectedFilter === 'newest' ? styles.activeButton : styles.inactiveButton,
+            ]}
+            onPress={() => onFilterChange('newest')}
+          >
+            {selectedFilter === 'newest' ? (
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.activeGradient}
+              >
+                <Text style={styles.activeText}>{t('home.homeheader.newest')}</Text>
+              </LinearGradient>
+            ) : (
+              <View style={styles.inactiveContent}>
+                <Text style={styles.inactiveText}>{t('home.homeheader.newest')}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  wrapper: {
-    paddingHorizontal: Spacing.screenPaddingHorizontal,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.lg,
-    backgroundColor: Colors.background,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoTextWrap: {
-    marginLeft: Spacing.md,
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: Colors.text,
-    letterSpacing: 1,
-  },
-  logoSubtext: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: Spacing.radiusFull,
-    overflow: 'hidden',
-  },
-  settingsGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    borderRadius: Spacing.radiusFull,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    height: 48,
-    borderRadius: Spacing.radiusXl,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    padding: 3,
-  },
-  toggleButton: {
-    flex: 1,
-    borderRadius: Spacing.radiusLg,
-    overflow: 'hidden',
-  },
-  activeButton: {},
-  inactiveButton: {
-    backgroundColor: 'transparent',
-  },
-  activeGradient: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: Spacing.radiusLg,
-  },
-  inactiveContent: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  toggleIcon: {
-    marginRight: 6,
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  activeText: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  inactiveText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
+
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    wrapper: {
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      backgroundColor: colors.background,
+    },
+    bannerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.background === '#F8F9FA' ? '#EDE9FE' : 'rgba(124, 58, 237, 0.12)',
+      borderRadius: 14,
+      paddingVertical: 9,
+      paddingHorizontal: 12,
+      marginBottom: 14,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+    bannerLeft: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    bannerIconWrap: {
+      marginRight: 8,
+    },
+    bannerText: {
+      fontSize: 12.5,
+      fontWeight: '500',
+      color: colors.textPrimary,
+      flexShrink: 1,
+      lineHeight: 16,
+    },
+    bannerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    notifyButton: {
+      borderRadius: 16,
+      overflow: 'hidden',
+    },
+    notifyGradient: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    notifyButtonText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    dismissButton: {
+      marginLeft: 8,
+      padding: 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    brandRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 14,
+      paddingLeft: 2,
+    },
+    logoContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    logoTextWrap: {
+      marginLeft: 10,
+    },
+    logoText: {
+      fontSize: 22,
+      fontWeight: '900',
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    logoSubtext: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontWeight: '600',
+      marginTop: 1,
+    },
+    controlsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    filterButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    filterButtonWithBadge: {
+      width: 'auto',
+      minWidth: 54,
+      paddingHorizontal: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    filterBadge: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 5,
+    },
+    filterBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    dividerLine: {
+      width: 1,
+      height: 22,
+      backgroundColor: colors.glassBorder,
+      marginRight: 10,
+    },
+    segmentedControl: {
+      flex: 1,
+      flexDirection: 'row',
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+      padding: 3,
+    },
+    toggleButton: {
+      flex: 1,
+      borderRadius: Spacing.radiusLg,
+      overflow: 'hidden',
+    },
+    activeButton: {},
+    inactiveButton: {
+      backgroundColor: 'transparent',
+    },
+    activeGradient: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: Spacing.radiusLg,
+    },
+    inactiveContent: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    toggleIcon: {
+      marginRight: 6,
+    },
+    activeText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    inactiveText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  });
 
 export default HomeHeader;
+

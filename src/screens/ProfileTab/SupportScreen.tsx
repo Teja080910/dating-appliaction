@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -16,10 +17,14 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useSupport } from '../../api/useSupport';
-import { Colors } from '../../utils/colors';
+import { Colors, Spacing, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
+import { t, useTranslation } from '../../i18n';
 
 const SupportScreen = () => {
+  useTranslation();
+  const { themeColors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Technical');
 
@@ -40,9 +45,24 @@ const SupportScreen = () => {
     [tickets],
   );
 
+  const handleOpenTelegramSupport = () => {
+    const url = 'https://t.me/AmaraSupportBot';
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Linking.openURL('https://t.me/amara_dating_bot');
+        }
+      })
+      .catch(() => {
+        Linking.openURL('https://t.me/amara_dating_bot');
+      });
+  };
+
   const handleSubmit = () => {
     if (!description.trim()) {
-      alert('Error', 'Please describe your issue.');
+      alert(t('profile.additionaluploadsection.error'), t('profile.supportscreen.please_describe_your_issue'));
       return;
     }
 
@@ -53,12 +73,12 @@ const SupportScreen = () => {
       },
       {
         onSuccess: () => {
-          alert('Success', 'Your support ticket has been created.');
+          alert(t('profile.supportscreen.success'), t('profile.supportscreen.your_support_ticket_has_been_created'));
           setDescription('');
         },
         onError: (error: any) => {
           alert(
-            'Error',
+            t('profile.additionaluploadsection.error'),
             String(getSupportErrorMessage(error, 'Failed to create ticket. Please try again.')),
           );
         },
@@ -67,18 +87,18 @@ const SupportScreen = () => {
   };
 
   const handleCloseTicket = (ticketId: number) => {
-    alert('Close Ticket', 'Mark this support ticket as closed?', [
-      { text: 'Cancel', style: 'cancel' },
+    alert(t('profile.supportscreen.close_ticket'), t('profile.supportscreen.mark_this_support_ticket_as_closed'), [
+      { text: t('profile.additionaluploadsection.cancel'), style: 'cancel' },
       {
-        text: 'Close',
+        text: t('more_info.moreinfoscreen.close'),
         onPress: () => {
           closeTicket.mutate(ticketId, {
             onSuccess: () => {
-              alert('Ticket Closed', 'The support ticket has been marked as closed.');
+              alert(t('profile.supportscreen.ticket_closed'), t('profile.supportscreen.the_support_ticket_has_been_marked_as_closed'));
             },
             onError: (error: any) => {
               alert(
-                'Close Failed',
+                t('profile.supportscreen.close_failed'),
                 String(getSupportErrorMessage(error, 'Unable to close this ticket right now.')),
               );
             },
@@ -88,15 +108,15 @@ const SupportScreen = () => {
     ]);
   };
 
-  const categories = ['Technical', 'Billing', 'Report User', 'Other'];
+  const categories = ['Technical', 'Billing', 'Report User', t('profile.userdetails.other')];
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={28} color="#000" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Icon name="arrow-left" size={26} color={themeColors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Support Center</Text>
+        <Text style={styles.headerTitle}>{t('profile.supportscreen.support_chat')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -105,7 +125,29 @@ const SupportScreen = () => {
         style={styles.keyboardArea}
       >
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.label}>Category</Text>
+          {/* Quick Telegram Support option */}
+          <TouchableOpacity
+            style={styles.telegramSupportCard}
+            activeOpacity={0.8}
+            onPress={handleOpenTelegramSupport}
+          >
+            <View style={styles.telegramIconBox}>
+              <Icon name="telegram" size={26} color="#fff" />
+            </View>
+            <View style={styles.telegramSupportContent}>
+              <Text style={styles.telegramSupportTitle}>{t('profile.supportscreen.chat_with_live_agent')}</Text>
+              <Text style={styles.telegramSupportSub}>{t('profile.supportscreen.instant_support_via_our_official_telegram_bot')}</Text>
+            </View>
+            <Icon name="chevron-right" size={22} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{t('profile.supportscreen.or_submit_a_ticket')}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Text style={styles.label}>{t('profile.supportscreen.category')}</Text>
           <View style={styles.categoryContainer}>
             {categories.map((cat) => (
               <TouchableOpacity
@@ -128,15 +170,15 @@ const SupportScreen = () => {
             ))}
           </View>
 
-          <Text style={styles.label}>Tell us what's wrong</Text>
+          <Text style={styles.label}>{t('profile.supportscreen.tell_us_whats_wrong')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Describe your issue in detail..."
+            placeholder={t('profile.supportscreen.describe_your_issue_in_detail')}
             multiline
-            numberOfLines={6}
+            numberOfLines={5}
             value={description}
             onChangeText={setDescription}
-            placeholderTextColor="#999"
+            placeholderTextColor={Colors.textMuted}
           />
 
           <TouchableOpacity
@@ -147,13 +189,13 @@ const SupportScreen = () => {
             {createTicket.isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitBtnText}>Submit Ticket</Text>
+              <Text style={styles.submitBtnText}>{t('profile.supportscreen.submit_ticket')}</Text>
             )}
           </TouchableOpacity>
 
           <View style={styles.ticketSection}>
             <View style={styles.ticketTitleRow}>
-              <Text style={styles.ticketTitle}>Recent tickets</Text>
+              <Text style={styles.ticketTitle}>{t('profile.supportscreen.recent_tickets')}</Text>
               {isFetchingTickets ? <ActivityIndicator size="small" color={Colors.primary} /> : null}
             </View>
 
@@ -167,7 +209,7 @@ const SupportScreen = () => {
               </View>
             ) : recentTickets.length === 0 ? (
               <View style={styles.stateCard}>
-                <Text style={styles.stateText}>No support tickets yet.</Text>
+                <Text style={styles.stateText}>{t('profile.supportscreen.no_support_tickets_yet')}</Text>
               </View>
             ) : (
               recentTickets.map((ticket) => {
@@ -187,7 +229,7 @@ const SupportScreen = () => {
                       </Text>
                       {!isClosed ? (
                         <TouchableOpacity onPress={() => handleCloseTicket(ticket.id)}>
-                          <Text style={styles.closeLink}>Close</Text>
+                          <Text style={styles.closeLink}>{t('more_info.moreinfoscreen.close')}</Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -195,13 +237,6 @@ const SupportScreen = () => {
                 );
               })
             )}
-          </View>
-
-          <View style={styles.infoBox}>
-            <Icon name="information-outline" size={20} color="#666" />
-            <Text style={styles.infoText}>
-              Our team usually responds within 24 hours. You'll receive a notification when we reply.
-            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -212,183 +247,222 @@ const SupportScreen = () => {
 
 export default SupportScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  keyboardArea: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  categoryContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 20,
-  },
-  categoryBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: 10,
-    marginBottom: 10,
-  },
-  categoryBtnActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  categoryText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-  categoryTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  input: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 15,
-    fontSize: 16,
-    color: Colors.text,
-    textAlignVertical: 'top',
-    height: 150,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  submitBtn: {
-    backgroundColor: Colors.primary,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 30,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  ticketSection: {
-    marginTop: 28,
-  },
-  ticketTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  ticketTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  stateCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
-    alignItems: 'center',
-  },
-  stateText: {
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  ticketCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 14,
-    marginBottom: 10,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    gap: 12,
-  },
-  ticketSubject: {
-    color: Colors.text,
-    fontWeight: '700',
-    fontSize: 14,
-    flex: 1,
-  },
-  ticketStatus: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 12,
-    textTransform: 'uppercase',
-  },
-  ticketStatusClosed: {
-    color: '#4CAF50',
-  },
-  ticketMessage: {
-    color: Colors.textSecondary,
-    lineHeight: 19,
-  },
-  ticketFooter: {
-    marginTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ticketDate: {
-    color: Colors.grey,
-    fontSize: 12,
-  },
-  closeLink: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: Colors.lightGrey,
-    padding: 15,
-    borderRadius: 12,
-    marginTop: 40,
-    alignItems: 'center',
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginLeft: 10,
-    lineHeight: 18,
-  },
-});
+const createStyles = (themeColors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: themeColors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    backBtn: {
+      padding: 4,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    headerSpacer: {
+      width: 28,
+    },
+    keyboardArea: {
+      flex: 1,
+    },
+    content: {
+      padding: Spacing.lg,
+      paddingBottom: 40,
+    },
+    telegramSupportCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: themeColors.surface,
+      padding: Spacing.md,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 136, 204, 0.3)',
+      marginBottom: Spacing.lg,
+    },
+    telegramIconBox: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: '#0088cc',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: Spacing.md,
+    },
+    telegramSupportContent: {
+      flex: 1,
+    },
+    telegramSupportTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    telegramSupportSub: {
+      fontSize: 12,
+      color: themeColors.textMuted,
+      marginTop: 2,
+    },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: Spacing.lg,
+      gap: 8,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: themeColors.borderLight,
+    },
+    dividerText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: themeColors.textMuted,
+      letterSpacing: 0.5,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: themeColors.text,
+      marginBottom: 8,
+    },
+    categoryContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: Spacing.lg,
+    },
+    categoryBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    categoryBtnActive: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    categoryText: {
+      color: themeColors.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    categoryTextActive: {
+      color: '#fff',
+      fontWeight: '700',
+    },
+    input: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 15,
+      color: themeColors.text,
+      textAlignVertical: 'top',
+      height: 120,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    submitBtn: {
+      backgroundColor: themeColors.primary,
+      height: 50,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: Spacing.lg,
+    },
+    submitBtnText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    ticketSection: {
+      marginTop: Spacing.xxl,
+    },
+    ticketTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    ticketTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: themeColors.text,
+    },
+    stateCard: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      padding: Spacing.md,
+      alignItems: 'center',
+    },
+    stateText: {
+      color: themeColors.textMuted,
+      fontSize: 13,
+      textAlign: 'center',
+    },
+    ticketCard: {
+      backgroundColor: themeColors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      padding: Spacing.md,
+      marginBottom: 10,
+      borderLeftWidth: 3,
+      borderLeftColor: themeColors.primary,
+    },
+    ticketHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+      gap: 12,
+    },
+    ticketSubject: {
+      color: themeColors.text,
+      fontWeight: '700',
+      fontSize: 14,
+      flex: 1,
+    },
+    ticketStatus: {
+      color: themeColors.primary,
+      fontWeight: '700',
+      fontSize: 11,
+      textTransform: 'uppercase',
+    },
+    ticketStatusClosed: {
+      color: '#22c55e',
+    },
+    ticketMessage: {
+      color: themeColors.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    ticketFooter: {
+      marginTop: 8,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    ticketDate: {
+      color: themeColors.textMuted,
+      fontSize: 11,
+    },
+    closeLink: {
+      color: themeColors.primary,
+      fontWeight: '700',
+      fontSize: 12,
+    },
+  });

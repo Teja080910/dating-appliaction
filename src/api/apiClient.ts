@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { APIURL } from '../environment/ApiConfig';
+import { APIURL, USE_MOCK } from '../environment/ApiConfig';
 import { clearAuthSession, getAuthToken } from '../utils/sessionState';
+import { handleMockRequest } from '../mock/mockAdapter';
 
 const BASE_URL = APIURL;
 
@@ -23,16 +24,23 @@ const isPublicAuthRequest = (url: string | null | undefined) => {
   return PUBLIC_AUTH_PATHS.some((path) => normalizedUrl.includes(path));
 };
 
-const summarizeApiError = (error: any) => ({
-  status: Number(error?.response?.status || 0) || null,
-  url: String(error?.config?.url || '').trim() || null,
-  message: String(error?.message || 'Unknown API error'),
-  details:
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    (typeof error?.response?.data === 'string' ? error.response.data : null) ||
-    null,
-});
+const summarizeApiError = (error: any) => {
+  const respData = error?.response?.data;
+  let detailsText: string | null = null;
+  if (typeof respData === 'string') {
+    detailsText = respData;
+  } else if (respData && typeof respData === 'object') {
+    detailsText = respData.message || respData.error || respData.details || JSON.stringify(respData);
+  }
+
+  return {
+    status: Number(error?.response?.status || 0) || null,
+    url: String(error?.config?.url || '').trim() || null,
+    message: String(error?.message || 'Unknown API error'),
+    details: detailsText,
+    data: respData,
+  };
+};
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -41,6 +49,7 @@ const apiClient = axios.create({
   headers: {
     Accept: '*/*',
   },
+  adapter: (USE_MOCK || process.env.NODE_ENV === 'test') ? handleMockRequest : undefined,
 });
 
 const pendingRequests = new Map<string, Promise<any>>();
@@ -76,7 +85,7 @@ apiClient.interceptors.request.use(
       }
 
       if (__DEV__) {
-        console.log(`➡️ [API REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
+        console.log(`➡️ [API REQUEST] ${config.method?.toUpperCase()} ${config.url}`, config.params ? { params: config.params } : '');
       }
 
       return config;
@@ -87,10 +96,11 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ DEDUPLICATE in-flight GET requests (prevents infinite loops)
+// ✅ DEDUPLICATE in-flight GET requests (prevents infinite loops while preserving distinct query params)
 const originalGet = apiClient.get;
 apiClient.get = async function(url: string, config?: any) {
-  const key = `GET:${url}`;
+  const paramsKey = config?.params ? JSON.stringify(config.params) : '';
+  const key = `GET:${url}:${paramsKey}`;
   if (pendingRequests.has(key)) {
     return pendingRequests.get(key)!;
   }
@@ -120,8 +130,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    console.log(`[API DEBUG] Request to ${url} failed: ${summary.message}`);
-    console.log('❌ API ERROR:', summary);
+    console.log(`[API DEBUG] Request to ${url} failed: ${summary.details || summary.message}`);
+    console.log('❌ API ERROR:', JSON.stringify(summary));
 
     if (status === 401 && !isPublicAuthRequest(url)) {
       const isIdentityMismatch =

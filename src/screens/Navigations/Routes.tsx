@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RegisterScreen from '../Auth/RegisterScreen';
 import LoginScreen from '../Auth/LoginScreen';
@@ -15,6 +15,7 @@ import UploadImageScreen from '../onboarding/UploadImageScreen';
 import SelfieVerificationScreen from '../onboarding/SelfieVerificationScreen';
 import BottomTabs from './BottomTabs';
 import AboutProfileScreen from '../onboarding/AboutProfileScreen';
+import TellUsMoreScreen from '../onboarding/TellUsMoreScreen';
 import ConnectTelegramScreen from '../onboarding/ConnectTelegramScreen';
 import SearchScreen from '../SearchSettings/SearchScreen';
 import ProfileSettingsScreen from '../ProfileTab/ProfileSettingsScreen';
@@ -23,23 +24,54 @@ import MatchScreen from '../HomeTab/MatchScreen';
 import PrivacyPolicyScreen from '../ProfileTab/PrivacyPolicyScreen';
 import ChatDetailScreen from '../MessageTab/ChatDetailScreen';
 import MoreDetailsScreen from '../onboarding/MoreDetailsScreen';
+import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
 import SupportScreen from '../ProfileTab/SupportScreen';
 import NotificationsScreen from '../ProfileTab/NotificationsScreen';
+import PreferencesScreen from '../ProfileTab/PreferencesScreen';
+import HowToUseScreen from '../ProfileTab/HowToUseScreen';
+import ResetLocationScreen from '../ProfileTab/ResetLocationScreen';
+import BlockedUsersScreen from '../ProfileTab/BlockedUsersScreen';
 import { SESSION_EXPIRED_EVENT } from '../../api/apiClient';
 import { resolveInitialRoute } from '../../utils/session';
 import SubscriptionModal from '../../components/SubscriptionModal';
+import RequestsInboxScreen from '../RequestsTab/RequestsInboxScreen';
+import SentRequestsScreen from '../SentTab/SentRequestsScreen';
 import { Colors } from '../../theme';
-
+import { usePresence } from '../../api/usePresence';
+import { StatusBar } from 'react-native';
 
 const Stack = createNativeStackNavigator();
 
 const Routes = () => {
+  usePresence();
   const {
     initialScreen,
     setInitialScreen,
     paywallVisible,
     setPaywallVisible,
+    themeColors,
+    gender,
   } = useContext(AppContext);
+  const isWoman = String(gender || '').toLowerCase().includes('woman') || String(gender || '').toLowerCase().includes('female');
+
+  const activeColors = themeColors || Colors;
+  const isDark = activeColors.background !== '#F8F9FA' && activeColors.background !== '#FFFFFF';
+  const baseTheme = isDark ? DarkTheme : DefaultTheme;
+
+  const navTheme = {
+    ...baseTheme,
+    dark: isDark,
+    colors: {
+      ...baseTheme.colors,
+      primary: activeColors.primary,
+      background: activeColors.background,
+      card: activeColors.surface,
+      text: activeColors.text,
+      border: activeColors.border,
+      notification: activeColors.secondary,
+    },
+  };
+
 
   useEffect(() => {
     // Listener for global session expiry
@@ -78,18 +110,30 @@ const Routes = () => {
 
   if (!initialScreen) {
     return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#FF5A79" />
+      <View style={[styles.loadingScreen, { backgroundColor: activeColors.background }]}>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={activeColors.background}
+        />
+        <ActivityIndicator size="large" color={activeColors.primary} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={activeColors.background}
+      />
       <Stack.Navigator
         key={initialScreen}
         initialRouteName={initialScreen}
-        screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: activeColors.background || '#0F0D1A' },
+        }}
       >
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
@@ -103,6 +147,7 @@ const Routes = () => {
         <Stack.Screen name="SelfieVerification" component={SelfieVerificationScreen} />
         <Stack.Screen name="BottomTabs" component={BottomTabs} />
         <Stack.Screen name="AboutProfile" component={AboutProfileScreen} />
+        <Stack.Screen name="TellUsMore" component={TellUsMoreScreen} />
         <Stack.Screen name="ConnectTelegram" component={ConnectTelegramScreen} />
         <Stack.Screen name="SearchSettings" component={SearchScreen} />
         <Stack.Screen name="ProfileSettingsScreen" component={ProfileSettingsScreen} />
@@ -110,14 +155,27 @@ const Routes = () => {
         <Stack.Screen name="MatchScreen" component={MatchScreen} />
         <Stack.Screen name="ChatDetailScreen" component={ChatDetailScreen} />
         <Stack.Screen name="MoreDetails" component={MoreDetailsScreen} />
+        <Stack.Screen name="MoreInfoScreen" component={MoreInfoScreen} />
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         <Stack.Screen name="SupportScreen" component={SupportScreen} />
         <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
+        <Stack.Screen name="PreferencesScreen" component={PreferencesScreen} />
+        <Stack.Screen name="Preferences" component={PreferencesScreen} />
+        <Stack.Screen name="RequestsInboxScreen" component={RequestsInboxScreen} />
+        <Stack.Screen name="SentRequestsScreen" component={SentRequestsScreen} />
+        <Stack.Screen name="Sent" component={SentRequestsScreen} />
+        <Stack.Screen name="HowToUseScreen" component={HowToUseScreen} />
+        <Stack.Screen name="ResetLocationScreen" component={ResetLocationScreen} />
+        <Stack.Screen name="ResetLocation" component={ResetLocationScreen} />
+        <Stack.Screen name="BlockedUsersScreen" component={BlockedUsersScreen} />
+        <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       </Stack.Navigator>
-      <SubscriptionModal
-        visible={paywallVisible}
-        onClose={() => setPaywallVisible(false)}
-      />
+      {!isWoman && (
+        <SubscriptionModal
+          visible={paywallVisible}
+          onClose={() => setPaywallVisible(false)}
+        />
+      )}
     </NavigationContainer>
   );
 };
@@ -132,5 +190,4 @@ const styles = {
     backgroundColor: Colors.background,
   },
 };
-
 

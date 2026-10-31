@@ -1,8 +1,14 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AsyncStorageService } from './types/AsyncStorage';
-import { APIURL } from '../environment/ApiConfig';
+import { APIURL, USE_MOCK } from '../environment/ApiConfig';
+import { handleMockRequest } from '../mock/mockAdapter';
 import { decode as atob } from 'base-64';
+
+const sessionHttpClient = axios.create({
+  timeout: 5000,
+  adapter: USE_MOCK ? handleMockRequest : undefined,
+});
 
 // ✅ Break circular dependency: Export core state functions from independent source
 export * from './sessionState';
@@ -16,6 +22,7 @@ import {
   restoreScopedOnboardingState,
   initVerifiedIdentityCache,
   setVerifiedIdentityCache,
+  getAuthToken,
 } from './sessionState';
 
 export const SESSION_TOKEN_KEY = 'auth_token';
@@ -24,16 +31,17 @@ const IDENTITY_REPAIR_CACHE = new Map<string, string | null>();
 const IDENTITY_REPAIR_IN_FLIGHT = new Map<string, Promise<string | null>>();
 const PROFILE_ID_SCAN_LIMIT = 200;
 
-const ONBOARDING_ROUTES = new Set([
+export const ONBOARDING_ROUTES = new Set([
   'Privacy',
   'GenderOrientation',
   'DisplayName',
   'DOB',
   'UploadImage',
   'SelfieVerification',
-  'MoreDetails',
-  'AboutProfile',
   'ConnectTelegram',
+  'AboutProfile',
+  'TellUsMore',
+  'MoreDetails',
 ]);
 
 const normalizeStoredString = (value: unknown): string | null => {
@@ -65,8 +73,8 @@ const normalizeApiUserIdCandidate = (value: unknown): string | null => {
     return null;
   }
 
-  // Backend userIds are alphanumeric strings (e.g. SA1000)
-  if (/^[A-Za-z]+\d+$/.test(normalized)) {
+  // Backend userIds are alphanumeric / slug strings (e.g. SA1000, usr_man_101)
+  if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) {
     return normalized;
   }
 
@@ -169,7 +177,9 @@ const probeProfileById = async (userId: number, token: string) => {
     },
   };
 
-  const response = await axios.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId } });
+  const response = await sessionHttpClient
+    .get(`${APIURL}/profile/me/${userId}`, requestConfig)
+    .catch(() => sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId } }));
   return response?.data;
 };
 
@@ -286,15 +296,14 @@ const resolveSessionIdentityFromApi = async (session: {
 };
 
 export const repairStoredSessionIdentity = async () => {
-  const [tokenEntry, userIdEntry, rawEntry, userEntry, verifiedEntry] = await AsyncStorage.multiGet([
-    STORAGE_KEYS.token,
+  const [userIdEntry, rawEntry, userEntry, verifiedEntry] = await AsyncStorage.multiGet([
     STORAGE_KEYS.userId,
     STORAGE_KEYS.userData,
     STORAGE_KEYS.user,
     USER_VERIFIED_KEY,
   ]);
 
-  const token = normalizeStoredString(tokenEntry?.[1]);
+  const token = normalizeStoredString(await getAuthToken());
   const storedUserId = normalizeStoredString(userIdEntry?.[1]);
   const isPreviouslyVerified = verifiedEntry?.[1] === 'true';
 
@@ -362,15 +371,14 @@ export const repairStoredSessionIdentity = async () => {
 };
 
 export const getAuthSession = async () => {
-    const [tokenVal, userIdVal, userVal, rawVal, verifiedVal] = await AsyncStorage.multiGet([
-        STORAGE_KEYS.token,
+    const [userIdVal, userVal, rawVal, verifiedVal] = await AsyncStorage.multiGet([
         STORAGE_KEYS.userId,
         STORAGE_KEYS.user,
         STORAGE_KEYS.userData,
         USER_VERIFIED_KEY,
     ]);
 
-    const token = normalizeStoredString(tokenVal?.[1]);
+    const token = normalizeStoredString(await getAuthToken());
     const userId = normalizeStoredString(userIdVal?.[1]);
     const isVerified = verifiedVal?.[1] === 'true';
 
@@ -396,11 +404,21 @@ const resolveStoredGenderSelection = (profile: any): string | null => {
   const gender = String(profile?.gender || '').toLowerCase();
   const orientation = String(profile?.orientation || '').toLowerCase();
 
-  if (gender === 'woman' && orientation === 'straight') {
+  if (
+    gender.includes('woman') ||
+    gender.includes('female') ||
+    orientation.includes('woman') ||
+    orientation.includes('female')
+  ) {
     return 'straight_woman';
   }
 
-  if (gender === 'man' && orientation === 'straight') {
+  if (
+    gender.includes('man') ||
+    gender.includes('male') ||
+    orientation.includes('man') ||
+    orientation.includes('male')
+  ) {
     return 'straight_man';
   }
 
@@ -431,9 +449,14 @@ const syncStoredSessionState = async (session: {
 
     const uid = session.userId;
     const [privacyResult, completionResult, profileResult] = await Promise.allSettled([
-      axios.get(`${APIURL}/privacy/status`, { ...requestConfig, params: { userId: uid } }),
-      axios.post(`${APIURL}/profile/completion`, null, { ...requestConfig, params: { userId: uid } }),
-      axios.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId: uid } }),
+      sessionHttpClient.get(`${APIURL}/privacy/status`, { ...requestConfig, params: { userId: uid } }),
+      sessionHttpClient
+        .get(`${APIURL}/profile/completion/${uid}`, requestConfig)
+        .catch(() => sessionHttpClient.get(`${APIURL}/profile/completion`, { ...requestConfig, params: { userId: uid } }))
+        .catch(() => sessionHttpClient.post(`${APIURL}/profile/completion`, null, { ...requestConfig, params: { userId: uid } })),
+      sessionHttpClient
+        .get(`${APIURL}/profile/me/${uid}`, requestConfig)
+        .catch(() => sessionHttpClient.post(`${APIURL}/profile/me`, null, { ...requestConfig, params: { userId: uid } })),
     ]);
 
     if (privacyResult.status === 'fulfilled' && privacyResult.value?.data === true) {
@@ -448,15 +471,22 @@ const syncStoredSessionState = async (session: {
     const selectedGender = resolveStoredGenderSelection(profile);
     if (selectedGender) {
       await AsyncStorage.setItem(STORAGE_KEYS.selectedGender, selectedGender);
+      await AsyncStorage.setItem('userGender', selectedGender);
     }
 
     const completionValue =
       completionResult.status === 'fulfilled' ? Number(completionResult.value?.data) : Number.NaN;
-    const hasImages = Array.isArray(profile?.images) && profile.images.some(Boolean);
-    const hasProfilePhoto = Boolean(profile?.profileImageUrl) || hasImages;
+    const profileImages = [
+      ...(Array.isArray(profile?.images) ? profile.images : []),
+      ...(Array.isArray(profile?.photos) ? profile.photos : []),
+    ].filter(Boolean);
+    const hasRequiredPhotos = profileImages.length >= 2;
     const looksComplete =
-      (Number.isFinite(completionValue) && completionValue >= 60) ||
-      (Boolean(profile?.displayName) && hasProfilePhoto);
+      (Number.isFinite(completionValue) && completionValue >= 100) ||
+      (Boolean(profile?.displayName) &&
+        Boolean(profile?.dob) &&
+        Boolean(profile?.gender) &&
+        hasRequiredPhotos);
 
     if (looksComplete) {
       await AsyncStorage.setItem(STORAGE_KEYS.entryHomeScreen, 'true');
@@ -538,8 +568,8 @@ export const saveAuthSession = async (data: any) => {
   }
 
   if (session.token) {
-    await AsyncStorage.setItem(STORAGE_KEYS.token, session.token);
-    await AsyncStorage.setItem('userToken', session.token);
+    await AsyncStorageService.setToken(session.token);
+    await AsyncStorage.multiRemove([STORAGE_KEYS.token, 'userToken']);
     await AsyncStorage.setItem(STORAGE_KEYS.isLoggedIn, 'true');
     if (session.userId) {
       await AsyncStorage.setItem(STORAGE_KEYS.userId, String(session.userId));
@@ -566,13 +596,19 @@ export const saveAuthSession = async (data: any) => {
     await AsyncStorage.setItem(STORAGE_KEYS.user, JSON.stringify(session.user));
   }
 
-  const profile = session.user?.profile || session.raw?.profile || null;
+  const profile = session.user?.profile || session.raw?.profile || session.user || session.raw || null;
   const selectedGender = resolveStoredGenderSelection(profile);
   if (selectedGender) {
     await AsyncStorage.setItem(STORAGE_KEYS.selectedGender, selectedGender);
+    await AsyncStorage.setItem('userGender', selectedGender);
   }
 
-  await AsyncStorage.setItem(STORAGE_KEYS.userData, JSON.stringify(session.raw || {}));
+  const rawForStorage = { ...(session.raw || {}) };
+  delete rawForStorage.token;
+  delete rawForStorage.accessToken;
+  delete rawForStorage.jwt;
+  delete rawForStorage.password;
+  await AsyncStorage.setItem(STORAGE_KEYS.userData, JSON.stringify(rawForStorage));
 
   try {
     await AsyncStorageService.setUser({
@@ -607,8 +643,8 @@ export const resolveInitialRoute = async (): Promise<string> => {
   const acceptedTerms = values[STORAGE_KEYS.acceptedTerms] === 'true';
   const rawOnboardingStep = values[STORAGE_KEYS.onboardingStep];
   const onboardingStep =
-    acceptedTerms && rawOnboardingStep === 'Privacy'
-      ? null
+    rawOnboardingStep === 'Privacy'
+      ? 'GenderOrientation'
       : rawOnboardingStep;
   const onboardingComplete = values[STORAGE_KEYS.entryHomeScreen] === 'true';
   
@@ -621,7 +657,7 @@ export const resolveInitialRoute = async (): Promise<string> => {
   }
 
   let storedUserId = values[STORAGE_KEYS.userId];
-  const storedToken = values[STORAGE_KEYS.token];
+  let storedToken = await getAuthToken();
 
   if (storedToken) {
     if (!acceptedTerms || !onboardingComplete) {
@@ -647,6 +683,7 @@ export const resolveInitialRoute = async (): Promise<string> => {
           STORAGE_KEYS.userId,
         ]);
         Object.assign(values, Object.fromEntries(entries));
+        storedToken = await getAuthToken();
       }
     }
 
@@ -674,13 +711,14 @@ export const resolveInitialRoute = async (): Promise<string> => {
       STORAGE_KEYS.userId,
     ]);
     Object.assign(values, Object.fromEntries(entries));
+    storedToken = await getAuthToken();
   }
 
   const acceptedTermsAfterHydration = values[STORAGE_KEYS.acceptedTerms] === 'true';
   const rawOnboardingStepAfterHydration = values[STORAGE_KEYS.onboardingStep];
   const onboardingStepAfterHydration =
-    acceptedTermsAfterHydration && rawOnboardingStepAfterHydration === 'Privacy'
-      ? null
+    rawOnboardingStepAfterHydration === 'Privacy'
+      ? 'GenderOrientation'
       : rawOnboardingStepAfterHydration;
   const onboardingCompleteAfterHydration = values[STORAGE_KEYS.entryHomeScreen] === 'true';
 
@@ -688,13 +726,19 @@ export const resolveInitialRoute = async (): Promise<string> => {
      console.log('[session] Route resolution continuing without a resolved API userId yet.');
   }
 
+  if (!acceptedTermsAfterHydration) {
+    return onboardingStepAfterHydration || 'GenderOrientation';
+  }
+
+  // Only completed profiles may enter the main app. Login no longer marks
+  // onboarding complete; saveAuthSession hydrates this flag from profile data.
+  if (isLoggedIn && storedToken && onboardingCompleteAfterHydration) {
+    return 'BottomTabs';
+  }
+
   if (!onboardingCompleteAfterHydration && onboardingStepAfterHydration && ONBOARDING_ROUTES.has(onboardingStepAfterHydration)) {
      if (__DEV__) console.log('[session] Routes: Resuming onboarding at', onboardingStepAfterHydration);
      return onboardingStepAfterHydration;
-  }
-
-  if (!acceptedTermsAfterHydration) {
-    return 'Privacy';
   }
 
   return onboardingCompleteAfterHydration ? 'BottomTabs' : 'GenderOrientation';

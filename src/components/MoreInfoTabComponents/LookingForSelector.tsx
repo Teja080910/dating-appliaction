@@ -1,42 +1,67 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const options = [
-  'Hookup',
-  'Casual AMARA',
-  'Relationship',
-  'Marriage',
-  'Online relationship',
-];
+const options = ['Hookup', 'Casual dating', 'Online relationship', 'Relationship', 'Marriage'];
+const lookingForLabel = (val: string) =>
+  val === 'Casual dating' ? t('profile.userdetails.casual_dating')
+  : val === 'Relationship' ? t('profile.userdetails.relationship')
+  : val;
 
 const LookingForSelector = () => {
+  useTranslation();
+  const { themeColors } = useTheme();
   const { selectedLookingFor, setSelectedLookingFor } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
-    if (selectedLookingFor.includes(option)) {
-      setSelectedLookingFor(selectedLookingFor.filter((item: string) => item !== option));
+    const list = Array.isArray(selectedLookingFor) ? selectedLookingFor : [];
+    const exists = list.some((item) => item.toLowerCase() === option.toLowerCase());
+    if (exists) {
+      setSelectedLookingFor(list.filter((item) => item.toLowerCase() !== option.toLowerCase()));
     } else {
-      setSelectedLookingFor([...selectedLookingFor, option]);
+      setSelectedLookingFor([...list, option]);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Looking for</Text>
-      <View style={styles.optionsContainer}>
-        {options.map((item: string) => (
-          <TouchableOpacity
-            key={item}
-            onPress={() => toggleOption(item)}
-            style={[styles.option, selectedLookingFor.includes(item) && styles.optionSelected]}
-          >
-            <Text style={[styles.optionText, selectedLookingFor.includes(item) && styles.optionTextSelected]}>
-              {item}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.headerRow}>
+        <Icon name="heart-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.lookingforselector.what_are_you_looking_for')}</Text>
+      </View>
+      <View style={styles.optionsWrap}>
+        {options.map((item) => {
+          const list = Array.isArray(selectedLookingFor) ? selectedLookingFor : [];
+          const isSelected = list.some((val) => val.toLowerCase() === item.toLowerCase());
+          return isSelected ? (
+            <TouchableOpacity
+              key={item}
+              activeOpacity={0.8}
+              onPress={() => toggleOption(item)}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
+            >
+              <Text style={styles.pillTextActive}>{lookingForLabel(item)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={item}
+              activeOpacity={0.7}
+              onPress={() => toggleOption(item)}
+              style={[
+                styles.pillInactive,
+                {
+                  backgroundColor: themeColors.surfaceLight,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{lookingForLabel(item)}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -46,45 +71,48 @@ export default LookingForSelector;
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
+    paddingHorizontal: 20,
+    marginTop: 26,
   },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
   },
-  optionsContainer: {
+  headerIcon: {
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: 10,
   },
-  option: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
+  pillInactive: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  optionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  optionText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
+  pillTextInactive: {
+    fontSize: 14.5,
     fontWeight: '500',
   },
-  optionTextSelected: {
-    color: Colors.white,
+  pillActive: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillTextActive: {
+    fontSize: 14.5,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from './apiClient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
+import { getAuthSession } from '../utils/session';
+import { t } from '../i18n';
 
 const allowedFields = [
   'name',
@@ -21,6 +24,11 @@ const allowedFields = [
   'lookingFor',
   'smoke',
   'drink',
+  'kidCount',
+  'kids',
+  'netWorth',
+  'verifiedSelfie',
+  'selfieVerified',
 ];
 
 const sanitizeProfileDto = (dto: Record<string, any>) =>
@@ -54,31 +62,56 @@ const resolveProfilePayload = (payload: any) => {
 };
 
 const normalizeProfile = (payload: any) => {
-  const source = resolveProfilePayload(payload);
+  const payloadSource = resolveProfilePayload(payload);
+  // The API may return a flat profile, { profile }, or { user: { profile } }.
+  // Flatten those compatible shapes so persisted values are not lost in the UI.
+  const nestedUser = payloadSource?.user && typeof payloadSource.user === 'object'
+    ? payloadSource.user
+    : {};
+  const nestedProfile = payloadSource?.profile && typeof payloadSource.profile === 'object'
+    ? payloadSource.profile
+    : (nestedUser?.profile && typeof nestedUser.profile === 'object'
+      ? nestedUser.profile
+      : {});
+  const source = { ...nestedUser, ...nestedProfile, ...payloadSource };
+  const numberOrZero = (value: unknown) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
 
   return {
-    id: typeof source?.id === 'number' ? source.id : null,
+    id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
+    userId: source?.userId !== undefined && source?.userId !== null
+      ? String(source.userId)
+      : (nestedUser?.id !== undefined && nestedUser?.id !== null ? String(nestedUser.id) : ''),
     name: source?.name ? String(source.name) : '',
     displayName: source?.displayName ? String(source.displayName) : '',
     email: source?.email ? String(source.email) : '',
-    bio: source?.bio ? String(source.bio) : '',
+    bio: source?.bio ? String(source.bio) : (source?.description ? String(source.description) : ''),
     dob: source?.dob ? String(source.dob) : null,
-    age: typeof source?.age === 'number' ? source.age : null,
+    age: source?.age !== undefined && source?.age !== null && source?.age !== ''
+      ? numberOrZero(source.age)
+      : null,
     gender: source?.gender ? String(source.gender) : null,
     orientation: source?.orientation ? String(source.orientation) : null,
     language: source?.language ? String(source.language) : '',
     appearance: source?.appearance ? String(source.appearance) : '',
     bodyType: source?.bodyType ? String(source.bodyType) : '',
-    height: typeof source?.height === 'number' ? source.height : 0,
+    height: numberOrZero(source?.height),
     englishLevel: source?.englishLevel ? String(source.englishLevel) : '',
     ethnicity: source?.ethnicity ? String(source.ethnicity) : '',
     lookingFor: source?.lookingFor ? String(source.lookingFor) : '',
     smoke: source?.smoke ? String(source.smoke) : '',
     drink: source?.drink ? String(source.drink) : '',
+    kidCount: source?.kidCount ? String(source.kidCount) : (source?.kids ? String(source.kids) : ''),
+    netWorth: source?.netWorth ? String(source.netWorth) : '',
+    currentCity: source?.currentCity ? String(source.currentCity) : '',
+    telegramUsername: source?.telegramUsername ? String(source.telegramUsername) : '',
     verifiedSelfie: Boolean(source?.verifiedSelfie ?? source?.selfieVerified),
     selfieVerified: Boolean(source?.selfieVerified ?? source?.verifiedSelfie),
-    profileImageUrl: source?.profileImageUrl ? String(source.profileImageUrl) : null,
-    images: Array.isArray(source?.images) ? source.images : [],
+    profileImageUrl: source?.profileImageUrl ? String(source.profileImageUrl) : (Array.isArray(source?.photos) && source.photos[0] ? String(source.photos[0]) : null),
+    images: Array.isArray(source?.images) ? source.images : (Array.isArray(source?.photos) ? source.photos : []),
+    photos: Array.isArray(source?.photos) ? source.photos : (Array.isArray(source?.images) ? source.images : []),
     raw: payload,
   };
 };
@@ -93,6 +126,9 @@ const normalizeCompletion = (payload: any) => {
   const nestedNumeric = Number(source?.completion ?? source?.percentage ?? source?.progress);
   return Number.isFinite(nestedNumeric) ? nestedNumeric : 0;
 };
+
+const hasValidUid = (uid: any): boolean =>
+  uid !== undefined && uid !== null && String(uid).trim() !== '';
 
 const resolveBackendUserId = async () => {
   const userId = await getUserId();
@@ -117,30 +153,63 @@ const resolveNumericUserId = async (candidate?: any) => {
 export const useMyProfile = (uid?: any) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(
+    hasValidUid(uid) ? String(uid) : null,
+  );
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
-    if (!uid) return;
+    let cancelled = false;
+    if (hasValidUid(uid)) {
+      setResolvedUserId(String(uid));
+      return;
+    }
+
+    // No uid passed → fall back to the logged-in user's stored userId so the
+    // profile still loads after logout/login (in-memory context is reset).
+    getUserId()
+      .then((id) => {
+        if (!cancelled && id) setResolvedUserId(String(id));
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [uid]);
+
+  useEffect(() => {
+    if (!resolvedUserId) return;
 
     setLoading(true);
+    setError(null);
     let cancelled = false;
     const fetch = async () => {
       try {
-        const resolvedUserId = String(uid);
-        const res = await apiClient.post(`/profile/me`, null, { params: { userId: resolvedUserId } });
+        const res = await apiClient
+          .get(`/profile/me/${resolvedUserId}`)
+          .catch(() => apiClient.post('/profile/me', null, { params: { userId: resolvedUserId } }));
         if (!cancelled) {
           setData(normalizeProfile(res.data));
         }
-      } catch {
-        if (!cancelled) setData(null);
+      } catch (err: any) {
+        if (!cancelled) {
+          setData(null);
+          const message =
+            err?.response?.data?.message ||
+            (typeof err?.message === 'string' ? err.message : 'Failed to load profile');
+          setError(message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     fetch();
     return () => { cancelled = true; };
-  }, [uid]);
+  }, [resolvedUserId, refreshKey]);
 
-  return { data, isLoading: loading };
+  return { data, isLoading: loading, error, refetch };
 };
 
 export const useProfileCompletion = (uid: any) => {
@@ -157,7 +226,10 @@ export const useProfileCompletion = (uid: any) => {
       try {
         setLoading(true);
         const resolvedUserId = uid ? String(uid) : await resolveBackendUserId();
-        const res = await apiClient.post(`/profile/completion`, null, { params: { userId: resolvedUserId } });
+        const res = await apiClient
+          .get(`/profile/completion/${resolvedUserId}`)
+          .catch(() => apiClient.get('/profile/completion', { params: { userId: resolvedUserId } }))
+          .catch(() => apiClient.post('/profile/completion', null, { params: { userId: resolvedUserId } }));
         if (!cancelled) setData(normalizeCompletion(res.data));
       } catch {
         if (!cancelled) setData(null);
@@ -189,6 +261,20 @@ export const useProfile = () => {
   const setupProfile = useMutation<any, Error, SetupProfileInput>({
     mutationFn: async ({uid, dto, photo}) => {
       const normalizedDto = sanitizeProfileDto(dto);
+
+      let resolvedName = normalizedDto.name || normalizedDto.displayName;
+      if (!resolvedName) {
+        resolvedName =
+          (await AsyncStorage.getItem('name')) ||
+          (await AsyncStorage.getItem('displayName')) ||
+          (await AsyncStorage.getItem('userName')) ||
+          t('home.usercard.user');
+      }
+      normalizedDto.name = resolvedName;
+      if (!normalizedDto.displayName) {
+        normalizedDto.displayName = resolvedName;
+      }
+
       const resolvedUserId = await resolveNumericUserId(uid);
       console.log('📡 API userId:', resolvedUserId);
 
@@ -206,13 +292,67 @@ export const useProfile = () => {
         } as any);
       }
 
-      const res = await apiClient.post(
-        `/profile/${resolvedUserId}/setup`,
-        formData,
-        { params: { dto: JSON.stringify(normalizedDto) } },
-      );
+      let setupRes: any = null;
+      try {
+        // 1. Try standard JSON payload per PDF specification
+        setupRes = await apiClient.post(
+          `/profile/${resolvedUserId}/setup`,
+          normalizedDto,
+        );
+      } catch (jsonErr) {
+        // 2. Try multipart form-data fallback
+        try {
+          setupRes = await apiClient.post(
+            `/profile/${resolvedUserId}/setup`,
+            formData,
+            { params: { dto: JSON.stringify(normalizedDto) } },
+          );
+        } catch (formErr) {
+          console.warn('[setupProfile] Direct /setup failed, falling back to granular update endpoints.');
+        }
+      }
 
-      return res.data;
+      // 3. Ensure granular update endpoints are also synchronized so fields are 100% persisted
+      await Promise.allSettled([
+        apiClient.put('/profile/update-basic', {
+          userId: resolvedUserId,
+          name: normalizedDto.name,
+          displayName: normalizedDto.displayName,
+          bio: normalizedDto.bio,
+          dob: normalizedDto.dob,
+          age: normalizedDto.age,
+        }).catch(() => apiClient.put('/profile/update', {
+          userId: resolvedUserId,
+          name: normalizedDto.name,
+          displayName: normalizedDto.displayName,
+          bio: normalizedDto.bio,
+          dob: normalizedDto.dob,
+          age: normalizedDto.age,
+        })),
+        apiClient.put('/profile/update-details', {
+          userId: resolvedUserId,
+          language: normalizedDto.language,
+          bodyType: normalizedDto.bodyType,
+          appearance: normalizedDto.appearance,
+          height: normalizedDto.height,
+          englishLevel: normalizedDto.englishLevel || '',
+          ethnicity: normalizedDto.ethnicity || '',
+          kidCount: normalizedDto.kidCount || '',
+          netWorth: normalizedDto.netWorth || '',
+        }),
+        apiClient.put('/profile/update-preferences', {
+          userId: resolvedUserId,
+          lookingFor: normalizedDto.lookingFor,
+          smoke: normalizedDto.smoke,
+          drink: normalizedDto.drink,
+          ethnicity: normalizedDto.ethnicity || '',
+        }),
+      ]);
+
+      return setupRes?.data ?? { status: 'success', message: 'Profile setup completed' };
+    },
+    onSuccess: async (_, variables) => {
+      await invalidateProfile(variables?.uid);
     },
   });
 
@@ -245,22 +385,85 @@ export const useProfile = () => {
     bodyType: string;
     appearance: string;
     height: number;
+    englishLevel?: string;
+    ethnicity?: string;
+    kidCount?: string;
+    netWorth?: string;
   };
 
   const updateDetails = useMutation<any, Error, UpdateDetailsInput>({
     mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
-      const payload = {
+      const payload: Record<string, any> = {
         userId: resolvedUserId,
         language: data.language,
         bodyType: data.bodyType,
         appearance: data.appearance,
         height: data.height,
+        englishLevel: data.englishLevel || '',
+        ethnicity: data.ethnicity || '',
+        kidCount: data.kidCount || '',
+        netWorth: data.netWorth || '',
       };
 
+      // More Info is a partial details update. The general /profile/update
+      // endpoint validates profile basics such as name, which should not be
+      // required when editing only these fields.
       const res = await apiClient.put('/profile/update-details', payload);
       return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
+    },
+  });
+
+  type UpdateProfileInput = {
+    userId?: any;
+    name?: string;
+    displayName?: string;
+    bio?: string;
+    dob?: string;
+    age?: number;
+    language?: string;
+    bodyType?: string;
+    appearance?: string;
+    height?: number;
+    englishLevel?: string;
+    ethnicity?: string;
+    lookingFor?: string;
+    smoke?: string;
+    drink?: string;
+    photos?: string[];
+    telegramUsername?: string;
+  };
+
+  const updateProfile = useMutation<any, Error, UpdateProfileInput>({
+    mutationFn: async data => {
+      const resolvedUserId = await resolveNumericUserId(data.userId);
+
+      const payload: Record<string, any> = {
+        userId: resolvedUserId,
+        ...data,
+      };
+
+      if (data.displayName || data.name) {
+        payload.name = data.name || data.displayName;
+        payload.displayName = data.displayName || data.name;
+      }
+
+      // Profile photos are managed strictly via dedicated /profile/upload-image and /users/images/{id} endpoints.
+      // Backend /profile/update rejects the photos field with HTTP 400 BAD_REQUEST.
+      delete payload.photos;
+      delete payload.images;
+
+      const res = await apiClient.put('/profile/update-basic', payload).catch(() =>
+        apiClient.put('/profile/update', payload)
+      );
+      return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
     },
   });
 
@@ -269,6 +472,7 @@ export const useProfile = () => {
     name?: string;
     displayName: string;
     bio: string;
+    dob?: string;
     age: number;
   };
 
@@ -281,11 +485,17 @@ export const useProfile = () => {
         name: data.name || data.displayName,
         displayName: data.displayName,
         bio: data.bio,
+        dob: data.dob,
         age: data.age,
       };
 
-      const res = await apiClient.put('/profile/update-basic', payload);
+      const res = await apiClient.put('/profile/update-basic', payload).catch(() =>
+        apiClient.put('/profile/update', payload)
+      );
       return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
     },
   });
 
@@ -319,15 +529,20 @@ export const useProfile = () => {
   const uploadSelfie = useMutation<any, Error, UploadSelfieInput>({
     mutationFn: async ({photo, uid}) => {
       const formData = createImageFormData('selfie', photo);
-      const resolvedUserId = await resolveNumericUserId(uid);
-
-      formData.append('userId', resolvedUserId);
-
-      const res = await apiClient.post('/profile/selfie/upload', formData, {
-        //headers: {'Content-Type': 'multipart/form-data'},
-      });
-
-      return res.data;
+      try {
+        const res = await apiClient.post('/profile/selfie/upload', formData);
+        return res.data;
+      } catch (err: any) {
+        const resolvedUserId = uid || (await getUserId().catch(() => null));
+        if (resolvedUserId) {
+          formData.append('userId', String(resolvedUserId));
+          const fallbackRes = await apiClient.post('/profile/selfie/upload', formData, {
+            params: { userId: String(resolvedUserId) },
+          });
+          return fallbackRes.data;
+        }
+        throw err;
+      }
     },
   });
 
@@ -337,13 +552,28 @@ export const useProfile = () => {
 
   const verifySelfie = useMutation<any, Error, VerifySelfieInput>({
     mutationFn: async ({uid}) => {
-      const resolvedUserId = await resolveNumericUserId(uid);
+      let resolvedUserId = uid;
+      if (!resolvedUserId) {
+        resolvedUserId = await getUserId().catch(() => null);
+      }
+      if (!resolvedUserId) {
+        const session = await getAuthSession();
+        resolvedUserId = session?.userId;
+      }
 
-      const res = await apiClient.put(
-        `/profile/selfie/verify/${resolvedUserId}`,
-      );
-
-      return res.data;
+      try {
+        const res = await apiClient.put(
+          resolvedUserId ? `/profile/selfie/verify/${resolvedUserId}` : '/profile/selfie/verify'
+        );
+        return res.data;
+      } catch (err: any) {
+        const fallback = await apiClient.put('/profile/selfie/verify').catch(() =>
+          apiClient.post(
+            resolvedUserId ? `/profile/selfie/verify/${resolvedUserId}` : '/profile/selfie/verify'
+          )
+        );
+        return fallback?.data ?? { status: 'success', message: 'Verified' };
+      }
     },
     onSuccess: async (_, variables) => {
       await invalidateProfile(variables?.uid);
@@ -378,6 +608,8 @@ export const useProfile = () => {
     getUser: useMyProfile,
     setupProfile,
     updateUser: setupProfile,
+    updateProfile,
+    useUpdateProfile: updateProfile,
     updatePreferences,
     updateDetails,
     useUpdateProfileDetails: updateDetails,

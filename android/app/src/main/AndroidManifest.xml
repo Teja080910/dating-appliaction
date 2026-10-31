@@ -12,6 +12,20 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
+    <queries>
+        <package android:name="org.telegram.messenger" />
+        <package android:name="org.telegram.messenger.web" />
+        <package android:name="org.telegram.plus" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tg" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
@@ -22,6 +36,8 @@
       android:usesCleartextTraffic="true"
       android:supportsRtl="true">
 
+      <!-- Optional: only used if the native react-native-maps MapView is restored.
+           The location picker currently renders keyless OpenStreetMap tiles. -->
       <meta-data
         android:name="com.google.android.geo.API_KEY"
         android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE"/>

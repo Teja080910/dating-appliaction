@@ -19,23 +19,23 @@ const successAuth = (body) => ({
 
 // Auth Controller (Swagger)
 app.post('/auth/register', (req, res) => {
-    console.log('Received /auth/register request:', req.body);
+    console.log('Received /auth/register request');
     res.json('User registered successfully');
 });
 
 app.post('/auth/login', (req, res) => {
-    console.log('Received /auth/login request:', req.body);
+    console.log('Received /auth/login request');
     res.json(successAuth(req.body));
 });
 
 // Auth Controller (Legacy / DattingApp.txt)
 app.post('/register', (req, res) => {
-    console.log('Received Legacy /register request:', req.body);
+    console.log('Received Legacy /register request');
     res.json({ message: 'User registered successfully', data: req.body });
 });
 
 app.post('/login', (req, res) => {
-    console.log('Received Legacy /login request:', req.body);
+    console.log('Received Legacy /login request');
     if ((req.body.mobile || req.body.phoneNumber) && req.body.password) {
         res.json(successAuth(req.body));
     } else {
@@ -45,23 +45,30 @@ app.post('/login', (req, res) => {
 
 // OTP Controller
 app.post(['/auth/sentOtp', '/auth/sent-otp', '/sent-otp'], (req, res) => {
-    console.log('Received /sent-otp request:', req.body);
+    console.log('Received /sent-otp request');
     res.json({ status: 'success', message: 'OTP sent' });
 });
 
 app.post(['/auth/verifyOtp', '/auth/verify-otp', '/verify-otp'], (req, res) => {
-    console.log('Received /verify-otp request:', req.body);
+    console.log('Received /verify-otp request');
     res.json({ status: 'success', message: 'OTP verified' });
 });
 
 // User Controller
 app.post(['/auth/user/updateUser', '/user/update'], (req, res) => {
-    console.log('Received update user request:', req.body);
+    console.log('Received update user request');
     res.json({ ...req.body, message: 'Updated successfully' });
 });
 
 app.post(['/auth/user/getUser', '/user/get'], (req, res) => {
-    res.json({ id: 1, username: 'Savej Ali' });
+    res.json({
+        id: 1,
+        userId: 'usr_man_101',
+        username: 'savej_ali',
+        name: 'Savej Ali',
+        displayName: 'Savej Ali',
+        telegramUsername: '',
+    });
 });
 
 // Razorpay
@@ -101,5 +108,3 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`Dual Mode Mock Server is running on http://0.0.0.0:${PORT}`);
     console.log(`Supporting both Swagger (/auth/...) and Legacy (/...) paths.`);
 });
-
-

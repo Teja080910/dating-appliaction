@@ -4,7 +4,7 @@ import { getUserId } from '../utils/sessionHelper';
 import { isResolvedApiUserId } from '../utils/sessionState';
 import { repairStoredSessionIdentity } from '../utils/session';
 
-export const MAX_PROFILE_IMAGES = 5;
+export const MAX_PROFILE_IMAGES = 6;
 
 export interface ServerUserImage {
   id?: number;
@@ -39,16 +39,33 @@ const resolveImageArray = (payload: unknown): ServerUserImage[] => {
     }
 
     const nestedData = record.data as Record<string, unknown> | null;
-    if (nestedData && typeof nestedData === 'object' && Array.isArray(nestedData.images)) {
-      return nestedData.images as ServerUserImage[];
+    if (nestedData && typeof nestedData === 'object') {
+      if (Array.isArray(nestedData.images)) return nestedData.images as ServerUserImage[];
+      if (Array.isArray(nestedData.userImages)) return nestedData.userImages as ServerUserImage[];
+      if (Array.isArray(nestedData.photos)) return nestedData.photos as ServerUserImage[];
+      if (nestedData.imageUrl || nestedData.url || nestedData.profileImageUrl) {
+        return [nestedData as ServerUserImage];
+      }
     }
 
     if (Array.isArray(record.images)) {
       return record.images as ServerUserImage[];
     }
 
+    if (Array.isArray(record.userImages)) {
+      return record.userImages as ServerUserImage[];
+    }
+
+    if (Array.isArray(record.photos)) {
+      return record.photos as ServerUserImage[];
+    }
+
     if (Array.isArray(record.content)) {
       return record.content as ServerUserImage[];
+    }
+
+    if (record.imageUrl || record.url || record.uri || record.path || record.profileImageUrl) {
+      return [record as ServerUserImage];
     }
   }
 
@@ -59,9 +76,10 @@ export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserIma
   const images = resolveImageArray(payload)
     .map((image: any) => {
       if (typeof image === 'string') {
+        const url = image.trim();
         return {
           id: null,
-          imageUrl: getAbsoluteUrl(image),
+          imageUrl: url ? getAbsoluteUrl(url) : null,
           isProfile: false,
           fileName: null,
           fileType: null,
@@ -69,10 +87,28 @@ export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserIma
           uploadedAt: null,
         };
       }
+      const rawUrl =
+        image?.imageUrl ||
+        image?.url ||
+        image?.uri ||
+        image?.path ||
+        image?.photoUrl ||
+        image?.profileImageUrl ||
+        image?.image ||
+        null;
+      const cleanUrl = typeof rawUrl === 'string' ? rawUrl.trim() : null;
+      const rawId = image?.id ?? image?.imageId;
+      const parsedId =
+        typeof rawId === 'number'
+          ? rawId
+          : rawId && !isNaN(Number(rawId))
+          ? Number(rawId)
+          : null;
+
       return {
-        id: typeof image?.id === 'number' ? image.id : null,
-        imageUrl: image?.imageUrl ? getAbsoluteUrl(image.imageUrl) : null,
-        isProfile: Boolean(image?.profile),
+        id: parsedId,
+        imageUrl: cleanUrl ? getAbsoluteUrl(cleanUrl) : null,
+        isProfile: Boolean(image?.profile || image?.isProfile || image?.isPrimary),
         fileName: image?.fileName ?? null,
         fileType: image?.fileType ?? null,
         fileSize: typeof image?.fileSize === 'number' ? image.fileSize : null,
@@ -94,8 +130,8 @@ export const mapImagesToSlots = (payload: unknown, slotCount = MAX_PROFILE_IMAGE
 
   normalized.slice(0, slotCount).forEach((image, index) => {
     slots[index] = image.imageUrl;
-    if (typeof image.id === 'number') {
-      imageIdByIndex[index] = image.id;
+    if (image.id !== null && image.id !== undefined && !isNaN(Number(image.id))) {
+      imageIdByIndex[index] = Number(image.id);
     }
   });
 
@@ -181,13 +217,25 @@ export const useUserImages = (userId?: string) => {
 
 
   const deleteImage = useMutation({
-    mutationFn: async (imageId: number) => {
-      const res = await apiClient.delete(`/users/images/${imageId}`);
-      return res.data;
+    mutationFn: async (imageId: number | string) => {
+      try {
+        const res = await apiClient.delete(`/users/images/${imageId}`);
+        return res.data;
+      } catch (err) {
+        const normalizedUserId = await resolveUserId();
+        if (normalizedUserId) {
+          const res = await apiClient.delete(`/users/${normalizedUserId}/images/${imageId}`);
+          return res.data;
+        }
+        throw err;
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['userImages', userId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['myProfile'],
       });
     },
   });

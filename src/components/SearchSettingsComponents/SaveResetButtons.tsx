@@ -1,9 +1,10 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing, Shadows } from '../../theme';
+import { useTheme, ThemeColors, Spacing, Shadows } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface SaveResetButtonsProps {
   onSave?: () => void;
@@ -12,6 +13,9 @@ interface SaveResetButtonsProps {
 }
 
 const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, saving }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation();
   const {
     setAgeRange, setLocation, setDistanceRange, setBodyHeight,
@@ -28,7 +32,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
     if (onReset) onReset();
     else {
       setAgeRange([18, 55]);
-      setLocation('My current location');
+      setLocation(t('search.location.my_current_location'));
       setDistanceRange(1100);
       setBodyHeight([120, 200]);
       setSearchLanguages([]);
@@ -49,7 +53,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
         onPress={handleReset}
         disabled={saving}
       >
-        <Text style={styles.resetButtonText}>Reset</Text>
+        <Text style={styles.resetButtonText}>{t('search.saveresetbuttons.reset')}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.button, styles.saveButton]}
@@ -57,15 +61,15 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
         disabled={saving}
       >
         <LinearGradient
-          colors={[Colors.primary, Colors.secondary]}
+          colors={[themeColors.primary, themeColors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.saveGradient}
         >
           {saving ? (
-            <ActivityIndicator size="small" color={Colors.white} />
+            <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Text style={styles.saveButtonText}>Save</Text>
+            <Text style={styles.saveButtonText}>{t('more_info.savebutton.save')}</Text>
           )}
         </LinearGradient>
       </TouchableOpacity>
@@ -73,52 +77,54 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.screenPaddingHorizontal,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.lg,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusXl,
-    marginHorizontal: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 50,
-  },
-  resetButton: {
-    backgroundColor: Colors.inputBackground,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  saveButton: {
-    overflow: 'hidden',
-    ...Shadows.md,
-  },
-  saveGradient: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: Spacing.radiusXl,
-  },
-  resetButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.screenPaddingHorizontal,
+      paddingTop: Spacing.md,
+      paddingBottom: Spacing.lg,
+      backgroundColor: themeColors.surface,
+      borderTopWidth: 1,
+      borderTopColor: themeColors.borderLight,
+    },
+    button: {
+      paddingVertical: 0,
+      borderRadius: Spacing.radiusXl,
+      marginHorizontal: Spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: Spacing.buttonHeight,
+    },
+    resetButton: {
+      backgroundColor: themeColors.surfaceLight,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      flex: 1,
+    },
+    saveButton: {
+      overflow: 'hidden',
+      ...Shadows.md,
+      flex: 1,
+    },
+    saveGradient: {
+      flex: 1,
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: Spacing.radiusXl,
+    },
+    resetButtonText: {
+      color: themeColors.text,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    saveButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });
 
 export default SaveResetButtons;

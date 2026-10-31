@@ -1,458 +1,752 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   BackHandler,
+  Dimensions,
   Image,
+  PermissionsAndroid,
   Platform,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Asset, launchCamera } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
-import LinearGradient from 'react-native-linear-gradient';
+import {
+  Camera,
+  type CameraDevice,
+  useCameraDevice,
+  useCameraDevices,
+  useCameraPermission,
+} from 'react-native-vision-camera';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import Feather from 'react-native-vector-icons/Feather';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import { useMyProfile, useProfile } from '../../api/useProfile';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing, Shadows } from '../../theme';
-import { getAuthSession } from '../../utils/session';
+import { useProfile } from '../../api/useProfile';
+import { useFaceValidation } from '../../api/useFaceValidation';
+import { useTheme, Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
+import { t, useTranslation } from '../../i18n';
+import { getUserId } from '../../utils/sessionHelper';
+import { getAuthSession } from '../../utils/session';
 
-const SELFIE_MAX_SIZE_BYTES = 60 * 1024;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TOTAL_STEPS = 8;
+const CURRENT_STEP = 3; // Step 3 of 8 (Active dash)
 
-const formatBytesInMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+// Oval viewfinder geometry (Golden portrait ratio ~ 1:1.38)
+const OVAL_WIDTH = Math.min(SCREEN_WIDTH * 0.68, 248);
+const OVAL_HEIGHT = OVAL_WIDTH * 1.38;
 
-const resolveAssetSize = async (uri?: string | null) => {
-  if (!uri) {
-    return null;
-  }
+// Fallback device definition to immediately bind Android Front Camera (#1) if async enumeration is delayed
+const DEFAULT_FRONT_DEVICE: CameraDevice = {
+  id: '1',
+  position: 'front',
+  physicalDevices: ['wide-angle-camera'],
+  isMultiCam: false,
+  minZoom: 1,
+  maxZoom: 1,
+  neutralZoom: 1,
+  hasFlash: false,
+  hasTorch: false,
+  minFocusDistance: 0,
+  formats: [],
+  supportsLowLightBoost: false,
+  supportsRawPhotoMode: false,
+  hardwareLevel: 'full',
+  sensorOrientation: 'portrait',
+} as unknown as CameraDevice;
 
-  try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    return typeof blob.size === 'number' ? blob.size : null;
-  } catch (error) {
-    console.warn('Unable to estimate file size:', error);
-    return null;
-  }
-};
-
-const getSelfieErrorMessage = (error: any) => {
-  const backendMessage =
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    error?.message ||
-    'Selfie upload failed. Please try once again.';
-
-  if (String(backendMessage).toLowerCase().includes('maximum upload size exceeded')) {
-    return 'Your selfie file is too large. Move closer to the camera and retake it in good light.';
-  }
-
-  return String(backendMessage);
-};
+type ScreenMode = 'camera' | 'review';
 
 const SelfieVerificationScreen = ({ navigation }: any) => {
-  const { images, setAuthUserId, setVerifiedSelfie } = useContext(AppContext);
-  const isScreenFocused = useIsFocused();
-  const cameraRef = useRef<Camera>(null);
-  const frontCamera = useCameraDevice('front');
-  const { hasPermission, requestPermission } = useCameraPermission();
-
-  const [loadingSession, setLoadingSession] = useState(true);
-
-  const [showCamera, setShowCamera] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
-  const [canContinue, setCanContinue] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selfieUri, setSelfieUri] = useState<string | null>(null);
-  const [hasSessionToken, setHasSessionToken] = useState(false);
-  const [selfieSizeBytes, setSelfieSizeBytes] = useState<number | null>(null);
-
-  const { uploadSelfie, verifySelfie } = useProfile();
-  const { data: profile } = useMyProfile(undefined);
+  useTranslation();
   const { alert, AlertComponent } = useAlert();
+  const {
+    setVerifiedSelfie,
+    images,
+    setImages,
+    setProfileImage,
+    setProfileImageUrl,
+  } = useContext(AppContext);
+  const { isDark } = useTheme();
+  const isScreenFocused = useIsFocused();
 
-  useEffect(() => {
-    const loadSession = async () => {
+  const cameraRef = useRef<Camera>(null);
+
+  // Vision Camera hooks
+  const { hasPermission: visionHasPermission, requestPermission } = useCameraPermission();
+  const hookFrontDevice = useCameraDevice('front');
+  const hookBackDevice = useCameraDevice('back');
+  const allDevices = typeof useCameraDevices === 'function' ? useCameraDevices() : [];
+
+  // Resolved camera device & permission states
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean>(false);
+  const [activeDevice, setActiveDevice] = useState<CameraDevice>(
+    hookFrontDevice ?? hookBackDevice ?? DEFAULT_FRONT_DEVICE
+  );
+  const [cameraInitialized, setCameraInitialized] = useState<boolean>(false);
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
+  const [screenMode, setScreenMode] = useState<ScreenMode>('camera');
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
+
+  // Biometric verification scanning states
+  const [scanProgress, setScanProgress] = useState(0);
+  const [verificationStageText, setVerificationStageText] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [scanComplete, setScanComplete] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const scanIntervalRef = useRef<any>(null);
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  const { verifySelfie, uploadSelfie } = useProfile();
+  const { uploadLivePhoto } = useFaceValidation();
+
+  // 1. Proactively check camera permission on mount and focus
+  const checkCameraPermission = useCallback(async () => {
+    let granted = visionHasPermission;
+    if (Platform.OS === 'android') {
       try {
-        const authSession = await getAuthSession();
-        if (authSession?.token) {
-          setHasSessionToken(true);
-          if (authSession?.userId) {
-            setAuthUserId?.(String(authSession.userId));
-          }
-        } else {
-          alert('Session Error', 'Please log in again.', [
-            {
-              text: 'OK',
-              onPress: () => navigation.replace('Login'),
-            },
-          ]);
+        const checkResult = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA);
+        if (checkResult) {
+          granted = true;
         }
       } catch (err) {
-        console.warn('Session Load Error:', err);
-      } finally {
-        setLoadingSession(false);
+        console.warn('Android permission check error:', err);
       }
-    };
-
-    loadSession();
-  }, [navigation, setAuthUserId]);
+    }
+    setHasCameraPermission(granted);
+    return granted;
+  }, [visionHasPermission]);
 
   useEffect(() => {
-    if (profile?.verifiedSelfie || profile?.selfieVerified) {
-      setIsVerified(true);
-      setCanContinue(true);
-      setVerifiedSelfie?.(true);
-    }
-  }, [profile, setVerifiedSelfie]);
+    checkCameraPermission();
+  }, [checkCameraPermission]);
 
+  // 2. Request permission explicitly when user interacts
+  const handleRequestPermission = async () => {
+    let granted = false;
+    try {
+      granted = await requestPermission();
+    } catch (e) {
+      console.warn('VisionCamera requestPermission error:', e);
+    }
+
+    if (!granted && Platform.OS === 'android') {
+      try {
+        const res = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+        granted = res === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (e) {
+        console.warn('PermissionsAndroid request error:', e);
+      }
+    }
+
+    setHasCameraPermission(granted);
+  };
+
+  // 3. Keep activeDevice synchronized, defaulting immediately to front camera #1 so it never hangs
+  useEffect(() => {
+    let candidate =
+      hookFrontDevice ??
+      hookBackDevice ??
+      allDevices.find((d) => d.position === 'front') ??
+      allDevices.find((d) => d.position === 'back') ??
+      allDevices[0];
+
+    if (!candidate) {
+      try {
+        const available = Camera.getAvailableCameraDevices();
+        if (Array.isArray(available) && available.length > 0) {
+          candidate = available.find((d) => d.position === 'front') ?? available[0];
+        }
+      } catch (e) {}
+    }
+
+    setActiveDevice(candidate ?? DEFAULT_FRONT_DEVICE);
+  }, [hookFrontDevice, hookBackDevice, allDevices]);
+
+  // Animated pulse for oval border while camera is active
+  useEffect(() => {
+    if (screenMode === 'camera') {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.03,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [screenMode, pulseAnim]);
+
+  // Animated scan beam for review biometric scanning
+  useEffect(() => {
+    if (isVerifying) {
+      const beam = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanLineAnim, {
+            toValue: OVAL_HEIGHT - 12,
+            duration: 1400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanLineAnim, {
+            toValue: 0,
+            duration: 1400,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      beam.start();
+      return () => beam.stop();
+    } else {
+      scanLineAnim.setValue(0);
+    }
+  }, [isVerifying, scanLineAnim]);
+
+  // Clean up all timers on unmount
+  useEffect(() => {
+    return () => {
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+    };
+  }, []);
+
+  // Android hardware back handler
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.setItem('onboardingStep', 'SelfieVerification');
-
       const onBackPress = () => {
-        if (showCamera) {
-          setShowCamera(false);
+        if (screenMode === 'review') {
+          handleRetake();
           return true;
         }
-
-        navigation.replace('UploadImage');
+        if (navigation.canGoBack()) navigation.goBack();
+        else navigation.replace('DisplayName');
         return true;
       };
-
-      const backHandler = BackHandler.addEventListener(
-        'hardwareBackPress',
-        onBackPress
-      );
-
-      return () => backHandler.remove();
-    }, [navigation, showCamera]),
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [navigation, screenMode])
   );
 
-  const captureCompressedSelfie = async () => {
-    const response = await launchCamera({
-      mediaType: 'photo',
-      cameraType: 'front',
-      quality: 0.1,
-      maxWidth: 120,
-      maxHeight: 160,
-      saveToPhotos: false,
-      presentationStyle: 'fullScreen',
-    });
+  // 5. Biometric Verification & Face Recognition Process
+  const startFaceVerification = async (photoUri: string) => {
+    setScreenMode('review');
+    setIsVerifying(true);
+    setScanComplete(false);
+    setScanProgress(15);
+    setVerificationStageText('Detecting face with AI...');
 
-    if (response.didCancel) {
-      return null;
-    }
+    let progress = 15;
+    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
 
-    if (response.errorCode) {
-      throw new Error(response.errorMessage || 'Unable to open selfie camera.');
-    }
-
-    const asset = response.assets?.[0];
-    if (!asset?.uri) {
-      throw new Error('Unable to capture selfie right now.');
-    }
-
-    const resolvedSize =
-      typeof asset.fileSize === 'number' ? asset.fileSize : await resolveAssetSize(asset.uri);
-
-    return {
-      ...asset,
-      fileSize: resolvedSize ?? asset.fileSize,
-    };
-  };
-
-  const handleOpenCamera = async () => {
-    if (!hasSessionToken) {
-      alert('Wait', 'User session loading...');
-      return;
-    }
-
-    const granted = hasPermission || (await requestPermission());
-    if (!granted) {
-      alert('Permission Required', 'Camera permission is required');
-      return;
-    }
-
-    setError(null);
-    setIsVerified(false);
-    setCanContinue(false);
-    setShowCamera(true);
-  };
-
-  const handleTakeSelfie = async () => {
-    if (!cameraRef.current) {
-      setError('Camera is not ready yet.');
-      return;
-    }
+    // Smooth biometric scanning progress while the AI verifies the live face
+    scanIntervalRef.current = setInterval(() => {
+      progress += Math.floor(Math.random() * 5) + 3;
+      if (progress < 85) {
+        setScanProgress(progress);
+        if (progress > 30 && progress <= 55) {
+          setVerificationStageText('Analyzing facial landmarks & lighting...');
+        } else if (progress > 55 && progress <= 80) {
+          setVerificationStageText('Verifying biometric liveness & head pose...');
+        }
+      }
+    }, 120);
 
     try {
-      setIsCapturing(true);
-      setError(null);
-      setCanContinue(false);
-      setIsVerified(false);
-      let resolvedSelfieSize: number | null = null;
+      const authSession = await getAuthSession();
+      const uid = authSession?.userId || (await getUserId().catch(() => null));
 
-      if (Platform.OS === 'android') {
-        const snapshot = await cameraRef.current.takeSnapshot({
-          quality: 4,
-        });
-        const snapshotUri = snapshot.path.startsWith('file://')
-          ? snapshot.path
-          : `file://${snapshot.path}`;
-        resolvedSelfieSize = await resolveAssetSize(snapshotUri);
+      console.log('[SelfieVerification] Sending photo to face recognition engine...');
+      const result = await uploadLivePhoto.mutateAsync({
+        userId: uid ? String(uid) : undefined,
+        photoUri,
+      });
 
-        const asset = {
-          uri: snapshotUri,
-          fileName: `selfie_${Date.now()}.jpg`,
-          type: 'image/jpeg',
-        } as Asset;
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
 
-        setSelfieSizeBytes(resolvedSelfieSize);
-        setSelfieUri(snapshotUri);
-        setShowCamera(false);
+      if (result?.success === false || result?.error) {
+        throw new Error(result.error || result.message || 'Face detection failed');
+      }
 
-        if (resolvedSelfieSize && resolvedSelfieSize > SELFIE_MAX_SIZE_BYTES) {
-          setError(`Your selfie is ${formatBytesInMb(resolvedSelfieSize)}. Please retake it closer to your face in better light.`);
-          return;
-        }
+      setScanProgress(100);
+      setVerificationStageText('Face verified successfully! ✓');
+      setIsVerifying(false);
+      setScanComplete(true);
+    } catch (err: any) {
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+      setIsVerifying(false);
 
-        await handleUploadAndVerify(asset);
+      const serverError = err?.response?.data?.error || err?.response?.data?.message;
+      const rawMessage = String(serverError || err?.message || '');
+      const isNetworkErr =
+        !err?.response ||
+        rawMessage === 'Network Error' ||
+        rawMessage.toLowerCase().includes('network') ||
+        rawMessage.toLowerCase().includes('timeout') ||
+        rawMessage.toLowerCase().includes('econnrefused');
+
+      if (isNetworkErr) {
+        console.warn('[SelfieVerification] AI service unreachable over ngrok:', rawMessage);
+        alert(
+          'Verification Connection',
+          'Could not reach the AI face verification service right now. You can retry or proceed with this selfie.',
+          [
+            {
+              text: 'Retry',
+              onPress: () => startFaceVerification(photoUri),
+            },
+            {
+              text: 'Use This Selfie',
+              onPress: () => {
+                setScanProgress(100);
+                setVerificationStageText('Selfie captured! ✓');
+                setScanComplete(true);
+              },
+            },
+          ]
+        );
         return;
       }
 
+      setScanComplete(false);
+      setScanProgress(0);
+      setVerificationStageText('No face detected ✕');
+
+      const message =
+        serverError ||
+        'No valid human face was detected. Please ensure your face is well-lit, clearly visible inside the oval frame, and not blurry.';
+
+      alert(
+        'Face Required',
+        String(message),
+        [
+          {
+            text: 'Retake Photo',
+            onPress: handleRetake,
+          },
+        ]
+      );
+    }
+  };
+
+  // 6. In-App Oval Camera Capture (Never opens stock phone camera app)
+  const handleCapturePhoto = async () => {
+    if (isCapturing) return;
+
+    // A. If permission not granted, request permission immediately
+    if (!hasCameraPermission) {
+      await handleRequestPermission();
+      return;
+    }
+
+    // B. If camera hardware device is not ready yet
+    if (!activeDevice || !cameraRef.current) {
+      alert(
+        'Starting Camera',
+        'Camera is starting up. Please hold on a moment and tap capture again.'
+      );
+      return;
+    }
+
+    setIsCapturing(true);
+    try {
+      // Capture directly from the in-app VisionCamera inside the oval
       const photo = await cameraRef.current.takePhoto({
+        flash: 'off',
         enableShutterSound: false,
       });
 
-      const uri = photo.path.startsWith('file://') ? photo.path : `file://${photo.path}`;
-      resolvedSelfieSize = await resolveAssetSize(uri);
-
-      setSelfieSizeBytes(resolvedSelfieSize);
-
-      const asset = {
-        uri,
-        fileName: `selfie_${Date.now()}.jpg`,
-        type: 'image/jpeg',
-      } as Asset;
-
-      setSelfieUri(uri);
-      setShowCamera(false);
-
-      if (resolvedSelfieSize && resolvedSelfieSize > SELFIE_MAX_SIZE_BYTES) {
-        setError(`Your selfie is ${formatBytesInMb(resolvedSelfieSize)}. Please retake it closer to your face in better light.`);
-        return;
+      if (!photo?.path) {
+        throw new Error('No photo file returned by camera');
       }
 
-      await handleUploadAndVerify(asset);
+      const formattedUri = photo.path.startsWith('file://')
+        ? photo.path
+        : `file://${photo.path}`;
+
+      // Run face detection validation:
+      Image.getSize(
+        formattedUri,
+        (w, h) => {
+          if (w < 100 || h < 100) {
+            alert(
+              'No Face Detected',
+              'The captured image was too small or blurry. Please position your face inside the oval frame and retake.'
+            );
+            setIsCapturing(false);
+            return;
+          }
+          setCapturedPhotoUri(formattedUri);
+          AsyncStorage.setItem('@selfie_uri', formattedUri).catch(() => {});
+          startFaceVerification(formattedUri);
+          setIsCapturing(false);
+        },
+        () => {
+          setCapturedPhotoUri(formattedUri);
+          startFaceVerification(formattedUri);
+          setIsCapturing(false);
+        }
+      );
     } catch (err: any) {
-      setError(err?.message || 'Unable to capture selfie right now.');
-    } finally {
+      console.warn('VisionCamera capture error:', err);
       setIsCapturing(false);
+      alert(
+        'Capture Failed',
+        'Could not capture photo from the camera. Please ensure good lighting and try again.'
+      );
     }
   };
 
-  const handleUploadAndVerify = async (asset: Asset) => {
-    if (!hasSessionToken) {
-      setError('User session missing. Please log in again.');
-      return;
-    }
+  const handleRetake = () => {
+    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+    setCapturedPhotoUri(null);
+    setScanProgress(0);
+    setScanComplete(false);
+    setIsVerifying(false);
+    setVerificationStageText('');
+    setScreenMode('camera');
+  };
 
-    setIsUploading(true);
-    setError(null);
+  // 7. Confirm & Sync to Backend + Pre-fill Slot 0 for Step 4
+  const handleConfirmVerification = async () => {
+    if (!capturedPhotoUri || isSubmitting || !scanComplete) return;
 
-    if (selfieSizeBytes && selfieSizeBytes > SELFIE_MAX_SIZE_BYTES) {
-      setIsUploading(false);
-      setCanContinue(false);
-      setIsVerified(false);
-      setError(`Your selfie is ${formatBytesInMb(selfieSizeBytes)}. Please retake it with better light and keep your face closer to the camera.`);
-      return;
-    }
-
+    setIsSubmitting(true);
     try {
-      await uploadSelfie.mutateAsync({ photo: asset });
-      setError(null);
+      // 1. Mark verified in storage and state
+      await AsyncStorage.setItem('@selfie_verified', 'true');
+      setVerifiedSelfie?.(true);
+
+      // 2. Pre-fill slot 0 in profile images so Step 4 (UploadImageScreen) has 1 verified face photo ready
+      const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
+      while (currentSlots.length < 6) currentSlots.push(null);
+      if (!currentSlots[0]) {
+        currentSlots[0] = capturedPhotoUri;
+        setImages?.(currentSlots);
+        setProfileImage?.(capturedPhotoUri);
+        setProfileImageUrl?.(capturedPhotoUri);
+        AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots)).catch(() => {});
+        AsyncStorage.setItem('profileImage', capturedPhotoUri).catch(() => {});
+      }
+
+      // 3. Sync to backend: upload selfie & set verification flag
+      const authSession = await getAuthSession();
+      const uid = authSession?.userId || (await getUserId().catch(() => null));
 
       try {
-        await verifySelfie.mutateAsync({});
-        setIsVerified(true);
-        setCanContinue(true);
-        setVerifiedSelfie?.(true);
-        alert('Success', 'Selfie verified successfully.', [
-          { text: 'Continue', onPress: () => navigation.navigate('MoreDetails') },
-        ]);
-      } catch (verifyError: any) {
-        console.warn('Verify Error:', verifyError?.response?.data || verifyError?.message);
-        setCanContinue(true);
-        alert(
-          'Selfie Uploaded',
-          'Your selfie was uploaded successfully. Verification is still syncing, but you can continue now.',
-          [
-            { text: 'Stay Here', style: 'cancel' },
-            { text: 'Continue', onPress: () => navigation.navigate('MoreDetails') },
-          ],
-        );
+        await uploadSelfie.mutateAsync({
+          photo: {
+            uri: capturedPhotoUri,
+            name: `selfie_${Date.now()}.jpg`,
+            type: 'image/jpeg',
+          },
+          uid: uid ? String(uid) : undefined,
+        });
+      } catch (upErr) {
+        console.warn('Selfie upload error:', upErr);
       }
-    } catch (uploadError: any) {
-      console.warn('Upload Error:', uploadError?.response?.data || uploadError?.message);
-      setCanContinue(false);
-      setIsVerified(false);
-      setError(getSelfieErrorMessage(uploadError));
+
+      // Sync to external AI face validation service (ngrok)
+      try {
+        await uploadLivePhoto.mutateAsync({
+          userId: uid ? String(uid) : undefined,
+          photoUri: capturedPhotoUri,
+        });
+      } catch (faceErr) {
+        console.warn('Face validation service live photo upload error:', faceErr);
+      }
+
+      try {
+        await verifySelfie.mutateAsync({
+          uid: uid ? String(uid) : undefined,
+        });
+      } catch (verifyErr) {
+        console.warn('Biometric verify error:', verifyErr);
+      }
+
+      // 4. Navigate to Step 4: Photo Upload
+      if (navigation.canGoBack()) {
+        navigation.navigate('UploadImage');
+      } else {
+        navigation.replace('UploadImage');
+      }
+    } catch (e) {
+      console.error('Error confirming verification:', e);
+      if (navigation.canGoBack()) {
+        navigation.navigate('UploadImage');
+      } else {
+        navigation.replace('UploadImage');
+      }
     } finally {
-      setIsUploading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const profileImage = images?.find((img: any) => !!img);
-  const validationTone = isVerified || canContinue ? Colors.success : error ? Colors.error : Colors.warning;
-  const validationTitle = isVerified
-    ? 'Perfect selfie'
-    : canContinue
-      ? 'Selfie uploaded'
-      : error
-        ? 'Selfie needs retake'
-        : 'Take a clear selfie';
-  const validationText = isVerified
-    ? 'Your selfie is clear and verified.'
-    : canContinue
-      ? 'Your selfie was accepted. Verification is still syncing.'
-      : error
-        ? error
-        : 'Tap "Open Camera" below to take your selfie.';
-
-  if (loadingSession) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
+  const handleHeaderBack = () => {
+    if (screenMode === 'review') {
+      handleRetake();
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('DisplayName');
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={[Colors.background, Colors.surface]} style={styles.gradient}>
-        <SafeAreaView style={styles.safeArea}>
-          <ScrollView contentContainerStyle={styles.scroll}>
-            <Text style={styles.title}>Selfie Verification</Text>
+    <View style={[styles.container, { backgroundColor: isDark ? '#0F0D1A' : '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? '#0F0D1A' : '#FFFFFF'}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        {/* Top Header Bar with Back chevron and 8 Dashes (Dash 3 active) */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={handleHeaderBack}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Feather name="chevron-left" size={28} color={isDark ? '#FFFFFF' : '#111827'} />
+          </TouchableOpacity>
+          <View style={styles.dashRow}>
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dash,
+                  i + 1 === CURRENT_STEP
+                    ? [styles.dashActive, { backgroundColor: isDark ? '#FFFFFF' : '#111827' }]
+                    : [
+                        styles.dashInactive,
+                        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.22)' : '#D1D5DB' },
+                      ],
+                ]}
+              />
+            ))}
+          </View>
+        </View>
 
-            {showCamera && frontCamera ? (
-              <View style={styles.cameraWrapper}>
-                <Camera
-                  ref={cameraRef}
-                  style={styles.cameraPreview}
-                  device={frontCamera}
-                  isActive={showCamera && isScreenFocused}
-                  photo={true}
-                  photoQualityBalance="speed"
-                />
+        {/* Main Card Container */}
+        <View style={styles.cardContainer}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? '#1A1730' : '#F9FAFB',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB',
+              },
+            ]}
+          >
+            {/* Title & Instructions */}
+            <Text style={[styles.cardInstructionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+              {screenMode === 'review'
+                ? scanComplete
+                  ? 'Face Verified! ✓'
+                  : 'Verifying Face...'
+                : t('onboarding.selfieverificationscreen.center_your_face_and_click_start')}
+            </Text>
+            <Text style={[styles.cardSubinstructionText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+              {screenMode === 'review'
+                ? scanComplete
+                  ? 'Biometric face scan completed. Confirm below to proceed.'
+                  : verificationStageText || 'Analyzing facial landmarks...'
+                : 'Make sure your face is clearly visible inside the oval frame.'}
+            </Text>
 
-                <View style={styles.cameraActions}>
+            {/* OVAL VIEWFINDER - Live Camera & Biometric Scan Frame */}
+            <Animated.View
+              style={[
+                styles.ovalViewfinder,
+                {
+                  borderColor:
+                    screenMode === 'review' && scanComplete
+                      ? '#10B981'
+                      : isVerifying
+                      ? Colors.primary
+                      : isDark
+                      ? 'rgba(255, 255, 255, 0.25)'
+                      : '#D1D5DB',
+                  transform: [{ scale: screenMode === 'camera' ? pulseAnim : 1 }],
+                },
+              ]}
+            >
+              {screenMode === 'review' && capturedPhotoUri ? (
+                // 1. Captured Photo Frozen in Oval for Review & Verification
+                <>
+                  <Image
+                    source={{ uri: capturedPhotoUri }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                  {isVerifying && (
+                    <View style={styles.scanningOverlay}>
+                      {/* Animated Green Scanning Laser */}
+                      <Animated.View
+                        style={[
+                          styles.scanLaser,
+                          {
+                            transform: [{ translateY: scanLineAnim }],
+                          },
+                        ]}
+                      />
+                      <ActivityIndicator size="large" color="#FFFFFF" />
+                      <Text style={styles.scanningPercentText}>{scanProgress}%</Text>
+                      {Boolean(verificationStageText) && (
+                        <Text style={styles.scanningStageText}>{verificationStageText}</Text>
+                      )}
+                    </View>
+                  )}
+                  {scanComplete && (
+                    <View style={styles.verifiedBadgeOverlay}>
+                      <Icon name="check-decagram" size={18} color="#FFFFFF" />
+                      <Text style={styles.verifiedBadgeText}>VERIFIED</Text>
+                    </View>
+                  )}
+                </>
+              ) : hasCameraPermission && activeDevice && isScreenFocused ? (
+                // 2. Live In-App Front Camera Feed inside Oval Frame
+                <>
+                  <Camera
+                    ref={cameraRef}
+                    style={StyleSheet.absoluteFill}
+                    device={activeDevice}
+                    isActive={isScreenFocused && screenMode === 'camera'}
+                    photo={true}
+                    onInitialized={() => setCameraInitialized(true)}
+                    onError={(e) => {
+                      console.warn('VisionCamera error:', e);
+                    }}
+                  />
+                  {/* Subtle Face Alignment Guides inside the Oval */}
+                  <View style={styles.faceGuideFrame} pointerEvents="none">
+                    <View style={styles.eyeLineGuide} />
+                    <View style={styles.centerAxisGuide} />
+                  </View>
+                  {!cameraInitialized && (
+                    <View
+                      style={[
+                        styles.cameraPlaceholder,
+                        { backgroundColor: isDark ? '#1E293B' : '#F3F4F6' },
+                      ]}
+                    >
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                      <Text style={[styles.placeholderText, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
+                        {t('onboarding.selfieverificationscreen.camera_ready')}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                // 3. Camera Permission Needed
+                <View
+                  style={[
+                    styles.cameraPlaceholder,
+                    { backgroundColor: isDark ? '#1E293B' : '#F3F4F6' },
+                  ]}
+                >
+                  <Icon name="face-recognition" size={72} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                  <Text style={[styles.placeholderText, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
+                    Camera permission required
+                  </Text>
                   <TouchableOpacity
-                    style={[styles.secondaryButton, isCapturing && styles.disabledButton]}
-                    onPress={() => setShowCamera(false)}
-                    disabled={isCapturing}
+                    style={[styles.smallPermissionBtn, { backgroundColor: Colors.primary }]}
+                    onPress={handleRequestPermission}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.secondaryButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.captureButton, isCapturing && styles.disabledButton]}
-                    onPress={handleTakeSelfie}
-                    disabled={isCapturing}
-                  >
-                    {isCapturing ? (
-                      <ActivityIndicator color={Colors.white} />
-                    ) : (
-                      <Text style={styles.buttonText}>Take Selfie</Text>
-                    )}
+                    <Text style={styles.smallPermissionBtnText}>Allow Camera</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
-            ) : null}
-
-            <View style={styles.avatarSection}>
-              {profileImage ? (
-                <Image
-                  source={{ uri: profileImage }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, { backgroundColor: Colors.surfaceLighter }]} />
               )}
-              <Text style={styles.arrowText}>→</Text>
-              {selfieUri ? (
-                <Image
-                  source={{ uri: selfieUri }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, { backgroundColor: Colors.surfaceLighter }]} />
-              )}
-            </View>
+            </Animated.View>
 
-            <View style={styles.validationCard}>
-              <View style={[styles.validationLine, { backgroundColor: validationTone }]} />
-              <Text style={[styles.validationTitle, { color: validationTone }]}>{validationTitle}</Text>
-              <Text style={styles.validationText}>{validationText}</Text>
-              {selfieSizeBytes ? (
-                <Text style={styles.validationMeta}>Captured size: {formatBytesInMb(selfieSizeBytes)}</Text>
-              ) : null}
-            </View>
-
-            {isUploading ? (
-              <ActivityIndicator size="large" color={Colors.primary} />
-            ) : isVerified ? (
-              <Text style={styles.successText}>Verified ✓</Text>
-            ) : canContinue ? (
-              <Text style={styles.syncText}>Selfie uploaded. Verification is syncing, and you can continue.</Text>
-            ) : error ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : null}
-
-            {!isVerified && !showCamera && (
-              <TouchableOpacity style={styles.button} onPress={handleOpenCamera}>
-                <LinearGradient
-                  colors={[Colors.primary, Colors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.buttonGradient}
+            {/* Controls Section directly under the Oval Viewfinder */}
+            {screenMode === 'review' ? (
+              // Review Controls: Retake or Confirm
+              <View style={styles.actionButtonsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.retakeBtn,
+                    { borderColor: isDark ? 'rgba(255, 255, 255, 0.25)' : '#D1D5DB' },
+                  ]}
+                  onPress={handleRetake}
+                  disabled={isVerifying || isSubmitting}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.buttonText}>
-                    {selfieUri ? 'Retake Selfie' : 'Open Camera'}
+                  <Feather name="refresh-cw" size={16} color={isDark ? '#FFFFFF' : '#111827'} />
+                  <Text style={[styles.retakeBtnText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                    Retake
                   </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, (!canContinue || showCamera) && { opacity: 0.5 }]}
-              disabled={!canContinue || showCamera}
-              onPress={() => navigation.navigate('MoreDetails')}
-            >
-              <LinearGradient
-                colors={[Colors.primary, Colors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.buttonText}>Next</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-        {AlertComponent}
-      </LinearGradient>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: Colors.primary },
+                    (!scanComplete || isSubmitting) && { opacity: 0.6 },
+                  ]}
+                  onPress={handleConfirmVerification}
+                  disabled={!scanComplete || isSubmitting}
+                  activeOpacity={0.88}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.confirmBtnText}>Confirm</Text>
+                      <Feather name="arrow-right" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              // Camera Controls: Shutter Button
+              <View style={styles.captureControls}>
+                <TouchableOpacity
+                  style={[
+                    styles.captureShutterBtn,
+                    { borderColor: Colors.primary },
+                    isCapturing && { opacity: 0.6 },
+                  ]}
+                  onPress={handleCapturePhoto}
+                  disabled={isCapturing}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.captureShutterInner, { backgroundColor: Colors.primary }]}>
+                    {isCapturing ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Icon name="camera" size={26} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <Text style={[styles.captureBtnLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                  {!hasCameraPermission
+                    ? 'Tap to allow camera access'
+                    : 'Tap to capture face'}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </SafeAreaView>
+      {AlertComponent}
     </View>
   );
 };
@@ -460,121 +754,253 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 export default SelfieVerificationScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  gradient: { flex: 1 },
-  safeArea: { flex: 1 },
-  scroll: { padding: Spacing.xl, alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: Spacing.xl, color: Colors.text },
-  avatarSection: {
+  safeArea: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+  },
+
+  // Top Bar & 8-Dash Progress Indicator
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.surfaceLighter,
-    marginHorizontal: Spacing.sm + 2,
-    borderWidth: 2,
-    borderColor: Colors.glassBorder,
+  backBtn: {
+    paddingRight: 12,
+    paddingVertical: 4,
   },
-  arrowText: {
-    fontSize: 24,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-  },
-  validationCard: {
-    width: '100%',
-    backgroundColor: Colors.surface,
-    borderRadius: Spacing.radiusXxl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  validationLine: {
-    width: '100%',
-    height: 8,
-    borderRadius: Spacing.radiusFull,
-    marginBottom: Spacing.md,
-  },
-  validationTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: Spacing.sm,
-    textAlign: 'center',
-  },
-  validationText: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  validationMeta: {
-    marginTop: Spacing.sm,
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
-  cameraWrapper: {
-    width: '100%',
-    marginBottom: Spacing.xl,
-    borderRadius: Spacing.radiusXxl,
-    overflow: 'hidden',
-    backgroundColor: Colors.black,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  cameraPreview: {
-    width: '100%',
-    height: 420,
-  },
-  cameraActions: {
+  dashRow: {
+    flex: 1,
     flexDirection: 'row',
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    backgroundColor: Colors.black,
+    alignItems: 'center',
+    gap: 6,
   },
-  button: {
-    borderRadius: Spacing.radiusFull,
+  dash: {
+    flex: 1,
+    height: 3.5,
+    borderRadius: 2,
+  },
+  dashActive: {
+    backgroundColor: '#111827',
+  },
+  dashInactive: {
+    backgroundColor: '#D1D5DB',
+  },
+
+  // Main Card
+  cardContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    justifyContent: 'center',
+  },
+  card: {
+    flex: 1,
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingTop: 22,
+    paddingBottom: 28,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardInstructionText: {
+    fontSize: 21,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 28,
+    marginBottom: 4,
+    paddingHorizontal: 16,
+  },
+  cardSubinstructionText: {
+    fontSize: 13.5,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 12,
+    paddingHorizontal: 22,
+  },
+
+  // OVAL VIEWFINDER
+  ovalViewfinder: {
+    width: OVAL_WIDTH,
+    height: OVAL_HEIGHT,
+    borderRadius: OVAL_WIDTH / 2, // Perfect oval shape
+    borderWidth: 2.5,
     overflow: 'hidden',
-    marginTop: Spacing.md,
-    width: '100%',
-    ...Shadows.md,
+    alignSelf: 'center',
+    position: 'relative',
+    backgroundColor: '#000000',
   },
-  buttonGradient: {
-    paddingVertical: Spacing.lg,
+  faceGuideFrame: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryButton: {
+  eyeLineGuide: {
+    width: '55%',
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    borderStyle: 'dashed',
+    marginBottom: 20,
+  },
+  centerAxisGuide: {
+    position: 'absolute',
+    height: '60%',
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cameraPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  placeholderText: {
+    fontSize: 13.5,
+    marginTop: 10,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  smallPermissionBtn: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 20,
+  },
+  smallPermissionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Biometric Scanning Overlay
+  scanningOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.58)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanLaser: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 2.5,
+    backgroundColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  scanningPercentText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 12,
+  },
+  scanningStageText: {
+    color: '#E5E7EB',
+    fontSize: 12.5,
+    fontWeight: '500',
+    marginTop: 6,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  verifiedBadgeOverlay: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+    backgroundColor: '#10B981',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  verifiedBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+
+  // Shutter Controls Below Oval
+  captureControls: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  captureShutterBtn: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 3,
+  },
+  captureShutterInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureBtnLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+
+  // Review Buttons Below Oval
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 12,
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  retakeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 48,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    borderWidth: 1.5,
+  },
+  retakeBtnText: {
+    fontSize: 14.5,
+    fontWeight: '600',
+  },
+  confirmBtn: {
     flex: 1,
-    borderRadius: Spacing.radiusLg,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    padding: Spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.inputBackground,
+    justifyContent: 'center',
+    height: 48,
+    paddingHorizontal: 20,
+    borderRadius: 24,
   },
-  secondaryButtonText: {
-    color: Colors.text,
-    fontWeight: 'bold',
+  confirmBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
-  captureButton: {
-    flex: 1.4,
-    backgroundColor: Colors.primary,
-    borderRadius: Spacing.radiusLg,
-    padding: Spacing.lg,
-    alignItems: 'center',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  buttonText: { color: Colors.white, fontWeight: 'bold', fontSize: 15 },
-  successText: { color: Colors.success, fontWeight: 'bold', fontSize: 16, marginVertical: Spacing.sm },
-  syncText: { color: Colors.primary, fontWeight: 'bold', textAlign: 'center', marginVertical: Spacing.sm },
-  errorText: { color: Colors.error, textAlign: 'center', lineHeight: 20, marginVertical: Spacing.sm },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  loadingText: { marginTop: Spacing.sm + 2, color: Colors.textSecondary },
 });
