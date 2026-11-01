@@ -793,6 +793,11 @@ class MockStore {
 
   public async getSentRequests(userId: string): Promise<MockRequest[]> {
     await this.init();
+    const userProfile = await this.getProfileByUserId(userId);
+    const isWoman = userProfile?.gender === 'woman' || String(userId).includes('woman');
+    const subscription = await this.getSubscriptionStatus(userId);
+    const hasActiveSub = isWoman || (subscription && subscription.status === 'ACTIVE');
+
     return this.requests
       .filter((r) => String(r.senderId) === String(userId))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -802,15 +807,17 @@ class MockStore {
         const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || (r.sender?.displayName ? `${r.sender.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'rahul_amara');
         const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || (r.receiver?.displayName ? `${r.receiver.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'ananya_amara');
 
-        if (r.status !== 'APPROVED') {
+        if (r.status !== 'APPROVED' || !hasActiveSub) {
           return {
             ...r,
+            accessExpired: !hasActiveSub,
             sender: r.sender ? { ...r.sender, telegramUsername: '' } : undefined,
             receiver: r.receiver ? { ...r.receiver, telegramUsername: '' } : undefined,
           };
         }
         return {
           ...r,
+          accessExpired: Boolean(r.accessExpired),
           sender: r.sender ? { ...r.sender, telegramUsername: sTg } : undefined,
           receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg } : undefined,
         };
@@ -1176,34 +1183,6 @@ class MockStore {
           (profile.id && this.userSubscriptions[String(profile.id)]) ||
           null;
       }
-    }
-
-    // 4. Fallback to current active user
-    if (!subscription && this.currentUserId) {
-      subscription =
-        this.userSubscriptions[this.currentUserId] ||
-        this.userSubscriptions[this.currentUserId.toLowerCase()] ||
-        null;
-    }
-
-    // 5. Fallback to device storage if verified on device
-    if (!subscription) {
-      try {
-        const localSub = await AsyncStorage.getItem('isSubscribed');
-        const plan = (await AsyncStorage.getItem('@subscription_plan')) || 'GOLD';
-        if (localSub === 'true') {
-          return {
-            id: `sub_local_${Date.now()}`,
-            userId: cleanId,
-            plan,
-            status: 'ACTIVE',
-            startDate: new Date().toISOString(),
-            endDate: new Date(Date.now() + 90 * 86400000).toISOString(),
-            amount: 199,
-            createdAt: new Date().toISOString(),
-          };
-        }
-      } catch {}
     }
 
     if (subscription?.endDate && new Date(subscription.endDate).getTime() <= Date.now()) {

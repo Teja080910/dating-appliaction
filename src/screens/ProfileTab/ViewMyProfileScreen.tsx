@@ -25,6 +25,7 @@ import { useUserImages } from "../../api/useImages";
 import { useMyProfile } from "../../api/useProfile";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
 import NotificationBanner from "../../components/NotificationBanner";
+import SubscriptionModal from "../../components/SubscriptionModal";
 import AppContext from "../../context/CreateGlobalStateContext";
 import { Colors, useTheme } from "../../theme";
 import { useAlert } from "../../components/AlertModal";
@@ -153,10 +154,19 @@ const ViewMyProfileScreen = () => {
     setSelectedKids,
     verifiedSelfie,
     location,
+    paywallVisible,
     setPaywallVisible,
     isSubscribed,
     setIsSubscribed,
   } = useContext(AppContext);
+
+  const [localPaywallVisible, setLocalPaywallVisible] = useState(false);
+
+  const openSubscriptionPlans = () => {
+    console.log('[ViewMyProfileScreen] openSubscriptionPlans: Opening plans modal');
+    setLocalPaywallVisible(true);
+    setPaywallVisible?.(true);
+  };
 
   const [viewerGender, setViewerGender] = useState<string | null>(null);
 
@@ -200,6 +210,36 @@ const ViewMyProfileScreen = () => {
   const [myId, setMyId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+      const syncSubscription = async () => {
+        if (isViewerWoman) return;
+        const currentUserId = myId || (await getUserId());
+        if (!currentUserId) {
+          if (isMounted) setIsSubscribed?.(false);
+          return;
+        }
+        try {
+          const sub = await mockStore.getSubscriptionStatus(String(currentUserId));
+          const isActive = Boolean(sub && sub.status === 'ACTIVE');
+          if (isMounted) {
+            setIsSubscribed?.(isActive);
+            if (!isActive) {
+              await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
+            }
+          }
+        } catch {
+          if (isMounted) setIsSubscribed?.(false);
+        }
+      };
+      void syncSubscription();
+      return () => {
+        isMounted = false;
+      };
+    }, [myId, isViewerWoman, setIsSubscribed])
+  );
 
 
 
@@ -366,8 +406,8 @@ const ViewMyProfileScreen = () => {
       } catch {}
     }
 
-    if (!activeSubscribed) {
-      setPaywallVisible(true);
+    if (!activeSubscribed && !isViewerWoman) {
+      openSubscriptionPlans();
       return;
     }
 
@@ -719,22 +759,7 @@ const ViewMyProfileScreen = () => {
                 blurRadius={!isViewingSelf && !isSubscribed && !isViewerWoman ? (Platform.OS === 'android' ? 22 : 16) : 0}
               />
 
-              {/* Upgrade to premium blur overlay card when viewing another user and not subscribed (men only) */}
-              {!isViewingSelf && !isSubscribed && !isViewerWoman && (
-                <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
-                  <View style={styles.blurCardOverlay}>
-                    <TouchableOpacity
-                      style={styles.upgradePillBtn}
-                      activeOpacity={0.85}
-                      onPress={() => setPaywallVisible(true)}
-                    >
-                      <MaterialCommunityIcons name="crown" size={20} color="#FF4D6D" style={styles.crownIcon} />
-                      <Text style={styles.upgradePillText}>{t('profile.viewmyprofilescreen.upgrade_to_premium')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
+              {/* Tap navigation for slider */}
               {sliderImages.length > 1 && (
                 <>
                   <TouchableOpacity
@@ -756,6 +781,23 @@ const ViewMyProfileScreen = () => {
                     }
                   />
                 </>
+              )}
+
+              {/* Upgrade to premium blur overlay card when viewing another user and not subscribed (men only) */}
+              {!isViewingSelf && !isSubscribed && !isViewerWoman && (
+                <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
+                  <View style={styles.blurCardOverlay} pointerEvents="auto">
+                    <TouchableOpacity
+                      style={styles.upgradePillBtn}
+                      activeOpacity={0.85}
+                      onPress={openSubscriptionPlans}
+                      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                    >
+                      <MaterialCommunityIcons name="crown" size={20} color="#FF4D6D" style={styles.crownIcon} />
+                      <Text style={styles.upgradePillText}>{t('profile.viewmyprofilescreen.upgrade_to_premium')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               )}
 
               {/* Dots Indicator */}
@@ -796,30 +838,41 @@ const ViewMyProfileScreen = () => {
         />
       </ScrollView>
 
-      {/* Sticky Bottom Full-Width Send Invite Pill */}
+      {/* Sticky Bottom Full-Width Send Invite / Upgrade Pill */}
       {!isViewingSelf && requestRole !== 'received' && (
         <View style={styles.stickyBottomBar}>
           <TouchableOpacity
             style={[
               styles.sendInvitePill,
-              (isAlreadyInvited || likeMutation.isPending) && styles.sendInvitePillDisabled,
+              (!isSubscribed && !isViewerWoman) && styles.upgradeBottomPill,
+              (isSubscribed || isViewerWoman) && (isAlreadyInvited || likeMutation.isPending) && styles.sendInvitePillDisabled,
             ]}
             activeOpacity={0.85}
-            onPress={handleLike}
-            disabled={isAlreadyInvited || likeMutation.isPending}
+            onPress={(!isSubscribed && !isViewerWoman) ? openSubscriptionPlans : handleLike}
+            disabled={(!isSubscribed && !isViewerWoman) ? false : (isAlreadyInvited || likeMutation.isPending)}
           >
             {likeMutation.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <View style={styles.sendInviteContent}>
                 <MaterialCommunityIcons
-                  name={isAlreadyInvited ? "check-circle-outline" : "send"}
+                  name={
+                    (!isSubscribed && !isViewerWoman)
+                      ? "crown"
+                      : isAlreadyInvited
+                      ? "check-circle-outline"
+                      : "send"
+                  }
                   size={19}
                   color="#FFFFFF"
                   style={styles.sendInviteIcon}
                 />
                 <Text style={styles.sendInviteText}>
-                  {isAlreadyInvited ? t('profile.viewmyprofilescreen.invitation_sent') : t('profile.viewmyprofilescreen.send_invite')}
+                  {(!isSubscribed && !isViewerWoman)
+                    ? t('profile.viewmyprofilescreen.upgrade', { defaultValue: 'Upgrade' })
+                    : isAlreadyInvited
+                    ? t('profile.viewmyprofilescreen.invitation_sent')
+                    : t('profile.viewmyprofilescreen.send_invite')}
                 </Text>
               </View>
             )}
@@ -827,6 +880,13 @@ const ViewMyProfileScreen = () => {
         </View>
       )}
       {AlertComponent}
+      <SubscriptionModal
+        visible={localPaywallVisible || Boolean(paywallVisible)}
+        onClose={() => {
+          setLocalPaywallVisible(false);
+          setPaywallVisible?.(false);
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -954,11 +1014,12 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       bottom: 0,
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 10,
+      zIndex: 50,
+      elevation: 10,
     },
     blurCardOverlay: {
-      width: 230,
-      height: 230,
+      width: 240,
+      height: 240,
       borderRadius: 24,
       backgroundColor: isDark ? 'rgba(30, 24, 38, 0.52)' : 'rgba(255, 255, 255, 0.38)',
       borderWidth: 1.5,
@@ -969,7 +1030,7 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.25,
       shadowRadius: 10,
-      elevation: 6,
+      elevation: 8,
     },
     upgradePillBtn: {
       flexDirection: 'row',
@@ -978,10 +1039,11 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       paddingVertical: 12,
       paddingHorizontal: 22,
       borderRadius: 25,
-      elevation: 6,
+      elevation: 10,
       shadowColor: '#000',
       shadowOpacity: 0.35,
       shadowRadius: 6,
+      zIndex: 60,
     },
     crownIcon: {
       marginRight: 8,
@@ -1018,6 +1080,13 @@ const createStyles = (colors: any, isDark: boolean = true) =>
     sendInvitePillDisabled: {
       opacity: 0.7,
       backgroundColor: colors.disabled || '#554270',
+    },
+    upgradeBottomPill: {
+      backgroundColor: colors.primary || '#7C3AED',
+      shadowColor: colors.primary || '#7C3AED',
+      shadowOpacity: 0.45,
+      shadowRadius: 8,
+      elevation: 6,
     },
     sendInviteContent: {
       flexDirection: 'row',

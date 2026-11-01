@@ -404,6 +404,14 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     let isMounted = true;
     const checkGender = async () => {
       try {
+        const activeGender = String(gender || '').trim().toLowerCase();
+        if (activeGender) {
+          if (isMounted) {
+            setIsWoman(activeGender.includes('woman') || activeGender.includes('female'));
+          }
+          return;
+        }
+
         const [g1, g2, u, userData] = await Promise.all([
           AsyncStorage.getItem('selectedGender'),
           AsyncStorage.getItem('userGender'),
@@ -425,7 +433,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             }
           }
         }
-        const raw = String(gender || found || '').toLowerCase();
+        const raw = String(found || '').toLowerCase();
         if (isMounted) {
           setIsWoman(raw.includes('woman') || raw.includes('female'));
         }

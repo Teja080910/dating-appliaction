@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StatusBar,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
@@ -31,26 +33,67 @@ const formatTime = (value: string | null | undefined) => {
 
 const NotificationsScreen = () => {
   useTranslation();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
-  const [activeTab, setActiveTab] = useState<'notifications' | 'emails'>('notifications');
 
-  const { useNotificationList, markRead, useMyEmails } = useNotification();
+  const { useNotificationList, markRead } = useNotification();
   const { data: notifications, isLoading, isRefetching, refetch } = useNotificationList();
-  const {
-    data: emails = [],
-    isLoading: isEmailsLoading,
-    isRefetching: isEmailsRefetching,
-    refetch: refetchEmails,
-  } = useMyEmails();
 
   const list = Array.isArray(notifications) ? notifications : [];
-  const emailList = Array.isArray(emails) ? emails : [];
 
-  const handlePress = (item: any) => {
-    if (item && typeof item.id === 'number' && !item.read) {
+  const handlePress = async (item: any) => {
+    if (item && item.id != null && !item.read) {
       markRead.mutate(item.id);
+    }
+
+    const type = String(item?.type || '').toUpperCase();
+    const title = String(item?.title || '').toLowerCase();
+    const message = String(item?.message || item?.body || '').toLowerCase();
+
+    // 1. Invitations & Dating Proposals -> Navigate to Invitations
+    if (
+      type.includes('INVIT') ||
+      type.includes('CONNECT') ||
+      title.includes('invit') ||
+      title.includes('proposal') ||
+      message.includes('invitation') ||
+      message.includes('proposal') ||
+      message.includes('sent you')
+    ) {
+      try {
+        const [g1, g2] = await Promise.all([
+          AsyncStorage.getItem('userGender'),
+          AsyncStorage.getItem('selectedGender'),
+        ]);
+        const g = (g1 || g2 || '').toLowerCase();
+        const isMan = g === 'man' || g === 'male';
+        if (isMan) {
+          navigation.navigate('BottomTabs' as any, { screen: 'Sent' });
+        } else {
+          navigation.navigate('BottomTabs' as any, {
+            screen: 'Invitations',
+            params: { initialTab: 'pending' },
+          });
+        }
+      } catch {
+        navigation.navigate('BottomTabs' as any, {
+          screen: 'Invitations',
+          params: { initialTab: 'pending' },
+        });
+      }
+      return;
+    }
+
+    // 2. Telegram / Match Connections -> Navigate to Telegram
+    if (type.includes('TELEGRAM') || title.includes('telegram') || message.includes('telegram')) {
+      navigation.navigate('BottomTabs' as any, { screen: 'Telegram' });
+      return;
+    }
+
+    // 3. Informational Alert fallback
+    if (item?.title || item?.message || item?.body) {
+      Alert.alert(item.title || 'Notification', item.message || item.body || '');
     }
   };
 
@@ -81,32 +124,6 @@ const NotificationsScreen = () => {
     );
   };
 
-  const renderEmailItem = ({ item }: { item: EmailLogItem }) => {
-    return (
-      <View style={styles.item}>
-        <View style={styles.iconCircle}>
-          <Icon name="mail" size={18} color={themeColors.primary} />
-        </View>
-        <View style={styles.itemContent}>
-          <View style={styles.itemHeader}>
-            <Text style={styles.itemTitle} numberOfLines={1}>
-              {item.subject || 'Email Dispatch'}
-            </Text>
-            {item.status && (
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>{item.status.toUpperCase()}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.itemBody} numberOfLines={2}>
-            {item.body || item.recipient || ''}
-          </Text>
-          <Text style={styles.itemTime}>{formatTime(item.sentAt)}</Text>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={themeColors.background} />
@@ -119,88 +136,31 @@ const NotificationsScreen = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Tabs Row */}
-      <View style={styles.tabsRow}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'notifications' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('notifications')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'notifications' && styles.tabButtonTextActive]}>
-            {t('profile.notificationsscreen.notifications', { defaultValue: 'Notifications' })}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'emails' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('emails')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'emails' && styles.tabButtonTextActive]}>
-            {t('profile.notificationsscreen.emails', { defaultValue: 'Emails' })}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === 'notifications' ? (
-        isLoading ? (
-          <View style={styles.loader}>
-            <ActivityIndicator size="large" color={themeColors.primary} />
-          </View>
-        ) : list.length > 0 ? (
-          <FlatList
-            style={{ flex: 1 }}
-            data={list}
-            keyExtractor={(item, index) =>
-              item?.id != null ? String(item.id) : String(index)
-            }
-            renderItem={renderNotificationItem}
-            contentContainerStyle={[styles.listContainer, { paddingBottom: 40 }]}
-            showsVerticalScrollIndicator={false}
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
-          />
-        ) : (
-          <View style={styles.emptyView}>
-            <View style={styles.emptyIcon}>
-              <Icon name="bell-off" size={40} color={themeColors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>{t('profile.notificationsscreen.no_notifications')}</Text>
-            <Text style={styles.emptyDesc}>{t('profile.notificationsscreen.when_you_receive_likes_matches_or_messages_they_will_show_up_here')}</Text>
-          </View>
-        )
+      {isLoading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={themeColors.primary} />
+        </View>
+      ) : list.length > 0 ? (
+        <FlatList
+          style={{ flex: 1 }}
+          data={list}
+          keyExtractor={(item, index) =>
+            item?.id != null ? String(item.id) : String(index)
+          }
+          renderItem={renderNotificationItem}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: 40 }]}
+          showsVerticalScrollIndicator={false}
+          refreshing={isRefetching}
+          onRefresh={() => refetch()}
+        />
       ) : (
-        isEmailsLoading ? (
-          <View style={styles.loader}>
-            <ActivityIndicator size="large" color={themeColors.primary} />
+        <View style={styles.emptyView}>
+          <View style={styles.emptyIcon}>
+            <Icon name="bell-off" size={40} color={themeColors.textMuted} />
           </View>
-        ) : emailList.length > 0 ? (
-          <FlatList
-            style={{ flex: 1 }}
-            data={emailList}
-            keyExtractor={(item, index) =>
-              item?.id != null ? String(item.id) : String(index)
-            }
-            renderItem={renderEmailItem}
-            contentContainerStyle={[styles.listContainer, { paddingBottom: 40 }]}
-            showsVerticalScrollIndicator={false}
-            refreshing={isEmailsRefetching}
-            onRefresh={() => refetchEmails()}
-          />
-        ) : (
-          <View style={styles.emptyView}>
-            <View style={styles.emptyIcon}>
-              <Icon name="mail" size={40} color={themeColors.textMuted} />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {t('profile.notificationsscreen.no_emails', { defaultValue: 'No Emails Sent' })}
-            </Text>
-            <Text style={styles.emptyDesc}>
-              {t('profile.notificationsscreen.emails_desc', {
-                defaultValue: 'Dispatched emails and verification notices will be logged here.',
-              })}
-            </Text>
-          </View>
-        )
+          <Text style={styles.emptyTitle}>{t('profile.notificationsscreen.no_notifications')}</Text>
+          <Text style={styles.emptyDesc}>{t('profile.notificationsscreen.when_you_receive_likes_matches_or_messages_they_will_show_up_here')}</Text>
+        </View>
       )}
     </SafeAreaView>
   );

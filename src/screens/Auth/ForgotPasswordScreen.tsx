@@ -355,7 +355,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
                     {loading ? (
                       <ActivityIndicator color="#180B2B" size="small" />
                     ) : (
-                      <Text style={styles.sendResetBtnText}>{t('auth.forgotpasswordscreen.send_code')}</Text>
+                      <Text style={styles.sendResetBtnText}>{t('auth.forgotpasswordscreen.save', { defaultValue: 'Save' })}</Text>
                     )}
                   </TouchableOpacity>
 

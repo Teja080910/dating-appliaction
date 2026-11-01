@@ -1,4 +1,5 @@
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Alert,
@@ -16,11 +17,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
 import LinearGradient from 'react-native-linear-gradient';
+import NotificationBanner from '../../components/NotificationBanner';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
+import { useNotification } from '../../api/useNotification';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
 import { getAbsoluteUrl } from '../../api/apiClient';
@@ -34,13 +36,41 @@ const RequestsInboxScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
 
-  const { setViewMyProfile, setCardUserName, setCardUserAge, setSelectedUserImage } =
+  const { setViewMyProfile, setCardUserName, setCardUserAge, setSelectedUserImage, setPaywallVisible, isSubscribed, gender } =
     useContext(AppContext);
-  const { receivedList, accept, refreshAll } = useConnection();
+
+  const [userGender, setUserGender] = useState<string>('');
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      const [g1, g2] = await Promise.all([
+        AsyncStorage.getItem('userGender'),
+        AsyncStorage.getItem('selectedGender'),
+      ]);
+      if (isMounted) {
+        setUserGender((g1 || g2 || gender || '').toLowerCase());
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [gender]);
+
+  const rawUserGender = (userGender || gender || '').toLowerCase();
+  const isUserWoman = rawUserGender.includes('woman') || rawUserGender.includes('female');
+  const { receivedList, accept, reject, refreshAll } = useConnection();
+  const { useNotificationList } = useNotification();
+  const { data: notifications = [] } = useNotificationList();
+
+  const notifList = Array.isArray(notifications) ? notifications : [];
+  const unreadNotifCount = notifList.filter((n: any) => !n.read).length;
 
   // Tabs: 'accepted' on left, 'pending' on right (Screenshot 4B & 4C)
-  const [activeTab, setActiveTab] = useState<'accepted' | 'pending'>('pending');
+  const [activeTab, setActiveTab] = useState<'accepted' | 'pending'>(
+    route?.params?.initialTab || 'pending'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [approvedMatch, setApprovedMatch] = useState<{
     name: string;
@@ -53,8 +83,11 @@ const RequestsInboxScreen: React.FC = () => {
   // Auto-refetch when user focuses this screen
   useFocusEffect(
     useCallback(() => {
+      if (route?.params?.initialTab) {
+        setActiveTab(route.params.initialTab);
+      }
       refreshAll();
-    }, [])
+    }, [route?.params?.initialTab])
   );
 
   const isAcceptedStatus = (status?: string) => {
@@ -141,6 +174,18 @@ const RequestsInboxScreen: React.FC = () => {
     }
   };
 
+  const handleDecline = async (request: ConnectionRequest) => {
+    try {
+      await reject.mutateAsync(request.id);
+      refreshAll();
+    } catch (err: any) {
+      Alert.alert(
+        'Could not decline invitation',
+        getUserFriendlyMessage(err, t('profile.userdetails.please_try_again_in_a_moment'))
+      );
+    }
+  };
+
   const handleOpenProfile = (item: ConnectionRequest) => {
     const sender = item.sender || {};
     const targetUserId = sender.id || sender.userId || (item as any).senderId;
@@ -171,6 +216,10 @@ const RequestsInboxScreen: React.FC = () => {
   };
 
   const handleOpenTelegram = (username?: string) => {
+    if (!isSubscribed && !isUserWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
     openTelegramChat(username);
   };
 
@@ -210,20 +259,30 @@ const RequestsInboxScreen: React.FC = () => {
         </View>
 
         {!isApproved && (
-          <TouchableOpacity
-            style={styles.approveBtnWrapper}
-            onPress={() => handleApprove(item)}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={[themeColors.primary, themeColors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.approveBtn}
+          <View style={styles.cardActionsRow}>
+            <TouchableOpacity
+              style={styles.declineBtn}
+              onPress={() => handleDecline(item)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.approveBtnText}>{t('messages.messagescreen.accept')}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <Text style={styles.declineBtnText}>{t('common.decline', { defaultValue: 'Decline' })}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.approveBtnWrapper}
+              onPress={() => handleApprove(item)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.approveBtn}
+              >
+                <Text style={styles.approveBtnText}>{t('messages.messagescreen.accept')}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         )}
 
         {isApproved && (
@@ -242,12 +301,29 @@ const RequestsInboxScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Notification Banner */}
+      <NotificationBanner />
+
       {/* Brand Header */}
       <View style={styles.headerRow}>
         <Text style={styles.brandTitle}>{t('home.homeheader.amara')}</Text>
-        <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
-          <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.bellBtn}
+            onPress={() => navigation.navigate('NotificationsScreen')}
+          >
+            <Icon name="bell-outline" size={22} color={themeColors.text} />
+            {unreadNotifCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
+            <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tabs: Accepted | Pending */}
@@ -262,7 +338,9 @@ const RequestsInboxScreen: React.FC = () => {
               styles.tabButtonText,
               activeTab === 'accepted' ? styles.tabTextActive : styles.tabTextInactive,
             ]}
-          >{t('requests.requestsinboxscreen.accepted')}</Text>
+          >
+            {t('requests.requestsinboxscreen.accepted')} ({acceptedRequests.length})
+          </Text>
           {activeTab === 'accepted' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
 
@@ -277,7 +355,7 @@ const RequestsInboxScreen: React.FC = () => {
               activeTab === 'pending' ? styles.tabTextActive : styles.tabTextInactive,
             ]}
           >
-            {t('requests.requestsinboxscreen.pending')}
+            {t('requests.requestsinboxscreen.pending')} ({pendingRequests.length})
           </Text>
           {activeTab === 'pending' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
@@ -321,6 +399,23 @@ const RequestsInboxScreen: React.FC = () => {
           <Icon name="email-outline" size={48} color={themeColors.textMuted} style={{ marginBottom: 12 }} />
           <Text style={styles.emptyPendingTitle}>{t('requests.requestsinboxscreen.no_invitations_found')}</Text>
           <Text style={styles.emptyPendingSubtitle}>{t('requests.requestsinboxscreen.when_men_invite_you_they_will_appear_right_here')}</Text>
+          {acceptedRequests.length > 0 && (
+            <TouchableOpacity
+              style={{
+                marginTop: 16,
+                paddingVertical: 10,
+                paddingHorizontal: 20,
+                backgroundColor: themeColors.primary,
+                borderRadius: 24,
+              }}
+              onPress={() => setActiveTab('accepted')}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
+                View Accepted Invitations ({acceptedRequests.length})
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <FlatList
@@ -419,6 +514,14 @@ const createStyles = (colors: any) =>
       fontSize: 26,
       fontWeight: '800',
       letterSpacing: -0.5,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    bellBtn: {
+      padding: 6,
     },
     selectBtn: {
       paddingVertical: 4,
@@ -520,6 +623,26 @@ const createStyles = (colors: any) =>
       color: colors.textSecondary,
       fontSize: 14,
       fontWeight: '500',
+    },
+    cardActionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    declineBtn: {
+      borderRadius: 18,
+      paddingVertical: 7,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceLight || 'rgba(255,255,255,0.06)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    declineBtnText: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
     },
     approveBtnWrapper: {
       borderRadius: 18,
@@ -671,5 +794,22 @@ const createStyles = (colors: any) =>
     modalDoneBtnText: {
       color: colors.textSecondary,
       fontSize: 15,
+    },
+    bellBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: colors.primary,
+      borderRadius: 9,
+      minWidth: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    bellBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '800',
     },
   });

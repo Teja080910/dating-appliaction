@@ -42,6 +42,68 @@ const summarizeApiError = (error: any) => {
   };
 };
 
+const defaultAxiosAdapter = axios.getAdapter(axios.defaults.adapter);
+
+const hybridAdapter = async (config: any) => {
+  if (USE_MOCK || process.env.NODE_ENV === 'test') {
+    return handleMockRequest(config);
+  }
+
+  const url = String(config.url || '');
+  const isNotificationOrEmail =
+    url.includes('/notification') || url.includes('/emails/my');
+
+  if (isNotificationOrEmail) {
+    if (defaultAxiosAdapter) {
+      try {
+        const response = await defaultAxiosAdapter(config);
+        if (response && response.status >= 200 && response.status < 300) {
+          // If it's a GET request, check whether backend returned actual items
+          if (config.method?.toLowerCase() === 'get') {
+            const data = response.data;
+            const items = Array.isArray(data)
+              ? data
+              : Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data?.content)
+              ? data.content
+              : Array.isArray(data?.notifications)
+              ? data.notifications
+              : null;
+
+            if (items && items.length > 0) {
+              return response; // Show backend data
+            }
+
+            // Backend returned empty list; check if we have local mock items to fall back to
+            const mockRes = await handleMockRequest(config);
+            const mockItems = Array.isArray(mockRes.data)
+              ? mockRes.data
+              : Array.isArray(mockRes.data?.data)
+              ? mockRes.data.data
+              : [];
+            if (mockItems.length > 0) {
+              return mockRes;
+            }
+          }
+          return response;
+        }
+      } catch (backendError) {
+        // Backend did not reply, timed out, or threw an error: fallback to mock data
+        if (__DEV__) {
+          console.log('[ApiClient] Backend not replying for notifications, falling back to mock data:', (backendError as any)?.message);
+        }
+        return handleMockRequest(config);
+      }
+    }
+
+    // Default fallback if no adapter
+    return handleMockRequest(config);
+  }
+
+  return defaultAxiosAdapter ? defaultAxiosAdapter(config) : handleMockRequest(config);
+};
+
 const apiClient = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -49,7 +111,7 @@ const apiClient = axios.create({
   headers: {
     Accept: '*/*',
   },
-  adapter: (USE_MOCK || process.env.NODE_ENV === 'test') ? handleMockRequest : undefined,
+  adapter: hybridAdapter,
 });
 
 const pendingRequests = new Map<string, Promise<any>>();

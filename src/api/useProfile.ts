@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
@@ -162,6 +163,15 @@ export const useMyProfile = (uid?: any) => {
   const refetch = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', () => {
+      refetch();
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [refetch]);
+
+  useEffect(() => {
     let cancelled = false;
     if (hasValidUid(uid)) {
       setResolvedUserId(String(uid));
@@ -248,8 +258,11 @@ export const useProfile = () => {
   const queryClient = useQueryClient();
 
   const invalidateProfile = async (uid?: any) => {
+    await queryClient.invalidateQueries({queryKey: ['myProfile']});
     await queryClient.invalidateQueries({queryKey: ['myProfile', uid]});
+    await queryClient.invalidateQueries({queryKey: ['profileCompletion']});
     await queryClient.invalidateQueries({queryKey: ['profileCompletion', uid]});
+    DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid });
   };
 
   type SetupProfileInput = {
@@ -361,6 +374,7 @@ export const useProfile = () => {
     lookingFor: string;
     smoke: string;
     drink: string;
+    ethnicity?: string;
   };
 
   const updatePreferences = useMutation<any, Error, UpdatePreferencesInput>({
@@ -372,10 +386,14 @@ export const useProfile = () => {
         lookingFor: data.lookingFor,
         smoke: data.smoke,
         drink: data.drink,
+        ethnicity: data.ethnicity || '',
       };
 
       const res = await apiClient.put('/profile/update-preferences', payload);
       return res.data;
+    },
+    onSuccess: async () => {
+      await invalidateProfile();
     },
   });
 
@@ -434,6 +452,9 @@ export const useProfile = () => {
     lookingFor?: string;
     smoke?: string;
     drink?: string;
+    kidCount?: string;
+    kids?: string;
+    netWorth?: string;
     photos?: string[];
     telegramUsername?: string;
   };
@@ -457,10 +478,42 @@ export const useProfile = () => {
       delete payload.photos;
       delete payload.images;
 
-      const res = await apiClient.put('/profile/update-basic', payload).catch(() =>
-        apiClient.put('/profile/update', payload)
-      );
-      return res.data;
+      // Try general comprehensive /profile/update endpoint first to preserve all detailed fields.
+      // If it fails or is unavailable, fallback to granular update-basic, update-details, and update-preferences.
+      try {
+        const res = await apiClient.put('/profile/update', payload);
+        return res.data;
+      } catch (err) {
+        const basicRes = await apiClient.put('/profile/update-basic', {
+          userId: resolvedUserId,
+          name: payload.name,
+          displayName: payload.displayName,
+          bio: payload.bio,
+          dob: payload.dob,
+          age: payload.age,
+        });
+        await Promise.allSettled([
+          apiClient.put('/profile/update-details', {
+            userId: resolvedUserId,
+            language: payload.language,
+            bodyType: payload.bodyType,
+            appearance: payload.appearance,
+            height: payload.height,
+            englishLevel: payload.englishLevel || '',
+            ethnicity: payload.ethnicity || '',
+            kidCount: payload.kidCount || payload.kids || '',
+            netWorth: payload.netWorth || '',
+          }),
+          apiClient.put('/profile/update-preferences', {
+            userId: resolvedUserId,
+            lookingFor: payload.lookingFor,
+            smoke: payload.smoke,
+            drink: payload.drink,
+            ethnicity: payload.ethnicity || '',
+          }),
+        ]);
+        return basicRes.data;
+      }
     },
     onSuccess: async () => {
       await invalidateProfile();

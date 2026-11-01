@@ -193,6 +193,56 @@ const GlobalStateProvider = ({ children }: any) => {
             setProfileImage(storedProfileImage);
             setProfileImageUrl(storedProfileImage);
           }
+
+          const [
+            storedHeight,
+            storedAppearance,
+            storedBodyType,
+            storedEthnicity,
+            storedSmoking,
+            storedDrinking,
+            storedLookingFor,
+            storedLanguages,
+            storedEnglishLevel,
+            storedKids,
+            storedNetWorth,
+          ] = await Promise.all([
+            AsyncStorage.getItem('@amara_height'),
+            AsyncStorage.getItem('@amara_appearance'),
+            AsyncStorage.getItem('@amara_body_type'),
+            AsyncStorage.getItem('@amara_ethnicity'),
+            AsyncStorage.getItem('@amara_smoking'),
+            AsyncStorage.getItem('@amara_drinking'),
+            AsyncStorage.getItem('@amara_looking_for'),
+            AsyncStorage.getItem('@amara_languages'),
+            AsyncStorage.getItem('@amara_english_level'),
+            AsyncStorage.getItem('@amara_kid_count'),
+            AsyncStorage.getItem('@amara_net_worth'),
+          ]);
+
+          if (storedHeight) setHeight(Number(storedHeight));
+          if (storedAppearance) setSelectedAppearance(storedAppearance);
+          if (storedBodyType) setSelectedBodyType(storedBodyType);
+          if (storedEthnicity) setSelectedEthnicity(storedEthnicity);
+          if (storedSmoking) setSelectedSmoking(storedSmoking);
+          if (storedDrinking) setSelectedDrinking(storedDrinking);
+          if (storedKids) setSelectedKids(storedKids);
+          if (storedNetWorth) setSelectedNetWorth(storedNetWorth);
+          if (storedEnglishLevel !== null && storedEnglishLevel !== undefined && storedEnglishLevel !== '') {
+            setEnglishSkillLevel(Number(storedEnglishLevel));
+          }
+          if (storedLookingFor) {
+            try {
+              const parsed = JSON.parse(storedLookingFor);
+              if (Array.isArray(parsed) && parsed.length > 0) setSelectedLookingFor(parsed);
+            } catch {}
+          }
+          if (storedLanguages) {
+            try {
+              const parsed = JSON.parse(storedLanguages);
+              if (Array.isArray(parsed) && parsed.length > 0) setSelectedLanguages(parsed);
+            } catch {}
+          }
         } else {
           setImages(emptyImageSlots());
           setProfileImage(null);
@@ -200,23 +250,28 @@ const GlobalStateProvider = ({ children }: any) => {
         }
 
         const effectiveGender = storedGender || storedUserGender;
-        const subStatus = await AsyncStorage.getItem('isSubscribed');
-        let activeSub = subStatus === 'true';
         const isWoman =
           effectiveGender === 'straight_woman' ||
           effectiveGender === 'woman';
+        let activeSub = false;
         if (isWoman) {
           activeSub = true;
-        } else if (!activeSub && id) {
+        } else if (id) {
           try {
             const sub = await mockStore.getSubscriptionStatus(String(id));
             if (sub && sub.status === 'ACTIVE') {
               activeSub = true;
               await AsyncStorage.setItem('isSubscribed', 'true');
+            } else {
+              await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
             }
-          } catch {}
+          } catch {
+            await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
+          }
+        } else {
+          await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
         }
-        if (activeSub) setIsSubscribed(true);
+        setIsSubscribed(activeSub);
 
         await hydrateSavedFilters(id);
       } catch (e) {

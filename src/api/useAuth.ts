@@ -4,6 +4,7 @@ import apiClient from './apiClient';
 import { clearFullSession, hasSessionToken, saveAuthSession } from '../utils/session';
 import { getUserId } from '../utils/sessionHelper';
 import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
+import { registerDeviceToken } from '../utils/pushNotificationHelper';
 
 type VerifyRegisterOtpRequest = {
   email?: string;
@@ -196,6 +197,9 @@ export const useAuth = () => {
             sessionId: persisted.sessionId,
             username: persisted.username,
           });
+        }
+        if (cleanUserId) {
+          registerDeviceToken(cleanUserId).catch(() => null);
         }
       }
 

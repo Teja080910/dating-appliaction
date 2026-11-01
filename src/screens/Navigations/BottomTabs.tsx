@@ -16,6 +16,7 @@ import { getGender } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing, Shadows, useTheme } from '../../theme';
 import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
+import { useConnection } from '../../api/useConnection';
 import { t, useTranslation } from '../../i18n';
 
 const Tab = createBottomTabNavigator();
@@ -175,8 +176,26 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
   themeColors,
 }) => {
   useTranslation();
+  const { sentList, receivedList } = useConnection();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 16);
   const barHeight = (Platform.OS === 'ios' ? 70 : 66) + Math.max(insets.bottom, 0);
+
+  const isAcceptedStatus = (s?: string) => {
+    const status = String(s || '').trim().toUpperCase();
+    return status === 'ACCEPTED' || status === 'APPROVED';
+  };
+
+  const pendingReceivedCount = (receivedList?.data || []).filter(
+    (r: any) =>
+      !isAcceptedStatus(r.status) &&
+      r.status !== 'CANCELLED' &&
+      r.status !== 'DECLINED' &&
+      r.status !== 'REJECTED'
+  ).length;
+
+  const acceptedSentCount = (sentList?.data || []).filter(
+    (r: any) => isAcceptedStatus(r.status)
+  ).length;
 
   return (
     <View
@@ -269,6 +288,13 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
           label = t('more_info.header.about_me');
         }
 
+        const badgeCount =
+          route.name === 'Sent'
+            ? acceptedSentCount
+            : route.name === 'Invitations'
+            ? pendingReceivedCount
+            : 0;
+
         return (
           <TouchableOpacity
             key={route.key}
@@ -276,28 +302,37 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
             activeOpacity={0.7}
             style={styles.tabCol}
           >
-            {isFocused ? (
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.activeIconWrap}
-              >
-                <MaterialCommunityIcons
-                  name={iconName}
-                  size={20}
-                  color={themeColors.white || '#FFFFFF'}
-                />
-              </LinearGradient>
-            ) : (
-              <View style={styles.inactiveIconWrap}>
-                <MaterialCommunityIcons
-                  name={iconName}
-                  size={22}
-                  color={themeColors.textSecondary}
-                />
-              </View>
-            )}
+            <View style={styles.iconContainer}>
+              {isFocused ? (
+                <LinearGradient
+                  colors={[themeColors.primary, themeColors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.activeIconWrap}
+                >
+                  <MaterialCommunityIcons
+                    name={iconName}
+                    size={20}
+                    color={themeColors.white || '#FFFFFF'}
+                  />
+                </LinearGradient>
+              ) : (
+                <View style={styles.inactiveIconWrap}>
+                  <MaterialCommunityIcons
+                    name={iconName}
+                    size={22}
+                    color={themeColors.textSecondary}
+                  />
+                </View>
+              )}
+              {badgeCount > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>
+                    {badgeCount > 9 ? '9+' : badgeCount}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text
               style={[
                 styles.tabLabel,
@@ -392,6 +427,32 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
+  },
+  iconContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -3,
+    right: 2,
+    backgroundColor: '#FF3B30',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0D0E1A',
+    zIndex: 10,
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 

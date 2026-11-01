@@ -170,12 +170,10 @@ const Routes = () => {
         <Stack.Screen name="BlockedUsersScreen" component={BlockedUsersScreen} />
         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       </Stack.Navigator>
-      {!isWoman && (
-        <SubscriptionModal
-          visible={paywallVisible}
-          onClose={() => setPaywallVisible(false)}
-        />
-      )}
+      <SubscriptionModal
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+      />
     </NavigationContainer>
   );
 };

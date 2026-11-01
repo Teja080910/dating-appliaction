@@ -7,6 +7,7 @@ import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
 import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
+import DrinkingSelector from '../../components/MoreInfoTabComponents/DrinkingSelector';
 import EnglishSkillSelector from '../../components/MoreInfoTabComponents/EnglishSkillSelector';
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
 import Header from '../../components/MoreInfoTabComponents/Header';
@@ -48,6 +49,7 @@ const MoreInfoScreen = () => {
     selectedSmoking,
     setSelectedSmoking,
     selectedDrinking,
+    setSelectedDrinking,
     selectedLookingFor,
     setSelectedLookingFor,
     selectedKids,
@@ -75,6 +77,7 @@ const MoreInfoScreen = () => {
       '@amara_body_type',
       '@amara_ethnicity',
       '@amara_smoking',
+      '@amara_drinking',
       '@amara_looking_for',
       '@amara_languages',
       '@amara_english_level',
@@ -88,6 +91,7 @@ const MoreInfoScreen = () => {
         if (key === '@amara_body_type') setSelectedBodyType((prev: any) => prev || val);
         if (key === '@amara_ethnicity') setSelectedEthinicity((prev: any) => prev || val);
         if (key === '@amara_smoking') setSelectedSmoking((prev: any) => prev || val);
+        if (key === '@amara_drinking') setSelectedDrinking((prev: any) => prev || val);
         if (key === '@amara_english_level') setEnglishSkillLevel((prev: any) => (prev !== undefined && prev !== null ? prev : Number(val)));
         if (key === '@amara_looking_for') {
           try {
@@ -107,7 +111,7 @@ const MoreInfoScreen = () => {
         }
       });
     });
-  }, [setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
+  }, [setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
 
   useEffect(() => {
     const profile = profileQuery.data;
@@ -162,6 +166,9 @@ const MoreInfoScreen = () => {
     if (profile.smoke) {
       setSelectedSmoking(profile.smoke);
     }
+    if (profile.drink) {
+      setSelectedDrinking(profile.drink);
+    }
     if (visibleLookingFor.length > 0) {
       setSelectedLookingFor(visibleLookingFor);
     }
@@ -174,7 +181,7 @@ const MoreInfoScreen = () => {
     if (englishIndex >= 0) {
       setEnglishSkillLevel(englishIndex);
     }
-  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
+  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
 
   const handleSave = async () => {
     const authSession = await getAuthSession();
@@ -265,6 +272,7 @@ const MoreInfoScreen = () => {
           <EnglishSkillSelector />
           <EthnicitySelector />
           <DoYouSmokeSelector />
+          <DrinkingSelector />
           <KidsSelector />
           <LookingForSelector />
           <NetWorthSelector />

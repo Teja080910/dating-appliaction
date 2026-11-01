@@ -8,6 +8,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import LinearGradient from 'react-native-linear-gradient';
 import AttractiveLogo from '../AttractiveLogo';
 import AppContext from '../../context/CreateGlobalStateContext';
+import { useNotification } from '../../api/useNotification';
 import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
 import { t, useTranslation } from '../../i18n';
 
@@ -27,6 +28,11 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [bannerVisible, setBannerVisible] = useState(false);
+  const { useNotificationList } = useNotification();
+  const { data: notifications = [] } = useNotificationList();
+  const unreadNotifCount = (Array.isArray(notifications) ? notifications : []).filter(
+    (n: any) => !n.read
+  ).length;
 
   useEffect(() => {
     let isMounted = true;
@@ -159,6 +165,19 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
             <Text style={styles.logoSubtext}>{t('home.homeheader.curated_private_matches')}</Text>
           </View>
         </View>
+
+        <TouchableOpacity
+          style={styles.headerBellBtn}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('NotificationsScreen')}
+        >
+          <Icon name="bell" size={22} color={themeColors.text} />
+          {unreadNotifCount > 0 && (
+            <View style={styles.headerBellBadge}>
+              <Text style={styles.headerBellBadgeText}>{unreadNotifCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Filter and Tabs Row */}
@@ -297,8 +316,30 @@ const createStyles = (colors: any) =>
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       marginBottom: 14,
       paddingLeft: 2,
+    },
+    headerBellBtn: {
+      padding: 6,
+      position: 'relative',
+    },
+    headerBellBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: colors.primary,
+      borderRadius: 9,
+      minWidth: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    headerBellBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '800',
     },
     logoContainer: {
       flexDirection: 'row',

@@ -177,4 +177,31 @@ describe('Male Subscription & Dating Invitation End-to-End Suite', () => {
     const requests = await mockStore.getReceivedRequests(femaleUserId);
     expect(Array.isArray(requests)).toBe(true);
   });
+
+  test('9. Unsubscribed male user sees Upgrade action leading to plans, and Premium Membership when subscribed', async () => {
+    // Initially unsubscribed male user
+    const unsubscribedStatus = await mockStore.getSubscriptionStatus(maleUserId);
+    expect(unsubscribedStatus).toBeNull();
+
+    // Verify upgrade action resolves plan selection
+    const orderRes = await apiClient.post('/razorpay/create-order', {
+      userId: maleUserId,
+      plan: 'PREMIUM',
+    });
+    expect(orderRes.status).toBe(200);
+    expect(orderRes.data.orderId).toBeDefined();
+
+    // After subscribing
+    await apiClient.post('/razorpay/verify', {
+      orderId: orderRes.data.orderId,
+      paymentId: 'pay_test_upgrade_456',
+      signature: 'sig_test_upgrade_456',
+      userId: maleUserId,
+      plan: 'PREMIUM',
+    });
+
+    const subscribedStatus = await mockStore.getSubscriptionStatus(maleUserId);
+    expect(subscribedStatus?.status).toBe('ACTIVE');
+    expect(subscribedStatus?.plan).toBe('PREMIUM');
+  });
 });

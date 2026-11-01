@@ -61,7 +61,7 @@ const ProfileScreen = () => {
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender } =
+  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender, isSubscribed } =
     useContext(AppContext);
   const { logout, deleteAccount } = useAuth();
   const { alert, AlertComponent } = useAlert();
@@ -232,7 +232,11 @@ const ProfileScreen = () => {
               />
               <SettingsRow
                 icon="crown-outline"
-                label={t('common.subscriptionmodal.get_premium')}
+                label={
+                  isSubscribed
+                    ? t('common.subscriptionmodal.premium_membership', { defaultValue: 'Premium Membership' })
+                    : t('common.subscriptionmodal.get_premium', { defaultValue: 'Get Premium' })
+                }
                 themeColors={themeColors}
                 styles={styles}
                 onPress={() => setPaywallVisible?.(true)}

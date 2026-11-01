@@ -34,6 +34,7 @@ const PreferencesScreen = () => {
   const { themeMode, setThemeMode, themeColors } = useContext(AppContext);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(t('profile.userdetails.english'));
   const [emailNotifications, setEmailNotifications] = useState<boolean>(true);
+  const [appNotifications, setAppNotifications] = useState<boolean>(true);
   const [isLanguageModalVisible, setIsLanguageModalVisible] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -61,6 +62,11 @@ const PreferencesScreen = () => {
           setEmailNotifications(savedEmail === 'true');
         }
 
+        const savedAppNotifications = await AsyncStorage.getItem('@app_push_notifications');
+        if (savedAppNotifications !== null) {
+          setAppNotifications(savedAppNotifications === 'true');
+        }
+
         let uid = await getUserId().catch(() => null);
         if (!uid) {
           const sess = await getAuthSession();
@@ -72,8 +78,13 @@ const PreferencesScreen = () => {
             params: uid ? { userId: uid } : undefined,
           })
           .then((res) => {
-            if (res?.data && typeof res.data.emailNotifications === 'boolean') {
-              setEmailNotifications(res.data.emailNotifications);
+            if (res?.data) {
+              if (typeof res.data.emailNotifications === 'boolean') {
+                setEmailNotifications(res.data.emailNotifications);
+              }
+              if (typeof res.data.appNotifications === 'boolean') {
+                setAppNotifications(res.data.appNotifications);
+              }
             }
           })
           .catch(() => {});
@@ -124,6 +135,33 @@ const PreferencesScreen = () => {
         .catch(() => {});
     } catch (e) {
       console.warn('Error saving email notification preference:', e);
+    }
+  };
+
+  const handleToggleAppNotifications = async (val: boolean) => {
+    setAppNotifications(val);
+    try {
+      await AsyncStorage.setItem('@app_push_notifications', String(val));
+      let uid = await getUserId().catch(() => null);
+      if (!uid) {
+        const sess = await getAuthSession();
+        uid = sess?.userId || null;
+      }
+
+      await apiClient
+        .put(
+          '/notification/preferences',
+          {
+            appNotifications: val,
+            ...(uid ? { userId: uid } : {}),
+          },
+          {
+            params: uid ? { userId: uid } : undefined,
+          },
+        )
+        .catch(() => {});
+    } catch (e) {
+      console.warn('Error saving app notification preference:', e);
     }
   };
 
@@ -228,6 +266,29 @@ const PreferencesScreen = () => {
             <Switch
               value={emailNotifications}
               onValueChange={handleToggleEmailNotifications}
+              trackColor={{ false: colors.surfaceLighter, true: '#10B981' }}
+              thumbColor={Colors.white}
+              ios_backgroundColor={colors.surfaceLighter}
+            />
+          </View>
+
+          <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
+          {/* App Notifications Row */}
+          <View style={styles.menuRow}>
+            <View style={styles.menuLeft}>
+              <View style={[styles.menuIconContainer, { backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.1)' }]}>
+                <Icon
+                  name="bell-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={[styles.menuLabel, { color: colors.text }]}>{t('profile.preferencesscreen.app_notifications', { defaultValue: 'App notifications' })}</Text>
+            </View>
+            <Switch
+              value={appNotifications}
+              onValueChange={handleToggleAppNotifications}
               trackColor={{ false: colors.surfaceLighter, true: '#10B981' }}
               thumbColor={Colors.white}
               ios_backgroundColor={colors.surfaceLighter}

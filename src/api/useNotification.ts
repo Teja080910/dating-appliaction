@@ -5,7 +5,7 @@ import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 import { t } from '../i18n';
 
 export interface NotificationItem {
-  id: number;
+  id: number | string;
   title: string;
   body: string;
   message: string;
@@ -55,7 +55,7 @@ const normalizeNotifications = (payload: unknown): NotificationItem[] =>
       delete user.password;
     }
     return {
-      id: typeof item?.id === 'number' ? item.id : 0,
+      id: item?.id != null ? item.id : 0,
       title: String(item?.title || item?.subject || t('profile.notificationsscreen.notification')).trim(),
       body: String(item?.body || item?.message || '').trim(),
       message: String(item?.message || item?.body || '').trim(),
@@ -110,7 +110,7 @@ export const useNotification = (userId?: string | number) => {
     });
 
   const markReadMutation = useMutation({
-    mutationFn: async (notificationId: number) => {
+    mutationFn: async (notificationId: number | string) => {
       let resolvedUserId: string | null = null;
       try {
         resolvedUserId = await resolveBackendUserId();

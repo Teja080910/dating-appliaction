@@ -437,7 +437,13 @@ export const handleMockRequest = async (
     const connectionStatus = isOwnProfile
       ? 'APPROVED'
       : await mockStore.getConnectionStatus(String(currentStoreUserId), String(targetUserId));
-    if (!isOwnProfile && connectionStatus !== 'APPROVED') {
+
+    const viewerProfile = await mockStore.getProfileByUserId(currentStoreUserId);
+    const isViewerWoman = viewerProfile?.gender === 'woman' || String(currentStoreUserId).includes('woman');
+    const viewerSub = await mockStore.getSubscriptionStatus(currentStoreUserId);
+    const viewerHasActiveSub = isViewerWoman || (viewerSub && viewerSub.status === 'ACTIVE');
+
+    if (!isOwnProfile && (connectionStatus !== 'APPROVED' || !viewerHasActiveSub)) {
       responsePayload.telegramUsername = '';
     }
 
@@ -1245,18 +1251,32 @@ export const handleMockRequest = async (
   if (method === 'GET' && url.includes('/notification/preferences')) {
     const targetUserId = queryParams.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
     const prefs = await mockStore.getNotificationPreferences(String(targetUserId));
-    return createMockResponse(config, 200, prefs);
+    return createMockResponse(config, 200, {
+      ...prefs,
+      appNotifications: (prefs as any).appNotifications ?? prefs.pushNotifications ?? true,
+    });
   }
 
   // PUT /notification/preferences or POST /notification/preferences
   if ((method === 'PUT' || method === 'POST') && url.includes('/notification/preferences')) {
     const targetUserId = body.userId || queryParams.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
-    const prefs = await mockStore.saveNotificationPreferences(String(targetUserId), body);
+    const normalizedBody = {
+      ...body,
+      ...(typeof body.appNotifications === 'boolean' ? { pushNotifications: body.appNotifications } : {}),
+      ...(typeof body.pushNotifications === 'boolean' ? { appNotifications: body.pushNotifications } : {}),
+    };
+    const prefs = await mockStore.saveNotificationPreferences(String(targetUserId), normalizedBody);
     return createMockResponse(config, 200, {
       status: 'success',
       message: 'Notification preferences updated',
-      data: prefs,
-      preferences: prefs,
+      data: {
+        ...prefs,
+        appNotifications: (prefs as any).appNotifications ?? prefs.pushNotifications ?? true,
+      },
+      preferences: {
+        ...prefs,
+        appNotifications: (prefs as any).appNotifications ?? prefs.pushNotifications ?? true,
+      },
     });
   }
 
@@ -1269,9 +1289,11 @@ export const handleMockRequest = async (
 
   // POST /notification/push
   if (method === 'POST' && url.includes('/notification/push')) {
+    const isTokenReg = Boolean(body.token || body.deviceToken);
     return createMockResponse(config, 200, {
-      status: 'success',
-      message: 'Notification dispatched',
+      status: isTokenReg ? 'registered' : 'success',
+      message: isTokenReg ? 'Device token registered successfully' : 'Notification dispatched',
+      data: isTokenReg ? { token: body.token || body.deviceToken } : undefined,
     });
   }
 

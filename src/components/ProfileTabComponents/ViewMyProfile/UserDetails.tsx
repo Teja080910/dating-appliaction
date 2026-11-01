@@ -103,10 +103,31 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     selectedLanguages,
     selectedNetWorth,
     selectedKids,
+    gender,
   } = useContext(AppContext);
 
   const [localNetWorth, setLocalNetWorth] = useState<string | null>(null);
   const [localKids, setLocalKids] = useState<string | null>(null);
+  const [viewerGender, setViewerGender] = useState<string>('');
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      const [g1, g2] = await Promise.all([
+        AsyncStorage.getItem('userGender'),
+        AsyncStorage.getItem('selectedGender'),
+      ]);
+      if (isMounted) {
+        setViewerGender((g1 || g2 || gender || '').toLowerCase());
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [gender]);
+
+  const rawViewerGender = (viewerGender || gender || '').toLowerCase();
+  const isViewerWoman = rawViewerGender.includes('woman') || rawViewerGender.includes('female');
 
   useEffect(() => {
     let isMounted = true;
@@ -149,11 +170,37 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     });
   };
 
+  const handleDeclineRequest = () => {
+    if (!requestId) return;
+    connection.reject.mutate(requestId, {
+      onSuccess: () => {
+        connection.refreshAll();
+        alert('Invitation Declined', 'You have declined this invitation.', [
+          { text: t('profile.userdetails.done'), onPress: () => navigation.goBack() },
+        ]);
+      },
+      onError: (error: any) => {
+        alert(
+          'Could not decline invitation',
+          getUserFriendlyMessage(error, t('profile.userdetails.please_try_again_in_a_moment'))
+        );
+      },
+    });
+  };
+
   const handleOpenTelegram = (username?: string) => {
+    if (!isSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
     openTelegramChat(username);
   };
 
   const handleShareTelegram = async (username?: string) => {
+    if (!isSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
     if (!username) {
       alert(t('profile.userdetails.telegram_not_connected'), t('profile.userdetails.no_username_available_to_share'));
       return;
@@ -306,12 +353,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     matchingReceived?.receiver?.telegramUsername ||
     '';
 
-  const resolvedLanguages = (isOwnProfile || propProfile)
-    ? normalizeTextValue(resolvedProfile?.language || profile.language, '')
-        .split(',')
-        .map((lang) => lang.trim())
-        .filter((lang) => lang && !hiddenLanguages.has(lang.toLowerCase()))
-    : selectedLanguages;
+  const parsedLanguages = normalizeTextValue(resolvedProfile?.language || profile.language, '')
+    .split(',')
+    .map((lang) => lang.trim())
+    .filter((lang) => lang && !hiddenLanguages.has(lang.toLowerCase()));
+
+  const resolvedLanguages =
+    parsedLanguages && parsedLanguages.length > 0
+      ? parsedLanguages
+      : (Array.isArray(selectedLanguages) && selectedLanguages.length > 0 ? selectedLanguages : []);
   const visibleLookingFor = normalizeTextValue(
     resolvedProfile?.lookingFor || profile?.lookingFor,
     isOwnProfile
@@ -681,6 +731,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || t('profile.userdetails.attractive')) : t('profile.userdetails.attractive')))} />
           <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || t('profile.userdetails.other')) : t('profile.userdetails.other')))} />
           <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || t('profile.userdetails.no')) : t('profile.userdetails.no')))} />
+          <DetailPill icon="glass-cocktail" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || t('profile.userdetails.no')) : t('profile.userdetails.no')))} />
           <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Medium') : 'Medium')) })} />
           <DetailPill
             icon="baby-face-outline"
@@ -737,25 +788,40 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       {!isOwnProfile && (
           <View style={styles.actionSection}>
             {isReceivedPendingRequest ? (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={styles.inviteBtnWrapper}
-                onPress={handleApproveRequest}
-                disabled={connection.accept.isPending}
-              >
-                <LinearGradient
-                  colors={[Colors.primary, Colors.primaryLight]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.inviteBtn}
+              <View style={styles.pendingActionsRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.declineOutlineBtn}
+                  onPress={handleDeclineRequest}
+                  disabled={connection.reject.isPending || connection.accept.isPending}
                 >
-                  {connection.accept.isPending ? (
-                    <ActivityIndicator color="#fff" />
+                  {connection.reject.isPending ? (
+                    <ActivityIndicator color={themeColors.textSecondary || '#94A3B8'} />
                   ) : (
-                    <Text style={styles.inviteText}>{t('profile.userdetails.approve_request')}</Text>
+                    <Text style={styles.declineOutlineText}>{t('common.decline', { defaultValue: 'Decline' })}</Text>
                   )}
-                </LinearGradient>
-              </TouchableOpacity>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  style={styles.approveBtnFlex}
+                  onPress={handleApproveRequest}
+                  disabled={connection.accept.isPending || connection.reject.isPending}
+                >
+                  <LinearGradient
+                    colors={[Colors.primary, Colors.primaryLight]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.inviteBtn}
+                  >
+                    {connection.accept.isPending ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.inviteText}>{t('profile.userdetails.approve_request')}</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             ) : null}
 
             <TouchableOpacity 
@@ -770,18 +836,25 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             {isAlreadyInvited && !isApprovedInvitation ? (
               <Text style={styles.pendingInvitationText}>{t('profile.userdetails.invitation_pending_approval')}</Text>
             ) : isApprovedInvitation ? (
-              <View style={styles.approvedTelegramContainer}>
-                <View style={styles.approvedTelegramInfoBox}>
-                  <Text style={styles.approvedTelegramLabel}>{t('profile.userdetails.telegram_contact')}</Text>
-                  <Text selectable={true} style={styles.approvedTelegramHandle}>
-                    {targetTelegramUsername ? `@${targetTelegramUsername.replace('@', '')}` : 'Not connected'}
-                  </Text>
-                </View>
-                <View style={styles.approvedTelegramBtnRow}>
+              (!isSubscribed && !isViewerWoman) ? (
+                <View style={styles.lockedTelegramContainer}>
+                  <View style={styles.lockedTelegramHeader}>
+                    <View style={styles.lockedTelegramIconBox}>
+                      <Feather name="lock" size={20} color="#F59E0B" />
+                    </View>
+                    <View style={styles.lockedTelegramTextBox}>
+                      <Text style={styles.lockedTelegramTitle}>
+                        {t('profile.userdetails.telegram_locked_title', { defaultValue: 'Telegram Contact Locked' })}
+                      </Text>
+                      <Text style={styles.lockedTelegramSubtitle}>
+                        {t('profile.userdetails.telegram_locked_desc', { defaultValue: 'An active subscription is required to connect on Telegram.' })}
+                      </Text>
+                    </View>
+                  </View>
                   <TouchableOpacity
                     activeOpacity={0.85}
-                    style={styles.openTelegramBtn}
-                    onPress={() => handleOpenTelegram(targetTelegramUsername)}
+                    style={styles.lockedTelegramUpgradeBtn}
+                    onPress={() => setPaywallVisible?.(true)}
                   >
                     <LinearGradient
                       colors={[Colors.primary, Colors.primaryLight]}
@@ -789,22 +862,50 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                       end={{ x: 1, y: 1 }}
                       style={styles.telegramGradient}
                     >
-                      <Icon name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
-                      <Text style={styles.openTelegramBtnText}>{t('profile.userdetails.open_telegram')}</Text>
+                      <Icon name="crown" size={18} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={styles.openTelegramBtnText}>
+                        {t('profile.userdetails.upgrade_to_view_telegram', { defaultValue: 'Upgrade to View Telegram' })}
+                      </Text>
                     </LinearGradient>
                   </TouchableOpacity>
-                  {targetTelegramUsername ? (
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      style={styles.shareTelegramBtn}
-                      onPress={() => handleShareTelegram(targetTelegramUsername)}
-                      accessibilityLabel="Share Telegram Handle"
-                    >
-                      <Icon name="share-variant-outline" size={20} color={Colors.primaryLight} />
-                    </TouchableOpacity>
-                  ) : null}
                 </View>
-              </View>
+              ) : (
+                <View style={styles.approvedTelegramContainer}>
+                  <View style={styles.approvedTelegramInfoBox}>
+                    <Text style={styles.approvedTelegramLabel}>{t('profile.userdetails.telegram_contact')}</Text>
+                    <Text selectable={true} style={styles.approvedTelegramHandle}>
+                      {targetTelegramUsername ? `@${targetTelegramUsername.replace('@', '')}` : 'Not connected'}
+                    </Text>
+                  </View>
+                  <View style={styles.approvedTelegramBtnRow}>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      style={styles.openTelegramBtn}
+                      onPress={() => handleOpenTelegram(targetTelegramUsername)}
+                    >
+                      <LinearGradient
+                        colors={[Colors.primary, Colors.primaryLight]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.telegramGradient}
+                      >
+                        <Icon name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
+                        <Text style={styles.openTelegramBtnText}>{t('profile.userdetails.open_telegram')}</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    {targetTelegramUsername ? (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.shareTelegramBtn}
+                        onPress={() => handleShareTelegram(targetTelegramUsername)}
+                        accessibilityLabel="Share Telegram Handle"
+                      >
+                        <Icon name="share-variant-outline" size={20} color={Colors.primaryLight} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+              )
             ) : null}
         </View>
       )}
@@ -1173,6 +1274,33 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     borderRadius: 16,
     overflow: 'hidden',
   },
+  pendingActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    marginBottom: 8,
+  },
+  declineOutlineBtn: {
+    flex: 1,
+    minHeight: isCompactDevice ? 52 : 56,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.border || 'rgba(255,255,255,0.15)',
+    backgroundColor: colors.surfaceLight || 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineOutlineText: {
+    color: colors.textSecondary || '#94A3B8',
+    fontSize: isCompactDevice ? 15 : 16,
+    fontWeight: '700',
+  },
+  approveBtnFlex: {
+    flex: 1.4,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   inviteBtn: {
     minHeight: isCompactDevice ? 56 : 60,
     borderRadius: 16,
@@ -1214,6 +1342,47 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     fontWeight: '600',
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  lockedTelegramContainer: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLight || '#1E1B2E',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    marginBottom: 8,
+  },
+  lockedTelegramHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  lockedTelegramIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  lockedTelegramTextBox: {
+    flex: 1,
+  },
+  lockedTelegramTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  lockedTelegramSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textMuted || '#94A3B8',
+  },
+  lockedTelegramUpgradeBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
   },
   approvedTelegramContainer: {
     width: '100%',

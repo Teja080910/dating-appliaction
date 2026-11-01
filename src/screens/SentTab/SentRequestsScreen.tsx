@@ -1,4 +1,5 @@
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +21,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
+import { useNotification } from '../../api/useNotification';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
 import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
@@ -43,10 +45,37 @@ const SentRequestsScreen: React.FC = () => {
     setCardUserAge,
     setSelectedUserImage,
     setPaywallVisible,
+    isSubscribed,
+    gender,
   } = useContext(AppContext);
+
+  const [userGender, setUserGender] = useState<string>('');
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      const [g1, g2] = await Promise.all([
+        AsyncStorage.getItem('userGender'),
+        AsyncStorage.getItem('selectedGender'),
+      ]);
+      if (isMounted) {
+        setUserGender((g1 || g2 || gender || '').toLowerCase());
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [gender]);
+
+  const rawUserGender = (userGender || gender || '').toLowerCase();
+  const isUserWoman = rawUserGender.includes('woman') || rawUserGender.includes('female');
 
   const { sentList, refreshAll } = useConnection();
   const { data: requests = [], isLoading, isRefetching } = sentList;
+  const { useNotificationList } = useNotification();
+  const { data: notifications = [] } = useNotificationList();
+  const unreadNotifCount = (Array.isArray(notifications) ? notifications : []).filter(
+    (n: any) => !n.read
+  ).length;
 
   // Auto-refetch when user focuses this screen
   useFocusEffect(
@@ -119,6 +148,10 @@ const SentRequestsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const handleRestoreAccess = async (item: ConnectionRequest) => {
+    if (!isSubscribed && !isUserWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
     const receiver = item.receiver || {};
     const name = cleanDisplayName(receiver.displayName || receiver.name);
 
@@ -216,11 +249,17 @@ const SentRequestsScreen: React.FC = () => {
           </Text>
 
           {activeTab === 'accepted' ? (
-            item.accessExpired ? (
+            item.accessExpired || (!isSubscribed && !isUserWoman) ? (
               <TouchableOpacity
                 style={styles.restoreBtnWrapper}
                 activeOpacity={0.8}
-                onPress={() => handleRestoreAccess(item)}
+                onPress={() => {
+                  if (!isSubscribed && !isUserWoman) {
+                    setPaywallVisible?.(true);
+                    return;
+                  }
+                  handleRestoreAccess(item);
+                }}
                 disabled={restoringId === String(item.id)}
               >
                 <LinearGradient
@@ -234,7 +273,11 @@ const SentRequestsScreen: React.FC = () => {
                   ) : (
                     <View style={styles.restoreBtnContent}>
                       <Icon name="lock" size={13} color="#FFFFFF" style={styles.lockIcon} />
-                      <Text style={styles.restoreBtnText}>{t('sent.sentrequestsscreen.restore_access')}</Text>
+                      <Text style={styles.restoreBtnText}>
+                        {!isSubscribed && !isUserWoman
+                          ? t('profile.userdetails.upgrade', { defaultValue: 'Upgrade' })
+                          : t('sent.sentrequestsscreen.restore_access')}
+                      </Text>
                     </View>
                   )}
                 </LinearGradient>
@@ -243,7 +286,13 @@ const SentRequestsScreen: React.FC = () => {
               <TouchableOpacity
                 style={styles.chatBtn}
                 activeOpacity={0.8}
-                onPress={() => openTelegramChat(receiver.telegramUsername)}
+                onPress={() => {
+                  if (!isSubscribed && !isUserWoman) {
+                    setPaywallVisible?.(true);
+                    return;
+                  }
+                  openTelegramChat(receiver.telegramUsername);
+                }}
               >
                 <Icon name="send" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
                 <Text style={styles.chatBtnText}>{t('requests.requestsinboxscreen.chat')}</Text>
@@ -271,20 +320,34 @@ const SentRequestsScreen: React.FC = () => {
       {/* Top Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('messages.messagescreen.invitations')}</Text>
-        {hasAnyInvitations && (
-          <View style={styles.headerActions}>
-            <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
-              <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={styles.refreshBtn}
-              onPress={refreshAll}
-            >
-              <Icon name="sync" size={20} color={themeColors.primary} />
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.bellBtn}
+            onPress={() => navigation.navigate('NotificationsScreen')}
+          >
+            <Icon name="bell-outline" size={22} color={themeColors.text} />
+            {unreadNotifCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {hasAnyInvitations && (
+            <>
+              <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
+                <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.refreshBtn}
+                onPress={refreshAll}
+              >
+                <Icon name="sync" size={20} color={themeColors.primary} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {/* When user has no invitations at all, show empty illustration */}
@@ -477,6 +540,27 @@ const createStyles = (colors: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 16,
+    },
+    bellBtn: {
+      padding: 4,
+      position: 'relative',
+    },
+    bellBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: colors.primary,
+      borderRadius: 9,
+      minWidth: 16,
+      height: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    bellBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '800',
     },
     selectBtn: {
       paddingVertical: 4,
