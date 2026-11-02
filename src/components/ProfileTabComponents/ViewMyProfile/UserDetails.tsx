@@ -21,6 +21,7 @@ import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection } from '../../../api/useConnection';
+import { useSubscription } from '../../../api/useSubscription';
 import { useReport, normalizeReportReason } from '../../../api/useReport';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../../theme';
@@ -33,6 +34,7 @@ import { getLanguageFlag } from '../../../utils/languageHelper';
 import { t, useTranslation } from '../../../i18n';
 import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
 import { mockStore } from '../../../mock/mockStore';
+import apiClient from '../../../api/apiClient';
 
 const getReportReasons = () => [
   'Scam / Fraud',
@@ -109,6 +111,33 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const [localNetWorth, setLocalNetWorth] = useState<string | null>(null);
   const [localKids, setLocalKids] = useState<string | null>(null);
   const [viewerGender, setViewerGender] = useState<string>('');
+  const { subscriptionStatus } = useSubscription(currentUserId != null ? String(currentUserId) : undefined);
+  const [localSubActive, setLocalSubActive] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [storedSub, storedEnd] = await Promise.all([
+          AsyncStorage.getItem('isSubscribed'),
+          AsyncStorage.getItem('@subscription_endDate'),
+        ]);
+        const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+        if (isMounted) {
+          setLocalSubActive(storedSub === 'true' && isNotExpired);
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const effectiveIsSubscribed = Boolean(
+    isSubscribed ||
+    subscriptionStatus?.active ||
+    localSubActive
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -189,7 +218,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   };
 
   const handleOpenTelegram = (username?: string) => {
-    if (!isSubscribed && !isViewerWoman) {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
       setPaywallVisible?.(true);
       return;
     }
@@ -197,7 +226,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   };
 
   const handleShareTelegram = async (username?: string) => {
-    if (!isSubscribed && !isViewerWoman) {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
       setPaywallVisible?.(true);
       return;
     }
@@ -389,21 +418,34 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const handleInvite = async () => {
     // Always check both state and persisted/mock storage for subscription
-    let activeSubscribed = isSubscribed;
+    let activeSubscribed = effectiveIsSubscribed;
     if (!activeSubscribed) {
       try {
         const storedSub = await AsyncStorage.getItem('isSubscribed');
-        if (storedSub === 'true') {
+        const storedEnd = await AsyncStorage.getItem('@subscription_endDate');
+        const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+        if (storedSub === 'true' && isNotExpired) {
           activeSubscribed = true;
           setIsSubscribed?.(true);
         } else {
           const checkId = currentUserId || (await getUserId().catch(() => null));
           if (checkId) {
-            const sub = await mockStore.getSubscriptionStatus(String(checkId));
-            if (sub && sub.status === 'ACTIVE') {
-              activeSubscribed = true;
-              await AsyncStorage.setItem('isSubscribed', 'true');
-              setIsSubscribed?.(true);
+            try {
+              const res = await apiClient.get('/subscriber/status', { params: { userId: String(checkId) } });
+              const d = res?.data?.data || res?.data;
+              if (d && (d.active || d.isActive || d.status === 'ACTIVE' || d.isSubscriber)) {
+                activeSubscribed = true;
+                setIsSubscribed?.(true);
+                await AsyncStorage.setItem('isSubscribed', 'true');
+              }
+            } catch {}
+            if (!activeSubscribed) {
+              const sub = await mockStore.getSubscriptionStatus(String(checkId));
+              if (sub && sub.status === 'ACTIVE') {
+                activeSubscribed = true;
+                await AsyncStorage.setItem('isSubscribed', 'true');
+                setIsSubscribed?.(true);
+              }
             }
           }
         }
@@ -470,6 +512,38 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         return;
     }
 
+    // Check daily request quota limit for active plan
+    const userPlan = (await AsyncStorage.getItem('@subscription_plan')) || 'STANDARD';
+    const planNormalized = userPlan.toUpperCase();
+    const dailyLimit =
+      planNormalized === 'STANDARD' || planNormalized === 'BASIC'
+        ? 10
+        : planNormalized === 'PREMIUM' || planNormalized === 'GOLD'
+        ? 20
+        : null; // null = Unlimited (ELITE)
+
+    if (dailyLimit !== null) {
+      const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const sentTodayCount = sentConnections.filter((inv: any) => {
+        if (!inv?.createdAt) return false;
+        return new Date(inv.createdAt).getTime() >= startOfDay.getTime();
+      }).length;
+
+      if (sentTodayCount >= dailyLimit) {
+        alert(
+          'Daily Request Limit Reached',
+          `You have used your ${dailyLimit} daily requests on the ${planNormalized === 'STANDARD' ? 'Standard' : 'Premium'} plan.\n\nUpgrade to ${planNormalized === 'STANDARD' ? 'Premium (20/day) or Elite (Unlimited)' : 'Elite (Unlimited requests)'} to send more requests today!`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Upgrade Plan', onPress: () => setPaywallVisible?.(true) },
+          ]
+        );
+        return;
+      }
+    }
+
     const inviteData = {
         receiverId: resolvedTargetUserId,
         name: finalDisplayName || t('profile.userdetails.guest'),
@@ -508,7 +582,22 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           return;
         }
         if (isSubscriptionGateError(error)) {
-          setPaywallVisible(true);
+          if (
+            errorDetails.includes('daily') ||
+            errorDetails.includes('quota') ||
+            errorDetails.includes('limit')
+          ) {
+            alert(
+              'Daily Limit Reached',
+              'You have reached your daily request limit for your current plan. Upgrade to send more requests today!',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Upgrade Plan', onPress: () => setPaywallVisible?.(true) },
+              ]
+            );
+          } else {
+            setPaywallVisible(true);
+          }
           return;
         }
         Toast.show({
@@ -836,7 +925,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             {isAlreadyInvited && !isApprovedInvitation ? (
               <Text style={styles.pendingInvitationText}>{t('profile.userdetails.invitation_pending_approval')}</Text>
             ) : isApprovedInvitation ? (
-              (!isSubscribed && !isViewerWoman) ? (
+              (!effectiveIsSubscribed && !isViewerWoman) ? (
                 <View style={styles.lockedTelegramContainer}>
                   <View style={styles.lockedTelegramHeader}>
                     <View style={styles.lockedTelegramIconBox}>

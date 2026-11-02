@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, StatusBar, Modal, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
 import { RootParamList } from '../../utils/types/navigation.types';
@@ -13,6 +13,7 @@ import { getUserId } from '../../utils/sessionHelper';
 import { Colors, Spacing, useTheme } from '../../theme';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useMyProfile } from '../../api/useProfile';
+import { useSubscription } from '../../api/useSubscription';
 import AttractiveLogo from '../../components/AttractiveLogo';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
@@ -72,6 +73,37 @@ const ProfileScreen = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [chatModalVisible, setChatModalVisible] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [subPlan, setSubPlan] = useState<string>('STANDARD');
+  const [subRemainingDays, setSubRemainingDays] = useState<number | null>(null);
+  const { subscriptionStatus } = useSubscription();
+
+  const effectiveIsSubscribed = Boolean(
+    isSubscribed ||
+    subscriptionStatus?.active ||
+    (subRemainingDays !== null && subRemainingDays > 0)
+  );
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+      const loadSubInfo = async () => {
+        try {
+          const [plan, daysStr] = await Promise.all([
+            AsyncStorage.getItem('@subscription_plan'),
+            AsyncStorage.getItem('@subscription_remainingDays'),
+          ]);
+          if (isMounted) {
+            if (plan) setSubPlan(plan.toUpperCase());
+            if (daysStr) setSubRemainingDays(parseInt(daysStr, 10));
+          }
+        } catch {}
+      };
+      void loadSubInfo();
+      return () => {
+        isMounted = false;
+      };
+    }, [isSubscribed])
+  );
 
   const handleChatWithUs = () => {
     setIsCopied(false);
@@ -232,11 +264,20 @@ const ProfileScreen = () => {
               />
               <SettingsRow
                 icon="crown-outline"
-                label={
-                  isSubscribed
-                    ? t('common.subscriptionmodal.premium_membership', { defaultValue: 'Premium Membership' })
-                    : t('common.subscriptionmodal.get_premium', { defaultValue: 'Get Premium' })
-                }
+                label={(() => {
+                  if (!effectiveIsSubscribed) {
+                    return t('common.subscriptionmodal.get_premium', { defaultValue: 'Get Premium' });
+                  }
+                  const planDisplay =
+                    subPlan === 'ELITE'
+                      ? 'Elite'
+                      : subPlan === 'PREMIUM'
+                      ? 'Premium'
+                      : 'Standard';
+                  return subRemainingDays !== null
+                    ? `${planDisplay} Membership (${subRemainingDays}d left)`
+                    : `${planDisplay} Membership`;
+                })()}
                 themeColors={themeColors}
                 styles={styles}
                 onPress={() => setPaywallVisible?.(true)}

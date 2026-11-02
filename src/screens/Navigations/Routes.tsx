@@ -39,6 +39,7 @@ import SentRequestsScreen from '../SentTab/SentRequestsScreen';
 import { Colors } from '../../theme';
 import { usePresence } from '../../api/usePresence';
 import { StatusBar } from 'react-native';
+import { navigationRef } from '../../utils/navigationHelper';
 
 const Stack = createNativeStackNavigator();
 
@@ -121,7 +122,7 @@ const Routes = () => {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={activeColors.background}

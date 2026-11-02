@@ -305,7 +305,8 @@ describe('Comprehensive Mock API Endpoint Coverage', () => {
         params: { userId: 'usr_man_101' },
       });
       expect(res.status).toBe(200);
-      expect(typeof res.data).toBe('number');
+      const days = typeof res.data === 'number' ? res.data : res.data?.remainingDays;
+      expect(typeof days).toBe('number');
     });
   });
 

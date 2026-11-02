@@ -1015,6 +1015,12 @@ export const handleMockRequest = async (
 
     if (sub && sub.status === 'ACTIVE') {
       const plan = String(sub.plan || '').toUpperCase();
+      let remainingDays = 0;
+      if (sub.endDate) {
+        const diff = new Date(sub.endDate).getTime() - Date.now();
+        remainingDays = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+      }
+      const durationDays = plan === 'STANDARD' || plan === 'BASIC' ? 120 : plan === 'PREMIUM' || plan === 'GOLD' ? 180 : 365;
       return createMockResponse(config, 200, {
         active: true,
         isSubscriber: true,
@@ -1023,6 +1029,8 @@ export const handleMockRequest = async (
         startDate: sub.startDate,
         endDate: sub.endDate,
         status: 'ACTIVE',
+        remainingDays,
+        durationDays,
         priorityHandoff: plan === 'PREMIUM' || plan === 'ELITE' || plan === 'GOLD' || plan === 'YEARLY',
         eliteBadge: plan === 'ELITE' || plan === 'PREMIUM' || plan === 'YEARLY',
         dailyRequestLimit:
@@ -1043,6 +1051,8 @@ export const handleMockRequest = async (
       startDate: null,
       endDate: null,
       status: 'EXPIRED',
+      remainingDays: 0,
+      durationDays: 0,
     });
   }
 
@@ -1055,7 +1065,12 @@ export const handleMockRequest = async (
       const diff = new Date(sub.endDate).getTime() - Date.now();
       remainingDays = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
     }
-    return createMockResponse(config, 200, remainingDays);
+    return createMockResponse(config, 200, {
+      remainingDays,
+      days: remainingDays,
+      plan: sub?.plan || 'STANDARD',
+      isActive: Boolean(sub && sub.status === 'ACTIVE'),
+    });
   }
 
   // POST /subscriber/activate or /subscription/activate

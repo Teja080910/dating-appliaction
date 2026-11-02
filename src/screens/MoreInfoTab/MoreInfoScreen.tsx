@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
@@ -32,6 +32,12 @@ const MoreInfoScreen = () => {
   const { themeColors } = useTheme();
   const { alert, AlertComponent } = useAlert();
   const insets = useSafeAreaInsets();
+  const route = useRoute();
+
+  const isInsideBottomTab = route.name === 'AboutMe' || Boolean((route as any).name?.toLowerCase().includes('about'));
+  const bottomMargin = isInsideBottomTab
+    ? (Platform.OS === 'ios' ? 70 : 66) + Math.max(insets.bottom, 0)
+    : Math.max(insets.bottom, 14);
 
   const {
     height,
@@ -284,7 +290,7 @@ const MoreInfoScreen = () => {
           {
             backgroundColor: themeColors.background,
             borderTopColor: themeColors.divider,
-            paddingBottom: insets.bottom > 0 ? insets.bottom + 6 : 14,
+            marginBottom: bottomMargin,
           },
         ]}
       >
@@ -306,7 +312,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   content: {
     flex: 1,
@@ -315,7 +321,14 @@ const styles = StyleSheet.create({
   footer: {
     borderTopWidth: 1,
     paddingTop: 12,
+    paddingBottom: 12,
     paddingHorizontal: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 10,
   },
 });
 

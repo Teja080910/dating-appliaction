@@ -8,6 +8,7 @@ import { MAX_PROFILE_IMAGES } from '../api/useImages';
 import { getSavedSearchFilters, clearSavedSearchFilters, getActiveFilterCount } from '../utils/types/AsyncStorage';
 import { getThemeColors, Colors } from '../theme/colors';
 import { mockStore } from '../mock/mockStore';
+import apiClient from '../api/apiClient';
 
 const GlobalStateProvider = ({ children }: any) => {
   const systemColorScheme = useColorScheme();
@@ -258,18 +259,55 @@ const GlobalStateProvider = ({ children }: any) => {
           activeSub = true;
         } else if (id) {
           try {
-            const sub = await mockStore.getSubscriptionStatus(String(id));
-            if (sub && sub.status === 'ACTIVE') {
+            let isActive = false;
+            let planName = 'STANDARD';
+            let endDateStr: string | null = null;
+
+            try {
+              const res = await apiClient.get('/subscriber/status', { params: { userId: id } });
+              const d = res.data;
+              if (d?.active || d?.isActive || d?.status === 'ACTIVE') {
+                isActive = true;
+                planName = d.plan || d.planType || 'STANDARD';
+                endDateStr = d.endDate || null;
+              }
+            } catch {}
+
+            if (!isActive) {
+              const sub = await mockStore.getSubscriptionStatus(String(id)).catch(() => null);
+              if (sub && sub.status === 'ACTIVE') {
+                isActive = true;
+                planName = sub.plan || 'STANDARD';
+                endDateStr = sub.endDate || null;
+              }
+            }
+
+            if (isActive) {
               activeSub = true;
               await AsyncStorage.setItem('isSubscribed', 'true');
+              await AsyncStorage.setItem('@subscription_plan', planName);
+              if (endDateStr) {
+                await AsyncStorage.setItem('@subscription_endDate', endDateStr);
+              }
             } else {
-              await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
+              // Check local storage with expiration check
+              const localSub = await AsyncStorage.getItem('isSubscribed');
+              const localEnd = await AsyncStorage.getItem('@subscription_endDate');
+              if (localSub === 'true' && (!localEnd || new Date(localEnd).getTime() > Date.now())) {
+                activeSub = true;
+              } else {
+                await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan', '@subscription_endDate']);
+              }
             }
           } catch {
-            await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
+            const localSub = await AsyncStorage.getItem('isSubscribed');
+            const localEnd = await AsyncStorage.getItem('@subscription_endDate');
+            if (localSub === 'true' && (!localEnd || new Date(localEnd).getTime() > Date.now())) {
+              activeSub = true;
+            }
           }
         } else {
-          await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
+          await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan', '@subscription_endDate']);
         }
         setIsSubscribed(activeSub);
 

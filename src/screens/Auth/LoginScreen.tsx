@@ -27,6 +27,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import AttractiveLogo from '../../components/AttractiveLogo';
 import LanguageSelectorHeader from '../../components/LanguageSelectorHeader';
 import { useAuth } from '../../api/useAuth';
+import apiClient from '../../api/apiClient';
 import { useAlert } from '../../components/AlertModal';
 import { extractSession, resolveInitialRoute } from '../../utils/session';
 import {
@@ -156,22 +157,46 @@ const LoginScreen = ({ navigation }: any) => {
           asyncStorageItems.push(['userId', resolvedUid], ['user_id', resolvedUid]);
         }
 
-        // Check subscription status from server response, mockStore, or storage
+        // Check subscription status from server response, backend endpoint, mockStore, or storage
         try {
-          const sub = resolvedUid ? await mockStore.getSubscriptionStatus(resolvedUid) : null;
+          let backendSubActive = false;
+          let backendPlan = user.plan || 'STANDARD';
+          let backendEndDate = null;
+
+          if (resolvedUid) {
+            try {
+              const res = await apiClient.get('/subscriber/status', {
+                params: { userId: resolvedUid },
+                headers: session?.token ? { Authorization: `Bearer ${session.token}` } : undefined,
+              });
+              const d = res.data;
+              if (d?.active || d?.isActive || d?.status === 'ACTIVE') {
+                backendSubActive = true;
+                backendPlan = d.plan || d.planType || 'STANDARD';
+                backendEndDate = d.endDate || null;
+              }
+            } catch {}
+          }
+
+          const sub = resolvedUid ? await mockStore.getSubscriptionStatus(resolvedUid).catch(() => null) : null;
           const hasActiveSub = Boolean(
             user.isSubscribed ||
             user.subscription?.isActive ||
             user.subscriptionStatus === 'active' ||
-            user.plan ||
+            backendSubActive ||
             (sub && sub.status === 'ACTIVE')
           );
           if (hasActiveSub) {
-            asyncStorageItems.push(['isSubscribed', 'true']);
+            const planToSave = backendPlan || sub?.plan || 'STANDARD';
+            asyncStorageItems.push(['isSubscribed', 'true'], ['@subscription_plan', planToSave]);
+            if (backendEndDate || sub?.endDate) {
+              asyncStorageItems.push(['@subscription_endDate', String(backendEndDate || sub?.endDate)]);
+            }
             setIsSubscribed?.(true);
           } else {
             const existingSub = await AsyncStorage.getItem('isSubscribed');
-            if (existingSub === 'true') {
+            const existingEnd = await AsyncStorage.getItem('@subscription_endDate');
+            if (existingSub === 'true' && (!existingEnd || new Date(existingEnd).getTime() > Date.now())) {
               setIsSubscribed?.(true);
             }
           }

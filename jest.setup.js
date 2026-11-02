@@ -17,3 +17,16 @@ jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
   launchCamera: jest.fn(),
 }));
+
+jest.mock('@react-navigation/native', () => ({
+  createNavigationContainerRef: () => ({
+    isReady: () => false,
+    navigate: jest.fn(),
+  }),
+  useFocusEffect: jest.fn(),
+  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+  useRoute: () => ({ name: 'Test', params: {} }),
+  DefaultTheme: { colors: {} },
+  DarkTheme: { colors: {} },
+  NavigationContainer: ({ children }) => children,
+}));

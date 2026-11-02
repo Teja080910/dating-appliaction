@@ -320,9 +320,6 @@ const RequestsInboxScreen: React.FC = () => {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
-            <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
-          </TouchableOpacity>
         </View>
       </View>
 

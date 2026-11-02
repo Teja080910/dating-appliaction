@@ -16,11 +16,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
+import { useSubscription } from '../../api/useSubscription';
 import { useNotification } from '../../api/useNotification';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
@@ -39,6 +40,7 @@ const SentRequestsScreen: React.FC = () => {
   const { themeColors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const {
     setViewMyProfile,
     setCardUserName,
@@ -77,14 +79,49 @@ const SentRequestsScreen: React.FC = () => {
     (n: any) => !n.read
   ).length;
 
-  // Auto-refetch when user focuses this screen
+  const { subscriptionStatus } = useSubscription();
+  const [localSubActive, setLocalSubActive] = useState<boolean | null>(null);
+
   useFocusEffect(
     useCallback(() => {
-      refreshAll();
+      let isMounted = true;
+      (async () => {
+        try {
+          const [storedSub, storedEnd] = await Promise.all([
+            AsyncStorage.getItem('isSubscribed'),
+            AsyncStorage.getItem('@subscription_endDate'),
+          ]);
+          const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+          if (isMounted) {
+            setLocalSubActive(storedSub === 'true' && isNotExpired);
+          }
+        } catch {}
+      })();
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>('pending');
+  const effectiveIsSubscribed = Boolean(
+    isSubscribed ||
+    subscriptionStatus?.active ||
+    localSubActive
+  );
+
+  const [activeTab, setActiveTab] = useState<'pending' | 'accepted'>(
+    route?.params?.initialTab || 'pending'
+  );
+
+  // Auto-refetch when user focuses this screen, and sync initialTab if passed
+  useFocusEffect(
+    useCallback(() => {
+      if (route?.params?.initialTab) {
+        setActiveTab(route.params.initialTab);
+      }
+      refreshAll();
+    }, [route?.params?.initialTab])
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -148,7 +185,7 @@ const SentRequestsScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const handleRestoreAccess = async (item: ConnectionRequest) => {
-    if (!isSubscribed && !isUserWoman) {
+    if (!effectiveIsSubscribed && !isUserWoman) {
       setPaywallVisible?.(true);
       return;
     }
@@ -249,12 +286,12 @@ const SentRequestsScreen: React.FC = () => {
           </Text>
 
           {activeTab === 'accepted' ? (
-            item.accessExpired || (!isSubscribed && !isUserWoman) ? (
+            item.accessExpired || (!effectiveIsSubscribed && !isUserWoman) ? (
               <TouchableOpacity
                 style={styles.restoreBtnWrapper}
                 activeOpacity={0.8}
                 onPress={() => {
-                  if (!isSubscribed && !isUserWoman) {
+                  if (!effectiveIsSubscribed && !isUserWoman) {
                     setPaywallVisible?.(true);
                     return;
                   }
@@ -274,7 +311,7 @@ const SentRequestsScreen: React.FC = () => {
                     <View style={styles.restoreBtnContent}>
                       <Icon name="lock" size={13} color="#FFFFFF" style={styles.lockIcon} />
                       <Text style={styles.restoreBtnText}>
-                        {!isSubscribed && !isUserWoman
+                        {!effectiveIsSubscribed && !isUserWoman
                           ? t('profile.userdetails.upgrade', { defaultValue: 'Upgrade' })
                           : t('sent.sentrequestsscreen.restore_access')}
                       </Text>
@@ -287,7 +324,7 @@ const SentRequestsScreen: React.FC = () => {
                 style={styles.chatBtn}
                 activeOpacity={0.8}
                 onPress={() => {
-                  if (!isSubscribed && !isUserWoman) {
+                  if (!effectiveIsSubscribed && !isUserWoman) {
                     setPaywallVisible?.(true);
                     return;
                   }
@@ -334,18 +371,13 @@ const SentRequestsScreen: React.FC = () => {
             )}
           </TouchableOpacity>
           {hasAnyInvitations && (
-            <>
-              <TouchableOpacity activeOpacity={0.7} style={styles.selectBtn}>
-                <Text style={styles.selectText}>{t('requests.requestsinboxscreen.select')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={styles.refreshBtn}
-                onPress={refreshAll}
-              >
-                <Icon name="sync" size={20} color={themeColors.primary} />
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.refreshBtn}
+              onPress={refreshAll}
+            >
+              <Icon name="sync" size={20} color={themeColors.primary} />
+            </TouchableOpacity>
           )}
         </View>
       </View>

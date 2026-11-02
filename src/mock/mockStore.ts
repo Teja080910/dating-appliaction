@@ -1185,6 +1185,25 @@ class MockStore {
       }
     }
 
+    // 4. Fallback: check persisted AsyncStorage subscription
+    if (!subscription) {
+      try {
+        const [storedSub, storedPlan, storedEnd] = await Promise.all([
+          AsyncStorage.getItem('isSubscribed'),
+          AsyncStorage.getItem('@subscription_plan'),
+          AsyncStorage.getItem('@subscription_endDate'),
+        ]);
+        if (storedSub === 'true' && (!storedEnd || new Date(storedEnd).getTime() > Date.now())) {
+          const planNorm = (storedPlan || 'STANDARD').toUpperCase();
+          const activated = await this.activateSubscription(cleanId, planNorm);
+          if (storedEnd) {
+            activated.endDate = storedEnd;
+          }
+          subscription = activated;
+        }
+      } catch {}
+    }
+
     if (subscription?.endDate && new Date(subscription.endDate).getTime() <= Date.now()) {
       return { ...subscription, status: 'EXPIRED' };
     }
@@ -1201,7 +1220,8 @@ class MockStore {
     const plan = this.plans.find((p) => p.id === planId) || this.plans[0];
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + (plan.durationMonths || 1));
+    const daysToAdd = plan.durationDays || (plan.durationMonths ? plan.durationMonths * 30 : 30);
+    endDate.setDate(endDate.getDate() + daysToAdd);
 
     const subscription: MockUserSubscription = {
       id: `sub_${Date.now()}`,

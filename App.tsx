@@ -14,6 +14,7 @@ import { useSubscription } from './src/api/useSubscription';
 import { useConnection } from './src/api/useConnection';
 import { mockStore } from './src/mock/mockStore';
 import { registerDeviceToken } from './src/utils/pushNotificationHelper';
+import { navigate } from './src/utils/navigationHelper';
 
 const ServerSync = () => {
   const { setIsSubscribed } = useContext(AppContext);
@@ -76,12 +77,11 @@ const ServerSync = () => {
     if (subscriptionStatus) {
       const active = Boolean(subscriptionStatus.active);
       setIsSubscribed(active);
-      AsyncStorage.setItem('isSubscribed', active ? 'true' : 'false').catch(() => null);
-    } else if (statusError) {
-      setIsSubscribed(false);
-      AsyncStorage.setItem('isSubscribed', 'false').catch(() => null);
+      if (active) {
+        AsyncStorage.setItem('isSubscribed', 'true').catch(() => null);
+      }
     }
-  }, [setIsSubscribed, subscriptionStatus, statusError]);
+  }, [setIsSubscribed, subscriptionStatus]);
 
   // Periodic poll for updates every 15 seconds while app is active
   useEffect(() => {
@@ -128,8 +128,15 @@ const ServerSync = () => {
         Toast.show({
           type: 'info',
           text1: '💌 New Date Proposal!',
-          text2: `${senderName} sent you a date proposal. Tap Invitations to view.`,
+          text2: `${senderName} sent you a date proposal. Tap to view.`,
           visibilityTime: 6000,
+          onPress: () => {
+            Toast.hide();
+            navigate('BottomTabs', {
+              screen: 'Invitations',
+              params: { initialTab: 'pending' },
+            });
+          },
         });
 
         if (userId) {
@@ -186,8 +193,15 @@ const ServerSync = () => {
         Toast.show({
           type: 'success',
           text1: '🎉 Proposal Accepted!',
-          text2: `${receiverName} accepted your invitation! You can now chat.`,
+          text2: `${receiverName} accepted your invitation! Tap to view.`,
           visibilityTime: 6000,
+          onPress: () => {
+            Toast.hide();
+            navigate('BottomTabs', {
+              screen: 'Sent',
+              params: { initialTab: 'accepted' },
+            });
+          },
         });
 
         if (userId) {

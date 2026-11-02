@@ -51,33 +51,67 @@ const NotificationsScreen = () => {
     const title = String(item?.title || '').toLowerCase();
     const message = String(item?.message || item?.body || '').toLowerCase();
 
-    // 1. Invitations & Dating Proposals -> Navigate to Invitations
-    if (
+    let isMan = true;
+    try {
+      const [g1, g2] = await Promise.all([
+        AsyncStorage.getItem('userGender'),
+        AsyncStorage.getItem('selectedGender'),
+      ]);
+      const g = (g1 || g2 || '').toLowerCase();
+      isMan = !g.includes('woman') && !g.includes('female');
+    } catch {
+      isMan = true;
+    }
+
+    // 1. Matches & Accepted Proposals / Connection Approvals
+    const isAcceptedMatch =
+      type.includes('MATCH') ||
+      type.includes('ACCEPT') ||
+      type.includes('APPROV') ||
+      title.includes('accepted') ||
+      title.includes('approved') ||
+      title.includes('match') ||
+      message.includes('accepted') ||
+      message.includes('approved') ||
+      message.includes('now chat') ||
+      message.includes('telegram username is now available') ||
+      message.includes('now connect');
+
+    if (isAcceptedMatch) {
+      if (isMan) {
+        navigation.navigate('BottomTabs', {
+          screen: 'Sent',
+          params: { initialTab: 'accepted' },
+        });
+      } else {
+        navigation.navigate('BottomTabs', {
+          screen: 'Invitations',
+          params: { initialTab: 'accepted' },
+        });
+      }
+      return;
+    }
+
+    // 2. Incoming Invitations & Date Proposals
+    const isInvite =
       type.includes('INVIT') ||
       type.includes('CONNECT') ||
+      type.includes('PROPOSAL') ||
       title.includes('invit') ||
       title.includes('proposal') ||
+      title.includes('request') ||
       message.includes('invitation') ||
       message.includes('proposal') ||
-      message.includes('sent you')
-    ) {
-      try {
-        const [g1, g2] = await Promise.all([
-          AsyncStorage.getItem('userGender'),
-          AsyncStorage.getItem('selectedGender'),
-        ]);
-        const g = (g1 || g2 || '').toLowerCase();
-        const isMan = g === 'man' || g === 'male';
-        if (isMan) {
-          navigation.navigate('BottomTabs' as any, { screen: 'Sent' });
-        } else {
-          navigation.navigate('BottomTabs' as any, {
-            screen: 'Invitations',
-            params: { initialTab: 'pending' },
-          });
-        }
-      } catch {
-        navigation.navigate('BottomTabs' as any, {
+      message.includes('sent you');
+
+    if (isInvite) {
+      if (isMan) {
+        navigation.navigate('BottomTabs', {
+          screen: 'Sent',
+          params: { initialTab: 'pending' },
+        });
+      } else {
+        navigation.navigate('BottomTabs', {
           screen: 'Invitations',
           params: { initialTab: 'pending' },
         });
@@ -85,13 +119,60 @@ const NotificationsScreen = () => {
       return;
     }
 
-    // 2. Telegram / Match Connections -> Navigate to Telegram
-    if (type.includes('TELEGRAM') || title.includes('telegram') || message.includes('telegram')) {
-      navigation.navigate('BottomTabs' as any, { screen: 'Telegram' });
+    // 3. Telegram Handle / Chat Notifications
+    const isTelegram =
+      type.includes('TELEGRAM') ||
+      title.includes('telegram') ||
+      message.includes('telegram');
+
+    if (isTelegram) {
+      if (isMan) {
+        navigation.navigate('BottomTabs', {
+          screen: 'Sent',
+          params: { initialTab: 'accepted' },
+        });
+      } else {
+        navigation.navigate('BottomTabs', {
+          screen: 'Telegram',
+        });
+      }
       return;
     }
 
-    // 3. Informational Alert fallback
+    // 4. Subscriptions / Plans / Upgrades
+    const isSubscription =
+      type.includes('SUB') ||
+      type.includes('PLAN') ||
+      type.includes('PAY') ||
+      title.includes('subscri') ||
+      title.includes('plan') ||
+      title.includes('premium') ||
+      title.includes('gold') ||
+      message.includes('subscri') ||
+      message.includes('premium') ||
+      message.includes('plan');
+
+    if (isSubscription) {
+      navigation.navigate('BottomTabs', { screen: 'Profile' });
+      return;
+    }
+
+    // 5. Profile & Verification Status
+    const isProfile =
+      type.includes('VERIF') ||
+      type.includes('PROFILE') ||
+      title.includes('profile') ||
+      title.includes('verification') ||
+      title.includes('photo') ||
+      message.includes('profile') ||
+      message.includes('verification');
+
+    if (isProfile) {
+      navigation.navigate('BottomTabs', { screen: 'Profile' });
+      return;
+    }
+
+    // 6. Informational Alert fallback
     if (item?.title || item?.message || item?.body) {
       Alert.alert(item.title || 'Notification', item.message || item.body || '');
     }

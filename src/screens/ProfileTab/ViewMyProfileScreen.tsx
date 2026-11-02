@@ -19,8 +19,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Feather";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { getAbsoluteUrl, isApiHostedUrl } from "../../api/apiClient";
+import apiClient, { getAbsoluteUrl, isApiHostedUrl } from "../../api/apiClient";
 import { useConnection } from "../../api/useConnection";
+import { useSubscription } from "../../api/useSubscription";
 import { useUserImages } from "../../api/useImages";
 import { useMyProfile } from "../../api/useProfile";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
@@ -210,6 +211,36 @@ const ViewMyProfileScreen = () => {
   const [myId, setMyId] = useState<string | null>(null);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const { subscriptionStatus } = useSubscription(myId);
+  const [localSubActive, setLocalSubActive] = useState<boolean | null>(null);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let isMounted = true;
+      const checkLocalSub = async () => {
+        try {
+          const [storedSub, storedEnd] = await Promise.all([
+            AsyncStorage.getItem('isSubscribed'),
+            AsyncStorage.getItem('@subscription_endDate'),
+          ]);
+          const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+          if (isMounted) {
+            setLocalSubActive(storedSub === 'true' && isNotExpired);
+          }
+        } catch {}
+      };
+      void checkLocalSub();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
+
+  const effectiveIsSubscribed = Boolean(
+    isSubscribed ||
+    subscriptionStatus?.active ||
+    localSubActive
+  );
 
   useFocusEffect(
     React.useCallback(() => {
@@ -217,21 +248,75 @@ const ViewMyProfileScreen = () => {
       const syncSubscription = async () => {
         if (isViewerWoman) return;
         const currentUserId = myId || (await getUserId());
-        if (!currentUserId) {
-          if (isMounted) setIsSubscribed?.(false);
-          return;
-        }
+
+        // 1. Immediately honor valid local storage so UI doesn't flash unsubscribed
         try {
-          const sub = await mockStore.getSubscriptionStatus(String(currentUserId));
-          const isActive = Boolean(sub && sub.status === 'ACTIVE');
-          if (isMounted) {
-            setIsSubscribed?.(isActive);
-            if (!isActive) {
-              await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan']);
+          const [storedSub, storedEnd, storedPlan] = await Promise.all([
+            AsyncStorage.getItem('isSubscribed'),
+            AsyncStorage.getItem('@subscription_endDate'),
+            AsyncStorage.getItem('@subscription_plan'),
+          ]);
+          const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+          if (storedSub === 'true' && isNotExpired) {
+            if (isMounted) setIsSubscribed?.(true);
+          }
+        } catch {}
+
+        if (!currentUserId) return;
+
+        try {
+          // 2. Query live backend subscription status
+          let apiActive = false;
+          let planName = 'STANDARD';
+          let endDate: string | null = null;
+          let remainingDays: number | null = null;
+
+          try {
+            const res = await apiClient.get('/subscriber/status', {
+              params: { userId: String(currentUserId) },
+            });
+            const d = res?.data?.data || res?.data;
+            if (d && (d.active || d.isActive || d.status === 'ACTIVE' || d.isSubscriber)) {
+              apiActive = true;
+              planName = d.plan || d.planType || 'STANDARD';
+              endDate = d.endDate || null;
+              remainingDays = d.remainingDays ?? d.daysRemaining ?? null;
+            }
+          } catch {}
+
+          // 3. Fallback to mock store
+          if (!apiActive) {
+            const sub = await mockStore.getSubscriptionStatus(String(currentUserId));
+            if (sub && sub.status === 'ACTIVE') {
+              apiActive = true;
+              planName = sub.plan || 'STANDARD';
+              endDate = sub.endDate || null;
+            }
+          }
+
+          if (apiActive) {
+            if (isMounted) setIsSubscribed?.(true);
+            await AsyncStorage.setItem('isSubscribed', 'true');
+            await AsyncStorage.setItem('@subscription_plan', planName.toUpperCase());
+            if (endDate) await AsyncStorage.setItem('@subscription_endDate', endDate);
+            if (remainingDays !== null) await AsyncStorage.setItem('@subscription_remainingDays', String(remainingDays));
+            await mockStore.activateSubscription(String(currentUserId), planName);
+          } else {
+            // Check if local storage is valid and not expired before clearing
+            const [storedSub, storedEnd] = await Promise.all([
+              AsyncStorage.getItem('isSubscribed'),
+              AsyncStorage.getItem('@subscription_endDate'),
+            ]);
+            const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+            if (storedSub === 'true' && isNotExpired) {
+              if (isMounted) setIsSubscribed?.(true);
+            } else {
+              if (isMounted) setIsSubscribed?.(false);
+              await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan', '@subscription_endDate', '@subscription_remainingDays']);
             }
           }
         } catch {
-          if (isMounted) setIsSubscribed?.(false);
+          // Preserve current state on network error
         }
       };
       void syncSubscription();
@@ -388,19 +473,32 @@ const ViewMyProfileScreen = () => {
   }, [sentConnections, numericTargetId]);
 
   const handleLike = async () => {
-    let activeSubscribed = isSubscribed;
+    let activeSubscribed = effectiveIsSubscribed;
     if (!activeSubscribed) {
       try {
         const storedSub = await AsyncStorage.getItem('isSubscribed');
-        if (storedSub === 'true') {
+        const storedEnd = await AsyncStorage.getItem('@subscription_endDate');
+        const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+        if (storedSub === 'true' && isNotExpired) {
           activeSubscribed = true;
           setIsSubscribed?.(true);
         } else if (myId) {
-          const sub = await mockStore.getSubscriptionStatus(String(myId));
-          if (sub && sub.status === 'ACTIVE') {
-            activeSubscribed = true;
-            await AsyncStorage.setItem('isSubscribed', 'true');
-            setIsSubscribed?.(true);
+          try {
+            const res = await apiClient.get('/subscriber/status', { params: { userId: String(myId) } });
+            const d = res?.data?.data || res?.data;
+            if (d && (d.active || d.isActive || d.status === 'ACTIVE' || d.isSubscriber)) {
+              activeSubscribed = true;
+              setIsSubscribed?.(true);
+              await AsyncStorage.setItem('isSubscribed', 'true');
+            }
+          } catch {}
+          if (!activeSubscribed) {
+            const sub = await mockStore.getSubscriptionStatus(String(myId));
+            if (sub && sub.status === 'ACTIVE') {
+              activeSubscribed = true;
+              await AsyncStorage.setItem('isSubscribed', 'true');
+              setIsSubscribed?.(true);
+            }
           }
         }
       } catch {}
@@ -422,6 +520,40 @@ const ViewMyProfileScreen = () => {
     if (normalizeId(String(numericTargetId)) === normalizeId(String(myId))) {
       alert(t('profile.additionaluploadsection.error'), t('profile.viewmyprofilescreen.you_cannot_send_an_invite_to_yourself'));
       return;
+    }
+
+    if (!isViewerWoman) {
+      // Check daily request quota limit for active plan
+      const userPlan = (await AsyncStorage.getItem('@subscription_plan')) || 'STANDARD';
+      const planNormalized = userPlan.toUpperCase();
+      const dailyLimit =
+        planNormalized === 'STANDARD' || planNormalized === 'BASIC'
+          ? 10
+          : planNormalized === 'PREMIUM' || planNormalized === 'GOLD'
+          ? 20
+          : null; // null = Unlimited (ELITE)
+
+      if (dailyLimit !== null) {
+        const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const sentTodayCount = sentConnections.filter((inv: any) => {
+          if (!inv?.createdAt) return false;
+          return new Date(inv.createdAt).getTime() >= startOfDay.getTime();
+        }).length;
+
+        if (sentTodayCount >= dailyLimit) {
+          alert(
+            'Daily Request Limit Reached',
+            `You have used your ${dailyLimit} daily requests on the ${planNormalized === 'STANDARD' ? 'Standard' : 'Premium'} plan.\n\nUpgrade to ${planNormalized === 'STANDARD' ? 'Premium (20/day) or Elite (Unlimited)' : 'Elite (Unlimited requests)'} to send more requests today!`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Upgrade Plan', onPress: () => openSubscriptionPlans() },
+            ]
+          );
+          return;
+        }
+      }
     }
 
     let senderId = myId;
@@ -480,6 +612,17 @@ const ViewMyProfileScreen = () => {
           return;
         }
         if (isSubscriptionGateError(error)) {
+          if (errorDetails.includes('limit') || errorDetails.includes('quota') || errorDetails.includes('daily')) {
+            alert(
+              'Daily Request Limit Reached',
+              'You have reached your daily request limit for your subscription plan. Upgrade your plan to send more requests today!',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Upgrade Plan', onPress: () => openSubscriptionPlans() },
+              ]
+            );
+            return;
+          }
           // FR-34: quota/subscription errors reopen the paywall automatically.
           setPaywallVisible(true);
           return;
@@ -756,7 +899,7 @@ const ViewMyProfileScreen = () => {
                 }
                 style={styles.image}
                 resizeMode="cover"
-                blurRadius={!isViewingSelf && !isSubscribed && !isViewerWoman ? (Platform.OS === 'android' ? 22 : 16) : 0}
+                blurRadius={!isViewingSelf && !effectiveIsSubscribed && !isViewerWoman ? (Platform.OS === 'android' ? 22 : 16) : 0}
               />
 
               {/* Tap navigation for slider */}
@@ -784,7 +927,7 @@ const ViewMyProfileScreen = () => {
               )}
 
               {/* Upgrade to premium blur overlay card when viewing another user and not subscribed (men only) */}
-              {!isViewingSelf && !isSubscribed && !isViewerWoman && (
+              {!isViewingSelf && !effectiveIsSubscribed && !isViewerWoman && (
                 <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
                   <View style={styles.blurCardOverlay} pointerEvents="auto">
                     <TouchableOpacity
@@ -844,12 +987,12 @@ const ViewMyProfileScreen = () => {
           <TouchableOpacity
             style={[
               styles.sendInvitePill,
-              (!isSubscribed && !isViewerWoman) && styles.upgradeBottomPill,
-              (isSubscribed || isViewerWoman) && (isAlreadyInvited || likeMutation.isPending) && styles.sendInvitePillDisabled,
+              (!effectiveIsSubscribed && !isViewerWoman) && styles.upgradeBottomPill,
+              (effectiveIsSubscribed || isViewerWoman) && (isAlreadyInvited || likeMutation.isPending) && styles.sendInvitePillDisabled,
             ]}
             activeOpacity={0.85}
-            onPress={(!isSubscribed && !isViewerWoman) ? openSubscriptionPlans : handleLike}
-            disabled={(!isSubscribed && !isViewerWoman) ? false : (isAlreadyInvited || likeMutation.isPending)}
+            onPress={(!effectiveIsSubscribed && !isViewerWoman) ? openSubscriptionPlans : handleLike}
+            disabled={(!effectiveIsSubscribed && !isViewerWoman) ? false : (isAlreadyInvited || likeMutation.isPending)}
           >
             {likeMutation.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -857,7 +1000,7 @@ const ViewMyProfileScreen = () => {
               <View style={styles.sendInviteContent}>
                 <MaterialCommunityIcons
                   name={
-                    (!isSubscribed && !isViewerWoman)
+                    (!effectiveIsSubscribed && !isViewerWoman)
                       ? "crown"
                       : isAlreadyInvited
                       ? "check-circle-outline"
@@ -868,7 +1011,7 @@ const ViewMyProfileScreen = () => {
                   style={styles.sendInviteIcon}
                 />
                 <Text style={styles.sendInviteText}>
-                  {(!isSubscribed && !isViewerWoman)
+                  {(!effectiveIsSubscribed && !isViewerWoman)
                     ? t('profile.viewmyprofilescreen.upgrade', { defaultValue: 'Upgrade' })
                     : isAlreadyInvited
                     ? t('profile.viewmyprofilescreen.invitation_sent')
