@@ -642,5 +642,10 @@
   "profile.allrightsreserved.copyright": "2025 © Amara app. Toate drepturile rezervate. v. 4.2.2",
   "common.razorpaymock.pay_amount": "Plătește ₹{amount}",
   "common.subscriptionmodal.auto_renews_every_month": "Se reînnoiește automat în fiecare lună până la anulare. Plata se face cu câteva zile înainte de sfârșitul fiecărei perioade. Poți anula oricând.",
-  "profile.supportscreen.chat_with_us_email": "Discută cu noi hi@amara.dating"
+  "profile.supportscreen.chat_with_us_email": "Discută cu noi hi@amara.dating",
+  "common.decline": "Refuză",
+  "common.accept": "Acceptă",
+  "common.select_all": "Selectează tot",
+  "common.delete": "Șterge",
+  "common.cancel": "Anulează"
 }

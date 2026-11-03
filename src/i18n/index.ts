@@ -68,11 +68,22 @@ export const subscribe = (listener: (lang: string) => void): (() => void) => {
   };
 };
 
-export const t = (key: string, params?: Record<string, string | number>): string => {
+export const t = (
+  key: string,
+  params?: Record<string, string | number | undefined> & { defaultValue?: string }
+): string => {
   const dict = dictionaries[currentLang] || dictionaries.en;
-  let text = dict[key] ?? dictionaries.en[key] ?? key;
+  let text = dict?.[key] ?? dictionaries.en?.[key];
+  if (!text) {
+    if (params && typeof params.defaultValue === 'string') {
+      text = params.defaultValue;
+    } else {
+      text = key;
+    }
+  }
   if (params) {
     for (const [name, value] of Object.entries(params)) {
+      if (name === 'defaultValue' || value === undefined) continue;
       text = text.split(`{${name}}`).join(String(value));
     }
   }

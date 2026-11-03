@@ -22,10 +22,10 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import { useSubscription } from '../../api/useSubscription';
-import { useNotification } from '../../api/useNotification';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { Colors, Spacing, useTheme } from '../../theme';
 import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
+import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import NotificationBanner from '../../components/NotificationBanner';
 import { openTelegramChat } from '../../utils/telegramHelper';
 import { t, useTranslation } from '../../i18n';
@@ -71,13 +71,27 @@ const SentRequestsScreen: React.FC = () => {
   const rawUserGender = (userGender || gender || '').toLowerCase();
   const isUserWoman = rawUserGender.includes('woman') || rawUserGender.includes('female');
 
-  const { sentList, refreshAll } = useConnection();
+  const { sentList, refreshAll, cancel } = useConnection();
   const { data: requests = [], isLoading, isRefetching } = sentList;
-  const { useNotificationList } = useNotification();
-  const { data: notifications = [] } = useNotificationList();
-  const unreadNotifCount = (Array.isArray(notifications) ? notifications : []).filter(
-    (n: any) => !n.read
-  ).length;
+
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@deleted_invitations');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setHiddenIds(new Set(parsed.map(String)));
+          }
+        }
+      } catch {}
+    })();
+  }, []);
 
   const { subscriptionStatus } = useSubscription();
   const [localSubActive, setLocalSubActive] = useState<boolean | null>(null);
@@ -130,22 +144,23 @@ const SentRequestsScreen: React.FC = () => {
     return s === 'ACCEPTED' || s === 'APPROVED';
   };
 
-  // Group requests into pending vs accepted
+  // Group requests into pending vs accepted (excluding deleted items)
   const pendingRequests = useMemo(
     () =>
       requests.filter(
         (r) =>
+          !hiddenIds.has(String(r.id)) &&
           !isAcceptedStatus(r.status) &&
           r.status !== 'CANCELLED' &&
           r.status !== 'DECLINED' &&
           r.status !== 'REJECTED'
       ),
-    [requests]
+    [requests, hiddenIds]
   );
 
   const acceptedRequests = useMemo(
-    () => requests.filter((r) => isAcceptedStatus(r.status)),
-    [requests]
+    () => requests.filter((r) => !hiddenIds.has(String(r.id)) && isAcceptedStatus(r.status)),
+    [requests, hiddenIds]
   );
 
   const currentList = activeTab === 'pending' ? pendingRequests : acceptedRequests;
@@ -159,6 +174,67 @@ const SentRequestsScreen: React.FC = () => {
       return name.includes(q);
     });
   }, [currentList, searchQuery]);
+
+  const toggleSelectId = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedIds.size === filteredRequests.length && filteredRequests.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredRequests.map((r) => String(r.id))));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    Alert.alert(
+      t('sent.sentrequestsscreen.delete_invitations', { defaultValue: 'Delete Invitations' }),
+      t('sent.sentrequestsscreen.delete_confirm', {
+        defaultValue: `Are you sure you want to delete ${count} invitation${count > 1 ? 's' : ''}?`,
+      }),
+      [
+        { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+        {
+          text: t('common.delete', { defaultValue: 'Delete' }),
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const toDelete = Array.from(selectedIds);
+              await Promise.allSettled(toDelete.map((id) => cancel.mutateAsync(id)));
+              const nextHidden = new Set([...Array.from(hiddenIds), ...toDelete]);
+              setHiddenIds(nextHidden);
+              await AsyncStorage.setItem(
+                '@deleted_invitations',
+                JSON.stringify(Array.from(nextHidden))
+              );
+              setSelectedIds(new Set());
+              setIsSelectMode(false);
+              refreshAll();
+            } catch (err: any) {
+              Alert.alert(
+                t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
+                getUserFriendlyMessage(err, 'Failed to delete selected invitations.')
+              );
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const cleanDisplayName = (name?: string) => {
     if (!name) return t('home.usercard.user');
@@ -271,16 +347,33 @@ const SentRequestsScreen: React.FC = () => {
     const displayName = cleanDisplayName(receiver.displayName || receiver.name);
     const age = receiver.age ? `, ${receiver.age}` : '';
     const timeText = formatRelativeTime(item.createdAt);
+    const itemIdStr = String(item.id);
+    const isSelected = selectedIds.has(itemIdStr);
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card, isSelected && styles.cardSelected]}
         activeOpacity={0.8}
-        onPress={() => handleOpenProfile(item)}
+        onPress={() => {
+          if (isSelectMode) {
+            toggleSelectId(itemIdStr);
+          } else {
+            handleOpenProfile(item);
+          }
+        }}
       >
+        {isSelectMode && (
+          <View style={styles.selectCheckboxWrap}>
+            <Icon
+              name={isSelected ? 'check-circle' : 'checkbox-blank-circle-outline'}
+              size={22}
+              color={isSelected ? themeColors.primary : themeColors.textMuted}
+            />
+          </View>
+        )}
         <Image source={{ uri: photoUrl }} style={styles.avatar} />
 
-        <View style={styles.cardInfo}>
+        <View style={styles.cardInfo} pointerEvents={isSelectMode ? 'none' : 'auto'}>
           <Text style={styles.nameAgeText} numberOfLines={1}>
             {displayName}{age}
           </Text>
@@ -347,7 +440,7 @@ const SentRequestsScreen: React.FC = () => {
     );
   };
 
-  const hasAnyInvitations = requests.length > 0;
+  const hasAnyInvitations = requests.some((r) => !hiddenIds.has(String(r.id)));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -357,29 +450,38 @@ const SentRequestsScreen: React.FC = () => {
       {/* Top Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('messages.messagescreen.invitations')}</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.bellBtn}
-            onPress={() => navigation.navigate('NotificationsScreen')}
-          >
-            <Icon name="bell-outline" size={22} color={themeColors.text} />
-            {unreadNotifCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          {hasAnyInvitations && (
+        {hasAnyInvitations && (
+          <View style={styles.headerActions}>
             <TouchableOpacity
               activeOpacity={0.7}
-              style={styles.refreshBtn}
-              onPress={refreshAll}
+              style={styles.selectBtn}
+              onPress={() => {
+                if (isSelectMode) {
+                  setIsSelectMode(false);
+                  setSelectedIds(new Set());
+                } else {
+                  setIsSelectMode(true);
+                  setSelectedIds(new Set());
+                }
+              }}
             >
-              <Icon name="sync" size={20} color={themeColors.primary} />
+              <Text style={styles.selectText}>
+                {isSelectMode
+                  ? t('common.cancel', { defaultValue: 'Cancel' })
+                  : t('requests.requestsinboxscreen.select')}
+              </Text>
             </TouchableOpacity>
-          )}
-        </View>
+            {!isSelectMode && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.refreshBtn}
+                onPress={refreshAll}
+              >
+                <Icon name="sync" size={20} color={themeColors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
       {/* When user has no invitations at all, show empty illustration */}
@@ -542,6 +644,41 @@ const SentRequestsScreen: React.FC = () => {
           )}
         </>
       )}
+
+      {/* Multi-Select Floating Bottom Bar */}
+      {isSelectMode && filteredRequests.length > 0 && (
+        <View style={[styles.bottomSelectBar, { bottom: Math.max(insets.bottom, 12) + Spacing.tabBarHeight + 10 }]}>
+          <TouchableOpacity
+            style={styles.selectAllBtn}
+            onPress={handleToggleSelectAll}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.selectAllText}>
+              {selectedIds.size === filteredRequests.length && filteredRequests.length > 0
+                ? t('common.deselect_all', { defaultValue: 'Deselect All' })
+                : t('common.select_all', { defaultValue: 'Select All' })}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.deleteBatchBtn, selectedIds.size === 0 && styles.deleteBatchBtnDisabled]}
+            onPress={handleBulkDelete}
+            disabled={selectedIds.size === 0 || isDeleting}
+            activeOpacity={0.8}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Icon name="trash-can-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.deleteBatchText}>
+                  {t('common.delete', { defaultValue: 'Delete' })} ({selectedIds.size})
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -572,27 +709,6 @@ const createStyles = (colors: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 16,
-    },
-    bellBtn: {
-      padding: 4,
-      position: 'relative',
-    },
-    bellBadge: {
-      position: 'absolute',
-      top: -2,
-      right: -2,
-      backgroundColor: colors.primary,
-      borderRadius: 9,
-      minWidth: 16,
-      height: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 3,
-    },
-    bellBadgeText: {
-      color: '#FFFFFF',
-      fontSize: 10,
-      fontWeight: '800',
     },
     selectBtn: {
       paddingVertical: 4,
@@ -708,6 +824,61 @@ const createStyles = (colors: any) =>
       borderWidth: 1,
       borderColor: colors.border,
       padding: 14,
+    },
+    cardSelected: {
+      backgroundColor: colors.surfaceLight || 'rgba(255, 255, 255, 0.05)',
+    },
+    selectCheckboxWrap: {
+      marginRight: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    bottomSelectBar: {
+      position: 'absolute',
+      left: 18,
+      right: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: colors.surface,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: colors.border,
+      zIndex: 9999,
+      elevation: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+    },
+    selectAllBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+    },
+    selectAllText: {
+      color: colors.primary,
+      fontSize: 14.5,
+      fontWeight: '600',
+    },
+    deleteBatchBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#EF4444',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+    },
+    deleteBatchBtnDisabled: {
+      backgroundColor: colors.surfaceLight || '#2A2A38',
+      opacity: 0.4,
+    },
+    deleteBatchText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
     },
     avatar: {
       width: 60,

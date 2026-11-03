@@ -642,5 +642,10 @@
   "profile.allrightsreserved.copyright": "2025 © Amara app. Todos los derechos reservados. v. 4.2.2",
   "common.razorpaymock.pay_amount": "Pagar ₹{amount}",
   "common.subscriptionmodal.auto_renews_every_month": "Se renueva automáticamente cada mes hasta que se cancele. El cobro se realiza unos días antes del final de cada período. Cancela cuando quieras.",
-  "profile.supportscreen.chat_with_us_email": "Chatea con nosotros hi@amara.dating"
+  "profile.supportscreen.chat_with_us_email": "Chatea con nosotros hi@amara.dating",
+  "common.decline": "Rechazar",
+  "common.accept": "Aceptar",
+  "common.select_all": "Seleccionar todo",
+  "common.delete": "Eliminar",
+  "common.cancel": "Cancelar"
 }

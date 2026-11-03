@@ -642,5 +642,10 @@
   "profile.allrightsreserved.copyright": "2025 © Amara app。全著作権所有。v. 4.2.2",
   "common.razorpaymock.pay_amount": "₹{amount} を支払う",
   "common.subscriptionmodal.auto_renews_every_month": "キャンセルまで毎月自動更新されます。各期間終了の数日前に決済されます。いつでも解約できます。",
-  "profile.supportscreen.chat_with_us_email": "hi@amara.dating に連絡"
+  "profile.supportscreen.chat_with_us_email": "hi@amara.dating に連絡",
+  "common.decline": "辞退",
+  "common.accept": "承認",
+  "common.select_all": "すべて選択",
+  "common.delete": "削除",
+  "common.cancel": "キャンセル"
 }

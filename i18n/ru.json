@@ -642,5 +642,10 @@
   "profile.allrightsreserved.copyright": "2025 © Amara app. Все права защищены. v. 4.2.2",
   "common.razorpaymock.pay_amount": "Заплатить ₹{amount}",
   "common.subscriptionmodal.auto_renews_every_month": "Автопродление каждый месяц до отмены. Оплата списывается за несколько дней до конца периода. Отмена в любое время.",
-  "profile.supportscreen.chat_with_us_email": "Напиши нам hi@amara.dating"
+  "profile.supportscreen.chat_with_us_email": "Напиши нам hi@amara.dating",
+  "common.decline": "Отклонить",
+  "common.accept": "Принять",
+  "common.select_all": "Выбрать все",
+  "common.delete": "Удалить",
+  "common.cancel": "Отмена"
 }

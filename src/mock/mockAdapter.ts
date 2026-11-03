@@ -857,9 +857,25 @@ export const handleMockRequest = async (
     }
   }
 
+  // PUT or POST /connections/cancel
+  if ((method === 'PUT' || method === 'POST') && url.includes('/connections/cancel')) {
+    const requestId = body.requestId || queryParams.requestId;
+    if (requestId) {
+      await mockStore.cancelOrDeclineRequest(String(requestId));
+    }
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: 'Invitation cancelled',
+      data: { id: requestId, status: 'CANCELLED' },
+    });
+  }
+
   // PUT or POST /connections/reject or /connections/decline
   if ((method === 'PUT' || method === 'POST') && (url.includes('/connections/reject') || url.includes('/connections/decline'))) {
     const requestId = body.requestId || queryParams.requestId;
+    if (requestId) {
+      await mockStore.cancelOrDeclineRequest(String(requestId));
+    }
     return createMockResponse(config, 200, {
       status: 'success',
       message: 'Invitation declined',

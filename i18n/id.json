@@ -642,5 +642,10 @@
   "profile.allrightsreserved.copyright": "2025 © Amara app. Hak cipta dilindungi. v. 4.2.2",
   "common.razorpaymock.pay_amount": "Bayar ₹{amount}",
   "common.subscriptionmodal.auto_renews_every_month": "Diperpanjang otomatis setiap bulan hingga dibatalkan. Pembayaran dikenakan beberapa hari sebelum setiap periode berakhir. Batalkan kapan saja.",
-  "profile.supportscreen.chat_with_us_email": "Obrol dengan kami hi@amara.dating"
+  "profile.supportscreen.chat_with_us_email": "Obrol dengan kami hi@amara.dating",
+  "common.decline": "Tolak",
+  "common.accept": "Terima",
+  "common.select_all": "Pilih semua",
+  "common.delete": "Hapus",
+  "common.cancel": "Batal"
 }

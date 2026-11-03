@@ -641,5 +641,10 @@
   "profile.allrightsreserved.copyright": "2025 © Amara app。版权所有。v. 4.2.2",
   "common.razorpaymock.pay_amount": "支付 ₹{amount}",
   "common.subscriptionmodal.auto_renews_every_month": "每月自动续订，直至取消。费用在每个周期结束前几天扣取。可随时取消。",
-  "profile.supportscreen.chat_with_us_email": "联系我们 hi@amara.dating"
+  "profile.supportscreen.chat_with_us_email": "联系我们 hi@amara.dating",
+  "common.decline": "拒绝",
+  "common.accept": "接受",
+  "common.select_all": "全选",
+  "common.delete": "删除",
+  "common.cancel": "取消"
 }
