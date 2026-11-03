@@ -13,7 +13,11 @@ import { useServices } from './src/api/useMisc';
 import { useSubscription } from './src/api/useSubscription';
 import { useConnection } from './src/api/useConnection';
 import { mockStore } from './src/mock/mockStore';
-import { registerDeviceToken } from './src/utils/pushNotificationHelper';
+import {
+  registerDeviceToken,
+  setupPushNotificationListeners,
+  handleNotificationNavigation,
+} from './src/utils/pushNotificationHelper';
 import { navigate } from './src/utils/navigationHelper';
 
 const ServerSync = () => {
@@ -95,6 +99,36 @@ const ServerSync = () => {
 
     return () => clearInterval(interval);
   }, [userId, refreshAll]);
+
+  // Push notification listeners: Live FCM messages & tap navigation
+  useEffect(() => {
+    const unsubscribePush = setupPushNotificationListeners(async (remoteMessage) => {
+      // Check if user disabled app notifications in Preferences
+      const savedPref = await AsyncStorage.getItem('@app_push_notifications');
+      if (savedPref === 'false') return;
+
+      const title = remoteMessage.notification?.title || 'Amara';
+      const body = remoteMessage.notification?.body || '';
+
+      Toast.show({
+        type: 'info',
+        text1: title,
+        text2: body,
+        visibilityTime: 6000,
+        onPress: () => {
+          Toast.hide();
+          handleNotificationNavigation(remoteMessage?.data);
+        },
+      });
+
+      // Instantly refresh requests and notifications
+      refreshAll();
+    });
+
+    return () => {
+      unsubscribePush();
+    };
+  }, [refreshAll]);
 
   // In-app alert: Monitor incoming requests (for female users receiving date proposals)
   useEffect(() => {

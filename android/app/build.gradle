@@ -87,7 +87,7 @@ android {
 
     namespace "com.datingapp"
     defaultConfig {
-        applicationId "com.datingapp"
+        applicationId "app.amara.com"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -133,3 +133,8 @@ dependencies {
 
 
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+
+// Auto-apply Google Services plugin as soon as google-services.json is placed in this directory
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+}

@@ -40,14 +40,14 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: Colors.surface,
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
     flexDirection: 'row',
     justifyContent: 'center',
   },
   headerText: {
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: '900',
     color: Colors.text,
     letterSpacing: 0.5,

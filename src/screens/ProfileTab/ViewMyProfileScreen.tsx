@@ -1211,8 +1211,8 @@ const createStyles = (colors: any, isDark: boolean = true) =>
     },
     sendInvitePill: {
       backgroundColor: colors.primary || '#7C3AED',
-      height: 52,
-      borderRadius: 26,
+      height: 46,
+      borderRadius: 23,
       justifyContent: 'center',
       alignItems: 'center',
       elevation: 4,
@@ -1237,11 +1237,11 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       justifyContent: 'center',
     },
     sendInviteIcon: {
-      marginRight: 8,
+      marginRight: 7,
     },
     sendInviteText: {
       color: '#FFFFFF',
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '700',
     },
   });

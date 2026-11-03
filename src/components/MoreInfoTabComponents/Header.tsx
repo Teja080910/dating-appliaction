@@ -20,18 +20,18 @@ export default Header;
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 6,
-    lineHeight: 20,
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
     fontWeight: '400',
   },
 });

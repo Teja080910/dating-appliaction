@@ -41,7 +41,7 @@ export default SaveButton;
 const styles = StyleSheet.create({
   button: {
     width: '100%',
-    borderRadius: 26,
+    borderRadius: 22,
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
@@ -51,14 +51,14 @@ const styles = StyleSheet.create({
   },
   gradient: {
     width: '100%',
-    paddingVertical: 14,
-    borderRadius: 26,
+    paddingVertical: 11,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
     color: '#FFFFFF',
-    fontSize: 16.5,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.3,
   },

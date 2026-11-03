@@ -939,7 +939,7 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       alignItems: 'flex-start',
     },
     headerTitle: {
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: '700',
       color: colors.text,
     },
@@ -947,7 +947,7 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       width: 40,
     },
     scrollContent: {
-      paddingBottom: 24,
+      paddingBottom: 20,
     },
     carouselSection: {
       marginTop: 14,
@@ -1106,8 +1106,8 @@ const createStyles = (colors: any, isDark: boolean = true) =>
     },
     subscribeButton: {
       marginHorizontal: 16,
-      marginTop: 18,
-      borderRadius: 28,
+      marginTop: 16,
+      borderRadius: 23,
       overflow: 'hidden',
       elevation: 4,
       shadowColor: colors.primary,
@@ -1116,15 +1116,15 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       shadowRadius: 8,
     },
     subscribeGradient: {
-      height: 52,
+      height: 46,
       justifyContent: 'center',
       alignItems: 'center',
     },
     subscribeButtonText: {
       color: '#FFFFFF',
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '700',
-      letterSpacing: 0.5,
+      letterSpacing: 0.4,
     },
     supportFooter: {
       marginTop: 18,

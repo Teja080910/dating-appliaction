@@ -8,6 +8,7 @@ import {
   ScrollView,
   useWindowDimensions,
   ImageSourcePropType,
+  BackHandler,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -91,6 +92,27 @@ const MatchScreen = () => {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  const handleKeepBrowsing = () => {
+    try {
+      (navigation as any).navigate('BottomTabs', { screen: 'Home' });
+    } catch {
+      try {
+        (navigation as any).navigate('Home');
+      } catch {
+        navigation.goBack();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const onBackPress = () => {
+      handleKeepBrowsing();
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
   }, []);
 
   const params = route.params as any;
@@ -238,7 +260,7 @@ const MatchScreen = () => {
 
               <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={() => navigation.goBack()}
+                onPress={handleKeepBrowsing}
               >
                 <Text style={styles.secondaryButtonText}>{t('home.matchscreen.keep_browsing')}</Text>
               </TouchableOpacity>
