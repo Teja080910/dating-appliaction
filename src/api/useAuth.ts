@@ -5,6 +5,7 @@ import { clearFullSession, hasSessionToken, saveAuthSession } from '../utils/ses
 import { getUserId } from '../utils/sessionHelper';
 import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 import { registerDeviceToken } from '../utils/pushNotificationHelper';
+import { generateDeterministicMobile } from '../utils/authPayload';
 
 type VerifyRegisterOtpRequest = {
   email?: string;
@@ -165,9 +166,16 @@ export const useAuth = () => {
   const login = useMutation({
     mutationFn: async (data: LoginRequest) => {
       const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const cleanEmail = email ? email.toLowerCase().trim() : undefined;
+      const effectiveMobile =
+        data.mobile && !data.mobile.includes('@')
+          ? data.mobile
+          : (cleanEmail ? generateDeterministicMobile(cleanEmail) : undefined);
+
       const payload = {
         ...data,
-        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(cleanEmail ? { email: cleanEmail } : {}),
+        ...(effectiveMobile ? { mobile: effectiveMobile } : {}),
       };
       const res = await apiClient.post('/login', payload);
       const normalizedResponse = normalizeAuthResponse(res.data, res.headers);
@@ -215,17 +223,41 @@ export const useAuth = () => {
   const verifyRegisterOtp = useMutation({
     mutationFn: async (data: VerifyRegisterOtpRequest) => {
       const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
-      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
-      const payload = {
-        otp: data.otp,
-        ...(email ? { email: email.toLowerCase().trim() } : {}),
-        ...(mobile ? { mobile } : {}),
-        ...(data.name ? { name: String(data.name).trim() } : {}),
-        ...(data.password ? { password: String(data.password).trim() } : {}),
-        ...(String(data.sessionId ?? '').trim() ? { sessionId: String(data.sessionId).trim() } : {}),
+      const cleanEmail = email ? email.toLowerCase().trim() : undefined;
+      const cleanSessionId = String(data.sessionId ?? '').trim();
+      const cleanOtp = String(data.otp ?? '').trim();
+      const effectiveMobile =
+        data.mobile && !data.mobile.includes('@')
+          ? data.mobile
+          : (cleanEmail ? generateDeterministicMobile(cleanEmail) : undefined);
+
+      // Canonical payload matching Postman collection & API specification:
+      // Includes email, unique mobile identifier, otp, and sessionId.
+      // NOTE: Do NOT send name or password here because /register already recorded them;
+      // sending name/password in verify-register/otp causes the backend to attempt duplicate insertion!
+      const payload: Record<string, any> = {
+        otp: cleanOtp,
       };
-      const res = await apiClient.post('/verify-register/otp', payload);
-      return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
+      if (cleanEmail) payload.email = cleanEmail;
+      if (effectiveMobile) payload.mobile = effectiveMobile;
+      if (cleanSessionId) payload.sessionId = cleanSessionId;
+
+      try {
+        const res = await apiClient.post('/verify-register/otp', payload);
+        return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
+      } catch (err: any) {
+        const status = Number(err?.response?.status || err?.status);
+        console.warn(`[AUTH] /verify-register/otp returned status ${status}. Attempting fallback to /auth/verify-otp...`);
+
+        // If /verify-register/otp failed with 404, 400, or 409, try fallback to /auth/verify-otp
+        try {
+          const fallbackRes = await apiClient.post('/auth/verify-otp', payload);
+          return persistSessionIfAvailable(normalizeAuthResponse(fallbackRes.data, fallbackRes.headers));
+        } catch (fallbackErr) {
+          // If fallback also fails, re-throw original error
+          throw err;
+        }
+      }
     },
   });
 

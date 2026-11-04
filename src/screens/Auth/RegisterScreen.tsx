@@ -213,12 +213,43 @@ const RegisterScreen = ({ navigation }: any) => {
       });
     } catch (error: any) {
       setLoading(false);
-      const serverMsg =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        t('auth.registerscreen.registration_failed');
-      alert(t('auth.registerscreen.registration_failed'), String(serverMsg));
+      const status = Number(error?.response?.status || error?.status);
+      const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
+      const rawMsg = String(error?.response?.data?.message || error?.response?.data?.error || error?.message || '').toLowerCase();
+      const isConflict =
+        status === 409 ||
+        code === 'CONFLICT' ||
+        code === 'DUPLICATE_ENTRY' ||
+        rawMsg.includes('duplicate') ||
+        rawMsg.includes('conflict') ||
+        rawMsg.includes('already exists') ||
+        rawMsg.includes('already registered');
+
+      if (isConflict) {
+        alert(
+          t('auth.otpscreen.account_ready', { defaultValue: 'Account Already Exists' }),
+          t('auth.otpscreen.your_account_is_already_registered_please_procee', {
+            defaultValue: `An account with ${cleanEmail} is already registered. Please log in with your password.`,
+          }),
+          [
+            {
+              text: t('auth.otpscreen.go_to_login', { defaultValue: 'Go to Login' }),
+              onPress: () => navigation.navigate('Login', { email: cleanEmail }),
+            },
+            {
+              text: t('common.cancel', { defaultValue: 'Cancel' }),
+              style: 'cancel',
+            },
+          ]
+        );
+      } else {
+        const serverMsg =
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          t('auth.registerscreen.registration_failed');
+        alert(t('auth.registerscreen.registration_failed'), String(serverMsg));
+      }
     } finally {
       setTimeout(() => {
         isSubmittingRef.current = false;

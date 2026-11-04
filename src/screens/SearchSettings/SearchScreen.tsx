@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Toast from 'react-native-toast-message';
 
 import SearchSettingsHeader from '../../components/SearchSettingsComponents/SearchSettingHeader';
 import AgeRangeSlider from '../../components/SearchSettingsComponents/AgeRange';
@@ -231,7 +232,12 @@ const SearchScreen = ({ navigation }: any) => {
       const profiles = Array.isArray(result) ? result : (result?.content || []);
       setFilteredProfiles(profiles);
       setFilter(filters.onlyOnline ? 'online' : 'newest');
-      alert(t('search.searchscreen.filters_applied'), t('search.searchscreen.matches_updated_successfully'));
+      Toast.show({
+        type: 'success',
+        text1: t('search.searchscreen.filters_applied'),
+        text2: t('search.searchscreen.matches_updated_successfully'),
+        visibilityTime: 2500,
+      });
       navigation.goBack();
     } catch (err: any) {
       const serverMessage =
@@ -299,6 +305,13 @@ const SearchScreen = ({ navigation }: any) => {
     setLocation(t('search.location.my_current_location'));
     setFilteredProfiles(null);
 
+    Toast.show({
+      type: 'info',
+      text1: t('search.saveresetbuttons.reset'),
+      text2: t('search.searchscreen.matches_updated_successfully'),
+      visibilityTime: 2000,
+    });
+
     // Clear saved storage in background
     getUserId()
       .then((resolvedUserId) => clearSavedSearchFilters(resolvedUserId))
@@ -365,6 +378,7 @@ const SearchScreen = ({ navigation }: any) => {
       <SearchSettingsHeader onClose={() => navigation.goBack()} />
 
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -446,6 +460,9 @@ const createStyles = (themeColors: ThemeColors) =>
     safeArea: {
       flex: 1,
       backgroundColor: themeColors.background,
+    },
+    scrollView: {
+      flex: 1,
     },
     scrollContent: {
       flexGrow: 1,

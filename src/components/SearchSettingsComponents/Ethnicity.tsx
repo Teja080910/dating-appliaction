@@ -48,6 +48,7 @@ const Ethnicity: React.FC<EthnicityProps> = ({ onChange }) => {
             key={index}
             style={[styles.option, ethnicity.includes(item) && styles.optionSelected]}
             onPress={() => toggleOption(item)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.optionText, ethnicity.includes(item) && styles.optionTextSelected]}>
               {ethnicityLabel(item)}

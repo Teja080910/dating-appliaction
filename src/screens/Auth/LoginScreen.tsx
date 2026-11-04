@@ -36,7 +36,7 @@ import {
 import { t, useTranslation } from '../../i18n';
 import { mockStore } from '../../mock/mockStore';
 
-const LoginScreen = ({ navigation }: any) => {
+const LoginScreen = ({ navigation, route }: any) => {
   useTranslation();
   const { alert, AlertComponent } = useAlert();
   const {
@@ -49,12 +49,18 @@ const LoginScreen = ({ navigation }: any) => {
     setIsSubscribed,
   } = useContext(AppContext);
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route?.params?.email ? String(route.params.email).trim() : '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (route?.params?.email) {
+      setEmail(String(route.params.email).trim());
+    }
+  }, [route?.params?.email]);
 
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 

@@ -25,7 +25,7 @@ import { clearOnboardingState, STORAGE_KEYS, markTermsAccepted } from '../../uti
 import { usePrivacy } from '../../api/usePrivacy';
 import { AsyncStorageService } from '../../utils/types/AsyncStorage';
 import { mockStore } from '../../mock/mockStore';
-import { buildRegisterPayload, normalizeMobileNumber } from '../../utils/authPayload';
+import { buildRegisterPayload, normalizeMobileNumber, generateDeterministicMobile } from '../../utils/authPayload';
 import { t, useTranslation } from '../../i18n';
 
 const extractApiErrorMessage = (error: any, fallback: string) => {
@@ -58,6 +58,24 @@ const isInvalidOtpError = (error: any) => {
     message.includes('invalid code') ||
     message.includes('otp expired') ||
     message.includes('code expired')
+  );
+};
+
+const isConflictOrDuplicateError = (error: any) => {
+  const status = Number(error?.response?.status || error?.status);
+  const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
+  const rawMsg = extractApiErrorMessage(error, '').toLowerCase();
+  const details = String(error?.response?.data?.details || error?.details || '').toLowerCase();
+  const combined = `${rawMsg} ${details}`;
+
+  return (
+    status === 409 ||
+    code === 'CONFLICT' ||
+    code === 'DUPLICATE_ENTRY' ||
+    combined.includes('duplicate') ||
+    combined.includes('conflict') ||
+    combined.includes('already exists') ||
+    combined.includes('already registered')
   );
 };
 
@@ -126,13 +144,15 @@ const OTPScreen = ({ navigation, route }: any) => {
     setEnglishSkillLevel,
   } = useContext(AppContext);
 
-  const { sendRegisterOtp, verifyRegisterOtp } = useAuth();
+  const { sendRegisterOtp, verifyRegisterOtp, login } = useAuth();
   const { acceptTerms } = usePrivacy();
 
   const effectiveName = String(name ?? contextName ?? '').trim();
   const effectivePassword = String(password ?? contextPassword ?? '').trim();
   const effectiveConfirmPassword = String(confirmPassword ?? effectivePassword).trim();
-  const effectiveMobile = isEmail ? '' : normalizeMobileNumber(recipient || contextPhoneNumber);
+  const effectiveMobile =
+    (!isEmail ? normalizeMobileNumber(recipient || contextPhoneNumber) : '') ||
+    (isEmail ? generateDeterministicMobile(recipient) : '');
 
   useFocusEffect(
     useCallback(() => {
@@ -166,7 +186,7 @@ const OTPScreen = ({ navigation, route }: any) => {
       buildRegisterPayload({
         name: effectiveName,
         email: isEmail ? recipient : undefined,
-        mobile: !isEmail ? effectiveMobile : undefined,
+        mobile: effectiveMobile || undefined,
         password: effectivePassword,
         confirmPassword: effectiveConfirmPassword,
         otp: '',
@@ -193,6 +213,101 @@ const OTPScreen = ({ navigation, route }: any) => {
     );
   };
 
+  const establishUserSession = async (verifyData: any) => {
+    // ✅ CLEANUP PREVIOUS SESSION ONBOARDING & GENDER STATE
+    await AsyncStorage.removeItem("registerSessionId");
+    await clearOnboardingState();
+    await AsyncStorage.multiRemove([
+      "GenderOrientation",
+      "selectedGender",
+      "userGender",
+      "userDob",
+      "firstImageUploaded",
+      "onboardingStep",
+      "onboardingImages",
+      "profileImage",
+      "@amara_mock_images",
+    ]);
+    setImages?.(Array(6).fill(null));
+    setProfileImage?.(null);
+    setProfileImageUrl?.(null);
+    setProfileText?.('');
+    setSelectedAppearance?.(null);
+    setSelectedBodyType?.(null);
+    setSelectedLanguages?.([]);
+    setSelectedEthinicity?.(null);
+    setSelectedSmoking?.(null);
+    setSelectedDrinking?.(null);
+    setSelectedLookingFor?.([]);
+    setSelectedKids?.(null);
+    setSelectedNetWorth?.(null);
+    setEnglishSkillLevel?.(0);
+
+    const targetUserId = verifyData?.userId || verifyData?.user?.userId || verifyData?.user?.id;
+    const targetToken = verifyData?.token || verifyData?.data?.token;
+
+    if (targetUserId) {
+      const uidStr = String(targetUserId);
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.userId, uidStr],
+        ['userId', uidStr],
+        ['@amara_current_user_id', uidStr],
+      ]);
+      try {
+        await mockStore.setCurrentUserId(uidStr);
+      } catch {}
+    }
+
+    if (targetToken) {
+      await AsyncStorageService.setToken(targetToken);
+      await AsyncStorage.setItem('userToken', targetToken);
+      await AsyncStorage.setItem(STORAGE_KEYS.token, targetToken);
+    }
+
+    await AsyncStorage.multiSet([
+      [STORAGE_KEYS.isLoggedIn, 'true'],
+      [STORAGE_KEYS.acceptedTerms, 'true'],
+      ['acceptedTerms', 'true'],
+      [STORAGE_KEYS.onboardingStep, 'GenderOrientation'],
+    ]);
+    await markTermsAccepted();
+
+    if (isEmail) {
+      await AsyncStorage.setItem('userEmail', recipient);
+      await AsyncStorage.setItem('email', recipient);
+    } else if (effectiveMobile) {
+      await AsyncStorage.setItem('phoneNumber', effectiveMobile);
+      await AsyncStorage.setItem('userMobile', effectiveMobile);
+    }
+
+    const userName = effectiveName || verifyData?.user?.name || verifyData?.user?.displayName;
+    if (userName) {
+      await AsyncStorage.setItem("name", userName);
+      await AsyncStorage.setItem("displayName", userName);
+      if (setName) setName(userName);
+      if (setDisplayName) setDisplayName(userName);
+    }
+
+    // Best-effort background sync for terms acceptance
+    try {
+      acceptTerms.mutate(undefined);
+    } catch {}
+
+    // Navigate cleanly to GenderOrientation, replacing stack so OTP is not revisited
+    try {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'GenderOrientation' }],
+      });
+    } catch (navError) {
+      try {
+        navigation.replace('GenderOrientation');
+      } catch {
+        navigation.navigate('GenderOrientation');
+      }
+    }
+  };
+
   const handleVerify = async (explicitOtp?: unknown) => {
     if (loading || isSubmittingRef.current) return;
 
@@ -214,11 +329,11 @@ const OTPScreen = ({ navigation, route }: any) => {
       'sess_mock';
 
     try {
+      // NOTE: Only pass email (or mobile), otp, and sessionId.
+      // Do NOT pass name or password here as credentials were registered in Step 1 (/register).
       const verifyPayload = {
         email: isEmail ? recipient : undefined,
-        mobile: !isEmail ? effectiveMobile : undefined,
-        name: effectiveName || undefined,
-        password: effectivePassword || undefined,
+        mobile: effectiveMobile || undefined,
         otp: trimmedOtp,
         sessionId: effectiveSessionId,
       };
@@ -229,115 +344,56 @@ const OTPScreen = ({ navigation, route }: any) => {
 
       console.log("VERIFY SUCCESS:", verifyData);
 
-      // ✅ CLEANUP PREVIOUS SESSION ONBOARDING & GENDER STATE
-      await AsyncStorage.removeItem("registerSessionId");
-      await clearOnboardingState();
-      await AsyncStorage.multiRemove([
-        "GenderOrientation",
-        "selectedGender",
-        "userGender",
-        "userDob",
-        "firstImageUploaded",
-        "onboardingStep",
-        "onboardingImages",
-        "profileImage",
-        "@amara_mock_images",
-      ]);
-      setImages?.(Array(6).fill(null));
-      setProfileImage?.(null);
-      setProfileImageUrl?.(null);
-      setProfileText?.('');
-      setSelectedAppearance?.(null);
-      setSelectedBodyType?.(null);
-      setSelectedLanguages?.([]);
-      setSelectedEthinicity?.(null);
-      setSelectedSmoking?.(null);
-      setSelectedDrinking?.(null);
-      setSelectedLookingFor?.([]);
-      setSelectedKids?.(null);
-      setSelectedNetWorth?.(null);
-      setEnglishSkillLevel?.(0);
-
-      const targetUserId = verifyData?.userId || verifyData?.user?.userId || verifyData?.user?.id;
-      const targetToken = verifyData?.token || verifyData?.data?.token;
-
-      if (targetUserId) {
-        const uidStr = String(targetUserId);
-        await AsyncStorage.multiSet([
-          [STORAGE_KEYS.userId, uidStr],
-          ['userId', uidStr],
-          ['@amara_current_user_id', uidStr],
-        ]);
-        try {
-          await mockStore.setCurrentUserId(uidStr);
-        } catch {}
-      }
-
-      if (targetToken) {
-        await AsyncStorageService.setToken(targetToken);
-        await AsyncStorage.setItem('userToken', targetToken);
-        await AsyncStorage.setItem(STORAGE_KEYS.token, targetToken);
-      }
-
-      await AsyncStorage.multiSet([
-        [STORAGE_KEYS.isLoggedIn, 'true'],
-        [STORAGE_KEYS.acceptedTerms, 'true'],
-        ['acceptedTerms', 'true'],
-        [STORAGE_KEYS.onboardingStep, 'GenderOrientation'],
-      ]);
-      await markTermsAccepted();
-
-      if (isEmail) {
-        await AsyncStorage.setItem('userEmail', recipient);
-        await AsyncStorage.setItem('email', recipient);
-      } else if (effectiveMobile) {
-        await AsyncStorage.setItem('phoneNumber', effectiveMobile);
-        await AsyncStorage.setItem('userMobile', effectiveMobile);
-      }
-
-      if (effectiveName) {
-        await AsyncStorage.setItem("name", effectiveName);
-        await AsyncStorage.setItem("displayName", effectiveName);
-        if (setName) setName(effectiveName);
-        if (setDisplayName) setDisplayName(effectiveName);
-      }
-
-      // Best-effort background sync for terms acceptance
-      try {
-        acceptTerms.mutate(undefined);
-      } catch {}
-
-      // Navigate cleanly to GenderOrientation, replacing stack so OTP is not revisited
-      try {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'GenderOrientation' }],
-        });
-      } catch (navError) {
-        try {
-          navigation.replace('GenderOrientation');
-        } catch {
-          navigation.navigate('GenderOrientation');
-        }
-      }
-
+      await establishUserSession(verifyData);
     } catch (error: any) {
       isSubmittingRef.current = false;
       console.log("VERIFY ERROR:", error);
       const msg = extractApiErrorMessage(error, "Verification failed");
 
       if (isRegisterSessionExpiredError(error)) {
-        alert(t('auth.otpscreen.session_expired'), t('auth.otpscreen.please_resend_otp'));
+        alert(t('auth.otpscreen.session_expired', { defaultValue: 'Session Expired' }), t('auth.otpscreen.please_resend_otp', { defaultValue: 'Please resend OTP' }));
       } else if (isInvalidOtpError(error)) {
-        alert(t('auth.otpscreen.invalid_otp'), t('auth.otpscreen.please_enter_correct_otp'));
-      } else if (msg.toLowerCase().includes('duplicate entry') || msg.toLowerCase().includes('already exists')) {
+        alert(t('auth.otpscreen.invalid_otp', { defaultValue: 'Invalid OTP' }), t('auth.otpscreen.please_enter_correct_otp', { defaultValue: 'Please enter the correct OTP' }));
+      } else if (isConflictOrDuplicateError(error)) {
+        // If conflict occurs, attempt auto-login in case account was already created and active:
+        if (effectivePassword && recipient) {
+          try {
+            console.log('[OTP] Conflict detected. Attempting auto-login for:', recipient);
+            const loginRes = await login.mutateAsync({
+              email: isEmail ? recipient : undefined,
+              mobile: !isEmail ? effectiveMobile : undefined,
+              password: effectivePassword,
+            } as any);
+
+            const sessionToken = loginRes?.token || loginRes?.data?.token;
+            if (sessionToken) {
+              console.log('✅ [OTP] Auto-login succeeded');
+              await establishUserSession(loginRes);
+              return;
+            }
+          } catch (autoLoginErr) {
+            console.log('⚠️ [OTP] Auto-login attempt failed:', autoLoginErr);
+          }
+        }
+
+        // If auto-login didn't complete, present clear options to the user
         alert(
-          t('auth.otpscreen.account_ready'), 
-          t('auth.otpscreen.your_account_is_already_registered_please_procee'),
-          [{ text: t('auth.otpscreen.go_to_login'), onPress: () => navigation.replace('Login') }]
+          t('profile.additionaluploadsection.error', { defaultValue: 'Registration Error' }),
+          `Verification encountered a conflict for ${recipient}. If you already completed registration earlier, please sign in. Otherwise, please use a different email or try again.`,
+          [
+            {
+              text: t('auth.otpscreen.go_to_login', { defaultValue: 'Go to Login' }),
+              onPress: () => navigation.replace('Login', { email: recipient }),
+            },
+            {
+              text: t('common.cancel', { defaultValue: 'Try Another Email' }),
+              onPress: () => navigation.replace('Register'),
+              style: 'cancel',
+            },
+          ]
         );
       } else {
-        alert(t('profile.additionaluploadsection.error'), msg);
+        alert(t('profile.additionaluploadsection.error', { defaultValue: 'Error' }), msg);
       }
     } finally {
       setLoading(false);

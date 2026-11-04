@@ -49,6 +49,7 @@ const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
               key={item}
               style={[styles.option, selected && styles.optionSelected]}
               onPress={() => handlePress(item)}
+              activeOpacity={0.7}
             >
               <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
                 {valueLabel(item)}

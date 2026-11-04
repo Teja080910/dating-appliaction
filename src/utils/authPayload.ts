@@ -12,15 +12,30 @@ export const normalizeMobileNumber = (value: string | null | undefined): string 
   return normalizeIdentifier(value);
 };
 
+export const generateDeterministicMobile = (email: string | null | undefined): string => {
+  const clean = String(email ?? '').toLowerCase().trim();
+  if (!clean) return '9999999999';
+
+  let hash = 5381;
+  for (let i = 0; i < clean.length; i++) {
+    hash = ((hash << 5) + hash) + clean.charCodeAt(i);
+    hash = hash & hash;
+  }
+  const positive = Math.abs(hash);
+  const numStr = String(positive).padStart(9, '0').slice(-9);
+  return `9${numStr}`;
+};
+
 export const buildLoginPayload = (
   identifier: string | null | undefined,
   password: string | null | undefined,
 ): LoginRequest => {
   const clean = normalizeIdentifier(identifier);
   const isEmail = clean.includes('@');
+  const derivedMobile = isEmail ? generateDeterministicMobile(clean) : clean;
   return {
     email: isEmail ? clean : (clean ? `${clean}@amara.com` : ''),
-    mobile: isEmail ? undefined : clean,
+    mobile: derivedMobile,
     password: String(password ?? '').trim(),
   } as LoginRequest;
 };
@@ -40,7 +55,10 @@ export const buildRegisterPayload = (input: {
     : rawMobile.includes('@')
     ? rawMobile.toLowerCase()
     : undefined;
-  const cleanMobile = rawMobile && !rawMobile.includes('@') ? normalizeIdentifier(rawMobile) : undefined;
+  const cleanMobile =
+    rawMobile && !rawMobile.includes('@')
+      ? normalizeIdentifier(rawMobile)
+      : (cleanEmail ? generateDeterministicMobile(cleanEmail) : undefined);
 
   return {
     name: String(input.name ?? '').trim(),

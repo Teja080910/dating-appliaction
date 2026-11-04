@@ -37,6 +37,7 @@ const LookingFor: React.FC<LookingForProps> = ({ onChange }) => {
             key={index}
             style={[styles.option, lookingFor.includes(item) && styles.optionSelected]}
             onPress={() => toggleOption(item)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.optionText, lookingFor.includes(item) && styles.optionTextSelected]}>
               {lookingForLabel(item)}

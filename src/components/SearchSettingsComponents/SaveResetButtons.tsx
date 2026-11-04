@@ -1,5 +1,6 @@
 import React, { useContext, useMemo } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +18,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const {
     setAgeRange, setLocation, setDistanceRange, setBodyHeight,
     setSearchLanguages, setSelectedOptions, setSelectBodyTypes,
@@ -46,12 +48,19 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
     }
   };
 
+  // Ensure buttons sit safely above the navigation bar / gesture bar on all devices
+  const bottomInset = insets.bottom > 0
+    ? insets.bottom + Spacing.sm
+    : (Platform.OS === 'android' ? 24 : Spacing.lg);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: bottomInset }]}>
       <TouchableOpacity
         style={[styles.button, styles.resetButton]}
         onPress={handleReset}
         disabled={saving}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Text style={styles.resetButtonText}>{t('search.saveresetbuttons.reset')}</Text>
       </TouchableOpacity>
@@ -59,6 +68,8 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
         style={[styles.button, styles.saveButton]}
         onPress={handleSave}
         disabled={saving}
+        activeOpacity={0.8}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <LinearGradient
           colors={[themeColors.primary, themeColors.secondary]}
@@ -84,7 +95,6 @@ const createStyles = (themeColors: ThemeColors) =>
       justifyContent: 'space-between',
       paddingHorizontal: Spacing.screenPaddingHorizontal,
       paddingTop: Spacing.md,
-      paddingBottom: Spacing.lg,
       backgroundColor: themeColors.surface,
       borderTopWidth: 1,
       borderTopColor: themeColors.borderLight,

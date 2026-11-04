@@ -37,6 +37,7 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
             key={index}
             style={[styles.option, englishProficiency.includes(level) && styles.optionSelected]}
             onPress={() => toggleOption(level)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.optionText, englishProficiency.includes(level) && styles.optionTextSelected]}>
               {englishLevelLabel(level)}
