@@ -106,32 +106,28 @@ const ShowMe: React.FC<ShowMeProps> = ({ onChange }) => {
 const createStyles = (themeColors: ThemeColors) =>
   StyleSheet.create({
     container: {
-      padding: Spacing.xl,
-      backgroundColor: themeColors.surface,
-      marginHorizontal: Spacing.screenPaddingHorizontal,
-      marginTop: Spacing.lg,
-      borderRadius: Spacing.radiusXl,
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
+      marginTop: 24,
+      padding: 0,
+      backgroundColor: 'transparent',
     },
     label: {
       fontSize: 16,
-      marginBottom: Spacing.md,
-      fontWeight: '700',
+      marginBottom: 12,
+      fontWeight: '600',
       color: themeColors.text,
-      letterSpacing: 0.1,
+      letterSpacing: -0.1,
     },
     buttonGroup: {
       flexDirection: 'row',
     },
     button: {
-      paddingVertical: Spacing.md,
-      paddingHorizontal: Spacing.xl,
-      borderRadius: Spacing.radiusFull,
-      borderWidth: 1.5,
+      paddingVertical: 10,
+      paddingHorizontal: 22,
+      borderRadius: 9999,
+      borderWidth: 1,
       borderColor: themeColors.borderLight,
-      backgroundColor: themeColors.surfaceLight,
-      marginRight: Spacing.md,
+      backgroundColor: themeColors.surface,
+      marginRight: 10,
     },
     selectedButton: {
       backgroundColor: themeColors.primary,
@@ -140,10 +136,11 @@ const createStyles = (themeColors: ThemeColors) =>
     buttonText: {
       color: themeColors.text,
       fontSize: 14,
-      fontWeight: '600',
+      fontWeight: '500',
     },
     selectedText: {
       color: '#FFFFFF',
+      fontWeight: '600',
     },
   });
 

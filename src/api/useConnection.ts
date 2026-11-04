@@ -134,9 +134,9 @@ export const useConnection = (userId?: string | number) => {
       return 0;
     }
   };
-  const connectionListKey = ['connections'];
-  const sentListKey = ['connections-sent'];
-  const receivedListKey = ['connections-received'];
+  const connectionListKey = ['connections', userId ? String(userId) : 'current'];
+  const sentListKey = ['connections-sent', userId ? String(userId) : 'current'];
+  const receivedListKey = ['connections-received', userId ? String(userId) : 'current'];
 
   const refreshQueries = async () => {
     await queryClient.invalidateQueries({ queryKey: connectionListKey });

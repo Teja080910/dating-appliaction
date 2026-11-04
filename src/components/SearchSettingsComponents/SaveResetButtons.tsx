@@ -65,7 +65,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
         <Text style={styles.resetButtonText}>{t('search.saveresetbuttons.reset')}</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.button, styles.saveButton]}
+        style={[styles.button, styles.saveButtonWrapper]}
         onPress={handleSave}
         disabled={saving}
         activeOpacity={0.8}
@@ -74,7 +74,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
         <LinearGradient
           colors={[themeColors.primary, themeColors.secondary]}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 1, y: 0 }}
           style={styles.saveGradient}
         >
           {saving ? (
@@ -93,37 +93,34 @@ const createStyles = (themeColors: ThemeColors) =>
     container: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingHorizontal: Spacing.screenPaddingHorizontal,
-      paddingTop: Spacing.md,
-      backgroundColor: themeColors.surface,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      backgroundColor: themeColors.background,
       borderTopWidth: 1,
       borderTopColor: themeColors.borderLight,
     },
     button: {
-      paddingVertical: 0,
-      borderRadius: Spacing.radiusXl,
-      marginHorizontal: Spacing.sm,
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: Spacing.buttonHeight,
+      flex: 1,
+      marginHorizontal: 6,
+      height: 48,
     },
     resetButton: {
-      backgroundColor: themeColors.surfaceLight,
+      backgroundColor: themeColors.surface,
       borderWidth: 1,
       borderColor: themeColors.borderLight,
-      flex: 1,
+      borderRadius: Spacing.radiusFull,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    saveButton: {
+    saveButtonWrapper: {
+      borderRadius: Spacing.radiusFull,
       overflow: 'hidden',
-      ...Shadows.md,
-      flex: 1,
     },
     saveGradient: {
       flex: 1,
-      width: '100%',
-      justifyContent: 'center',
+      borderRadius: Spacing.radiusFull,
       alignItems: 'center',
-      borderRadius: Spacing.radiusXl,
+      justifyContent: 'center',
     },
     resetButtonText: {
       color: themeColors.text,

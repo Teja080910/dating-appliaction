@@ -73,8 +73,8 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideTo
             borderRadius: 25,
             slipDisplacement: 200,
           }}
-          selectedStyle={{ backgroundColor: themeColors.primary }}
-          unselectedStyle={{ backgroundColor: themeColors.surfaceLight }}
+          selectedStyle={styles.selectedTrack}
+          unselectedStyle={styles.unselectedTrack}
           markerStyle={styles.marker}
           pressedMarkerStyle={styles.markerPressed}
           containerStyle={styles.sliderContainer}
@@ -106,31 +106,25 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideTo
 const createStyles = (themeColors: ThemeColors) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: Spacing.xl,
-      paddingTop: Spacing.xl,
-      paddingBottom: Spacing.lg,
-      backgroundColor: themeColors.surface,
-      marginHorizontal: Spacing.screenPaddingHorizontal,
-      marginTop: Spacing.lg,
-      borderRadius: Spacing.radiusXl,
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
+      marginTop: 20,
+      padding: 0,
+      backgroundColor: 'transparent',
     },
     headerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: Spacing.sm,
+      marginBottom: 10,
     },
     title: {
       fontSize: 16,
-      fontWeight: '700',
+      fontWeight: '600',
       color: themeColors.text,
-      letterSpacing: 0.1,
+      letterSpacing: -0.1,
     },
     valueText: {
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: '500',
       color: themeColors.textSecondary,
     },
     sliderWrapper: {
@@ -138,6 +132,12 @@ const createStyles = (themeColors: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       marginVertical: 4,
+    },
+    selectedTrack: {
+      backgroundColor: themeColors.primary,
+    },
+    unselectedTrack: {
+      backgroundColor: themeColors.surfaceLight,
     },
     marker: {
       height: 24,
@@ -148,12 +148,12 @@ const createStyles = (themeColors: ThemeColors) =>
       backgroundColor: '#FFFFFF',
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
+          shadowColor: themeColors.primary,
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
+          shadowOpacity: 0.35,
+          shadowRadius: 3,
         },
-        android: { elevation: 4 },
+        android: { elevation: 3 },
       }),
     },
     markerPressed: {
@@ -173,7 +173,7 @@ const createStyles = (themeColors: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: Spacing.xs,
+      marginTop: 4,
     },
     minLabel: {
       fontSize: 13,

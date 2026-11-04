@@ -62,8 +62,8 @@ const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
             borderRadius: 25,
             slipDisplacement: 200,
           }}
-          selectedStyle={{ backgroundColor: themeColors.primary }}
-          unselectedStyle={{ backgroundColor: themeColors.surfaceLight }}
+          selectedStyle={styles.selectedTrack}
+          unselectedStyle={styles.unselectedTrack}
           markerStyle={styles.marker}
           pressedMarkerStyle={styles.markerPressed}
           containerStyle={styles.sliderContainer}
@@ -77,62 +77,63 @@ const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
 const createStyles = (themeColors: ThemeColors) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: Spacing.xl,
-      paddingTop: Spacing.xl,
-      paddingBottom: Spacing.lg,
-      backgroundColor: themeColors.surface,
-      marginHorizontal: Spacing.screenPaddingHorizontal,
-      marginTop: Spacing.lg,
-      borderRadius: Spacing.radiusXl,
-      borderWidth: 1,
-      borderColor: themeColors.borderLight,
+      marginTop: 24,
+      padding: 0,
+      backgroundColor: 'transparent',
     },
     headerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: Spacing.sm,
+      marginBottom: 10,
     },
     title: {
       fontSize: 16,
-      fontWeight: '700',
+      fontWeight: '600',
       color: themeColors.text,
-      letterSpacing: 0.1,
+      letterSpacing: -0.1,
     },
     valueText: {
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: '500',
       color: themeColors.textSecondary,
     },
     sliderWrapper: {
       width: '100%',
       alignItems: 'center',
       justifyContent: 'center',
+      marginVertical: 4,
+    },
+    selectedTrack: {
+      backgroundColor: themeColors.primary,
+    },
+    unselectedTrack: {
+      backgroundColor: themeColors.surfaceLight,
     },
     marker: {
-      height: 26,
-      width: 26,
-      borderRadius: 13,
+      height: 24,
+      width: 24,
+      borderRadius: 12,
       borderWidth: 3,
       borderColor: themeColors.primary,
       backgroundColor: '#FFFFFF',
       ...Platform.select({
         ios: {
-          shadowColor: '#000',
+          shadowColor: themeColors.primary,
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
+          shadowOpacity: 0.35,
+          shadowRadius: 3,
         },
-        android: { elevation: 4 },
+        android: { elevation: 3 },
       }),
     },
     markerPressed: {
-      height: 30,
-      width: 30,
-      borderRadius: 15,
+      height: 28,
+      width: 28,
+      borderRadius: 14,
     },
     sliderContainer: {
-      height: 48,
+      height: 40,
       justifyContent: 'center',
     },
     track: {

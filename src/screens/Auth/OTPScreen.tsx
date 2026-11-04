@@ -158,6 +158,10 @@ const OTPScreen = ({ navigation, route }: any) => {
     useCallback(() => {
       isSubmittingRef.current = false;
       AsyncStorage.setItem('onboardingStep', 'GenderOrientation');
+      const timerId = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timerId);
     }, []),
   );
 
@@ -456,55 +460,56 @@ const OTPScreen = ({ navigation, route }: any) => {
                   </Text>
                 </Text>
 
-                {/* Hidden Text Input for native typing & paste */}
-                <TextInput
-                  ref={inputRef}
-                  style={styles.hiddenInput}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  value={otp}
-                  editable={!loading}
-                  onChangeText={(val) => {
-                    const clean = val.replace(/\D/g, '').slice(0, 6);
-                    setOtp(clean);
-                    if (clean.length === 6 && !loading && !isSubmittingRef.current) {
-                      handleVerify(clean);
-                    }
-                  }}
-                  onFocus={() => setIsInputFocused(true)}
-                  onBlur={() => setIsInputFocused(false)}
-                  autoFocus={true}
-                  caretHidden={true}
-                />
+                {/* OTP Code Boxes with native TextInput overlay */}
+                <View style={styles.codeBoxesContainer}>
+                  {/* 6 Individual Code Boxes */}
+                  <View style={styles.codeBoxesRow} pointerEvents="none">
+                    {otpArray.map((digit, idx) => {
+                      const isCurrentFocus =
+                        isInputFocused && idx === (otp.length < 6 ? otp.length : 5);
+                      const isFilled = Boolean(digit);
+                      return (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.codeBox,
+                            isCurrentFocus && styles.codeBoxFocused,
+                            isFilled && styles.codeBoxFilled,
+                          ]}
+                        >
+                          {digit ? (
+                            <Text style={styles.codeText}>{digit}</Text>
+                          ) : isCurrentFocus ? (
+                            <View style={styles.cursorBar} />
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </View>
 
-                {/* 6 Individual Code Boxes */}
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => inputRef.current?.focus()}
-                  style={styles.codeBoxesRow}
-                >
-                  {otpArray.map((digit, idx) => {
-                    const isCurrentFocus =
-                      isInputFocused && idx === (otp.length < 6 ? otp.length : 5);
-                    const isFilled = Boolean(digit);
-                    return (
-                      <View
-                        key={idx}
-                        style={[
-                          styles.codeBox,
-                          isCurrentFocus && styles.codeBoxFocused,
-                          isFilled && styles.codeBoxFilled,
-                        ]}
-                      >
-                        {digit ? (
-                          <Text style={styles.codeText}>{digit}</Text>
-                        ) : isCurrentFocus ? (
-                          <View style={styles.cursorBar} />
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </TouchableOpacity>
+                  {/* Native Text Input covering the code boxes area for 100% reliable keyboard touch & focus */}
+                  <TextInput
+                    ref={inputRef}
+                    style={styles.hiddenInput}
+                    keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="sms-otp"
+                    maxLength={6}
+                    value={otp}
+                    editable={!loading}
+                    onChangeText={(val) => {
+                      const clean = val.replace(/\D/g, '').slice(0, 6);
+                      setOtp(clean);
+                      if (clean.length === 6 && !loading && !isSubmittingRef.current) {
+                        handleVerify(clean);
+                      }
+                    }}
+                    onFocus={() => setIsInputFocused(true)}
+                    onBlur={() => setIsInputFocused(false)}
+                    autoFocus={true}
+                    caretHidden={true}
+                  />
+                </View>
 
                 {/* Resend Prompt / Timer Row */}
                 <View style={styles.resendRow}>
@@ -643,18 +648,27 @@ function createStyles(colors: any) {
     inlineResendDisabled: {
       color: 'rgba(255, 255, 255, 0.42)',
     },
+    codeBoxesContainer: {
+      position: 'relative',
+      width: '100%',
+      marginBottom: 22,
+    },
     hiddenInput: {
       position: 'absolute',
-      width: 1,
-      height: 1,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
       opacity: 0.01,
-      left: -9999,
+      color: 'transparent',
+      backgroundColor: 'transparent',
     },
     codeBoxesRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 22,
     },
     codeBox: {
       flex: 1,

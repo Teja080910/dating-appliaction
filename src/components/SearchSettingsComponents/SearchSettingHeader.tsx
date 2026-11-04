@@ -18,10 +18,10 @@ const SearchSettingsHeader = ({ onClose }: Props) => {
       <TouchableOpacity
         onPress={onClose}
         style={styles.backButton}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         activeOpacity={0.7}
       >
-        <Icon name="chevron-left" size={26} color={themeColors.text} />
+        <Icon name="chevron-left" size={28} color={themeColors.text} />
       </TouchableOpacity>
       <Text style={styles.title}>{t('search.searchsettingheader.search_settings')}</Text>
     </View>
@@ -34,16 +34,16 @@ const createStyles = (themeColors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingVertical: 12,
       backgroundColor: themeColors.background,
     },
     backButton: {
-      paddingRight: 8,
+      paddingRight: 10,
       paddingVertical: 2,
     },
     title: {
       fontSize: 18,
-      fontWeight: '800',
+      fontWeight: '700',
       color: themeColors.text,
       letterSpacing: -0.2,
     },

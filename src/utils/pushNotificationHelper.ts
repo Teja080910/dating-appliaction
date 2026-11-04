@@ -15,26 +15,33 @@ export const getDeviceToken = async (): Promise<string> => {
     const messaging = messagingModule.default || messagingModule;
     if (messaging && typeof messaging === 'function') {
       const fcm = messaging();
-      if (fcm && typeof fcm.getToken === 'function') {
+
+      if (typeof fcm.requestPermission === 'function') {
+        await fcm.requestPermission().catch(() => null);
+      }
+
+      if (typeof fcm.getToken === 'function') {
         const token = await fcm.getToken();
-        if (token) {
+        if (token && typeof token === 'string' && token.length > 20) {
           await AsyncStorage.setItem(DEVICE_TOKEN_KEY, token);
+          console.log('\n==========================================\n🔥 [REAL FCM TOKEN FOR FIREBASE CONSOLE]:\n' + token + '\n==========================================\n');
           return token;
         }
       }
     }
-  } catch (err) {
-    // Firebase not initialized or google-services.json pending
+  } catch (err: any) {
     if (__DEV__) {
-      console.log('[Push] Native Firebase messaging not available yet, using cached or fallback token.');
+      console.log('⚠️ [Push] Native Firebase getToken attempt:', err?.message || err);
     }
   }
 
-  // 2. Return cached token if exists
+  // 2. Return cached real token if exists (ignore old fcm_dev_ fallback tokens)
   const cached = await AsyncStorage.getItem(DEVICE_TOKEN_KEY);
-  if (cached) return cached;
+  if (cached && !cached.startsWith('fcm_dev_')) {
+    return cached;
+  }
 
-  // 3. Fallback persistent device token
+  // 3. Fallback dev token only if native Firebase is completely unavailable
   const fallbackToken = `fcm_dev_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
   await AsyncStorage.setItem(DEVICE_TOKEN_KEY, fallbackToken);
   return fallbackToken;
@@ -60,17 +67,14 @@ export const registerDeviceToken = async (userId: string | number): Promise<bool
       userId: String(userId),
       token,
       deviceToken: token,
+      fcmToken: token,
       platform: Platform.OS,
     };
 
-    if (__DEV__) {
-      console.log('📱 [Push] Registering device token with backend:', payload);
-    }
+    console.log('📱 [Push] Sending device token to backend POST /notification/push:', payload);
 
     const res = await apiClient.post('/notification/push', payload);
-    if (__DEV__) {
-      console.log('✅ [Push] Device token registered successfully:', res?.data);
-    }
+    console.log('✅ [Push] Device token registered with backend (Status ' + res?.status + '):', res?.data);
     return true;
   } catch (err: any) {
     console.warn('⚠️ [Push] Failed to register device token with backend:', err?.message);

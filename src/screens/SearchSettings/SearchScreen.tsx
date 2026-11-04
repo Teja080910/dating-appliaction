@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, View, Keyboard, Text, TouchableOpacity, Linking } from 'react-native';
+import { ScrollView, StyleSheet, View, Keyboard, Text, TouchableOpacity, Linking, StatusBar } from 'react-native';
 import React, { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
@@ -40,7 +40,7 @@ import { t, useTranslation } from '../../i18n';
 
 const SearchScreen = ({ navigation }: any) => {
   useTranslation();
-  const { themeColors } = useTheme();
+  const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { alert, AlertComponent } = useAlert();
   const [saving, setSaving] = useState(false);
@@ -375,6 +375,7 @@ const SearchScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={themeColors.background} />
       <SearchSettingsHeader onClose={() => navigation.goBack()} />
 
       <ScrollView
@@ -466,6 +467,7 @@ const createStyles = (themeColors: ThemeColors) =>
     },
     scrollContent: {
       flexGrow: 1,
+      paddingHorizontal: 20,
       paddingBottom: 40,
       backgroundColor: themeColors.background,
     },

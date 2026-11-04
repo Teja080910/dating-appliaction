@@ -117,25 +117,46 @@ const UploadPhotosScreen = ({ navigation }: any) => {
             photoUris: photoUrisToSync,
           });
 
-          // Check if all uploaded photos have no face detected
+          // When face verification is active, strictly validate that uploaded photos contain matching human faces
           if (syncRes?.results && Array.isArray(syncRes.results) && syncRes.results.length > 0) {
-            const noFaceCount = syncRes.results.filter(
+            const invalidPhotos = syncRes.results.filter(
               (r: any) =>
                 r.reason === 'No face detected' ||
-                (r.match_found === false && Number(r.similarity || 0) === 0)
-            ).length;
+                r.face_detected === false ||
+                (r.match_found === false && (r.similarity === undefined || Number(r.similarity || 0) < 0.35))
+            );
 
-            if (noFaceCount === syncRes.results.length) {
+            if (invalidPhotos.length > 0) {
               setIsCheckingPhotos(false);
               Alert.alert(
                 'Face Required in Photos',
-                'None of your uploaded photos contain a clear, recognizable human face. Amara requires photos showing yourself. Please replace them with clear photos of your face.'
+                'Each uploaded photo must clearly show your face and match your verified selfie. Please replace photos of other subjects or without a clear face.'
               );
               return;
             }
           }
         } catch (err: any) {
-          console.warn('[FaceValidation] Verification photo check warning:', err?.message || err);
+          const serverError = err?.response?.data?.error || err?.response?.data?.message;
+          const rawMessage = String(serverError || err?.message || '');
+          const isNetworkErr =
+            !err?.response ||
+            rawMessage === 'Network Error' ||
+            rawMessage.toLowerCase().includes('network') ||
+            rawMessage.toLowerCase().includes('timeout') ||
+            rawMessage.toLowerCase().includes('econnrefused');
+
+          if (!isNetworkErr) {
+            // Face verification is active and rejected the photos: do NOT use fallback, block progression
+            setIsCheckingPhotos(false);
+            Alert.alert(
+              'Face Verification Required',
+              serverError || 'Uploaded photos must contain a clear human face matching your verified selfie. Please replace photos of other subjects.'
+            );
+            return;
+          }
+
+          // If AI service is not running/unreachable, only then allow fallback progression
+          console.warn('[FaceValidation] AI service offline, allowing fallback progression:', rawMessage);
         }
       }
     } catch (e) {

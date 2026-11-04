@@ -11,105 +11,105 @@ export const Typography = {
   // Headings
   h1: {
     fontFamily,
-    fontSize: adjustFontSize(34),
+    fontSize: adjustFontSize(31.5),
     fontWeight: '700' as const,
-    lineHeight: adjustFontSize(41),
+    lineHeight: adjustFontSize(38),
     letterSpacing: -0.5,
   },
   h2: {
     fontFamily,
-    fontSize: adjustFontSize(28),
+    fontSize: adjustFontSize(25.5),
     fontWeight: '700' as const,
-    lineHeight: adjustFontSize(34),
+    lineHeight: adjustFontSize(31),
     letterSpacing: -0.3,
   },
   h3: {
     fontFamily,
-    fontSize: adjustFontSize(24),
+    fontSize: adjustFontSize(22.5),
     fontWeight: '600' as const,
-    lineHeight: adjustFontSize(30),
+    lineHeight: adjustFontSize(28),
     letterSpacing: -0.2,
   },
   h4: {
     fontFamily,
-    fontSize: adjustFontSize(20),
+    fontSize: adjustFontSize(18.5),
     fontWeight: '600' as const,
-    lineHeight: adjustFontSize(26),
+    lineHeight: adjustFontSize(24),
   },
   h5: {
     fontFamily,
-    fontSize: adjustFontSize(18),
+    fontSize: adjustFontSize(16.5),
     fontWeight: '600' as const,
-    lineHeight: adjustFontSize(24),
+    lineHeight: adjustFontSize(22),
   },
 
   // Body
   bodyLarge: {
     fontFamily,
-    fontSize: adjustFontSize(17),
-    fontWeight: '400' as const,
-    lineHeight: adjustFontSize(24),
-  },
-  body: {
-    fontFamily,
-    fontSize: adjustFontSize(15),
+    fontSize: adjustFontSize(15.5),
     fontWeight: '400' as const,
     lineHeight: adjustFontSize(22),
   },
+  body: {
+    fontFamily,
+    fontSize: adjustFontSize(14),
+    fontWeight: '400' as const,
+    lineHeight: adjustFontSize(20),
+  },
   bodySmall: {
     fontFamily,
-    fontSize: adjustFontSize(13),
+    fontSize: adjustFontSize(12),
     fontWeight: '400' as const,
-    lineHeight: adjustFontSize(18),
+    lineHeight: adjustFontSize(16.5),
   },
 
   // Labels
   label: {
     fontFamily,
-    fontSize: adjustFontSize(14),
+    fontSize: adjustFontSize(13),
     fontWeight: '500' as const,
-    lineHeight: adjustFontSize(20),
+    lineHeight: adjustFontSize(18),
     letterSpacing: 0.2,
   },
   labelSmall: {
     fontFamily,
-    fontSize: adjustFontSize(12),
+    fontSize: adjustFontSize(11),
     fontWeight: '500' as const,
-    lineHeight: adjustFontSize(16),
+    lineHeight: adjustFontSize(15),
     letterSpacing: 0.3,
   },
 
   // Buttons
   button: {
     fontFamily,
-    fontSize: adjustFontSize(16),
+    fontSize: adjustFontSize(15),
     fontWeight: '600' as const,
-    lineHeight: adjustFontSize(22),
+    lineHeight: adjustFontSize(20),
     letterSpacing: 0.3,
   },
   buttonSmall: {
     fontFamily,
-    fontSize: adjustFontSize(14),
+    fontSize: adjustFontSize(13),
     fontWeight: '600' as const,
-    lineHeight: adjustFontSize(18),
+    lineHeight: adjustFontSize(17),
     letterSpacing: 0.2,
   },
 
   // Caption
   caption: {
     fontFamily,
-    fontSize: adjustFontSize(11),
+    fontSize: adjustFontSize(10.2),
     fontWeight: '400' as const,
-    lineHeight: adjustFontSize(14),
+    lineHeight: adjustFontSize(13),
     letterSpacing: 0.4,
   },
 
   // Numbers
   number: {
     fontFamily,
-    fontSize: adjustFontSize(40),
+    fontSize: adjustFontSize(36),
     fontWeight: '700' as const,
-    lineHeight: adjustFontSize(48),
+    lineHeight: adjustFontSize(44),
     letterSpacing: -1,
   },
 };

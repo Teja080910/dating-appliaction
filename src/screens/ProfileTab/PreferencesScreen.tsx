@@ -294,6 +294,7 @@ const PreferencesScreen = () => {
               ios_backgroundColor={colors.surfaceLighter}
             />
           </View>
+
         </View>
 
         {/* Section: Appearance */}

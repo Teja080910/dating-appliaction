@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tabLabel: {
-    fontSize: 10.5,
+    fontSize: 9,
     letterSpacing: 0.1,
   },
   tabLabelActive: {
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   },
   tabBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
     textAlign: 'center',
   },

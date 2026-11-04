@@ -33,11 +33,13 @@ export const moderateScale = (size: number, factor = 0.5) =>
 // Normalizes font sizes based on pixel ratio consistently across iOS & Android pixel densities
 export const adjustFontSize = (size: number) => {
   const factor = getClampedFactor(SCREEN_WIDTH, guidelineBaseWidth);
-  const newSize = size * factor;
+  const decrease = size >= 26 ? 2.5 : size >= 18 ? 1.5 : size >= 12 ? 1 : 0.8;
+  const scaledBase = Math.max(8.5, size - decrease);
+  const newSize = scaledBase * factor;
   if (Platform.OS === 'ios') {
     return Math.round(PixelRatio.roundToNearestPixel(newSize));
   } else {
-    return Math.max(10, Math.round(PixelRatio.roundToNearestPixel(newSize)) - 1);
+    return Math.max(9, Math.round(PixelRatio.roundToNearestPixel(newSize)) - 1);
   }
 };
 
@@ -67,11 +69,13 @@ export const useResponsive = () => {
 
   const dynamicAdjustFontSize = (size: number) => {
     const factor = getClampedFactor(width, guidelineBaseWidth);
-    const newSize = size * factor;
+    const decrease = size >= 26 ? 2.5 : size >= 18 ? 1.5 : size >= 12 ? 1 : 0.8;
+    const scaledBase = Math.max(8.5, size - decrease);
+    const newSize = scaledBase * factor;
     if (Platform.OS === 'ios') {
       return Math.round(PixelRatio.roundToNearestPixel(newSize));
     } else {
-      return Math.max(10, Math.round(PixelRatio.roundToNearestPixel(newSize)) - 1);
+      return Math.max(9, Math.round(PixelRatio.roundToNearestPixel(newSize)) - 1);
     }
   };
 
