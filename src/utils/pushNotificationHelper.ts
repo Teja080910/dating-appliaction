@@ -104,6 +104,16 @@ export const handleNotificationNavigation = async (data: any) => {
     const screen = String(data.screen || '').toLowerCase();
     const type = String(data.type || '').toUpperCase();
     const tab = data.tab ? String(data.tab).toLowerCase() : undefined;
+    const targetUserId = data.userId || data.targetUserId || data.senderId;
+
+    // 0. Direct Profile navigation (if backend passes target user ID and requested profile screen)
+    if (targetUserId && (screen.includes('profile') || screen.includes('user') || data.openProfile === 'true')) {
+      navigate('ViewMyProfileScreen', {
+        userId: targetUserId,
+        targetUserId: targetUserId,
+      });
+      return;
+    }
 
     // 1. Invitations / Date Proposals
     if (screen.includes('invit') || type.includes('INVIT') || type.includes('PROPOSAL')) {
