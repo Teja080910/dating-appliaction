@@ -32,7 +32,7 @@ const BodyTypeSelector = () => {
       </View>
       <View style={styles.optionsWrap}>
         {bodyTypes.map((type) => {
-          const isSelected = selectedBodyType === type;
+          const isSelected = String(selectedBodyType ?? '').trim().toLowerCase() === type.toLowerCase();
           return isSelected ? (
             <TouchableOpacity
               key={type}

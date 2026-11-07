@@ -1,5 +1,5 @@
-import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, LayoutChangeEvent, TouchableOpacity } from 'react-native';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent, TouchableOpacity, useWindowDimensions } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import Feather from 'react-native-vector-icons/Feather';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -16,7 +16,13 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideTo
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { distanceRange, setDistanceRange, isChecked, setIsChecked, isSubscribed, setPaywallVisible } = useContext(AppContext);
-  const [sliderWidth, setSliderWidth] = useState(260);
+  const { width: windowWidth } = useWindowDimensions();
+  const computeSliderWidth = (w: number) => Math.max(180, Math.round(w - 32 - 24));
+  const [sliderWidth, setSliderWidth] = useState(() => computeSliderWidth(windowWidth));
+
+  useEffect(() => {
+    setSliderWidth(computeSliderWidth(windowWidth));
+  }, [windowWidth]);
 
   const currentDistance = Math.min(Math.max(Number(distanceRange) || 50, 5), 200);
 
@@ -43,7 +49,7 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideTo
   const handleLayout = (event: LayoutChangeEvent) => {
     const availableWidth = event.nativeEvent.layout.width;
     if (availableWidth > 60) {
-      setSliderWidth(Math.max(180, availableWidth - 28));
+      setSliderWidth(Math.max(180, Math.round(availableWidth - 24)));
     }
   };
 

@@ -1,0 +1,188 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Toast, { ToastConfig, ToastConfigParams } from 'react-native-toast-message';
+
+interface AmaraToastItemProps extends ToastConfigParams<any> {
+  variant: 'success' | 'error' | 'info';
+}
+
+const variantConfig = {
+  success: {
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+    iconBg: 'rgba(16, 185, 129, 0.16)',
+    iconColor: '#10B981',
+    iconName: 'check-circle-outline',
+    textColor2: '#A7F3D0',
+  },
+  error: {
+    borderColor: 'rgba(239, 68, 68, 0.55)',
+    iconBg: 'rgba(239, 68, 68, 0.16)',
+    iconColor: '#EF4444',
+    iconName: 'alert-circle-outline',
+    textColor2: '#FECDD3',
+  },
+  info: {
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+    iconBg: 'rgba(139, 92, 246, 0.18)',
+    iconColor: '#A78BFA',
+    iconName: 'information-outline',
+    textColor2: '#DDD6FE',
+  },
+};
+
+const AmaraToastItem: React.FC<AmaraToastItemProps> = ({
+  text1,
+  text2,
+  onPress,
+  hide,
+  variant,
+}) => {
+  const conf = variantConfig[variant] || variantConfig.info;
+
+  const handlePress = () => {
+    if (typeof onPress === 'function') {
+      onPress();
+    } else if (typeof hide === 'function') {
+      hide();
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={handlePress}
+      style={[styles.container, { borderColor: conf.borderColor }]}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: conf.iconBg }]}>
+        <Icon name={conf.iconName} size={22} color={conf.iconColor} />
+      </View>
+
+      <View style={styles.textContainer}>
+        {Boolean(text1) && (
+          <Text style={styles.title} numberOfLines={1}>
+            {text1}
+          </Text>
+        )}
+        {Boolean(text2) && (
+          <Text style={[styles.subtitle, { color: conf.textColor2 }]} numberOfLines={2}>
+            {text2}
+          </Text>
+        )}
+      </View>
+
+      <TouchableOpacity
+        style={styles.closeBtn}
+        onPress={() => hide()}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        activeOpacity={0.7}
+      >
+        <Icon name="close" size={16} color="rgba(255, 255, 255, 0.45)" />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+};
+
+export const toastConfig: ToastConfig = {
+  success: (props: ToastConfigParams<any>) => (
+    <AmaraToastItem {...props} variant="success" />
+  ),
+  error: (props: ToastConfigParams<any>) => (
+    <AmaraToastItem {...props} variant="error" />
+  ),
+  info: (props: ToastConfigParams<any>) => (
+    <AmaraToastItem {...props} variant="info" />
+  ),
+};
+
+export const showSuccessToast = (text1: string, text2?: string, visibilityTime = 3000) => {
+  Toast.show({
+    type: 'success',
+    text1,
+    text2,
+    visibilityTime,
+  });
+};
+
+export const showErrorToast = (text1: string, text2?: string, visibilityTime = 3500) => {
+  Toast.show({
+    type: 'error',
+    text1,
+    text2,
+    visibilityTime,
+  });
+};
+
+export const showInfoToast = (text1: string, text2?: string, visibilityTime = 2500) => {
+  Toast.show({
+    type: 'info',
+    text1,
+    text2,
+    visibilityTime,
+  });
+};
+
+const styles = StyleSheet.create({
+  container: {
+    width: '92%',
+    maxWidth: 420,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1A38',
+    borderRadius: 18,
+    borderWidth: 1.2,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  iconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 6,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.1,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  closeBtn: {
+    padding: 6,
+    marginLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+export default toastConfig;

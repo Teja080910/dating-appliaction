@@ -4,6 +4,7 @@ import apiClient, { toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 import { mockStore } from '../mock/mockStore';
+import { isInvalidPhoneNumber } from '../utils/whatsappHelper';
 
 export interface ConnectionRequest {
   id: number | string;
@@ -36,6 +37,94 @@ const resolveConnectionArray = (payload: unknown): any[] => {
   return [];
 };
 
+const extractPhoneFromSources = (...sources: any[]): string => {
+  for (const src of sources) {
+    if (!src) continue;
+    if (typeof src === 'string') {
+      const trimmed = src.trim();
+      if (!isInvalidPhoneNumber(trimmed)) return trimmed;
+    }
+    if (typeof src === 'object') {
+      const cand =
+        src.phoneNumber ||
+        src.phone ||
+        src.mobile ||
+        src.mobileNumber ||
+        src.whatsapp ||
+        src.whatsappNumber ||
+        src.contact ||
+        src.contactNumber ||
+        src.receiverPhone ||
+        src.receiverPhoneNumber ||
+        src.receiverMobile ||
+        src.receiverWhatsapp ||
+        src.senderPhone ||
+        src.senderPhoneNumber ||
+        src.senderMobile ||
+        src.senderWhatsapp ||
+        src.user?.phoneNumber ||
+        src.user?.mobile ||
+        src.user?.phone ||
+        src.user?.whatsapp ||
+        src.profile?.phoneNumber ||
+        src.profile?.mobile ||
+        src.profile?.phone ||
+        src.profile?.whatsapp;
+      if (cand && !isInvalidPhoneNumber(cand)) {
+        return String(cand).trim();
+      }
+    }
+  }
+  return '';
+};
+
+const isInvalidTgString = (str: string): boolean => {
+  const norm = str.trim().toUpperCase();
+  return (
+    !norm ||
+    norm.includes(' ') ||
+    norm === '-' ||
+    norm === 'NONE' ||
+    norm === 'NULL' ||
+    norm === 'UNDEFINED' ||
+    norm === 'N/A' ||
+    norm.replace(/^@+/, '').length < 3
+  );
+};
+
+const extractTelegramFromSources = (...sources: any[]): string => {
+  for (const src of sources) {
+    if (!src) continue;
+    if (typeof src === 'string') {
+      const trimmed = src.trim();
+      if (!isInvalidTgString(trimmed)) return trimmed;
+    }
+    if (typeof src === 'object') {
+      const cand =
+        src.telegramUsername ||
+        src.telegram ||
+        src.tgUsername ||
+        src.tg ||
+        src.telegramHandle ||
+        src.receiverTelegram ||
+        src.receiverTelegramUsername ||
+        src.senderTelegram ||
+        src.senderTelegramUsername ||
+        src.user?.telegramUsername ||
+        src.user?.telegram ||
+        src.profile?.telegramUsername ||
+        src.profile?.telegram;
+      if (cand && typeof cand === 'string') {
+        const trimmed = cand.trim();
+        if (!isInvalidTgString(trimmed)) {
+          return trimmed;
+        }
+      }
+    }
+  }
+  return '';
+};
+
 const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
   resolveConnectionArray(payload).map((item) => {
     const rawSender = item?.sender && typeof item.sender === 'object' ? item.sender : {};
@@ -49,6 +138,34 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
       : Array.isArray(rawSender?.photos) && rawSender.photos.length > 0 ? rawSender.photos
       : item?.senderPhotos || [];
 
+    const senderPhone = extractPhoneFromSources(
+      item?.senderPhone,
+      item?.senderPhoneNumber,
+      item?.senderMobile,
+      item?.senderWhatsapp,
+      rawSenderProfile?.phoneNumber,
+      rawSenderProfile?.mobile,
+      rawSenderProfile?.phone,
+      rawSenderProfile?.whatsapp,
+      rawSender?.phoneNumber,
+      rawSender?.mobile,
+      rawSender?.phone,
+      rawSender?.whatsapp,
+      rawSender?.user?.phoneNumber,
+      rawSenderProfile?.user?.phoneNumber
+    );
+
+    const senderTg = extractTelegramFromSources(
+      item?.senderTelegram,
+      item?.senderTelegramUsername,
+      rawSenderProfile?.telegramUsername,
+      rawSenderProfile?.telegram,
+      rawSender?.telegramUsername,
+      rawSender?.telegram,
+      rawSender?.user?.telegramUsername,
+      rawSenderProfile?.user?.telegramUsername
+    );
+
     const sender = {
       ...rawSenderProfile,
       ...rawSender,
@@ -57,7 +174,10 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
       displayName: item?.senderName || item?.senderDisplayName || rawSenderProfile?.displayName || rawSender?.displayName || rawSender?.name || 'User',
       photos: senderPhotos,
       photo: senderPhotos[0] || rawSenderProfile?.photo || rawSender?.photo,
-      telegramUsername: item?.senderTelegram || item?.senderTelegramUsername || rawSenderProfile?.telegramUsername || rawSender?.telegramUsername,
+      telegramUsername: senderTg,
+      phoneNumber: senderPhone,
+      mobile: senderPhone,
+      phone: senderPhone,
       age: rawSenderProfile?.age || rawSender?.age,
     };
 
@@ -67,6 +187,34 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
       : Array.isArray(rawReceiver?.photos) && rawReceiver.photos.length > 0 ? rawReceiver.photos
       : item?.receiverPhotos || [];
 
+    const receiverPhone = extractPhoneFromSources(
+      item?.receiverPhone,
+      item?.receiverPhoneNumber,
+      item?.receiverMobile,
+      item?.receiverWhatsapp,
+      rawReceiverProfile?.phoneNumber,
+      rawReceiverProfile?.mobile,
+      rawReceiverProfile?.phone,
+      rawReceiverProfile?.whatsapp,
+      rawReceiver?.phoneNumber,
+      rawReceiver?.mobile,
+      rawReceiver?.phone,
+      rawReceiver?.whatsapp,
+      rawReceiver?.user?.phoneNumber,
+      rawReceiverProfile?.user?.phoneNumber
+    );
+
+    const receiverTg = extractTelegramFromSources(
+      item?.receiverTelegram,
+      item?.receiverTelegramUsername,
+      rawReceiverProfile?.telegramUsername,
+      rawReceiverProfile?.telegram,
+      rawReceiver?.telegramUsername,
+      rawReceiver?.telegram,
+      rawReceiver?.user?.telegramUsername,
+      rawReceiverProfile?.user?.telegramUsername
+    );
+
     const receiver = {
       ...rawReceiverProfile,
       ...rawReceiver,
@@ -75,7 +223,10 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
       displayName: item?.receiverName || item?.receiverDisplayName || rawReceiverProfile?.displayName || rawReceiver?.displayName || rawReceiver?.name || 'User',
       photos: receiverPhotos,
       photo: receiverPhotos[0] || rawReceiverProfile?.photo || rawReceiver?.photo,
-      telegramUsername: item?.receiverTelegram || item?.receiverTelegramUsername || rawReceiverProfile?.telegramUsername || rawReceiver?.telegramUsername,
+      telegramUsername: receiverTg,
+      phoneNumber: receiverPhone,
+      mobile: receiverPhone,
+      phone: receiverPhone,
       age: rawReceiverProfile?.age || rawReceiver?.age,
     };
 

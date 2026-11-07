@@ -50,58 +50,64 @@ const hybridAdapter = async (config: any) => {
   }
 
   const url = String(config.url || '');
-  const isNotificationOrEmail =
-    url.includes('/notification') || url.includes('/emails/my');
+  const isDataEndpoint =
+    url.includes('/search') ||
+    url.includes('/users/filter') ||
+    url.includes('/dashboard/') ||
+    url.includes('/notification') ||
+    url.includes('/emails/my') ||
+    url.includes('/connections/');
 
-  if (isNotificationOrEmail) {
-    if (defaultAxiosAdapter) {
-      try {
-        const response = await defaultAxiosAdapter(config);
-        if (response && response.status >= 200 && response.status < 300) {
-          // If it's a GET request, check whether backend returned actual items
-          if (config.method?.toLowerCase() === 'get') {
-            const data = response.data;
-            const items = Array.isArray(data)
-              ? data
-              : Array.isArray(data?.data)
-              ? data.data
-              : Array.isArray(data?.content)
-              ? data.content
-              : Array.isArray(data?.notifications)
-              ? data.notifications
-              : null;
+  if (defaultAxiosAdapter) {
+    try {
+      const response = await defaultAxiosAdapter(config);
+      if (response && response.status >= 200 && response.status < 300) {
+        if (isDataEndpoint) {
+          const data = response.data;
+          const items = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.content)
+            ? data.content
+            : Array.isArray(data?.users)
+            ? data.users
+            : Array.isArray(data?.notifications)
+            ? data.notifications
+            : null;
 
-            if (items && items.length > 0) {
-              return response; // Show backend data
-            }
-
-            // Backend returned empty list; check if we have local mock items to fall back to
-            const mockRes = await handleMockRequest(config);
-            const mockItems = Array.isArray(mockRes.data)
-              ? mockRes.data
-              : Array.isArray(mockRes.data?.data)
-              ? mockRes.data.data
-              : [];
-            if (mockItems.length > 0) {
-              return mockRes;
-            }
+          if (items && items.length > 0) {
+            return response; // Show backend data
           }
-          return response;
-        }
-      } catch (backendError) {
-        // Backend did not reply, timed out, or threw an error: fallback to mock data
-        if (__DEV__) {
-          console.log('[ApiClient] Backend not replying for notifications, falling back to mock data:', (backendError as any)?.message);
-        }
-        return handleMockRequest(config);
-      }
-    }
 
-    // Default fallback if no adapter
-    return handleMockRequest(config);
+          // Backend returned empty list; fallback to local mock store
+          const mockRes = await handleMockRequest(config);
+          const mockItems = Array.isArray(mockRes.data)
+            ? mockRes.data
+            : Array.isArray(mockRes.data?.data)
+            ? mockRes.data.data
+            : Array.isArray(mockRes.data?.content)
+            ? mockRes.data.content
+            : [];
+          if (mockItems.length > 0) {
+            return mockRes;
+          }
+        }
+        return response;
+      }
+    } catch (backendError: any) {
+      // Re-throw 401 session expiration so auth handler can redirect to login
+      if (backendError?.response?.status === 401) {
+        throw backendError;
+      }
+      if (__DEV__) {
+        console.log('[ApiClient] Backend request failed, falling back to mock data:', url, backendError?.message);
+      }
+      return handleMockRequest(config);
+    }
   }
 
-  return defaultAxiosAdapter ? defaultAxiosAdapter(config) : handleMockRequest(config);
+  return handleMockRequest(config);
 };
 
 const apiClient = axios.create({

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,16 @@ import {
   FlatList,
   Linking,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useTheme } from '../../../theme';
-import { useTelegram } from '../../../api/useTelegram';
+import { useTelegram, useTelegramBotName, useMyTelegramStatus, fetchAmaraBotName, fetchAmaraBotLink, DEFAULT_AMARA_BOT_USERNAME } from '../../../api/useTelegram';
 import { useAlert } from '../../AlertModal';
 import { t, useTranslation } from '../../../i18n';
+import { openAmaraBot } from '../../../utils/telegramHelper';
+import { extractTelegram } from '../../../utils/whatsappHelper';
 
 export interface CountryItem {
   name: string;
@@ -24,17 +27,112 @@ export interface CountryItem {
 }
 
 export const COUNTRIES_LIST: CountryItem[] = [
+  // 1. English (en)
+  { name: 'India', code: '+91', flag: '🇮🇳' },
+  { name: 'United States', code: '+1', flag: '🇺🇸' },
   { name: 'United Kingdom', code: '+44', flag: '🇬🇧' },
+  { name: 'Canada', code: '+1', flag: '🇨🇦' },
+  { name: 'Australia', code: '+61', flag: '🇦🇺' },
+  // 2. Spanish (es)
   { name: 'Spain', code: '+34', flag: '🇪🇸' },
+  { name: 'Mexico', code: '+52', flag: '🇲🇽' },
+  { name: 'Colombia', code: '+57', flag: '🇨🇴' },
+  { name: 'Argentina', code: '+54', flag: '🇦🇷' },
+  // 3. Portuguese (pt)
+  { name: 'Brazil', code: '+55', flag: '🇧🇷' },
   { name: 'Portugal', code: '+351', flag: '🇵🇹' },
+  // 4. German (de)
   { name: 'Germany', code: '+49', flag: '🇩🇪' },
+  { name: 'Austria', code: '+43', flag: '🇦🇹' },
+  { name: 'Switzerland', code: '+41', flag: '🇨🇭' },
+  // 5. Romanian (ro)
   { name: 'Romania', code: '+40', flag: '🇷🇴' },
+  { name: 'Moldova', code: '+373', flag: '🇲🇩' },
+  // 6. Russian (ru)
   { name: 'Russia', code: '+7', flag: '🇷🇺' },
+  { name: 'Kazakhstan', code: '+7', flag: '🇰🇿' },
+  { name: 'Belarus', code: '+375', flag: '🇧🇾' },
+  // 7. French (fr)
   { name: 'France', code: '+33', flag: '🇫🇷' },
+  { name: 'Belgium', code: '+32', flag: '🇧🇪' },
+  // 8. Chinese (zh)
   { name: 'China', code: '+86', flag: '🇨🇳' },
+  { name: 'Taiwan', code: '+886', flag: '🇹🇼' },
+  { name: 'Hong Kong', code: '+852', flag: '🇭🇰' },
+  { name: 'Singapore', code: '+65', flag: '🇸🇬' },
+  // 9. Japanese (ja)
   { name: 'Japan', code: '+81', flag: '🇯🇵' },
+  // 10. Indonesian (id)
   { name: 'Indonesia', code: '+62', flag: '🇮🇩' },
+  { name: 'Malaysia', code: '+60', flag: '🇲🇾' },
+  // Additional international hubs
+  { name: 'United Arab Emirates', code: '+971', flag: '🇦🇪' },
+  { name: 'Saudi Arabia', code: '+966', flag: '🇸🇦' },
+  { name: 'Italy', code: '+39', flag: '🇮🇹' },
 ];
+
+export const getDefaultCountryForLanguage = (langCode: string): CountryItem => {
+  switch ((langCode || '').toLowerCase()) {
+    case 'es':
+      return { name: 'Spain', code: '+34', flag: '🇪🇸' };
+    case 'pt':
+      return { name: 'Brazil', code: '+55', flag: '🇧🇷' };
+    case 'de':
+      return { name: 'Germany', code: '+49', flag: '🇩🇪' };
+    case 'ro':
+      return { name: 'Romania', code: '+40', flag: '🇷🇴' };
+    case 'ru':
+      return { name: 'Russia', code: '+7', flag: '🇷🇺' };
+    case 'fr':
+      return { name: 'France', code: '+33', flag: '🇫🇷' };
+    case 'zh':
+      return { name: 'China', code: '+86', flag: '🇨🇳' };
+    case 'ja':
+      return { name: 'Japan', code: '+81', flag: '🇯🇵' };
+    case 'id':
+      return { name: 'Indonesia', code: '+62', flag: '🇮🇩' };
+    case 'en':
+    default:
+      return { name: 'India', code: '+91', flag: '🇮🇳' };
+  }
+};
+
+export const parsePhoneNumberAndCountry = (rawPhone?: string | null) => {
+  if (!rawPhone) return null;
+  const str = String(rawPhone).trim();
+  if (!str) return null;
+
+  // Sort by code length descending so +351 matches before +35 or +1
+  const sorted = [...COUNTRIES_LIST].sort((a, b) => b.code.length - a.code.length);
+  const matched = sorted.find((c) => str.startsWith(c.code));
+  if (matched) {
+    const remaining = str.slice(matched.code.length).trim();
+    return {
+      country: matched,
+      code: matched.code,
+      name: matched.name,
+      flag: matched.flag,
+      number: remaining.replace(/[^\d\s-]/g, '').trim(),
+    };
+  }
+  const match = str.match(/^(\+\d{1,4})\s*(.*)$/);
+  if (match) {
+    return {
+      country: null,
+      code: match[1],
+      name: null,
+      flag: null,
+      number: match[2].replace(/[^\d\s-]/g, '').trim(),
+    };
+  }
+  return {
+    country: null,
+    code: null,
+    name: null,
+    flag: null,
+    number: str.replace(/[^\d\s-]/g, '').trim(),
+  };
+};
 
 interface ContactDetailsProps {
   showWhatsApp?: boolean;
@@ -67,14 +165,34 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   const { themeColors, isDark } = useTheme();
   const { alert, AlertComponent } = useAlert();
   const { connectTelegram, disconnectTelegram } = useTelegram();
+  const { data: dynamicBotName } = useTelegramBotName();
+  const { data: myTgStatus, refetch: refetchTgStatus } = useMyTelegramStatus();
 
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [telegramModalVisible, setTelegramModalVisible] = useState(false);
-  const [inputTelegram, setInputTelegram] = useState(telegramUsername);
+  const isDisconnectedRef = useRef(false);
+  const cleanConnected = extractTelegram(telegramUsername, myTgStatus?.telegramUsername);
+  const [inputTelegram, setInputTelegram] = useState(cleanConnected);
   const [tgLoading, setTgLoading] = useState(false);
 
-  const cleanConnected = telegramUsername.trim().replace(/^@+/, '');
+  useEffect(() => {
+    if (isDisconnectedRef.current) return;
+    const resolved = extractTelegram(myTgStatus?.telegramUsername);
+    if (resolved && !telegramUsername) {
+      setTelegramUsername(resolved);
+    }
+  }, [myTgStatus?.telegramUsername, telegramUsername, setTelegramUsername]);
+
+  // When returning from Telegram app to Amara, automatically refresh status
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refetchTgStatus?.();
+      }
+    });
+    return () => sub.remove();
+  }, [refetchTgStatus]);
 
   const filteredCountries = COUNTRIES_LIST.filter(
     (c) =>
@@ -90,18 +208,14 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   };
 
   const handleConnectTelegramPress = async () => {
-    const botUrl = 'https://t.me/amara_dating_bot';
-    const appUrl = 'tg://resolve?domain=amara_dating_bot';
-
+    isDisconnectedRef.current = false;
+    // 1. Fetch bot link with 1-click user connect parameter (?start=USER_{userId})
     try {
-      const supported = await Linking.canOpenURL(appUrl);
-      if (supported) {
-        await Linking.openURL(appUrl);
-      } else {
-        await Linking.openURL(botUrl);
-      }
+      const botLink = await fetchAmaraBotLink();
+      await openAmaraBot(botLink);
     } catch {
-      Linking.openURL(botUrl).catch(() => {});
+      const activeBot = await fetchAmaraBotName().catch(() => dynamicBotName || DEFAULT_AMARA_BOT_USERNAME);
+      await openAmaraBot(activeBot);
     }
 
     setInputTelegram(cleanConnected);
@@ -124,15 +238,37 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
       return;
     }
 
+    isDisconnectedRef.current = false;
     setTgLoading(true);
     try {
       await connectTelegram.mutateAsync({ userId: '', username });
       setTelegramUsername(username);
+      await refetchTgStatus?.();
       setTgLoading(false);
       setTelegramModalVisible(false);
       alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
     } catch (error: any) {
       setTgLoading(false);
+      const serverMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        '';
+      const isAlreadyLinked =
+        error?.response?.status === 400 ||
+        error?.response?.status === 409 ||
+        serverMessage.toLowerCase().includes('already') ||
+        serverMessage.toLowerCase().includes('taken') ||
+        serverMessage.toLowerCase().includes('exists');
+
+      if (isAlreadyLinked) {
+        alert(
+          'Username Already Linked',
+          serverMessage || `The Telegram username @${username} is already linked to another Amara account. Each profile must have a unique Telegram handle.`
+        );
+        return;
+      }
+
       setTelegramUsername(username);
       setTelegramModalVisible(false);
       alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_saved', { username }));
@@ -140,16 +276,20 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   };
 
   const handleDisconnectTelegram = async () => {
+    isDisconnectedRef.current = true;
     setTgLoading(true);
+    setTelegramUsername('');
+    setInputTelegram('');
     try {
       await disconnectTelegram.mutateAsync({ userId: '' });
-      setTelegramUsername('');
+      await refetchTgStatus?.();
       setTgLoading(false);
       setTelegramModalVisible(false);
       alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     } catch (error: any) {
       setTgLoading(false);
       setTelegramUsername('');
+      setInputTelegram('');
       setTelegramModalVisible(false);
       alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     }

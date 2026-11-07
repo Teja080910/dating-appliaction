@@ -18,6 +18,11 @@ jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn(),
 }));
 
+jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'MaterialCommunityIcons');
+jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
+jest.mock('react-native-vector-icons/Feather', () => 'Feather');
+jest.mock('react-native-vector-icons/MaterialIcons', () => 'MaterialIcons');
+
 jest.mock('@react-navigation/native', () => ({
   createNavigationContainerRef: () => ({
     isReady: () => false,

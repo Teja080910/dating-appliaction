@@ -6,7 +6,16 @@ import { navigationRef, navigate } from './navigationHelper';
 const DEVICE_TOKEN_KEY = '@amara_device_token';
 
 /**
- * Safely obtain or generate a persistent device token
+ * Checks whether a token is a real valid Firebase Cloud Messaging token
+ */
+export const isRealFcmToken = (token?: string | null): boolean => {
+  if (!token || typeof token !== 'string') return false;
+  const trimmed = token.trim();
+  return trimmed.length > 25 && !trimmed.startsWith('fcm_dev_');
+};
+
+/**
+ * Safely obtain or generate a persistent device token with automatic retry
  */
 export const getDeviceToken = async (): Promise<string> => {
   try {
@@ -16,13 +25,24 @@ export const getDeviceToken = async (): Promise<string> => {
     if (messaging && typeof messaging === 'function') {
       const fcm = messaging();
 
+      if (typeof fcm.registerDeviceForRemoteMessages === 'function') {
+        await fcm.registerDeviceForRemoteMessages().catch(() => null);
+      }
+
       if (typeof fcm.requestPermission === 'function') {
         await fcm.requestPermission().catch(() => null);
       }
 
       if (typeof fcm.getToken === 'function') {
-        const token = await fcm.getToken();
-        if (token && typeof token === 'string' && token.length > 20) {
+        let token = await fcm.getToken().catch(() => null);
+
+        // Quick retry if Google Play Services needed a moment
+        if (!token) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          token = await fcm.getToken().catch(() => null);
+        }
+
+        if (isRealFcmToken(token)) {
           await AsyncStorage.setItem(DEVICE_TOKEN_KEY, token);
           console.log('\n==========================================\n🔥 [REAL FCM TOKEN FOR FIREBASE CONSOLE]:\n' + token + '\n==========================================\n');
           return token;
@@ -35,10 +55,10 @@ export const getDeviceToken = async (): Promise<string> => {
     }
   }
 
-  // 2. Return cached real token if exists (ignore old fcm_dev_ fallback tokens)
+  // 2. Return cached real token if exists
   const cached = await AsyncStorage.getItem(DEVICE_TOKEN_KEY);
-  if (cached && !cached.startsWith('fcm_dev_')) {
-    return cached;
+  if (isRealFcmToken(cached)) {
+    return cached as string;
   }
 
   // 3. Fallback dev token only if native Firebase is completely unavailable
@@ -75,6 +95,28 @@ export const registerDeviceToken = async (userId: string | number): Promise<bool
 
     const res = await apiClient.post('/notification/push', payload);
     console.log('✅ [Push] Device token registered with backend (Status ' + res?.status + '):', res?.data);
+
+    // If we only had a fallback token, retry obtaining a real token shortly
+    if (!isRealFcmToken(token)) {
+      setTimeout(async () => {
+        try {
+          const freshToken = await getDeviceToken();
+          if (isRealFcmToken(freshToken)) {
+            await apiClient.post('/notification/push', {
+              userId: String(userId),
+              token: freshToken,
+              deviceToken: freshToken,
+              fcmToken: freshToken,
+              platform: Platform.OS,
+            });
+            console.log('🔄 [Push] Successfully upgraded to real FCM token for user', userId);
+          }
+        } catch {
+          // ignore retry failure
+        }
+      }, 3000);
+    }
+
     return true;
   } catch (err: any) {
     console.warn('⚠️ [Push] Failed to register device token with backend:', err?.message);
@@ -85,10 +127,18 @@ export const registerDeviceToken = async (userId: string | number): Promise<bool
 /**
  * Handle routing when user taps a push notification (foreground toast or system tray)
  */
-export const handleNotificationNavigation = async (data: any) => {
-  if (!data) return;
+export const handleNotificationNavigation = async (dataOrMessage: any) => {
+  if (!dataOrMessage) return;
 
   try {
+    const rawData = dataOrMessage?.data || {};
+    const rawNotification = dataOrMessage?.notification || {};
+    const data = {
+      ...(typeof dataOrMessage === 'object' ? dataOrMessage : {}),
+      ...rawNotification,
+      ...rawData,
+    };
+
     let isMan = true;
     try {
       const [g1, g2] = await Promise.all([
@@ -101,10 +151,24 @@ export const handleNotificationNavigation = async (data: any) => {
       isMan = true;
     }
 
-    const screen = String(data.screen || '').toLowerCase();
-    const type = String(data.type || '').toUpperCase();
-    const tab = data.tab ? String(data.tab).toLowerCase() : undefined;
-    const targetUserId = data.userId || data.targetUserId || data.senderId;
+    const screen = String(data.screen || data.route || '').toLowerCase();
+    const type = String(data.type || data.notificationType || '').toUpperCase();
+    const title = String(data.title || rawNotification.title || '').toLowerCase();
+    const message = String(data.message || data.body || rawNotification.body || '').toLowerCase();
+    const tab = data.tab || data.initialTab ? String(data.tab || data.initialTab).toLowerCase() : undefined;
+    const targetUserId = data.userId || data.targetUserId || data.senderId || data.receiverId;
+
+    if (__DEV__) {
+      console.log('🔔 [Push] Handling notification navigation:', {
+        screen,
+        type,
+        title,
+        message,
+        tab,
+        targetUserId,
+        isMan,
+      });
+    }
 
     // 0. Direct Profile navigation (if backend passes target user ID and requested profile screen)
     if (targetUserId && (screen.includes('profile') || screen.includes('user') || data.openProfile === 'true')) {
@@ -115,46 +179,84 @@ export const handleNotificationNavigation = async (data: any) => {
       return;
     }
 
-    // 1. Invitations / Date Proposals
-    if (screen.includes('invit') || type.includes('INVIT') || type.includes('PROPOSAL')) {
+    // 1. Matches & Accepted Proposals / Connection Approvals
+    const isAcceptedMatch =
+      screen.includes('sent') ||
+      type.includes('MATCH') ||
+      type.includes('ACCEPT') ||
+      type.includes('APPROV') ||
+      title.includes('accepted') ||
+      title.includes('approved') ||
+      title.includes('match') ||
+      message.includes('accepted') ||
+      message.includes('approved') ||
+      message.includes('match') ||
+      message.includes('telegram') ||
+      tab === 'accepted';
+
+    if (isAcceptedMatch) {
       if (isMan) {
         navigate('BottomTabs', {
           screen: 'Sent',
-          params: { initialTab: tab || 'pending' },
+          params: { initialTab: 'accepted' },
         });
       } else {
         navigate('BottomTabs', {
           screen: 'Invitations',
-          params: { initialTab: tab || 'pending' },
+          params: { initialTab: 'accepted' },
         });
       }
       return;
     }
 
-    // 2. Matches & Accepted Proposals
-    if (screen.includes('sent') || type.includes('MATCH') || type.includes('ACCEPT') || type.includes('APPROV')) {
+    // 2. Incoming Invitations & Date Proposals
+    const isInvite =
+      screen.includes('invit') ||
+      type.includes('INVIT') ||
+      type.includes('PROPOSAL') ||
+      type.includes('CONNECT') ||
+      title.includes('invit') ||
+      title.includes('request') ||
+      title.includes('proposal') ||
+      message.includes('invit') ||
+      message.includes('request') ||
+      message.includes('proposal') ||
+      message.includes('sent you') ||
+      tab === 'pending';
+
+    if (isInvite) {
       if (isMan) {
         navigate('BottomTabs', {
           screen: 'Sent',
-          params: { initialTab: tab || 'accepted' },
+          params: { initialTab: 'pending' },
         });
       } else {
         navigate('BottomTabs', {
           screen: 'Invitations',
-          params: { initialTab: tab || 'accepted' },
+          params: { initialTab: 'pending' },
         });
       }
       return;
     }
 
-    // 3. Profile / Settings
-    if (screen.includes('profile')) {
+    // 3. Notifications List Screen
+    if (screen.includes('notif') || type.includes('NOTIF')) {
+      navigate('NotificationsScreen');
+      return;
+    }
+
+    // 4. Profile / Settings
+    if (screen.includes('profile') || screen.includes('setting')) {
       navigate('BottomTabs', { screen: 'Profile' });
       return;
     }
 
-    // Fallback: Default to Notifications or Home
-    navigate('BottomTabs', { screen: isMan ? 'Home' : 'Invitations' });
+    // Fallback: Default to Sent (accepted for Men) or Invitations for Women
+    if (isMan) {
+      navigate('BottomTabs', { screen: 'Sent', params: { initialTab: 'accepted' } });
+    } else {
+      navigate('BottomTabs', { screen: 'Invitations', params: { initialTab: 'pending' } });
+    }
   } catch (err) {
     console.warn('⚠️ [Push] Error in handleNotificationNavigation:', err);
   }
@@ -168,6 +270,7 @@ export const setupPushNotificationListeners = (
 ): (() => void) => {
   let unsubscribeOnMessage: (() => void) | undefined;
   let unsubscribeOnOpened: (() => void) | undefined;
+  let unsubscribeOnTokenRefresh: (() => void) | undefined;
 
   try {
     const messagingModule = require('@react-native-firebase/messaging');
@@ -193,7 +296,7 @@ export const setupPushNotificationListeners = (
           if (__DEV__) {
             console.log('🔔 [Push] Notification opened from background:', remoteMessage);
           }
-          handleNotificationNavigation(remoteMessage?.data);
+          handleNotificationNavigation(remoteMessage);
         });
       }
 
@@ -204,9 +307,21 @@ export const setupPushNotificationListeners = (
             if (__DEV__) {
               console.log('🚀 [Push] App launched from quit state by notification:', remoteMessage);
             }
-            handleNotificationNavigation(remoteMessage?.data);
+            handleNotificationNavigation(remoteMessage);
           }
         }).catch(() => null);
+      }
+      // 4. Token refresh handler
+      if (typeof fcm.onTokenRefresh === 'function') {
+        unsubscribeOnTokenRefresh = fcm.onTokenRefresh(async (newToken: string) => {
+          if (newToken && typeof newToken === 'string') {
+            await AsyncStorage.setItem(DEVICE_TOKEN_KEY, newToken);
+            const storedUserId = await AsyncStorage.getItem('userId');
+            if (storedUserId) {
+              registerDeviceToken(storedUserId).catch(() => null);
+            }
+          }
+        });
       }
     }
   } catch (err) {
@@ -221,6 +336,9 @@ export const setupPushNotificationListeners = (
     }
     if (typeof unsubscribeOnOpened === 'function') {
       unsubscribeOnOpened();
+    }
+    if (typeof unsubscribeOnTokenRefresh === 'function') {
+      unsubscribeOnTokenRefresh();
     }
   };
 };

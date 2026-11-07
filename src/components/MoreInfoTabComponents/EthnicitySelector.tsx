@@ -39,7 +39,7 @@ const EthnicitySelector = () => {
       </View>
       <View style={styles.optionsWrap}>
         {ETHNICITIES.map((item) => {
-          const isSelected = selectedEthinicity === item;
+          const isSelected = String(selectedEthinicity ?? '').trim().toLowerCase() === item.toLowerCase();
           return isSelected ? (
             <TouchableOpacity
               key={item}

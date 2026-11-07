@@ -4,8 +4,9 @@ import { DeviceEventEmitter } from 'react-native';
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
-import { getAuthSession } from '../utils/session';
+import { getAuthSession, repairStoredSessionIdentity } from '../utils/session';
 import { t } from '../i18n';
+import { generateDeterministicMobile } from '../utils/authPayload';
 
 const allowedFields = [
   'name',
@@ -30,6 +31,11 @@ const allowedFields = [
   'netWorth',
   'verifiedSelfie',
   'selfieVerified',
+  'telegramUsername',
+  'phoneNumber',
+  'mobile',
+  'phone',
+  'mobileNumber',
 ];
 
 const sanitizeProfileDto = (dto: Record<string, any>) =>
@@ -80,6 +86,89 @@ const normalizeProfile = (payload: any) => {
     return Number.isFinite(numeric) ? numeric : 0;
   };
 
+  const rawEmail = source?.email ? String(source.email).toLowerCase().trim() : '';
+  const fakeHash = rawEmail ? generateDeterministicMobile(rawEmail) : '';
+
+  const isRealPhone = (val: unknown): boolean => {
+    if (!val) return false;
+    const str = String(val).trim();
+    if (!str || str.includes('@') || /[a-zA-Z]/.test(str)) return false;
+    const digits = str.replace(/\D/g, '');
+    if (digits.length < 7) return false;
+    if (fakeHash && digits === fakeHash) return false;
+    return true;
+  };
+
+  const resolvedPhone = [
+    source?.mobile,
+    source?.phoneNumber,
+    source?.phone,
+    source?.mobileNumber,
+    nestedProfile?.phoneNumber,
+    nestedProfile?.mobile,
+    nestedProfile?.phone,
+    nestedProfile?.mobileNumber,
+    payloadSource?.phoneNumber,
+    payloadSource?.phone,
+    payloadSource?.mobile,
+    payloadSource?.mobileNumber,
+    nestedUser?.phoneNumber,
+    nestedUser?.mobile,
+    nestedUser?.phone,
+    nestedUser?.mobileNumber,
+  ].find(isRealPhone) || '';
+  const cleanResolvedPhone = String(resolvedPhone).trim();
+
+  const rawKidCount = [
+    source?.kidCount,
+    source?.kid_count,
+    source?.kids,
+    source?.kids_count,
+    source?.children,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const rawNetWorth = [
+    source?.netWorth,
+    source?.net_worth,
+    source?.networth,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const rawBodyType = [
+    source?.bodyType,
+    source?.body_type,
+    source?.body,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const rawEnglishLevel = [
+    source?.englishLevel,
+    source?.english_level,
+    source?.englishProficiency,
+    source?.english_proficiency,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const rawLookingFor = [
+    source?.lookingFor,
+    source?.looking_for,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const rawSmoke = [
+    source?.smoke,
+    source?.smoking,
+    source?.is_smoke,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const rawDrink = [
+    source?.drink,
+    source?.drinking,
+    source?.is_drink,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const rawLanguage = [
+    source?.language,
+    source?.languages,
+  ].find((v) => v !== undefined && v !== null && (Array.isArray(v) ? v.length > 0 : String(v).trim() !== ''));
+  const resolvedLanguage = Array.isArray(rawLanguage) ? rawLanguage.join(', ') : (rawLanguage ? String(rawLanguage) : '');
+
   return {
     id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
     userId: source?.userId !== undefined && source?.userId !== null
@@ -95,19 +184,24 @@ const normalizeProfile = (payload: any) => {
       : null,
     gender: source?.gender ? String(source.gender) : null,
     orientation: source?.orientation ? String(source.orientation) : null,
-    language: source?.language ? String(source.language) : '',
-    appearance: source?.appearance ? String(source.appearance) : '',
-    bodyType: source?.bodyType ? String(source.bodyType) : '',
-    height: numberOrZero(source?.height),
-    englishLevel: source?.englishLevel ? String(source.englishLevel) : '',
-    ethnicity: source?.ethnicity ? String(source.ethnicity) : '',
-    lookingFor: source?.lookingFor ? String(source.lookingFor) : '',
-    smoke: source?.smoke ? String(source.smoke) : '',
-    drink: source?.drink ? String(source.drink) : '',
-    kidCount: source?.kidCount ? String(source.kidCount) : (source?.kids ? String(source.kids) : ''),
-    netWorth: source?.netWorth ? String(source.netWorth) : '',
+    language: resolvedLanguage,
+    appearance: source?.appearance ? String(source.appearance) : (source?.user_appearance ? String(source.user_appearance) : ''),
+    bodyType: rawBodyType !== undefined ? String(rawBodyType) : '',
+    height: numberOrZero(source?.height || source?.body_height || source?.user_height),
+    englishLevel: rawEnglishLevel !== undefined ? String(rawEnglishLevel) : '',
+    ethnicity: source?.ethnicity ? String(source.ethnicity) : (source?.race ? String(source.race) : ''),
+    lookingFor: rawLookingFor !== undefined ? String(rawLookingFor) : '',
+    smoke: rawSmoke !== undefined ? String(rawSmoke) : '',
+    drink: rawDrink !== undefined ? String(rawDrink) : '',
+    kidCount: rawKidCount !== undefined ? String(rawKidCount).replace(/^kids:\s*/i, '').trim() : '',
+    kids: rawKidCount !== undefined ? String(rawKidCount).replace(/^kids:\s*/i, '').trim() : '',
+    netWorth: rawNetWorth !== undefined ? String(rawNetWorth).replace(/^\$\s*/, '').trim() : '',
     currentCity: source?.currentCity ? String(source.currentCity) : '',
     telegramUsername: source?.telegramUsername ? String(source.telegramUsername) : '',
+    mobile: cleanResolvedPhone,
+    phone: cleanResolvedPhone,
+    phoneNumber: cleanResolvedPhone,
+    mobileNumber: cleanResolvedPhone,
     verifiedSelfie: Boolean(source?.verifiedSelfie ?? source?.selfieVerified),
     selfieVerified: Boolean(source?.selfieVerified ?? source?.verifiedSelfie),
     profileImageUrl: source?.profileImageUrl ? String(source.profileImageUrl) : (Array.isArray(source?.photos) && source.photos[0] ? String(source.photos[0]) : null),
@@ -174,17 +268,24 @@ export const useMyProfile = (uid?: any) => {
   useEffect(() => {
     let cancelled = false;
     if (hasValidUid(uid)) {
-      setResolvedUserId(String(uid));
+      const stringUid = String(uid);
+      setResolvedUserId((prev) => (prev === stringUid ? prev : stringUid));
       return;
     }
 
     // No uid passed → fall back to the logged-in user's stored userId so the
     // profile still loads after logout/login (in-memory context is reset).
-    getUserId()
-      .then((id) => {
-        if (!cancelled && id) setResolvedUserId(String(id));
-      })
-      .catch(() => {});
+    const resolveUser = async () => {
+      let id = await getUserId().catch(() => null);
+      if (!id) {
+        id = await repairStoredSessionIdentity().catch(() => null);
+      }
+      if (!cancelled && id) {
+        const stringId = String(id);
+        setResolvedUserId((prev) => (prev === stringId ? prev : stringId));
+      }
+    };
+    void resolveUser();
 
     return () => { cancelled = true; };
   }, [uid]);
@@ -199,7 +300,11 @@ export const useMyProfile = (uid?: any) => {
       try {
         const res = await apiClient
           .get(`/profile/me/${resolvedUserId}`)
-          .catch(() => apiClient.post('/profile/me', null, { params: { userId: resolvedUserId } }));
+          .catch(() => apiClient.post('/profile/me', null, { params: { userId: resolvedUserId } }))
+          .catch(() => apiClient.get('/profile/me', { params: { userId: resolvedUserId } }))
+          .catch(() => apiClient.post('/profile/me', { userId: resolvedUserId }))
+          .catch(() => apiClient.get(`/profile/get/${resolvedUserId}`))
+          .catch(() => apiClient.get('/profile/get', { params: { userId: resolvedUserId } }));
         if (!cancelled) {
           setData(normalizeProfile(res.data));
         }
@@ -389,7 +494,9 @@ export const useProfile = () => {
         ethnicity: data.ethnicity || '',
       };
 
-      const res = await apiClient.put('/profile/update-preferences', payload);
+      const res = await apiClient
+        .put('/profile/update-preferences', payload)
+        .catch(() => apiClient.put('/profile/update', payload));
       return res.data;
     },
     onSuccess: async () => {
@@ -428,7 +535,9 @@ export const useProfile = () => {
       // More Info is a partial details update. The general /profile/update
       // endpoint validates profile basics such as name, which should not be
       // required when editing only these fields.
-      const res = await apiClient.put('/profile/update-details', payload);
+      const res = await apiClient
+        .put('/profile/update-details', payload)
+        .catch(() => apiClient.put('/profile/update', payload));
       return res.data;
     },
     onSuccess: async () => {
@@ -457,6 +566,10 @@ export const useProfile = () => {
     netWorth?: string;
     photos?: string[];
     telegramUsername?: string;
+    mobile?: string;
+    phoneNumber?: string;
+    phone?: string;
+    mobileNumber?: string;
   };
 
   const updateProfile = useMutation<any, Error, UpdateProfileInput>({
@@ -471,6 +584,14 @@ export const useProfile = () => {
       if (data.displayName || data.name) {
         payload.name = data.name || data.displayName;
         payload.displayName = data.displayName || data.name;
+      }
+
+      const effectivePhone = data.phoneNumber || data.mobile || data.phone || data.mobileNumber;
+      if (effectivePhone) {
+        payload.mobile = effectivePhone;
+        payload.phoneNumber = effectivePhone;
+        payload.phone = effectivePhone;
+        payload.mobileNumber = effectivePhone;
       }
 
       // Profile photos are managed strictly via dedicated /profile/upload-image and /users/images/{id} endpoints.
@@ -491,6 +612,11 @@ export const useProfile = () => {
           bio: payload.bio,
           dob: payload.dob,
           age: payload.age,
+          mobile: payload.mobile,
+          phoneNumber: payload.phoneNumber,
+          phone: payload.phone,
+          mobileNumber: payload.mobileNumber,
+          telegramUsername: payload.telegramUsername,
         });
         await Promise.allSettled([
           apiClient.put('/profile/update-details', {

@@ -24,7 +24,8 @@ const KidsSelector = () => {
       </View>
       <View style={styles.optionsWrap}>
         {OPTIONS.map((option) => {
-          const isSelected = selectedKids === option;
+          const cleanKids = String(selectedKids ?? '').replace(/^kids:\s*/i, '').trim().toLowerCase();
+          const isSelected = cleanKids === option.toLowerCase();
           return isSelected ? (
             <TouchableOpacity
               key={option}

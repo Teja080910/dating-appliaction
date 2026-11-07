@@ -2,6 +2,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  DeviceEventEmitter,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,17 +17,19 @@ import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/D
 import ProfileSettingsHeader from '../../components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader';
 import ProfilePhotoGrid from '../../components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid';
 import YourBirthday from '../../components/ProfileTabComponents/ProfileSettings/YourBirthday';
-import ContactDetails, { COUNTRIES_LIST } from '../../components/ProfileTabComponents/ProfileSettings/ContactDetails';
+import ContactDetails, { COUNTRIES_LIST, getDefaultCountryForLanguage, parsePhoneNumberAndCountry } from '../../components/ProfileTabComponents/ProfileSettings/ContactDetails';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
 import { getAuthSession } from '../../utils/session';
+import Toast from 'react-native-toast-message';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import { dedupeImageUris } from '../../utils/imageHelpers';
 import { t, useTranslation } from '../../i18n';
 
 const ProfileSettingsScreen = () => {
-  useTranslation();
+  const { language } = useTranslation();
+  const defaultCountry = getDefaultCountryForLanguage(language);
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
@@ -53,9 +56,9 @@ const ProfileSettingsScreen = () => {
   const [localDob, setLocalDob] = useState(date.toISOString().split('T')[0]);
 
   // Contact details state (defaults to primary app language country)
-  const [countryCode, setCountryCode] = useState('+44');
-  const [countryName, setCountryName] = useState('United Kingdom');
-  const [countryFlag, setCountryFlag] = useState('🇬🇧');
+  const [countryCode, setCountryCode] = useState(defaultCountry.code);
+  const [countryName, setCountryName] = useState(defaultCountry.name);
+  const [countryFlag, setCountryFlag] = useState(defaultCountry.flag);
   const [localPhoneNumber, setLocalPhoneNumber] = useState('');
   const [localTelegramUsername, setLocalTelegramUsername] = useState('');
 
@@ -97,22 +100,19 @@ const ProfileSettingsScreen = () => {
           setDate(new Date(storedDob));
         }
 
-        const storedPhone = await AsyncStorage.getItem('phoneNumber');
+        const uid = (await AsyncStorage.getItem('userId')) || '';
+        const userScopedPhone = uid ? await AsyncStorage.getItem(`user_phone_${uid}`) : null;
+        const storedPhone = userScopedPhone || (await AsyncStorage.getItem('phoneNumber'));
         if (storedPhone) {
           if (isCleanPhoneNumber(storedPhone)) {
-            const match = storedPhone.match(/^(\+\d+)\s*(.*)$/);
-            if (match) {
-              const matchedCountry = COUNTRIES_LIST.find((c) => c.code === match[1]);
-              if (matchedCountry) {
-                setCountryCode(matchedCountry.code);
-                setCountryName(matchedCountry.name);
-                setCountryFlag(matchedCountry.flag);
-              } else {
-                setCountryCode(match[1]);
-              }
-              setLocalPhoneNumber(match[2].replace(/[^\d\s-]/g, '').trim());
-            } else {
-              setLocalPhoneNumber(storedPhone.replace(/[^\d\s-]/g, '').trim());
+            const parsed = parsePhoneNumberAndCountry(storedPhone);
+            if (parsed?.code) {
+              setCountryCode(parsed.code);
+              if (parsed.name) setCountryName(parsed.name);
+              if (parsed.flag) setCountryFlag(parsed.flag);
+            }
+            if (parsed?.number) {
+              setLocalPhoneNumber(parsed.number);
             }
           } else {
             // Clean up any stale/email-contaminated value from storage
@@ -121,9 +121,11 @@ const ProfileSettingsScreen = () => {
           }
         }
 
-        const storedTg = await AsyncStorage.getItem('telegramUsername');
-        if (storedTg) {
-          setLocalTelegramUsername(storedTg.replace(/^@+/, ''));
+        const userScopedTg = uid ? await AsyncStorage.getItem(`user_telegram_${uid}`) : null;
+        if (userScopedTg) {
+          setLocalTelegramUsername(userScopedTg.replace(/^@+/, ''));
+        } else {
+          setLocalTelegramUsername('');
         }
       } catch (e) {}
     };
@@ -164,27 +166,33 @@ const ProfileSettingsScreen = () => {
       setDate(new Date(profile.dob));
     }
 
-    const candidatePhone = profile.phone || profile.mobile;
+    const candidatePhone = profile.phoneNumber || profile.mobile || profile.phone || (profile as any).mobileNumber;
     if (candidatePhone && isCleanPhoneNumber(candidatePhone)) {
-      const rawNum = String(candidatePhone).trim();
-      const match = rawNum.match(/^(\+\d+)\s*(.*)$/);
-      if (match) {
-        const matchedCountry = COUNTRIES_LIST.find((c) => c.code === match[1]);
-        if (matchedCountry) {
-          setCountryCode(matchedCountry.code);
-          setCountryName(matchedCountry.name);
-          setCountryFlag(matchedCountry.flag);
-        } else {
-          setCountryCode(match[1]);
-        }
-        setLocalPhoneNumber(match[2].replace(/[^\d\s-]/g, '').trim());
-      } else {
-        setLocalPhoneNumber(rawNum.replace(/[^\d\s-]/g, '').trim());
+      const parsed = parsePhoneNumberAndCountry(candidatePhone);
+      if (parsed?.code) {
+        setCountryCode(parsed.code);
+        if (parsed.name) setCountryName(parsed.name);
+        if (parsed.flag) setCountryFlag(parsed.flag);
+      }
+      if (parsed?.number) {
+        setLocalPhoneNumber(parsed.number);
       }
     }
 
-    if (profile.telegramUsername) {
-      setLocalTelegramUsername(String(profile.telegramUsername).replace(/^@+/, ''));
+    const rawTg = profile.telegramUsername ? String(profile.telegramUsername).replace(/^@+/, '').trim() : '';
+    const normTg = rawTg.toUpperCase();
+    if (rawTg && normTg !== 'NONE' && normTg !== 'NULL' && normTg !== 'UNDEFINED' && normTg !== '-' && normTg !== 'N/A') {
+      setLocalTelegramUsername(rawTg);
+    } else {
+      AsyncStorage.getItem('userId').then((uid) => {
+        if (uid) {
+          AsyncStorage.getItem(`user_telegram_${uid}`).then((st) => {
+            setLocalTelegramUsername(st ? st.replace(/^@+/, '') : '');
+          }).catch(() => setLocalTelegramUsername(''));
+        } else {
+          setLocalTelegramUsername('');
+        }
+      }).catch(() => setLocalTelegramUsername(''));
     }
   }, [profileQuery.data, setDate, setDisplayName, setName, setProfileText]);
 
@@ -207,11 +215,21 @@ const ProfileSettingsScreen = () => {
       return;
     }
 
-    const cleanPhoneDigits = localPhoneNumber.replace(/[^\d\s-]/g, '').trim();
-    const fullPhone =
-      cleanPhoneDigits && isCleanPhoneNumber(cleanPhoneDigits)
-        ? `${countryCode} ${cleanPhoneDigits}`
-        : '';
+    const parsedInput = parsePhoneNumberAndCountry(localPhoneNumber);
+    const effectiveCountryCode = parsedInput?.code || countryCode;
+    const cleanPhoneDigits = (parsedInput?.number || localPhoneNumber).replace(/[^\d]/g, '').trim();
+    const fullPhone = cleanPhoneDigits.length >= 7 ? `${effectiveCountryCode} ${cleanPhoneDigits}` : '';
+
+    // Enforce at least one contact method (WhatsApp/Phone OR Telegram)
+    const hasValidPhone = Boolean(cleanPhoneDigits && cleanPhoneDigits.length >= 7);
+    const hasValidTelegram = Boolean(localTelegramUsername.trim().replace(/^@+/, ''));
+    if (!hasValidPhone && !hasValidTelegram) {
+      alert(
+        'Contact Method Required',
+        'Please provide either your WhatsApp number or your Telegram username so your matches can connect with you.'
+      );
+      return;
+    }
 
     const persistLocalState = async () => {
       setDisplayName(localDisplayName.trim());
@@ -230,13 +248,32 @@ const ProfileSettingsScreen = () => {
       if (fullPhone) {
         setContextPhone(fullPhone);
         await AsyncStorage.setItem('phoneNumber', fullPhone);
+        await AsyncStorage.setItem('userMobile', fullPhone);
+        const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
+        if (currentUid) {
+          await AsyncStorage.setItem(`user_phone_${currentUid}`, fullPhone);
+        }
       } else {
         setContextPhone('');
         await AsyncStorage.removeItem('phoneNumber');
+        await AsyncStorage.removeItem('userMobile');
+        const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
+        if (currentUid) {
+          await AsyncStorage.removeItem(`user_phone_${currentUid}`);
+        }
       }
+      const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
       if (localTelegramUsername.trim()) {
-        await AsyncStorage.setItem('telegramUsername', localTelegramUsername.trim());
+        const cleanTg = localTelegramUsername.trim().replace(/^@+/, '');
+        if (currentUid) {
+          await AsyncStorage.setItem(`user_telegram_${currentUid}`, cleanTg);
+        }
+      } else {
+        if (currentUid) {
+          await AsyncStorage.removeItem(`user_telegram_${currentUid}`);
+        }
       }
+      await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
     };
 
     const handlePersist = async () => {
@@ -262,17 +299,23 @@ const ProfileSettingsScreen = () => {
           dob: localDob,
           age: computedAge,
           telegramUsername: localTelegramUsername.trim() || undefined,
+          mobile: fullPhone || undefined,
+          phoneNumber: fullPhone || undefined,
+          phone: fullPhone || undefined,
+          mobileNumber: fullPhone || undefined,
         } as any,
         {
           onSuccess: async () => {
             await persistLocalState();
             await profileQuery.refetch();
-            alert(t('search.location.saved'), t('profile.profilesettingsscreen.profile_updated_successfully'), [
-              {
-                text: t('profile.profilesettingsscreen.ok'),
-                onPress: () => navigation.goBack(),
-              },
-            ]);
+            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
+            Toast.show({
+              type: 'success',
+              text1: t('search.location.saved', { defaultValue: 'Saved' }),
+              text2: t('profile.profilesettingsscreen.profile_updated_successfully', { defaultValue: 'Profile updated successfully.' }),
+              visibilityTime: 2500,
+            });
+            navigation.goBack();
           },
           onError: async (error: any) => {
             const currentSession = await getAuthSession();
@@ -333,9 +376,9 @@ const ProfileSettingsScreen = () => {
 
         <ProfilePhotoGrid initialPhotos={profilePhotos} />
 
-        {/* Contact Details (Telegram - WhatsApp removed for now) */}
+        {/* Contact Details (WhatsApp & Telegram) */}
         <ContactDetails
-          showWhatsApp={false}
+          showWhatsApp={true}
           countryCode={countryCode}
           setCountryCode={setCountryCode}
           countryName={countryName}

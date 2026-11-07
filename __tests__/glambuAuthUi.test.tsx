@@ -37,6 +37,7 @@ jest.mock('../src/api/useFaceValidation', () => ({
     isCheckingHealth: false,
     health: { status: 'healthy' },
   }),
+  useSelfieVerificationUrl: () => ({ data: 'https://clutch-unashamed-lunacy.ngrok-free.dev' }),
   checkFaceValidationHealth: jest.fn(() => Promise.resolve({ status: 'healthy' })),
 }));
 jest.mock('react-native-vision-camera', () => ({

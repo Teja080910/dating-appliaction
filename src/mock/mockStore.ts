@@ -181,13 +181,21 @@ class MockStore {
         if (r.receiver?.displayName) {
           r.receiver.displayName = r.receiver.displayName.replace(/,\s*\d+$/, '').trim();
         }
-        if (r.sender && (!r.sender.telegramUsername || r.sender.telegramUsername === '')) {
+        if (r.sender) {
           const sProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.senderId).toLowerCase());
-          r.sender.telegramUsername = sProfile?.telegramUsername || (r.sender.displayName ? `${r.sender.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'rahul_amara');
+          if (sProfile?.telegramUsername) {
+            r.sender.telegramUsername = sProfile.telegramUsername;
+          } else if (r.sender.telegramUsername === 'rahul_amara') {
+            r.sender.telegramUsername = '';
+          }
         }
-        if (r.receiver && (!r.receiver.telegramUsername || r.receiver.telegramUsername === '')) {
+        if (r.receiver) {
           const rProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.receiverId).toLowerCase());
-          r.receiver.telegramUsername = rProfile?.telegramUsername || (r.receiver.displayName ? `${r.receiver.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'ananya_amara');
+          if (rProfile?.telegramUsername) {
+            r.receiver.telegramUsername = rProfile.telegramUsername;
+          } else if (r.receiver.telegramUsername === 'ananya_amara') {
+            r.receiver.telegramUsername = '';
+          }
         }
       });
       this.requests = validRequests;
@@ -617,12 +625,14 @@ class MockStore {
     const userId = String(profileData.userId);
     const existingIndex = this.profiles.findIndex((p) => String(p.userId) === userId);
 
+    const effectivePhone = profileData.mobile || (profileData as any).phoneNumber || profileData.phone || (profileData as any).mobileNumber;
     let updated: MockProfile;
     if (existingIndex >= 0) {
       updated = {
         ...this.profiles[existingIndex],
         ...profileData,
         userId,
+        ...(effectivePhone ? { mobile: effectivePhone, phone: effectivePhone, phoneNumber: effectivePhone, mobileNumber: effectivePhone } : {}),
       };
       this.profiles[existingIndex] = updated;
     } else {
@@ -637,11 +647,27 @@ class MockStore {
         photos: profileData.photos || [],
         telegramUsername: profileData.telegramUsername || '',
         ...profileData,
+        ...(effectivePhone ? { mobile: effectivePhone, phone: effectivePhone, phoneNumber: effectivePhone, mobileNumber: effectivePhone } : {}),
       };
       this.profiles.push(updated);
     }
 
     await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
+
+    const userIndex = this.users.findIndex((u) => String(u.userId) === userId || String(u.id) === userId);
+    if (userIndex >= 0) {
+      const effectivePhone = profileData.mobile || (profileData as any).phoneNumber || profileData.phone || (profileData as any).mobileNumber;
+      if (effectivePhone) {
+        this.users[userIndex].mobile = effectivePhone;
+        (this.users[userIndex] as any).phone = effectivePhone;
+        (this.users[userIndex] as any).phoneNumber = effectivePhone;
+        (this.users[userIndex] as any).mobileNumber = effectivePhone;
+      }
+      if (profileData.telegramUsername) {
+        this.users[userIndex].telegramUsername = profileData.telegramUsername;
+      }
+      await AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users));
+    }
 
     if (Array.isArray(profileData.photos)) {
       const validPhotos = profileData.photos.filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
@@ -802,24 +828,49 @@ class MockStore {
       .filter((r) => String(r.senderId) === String(userId))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((r) => {
-        const sProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.senderId).toLowerCase());
-        const rProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.receiverId).toLowerCase());
-        const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || (r.sender?.displayName ? `${r.sender.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'rahul_amara');
-        const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || (r.receiver?.displayName ? `${r.receiver.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'ananya_amara');
+        const sProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(p.id) === String(r.senderId));
+        const rProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(p.id) === String(r.receiverId));
+        const sUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(u.id) === String(r.senderId));
+        const rUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(u.id) === String(r.receiverId));
+
+        const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || sUser?.telegramUsername || '';
+        const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || rUser?.telegramUsername || '';
+        const sPhone =
+          (sProfile as any)?.phoneNumber ||
+          sProfile?.mobile ||
+          sProfile?.phone ||
+          (r.sender as any)?.phoneNumber ||
+          r.sender?.mobile ||
+          r.sender?.phone ||
+          (sUser as any)?.phoneNumber ||
+          sUser?.mobile ||
+          (sUser as any)?.phone ||
+          '';
+        const rPhone =
+          (rProfile as any)?.phoneNumber ||
+          rProfile?.mobile ||
+          rProfile?.phone ||
+          (r.receiver as any)?.phoneNumber ||
+          r.receiver?.mobile ||
+          r.receiver?.phone ||
+          (rUser as any)?.phoneNumber ||
+          rUser?.mobile ||
+          (rUser as any)?.phone ||
+          '';
 
         if (r.status !== 'APPROVED' || !hasActiveSub) {
           return {
             ...r,
             accessExpired: !hasActiveSub,
-            sender: r.sender ? { ...r.sender, telegramUsername: '' } : undefined,
-            receiver: r.receiver ? { ...r.receiver, telegramUsername: '' } : undefined,
+            sender: r.sender ? { ...r.sender, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
+            receiver: r.receiver ? { ...r.receiver, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
           };
         }
         return {
           ...r,
           accessExpired: Boolean(r.accessExpired),
-          sender: r.sender ? { ...r.sender, telegramUsername: sTg } : undefined,
-          receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg } : undefined,
+          sender: r.sender ? { ...r.sender, telegramUsername: sTg, mobile: sPhone, phone: sPhone, phoneNumber: sPhone } : undefined,
+          receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg, mobile: rPhone, phone: rPhone, phoneNumber: rPhone } : undefined,
         };
       });
   }
@@ -830,33 +881,68 @@ class MockStore {
       .filter((r) => String(r.receiverId) === String(userId))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((r) => {
-        const sProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.senderId).toLowerCase());
-        const rProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.receiverId).toLowerCase());
-        const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || (r.sender?.displayName ? `${r.sender.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'rahul_amara');
-        const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || (r.receiver?.displayName ? `${r.receiver.displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_amara` : 'ananya_amara');
+        const sProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(p.id) === String(r.senderId));
+        const rProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(p.id) === String(r.receiverId));
+        const sUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(u.id) === String(r.senderId));
+        const rUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(u.id) === String(r.receiverId));
+
+        const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || sUser?.telegramUsername || '';
+        const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || rUser?.telegramUsername || '';
+        const sPhone =
+          (sProfile as any)?.phoneNumber ||
+          sProfile?.mobile ||
+          sProfile?.phone ||
+          (r.sender as any)?.phoneNumber ||
+          r.sender?.mobile ||
+          r.sender?.phone ||
+          (sUser as any)?.phoneNumber ||
+          sUser?.mobile ||
+          (sUser as any)?.phone ||
+          '';
+        const rPhone =
+          (rProfile as any)?.phoneNumber ||
+          rProfile?.mobile ||
+          rProfile?.phone ||
+          (r.receiver as any)?.phoneNumber ||
+          r.receiver?.mobile ||
+          r.receiver?.phone ||
+          (rUser as any)?.phoneNumber ||
+          rUser?.mobile ||
+          (rUser as any)?.phone ||
+          '';
 
         if (r.status !== 'APPROVED') {
           return {
             ...r,
-            sender: r.sender ? { ...r.sender, telegramUsername: '' } : undefined,
-            receiver: r.receiver ? { ...r.receiver, telegramUsername: '' } : undefined,
+            sender: r.sender ? { ...r.sender, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
+            receiver: r.receiver ? { ...r.receiver, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
           };
         }
         return {
           ...r,
-          sender: r.sender ? { ...r.sender, telegramUsername: sTg } : undefined,
-          receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg } : undefined,
+          sender: r.sender ? { ...r.sender, telegramUsername: sTg, mobile: sPhone, phone: sPhone, phoneNumber: sPhone } : undefined,
+          receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg, mobile: rPhone, phone: rPhone, phoneNumber: rPhone } : undefined,
         };
       });
   }
 
   public async getRequestStatus(user1: string, user2: string): Promise<'NONE' | 'PENDING' | 'APPROVED'> {
     await this.init();
-    const req = this.requests.find(
-      (r) =>
-        (String(r.senderId) === String(user1) && String(r.receiverId) === String(user2)) ||
-        (String(r.senderId) === String(user2) && String(r.receiverId) === String(user1))
-    );
+    const clean1 = String(user1 || '').trim().toLowerCase();
+    const clean2 = String(user2 || '').trim().toLowerCase();
+    const d1 = clean1.replace(/[^\d]/g, '');
+    const d2 = clean2.replace(/[^\d]/g, '');
+
+    const req = this.requests.find((r) => {
+      const s = String(r.senderId || '').trim().toLowerCase();
+      const rec = String(r.receiverId || '').trim().toLowerCase();
+      const sd = s.replace(/[^\d]/g, '');
+      const recd = rec.replace(/[^\d]/g, '');
+
+      const matchNormal = (s === clean1 || (d1 && sd === d1)) && (rec === clean2 || (d2 && recd === d2));
+      const matchReversed = (s === clean2 || (d2 && sd === d2)) && (rec === clean1 || (d1 && recd === d1));
+      return matchNormal || matchReversed;
+    });
     return req ? req.status : 'NONE';
   }
 
@@ -1281,6 +1367,44 @@ class MockStore {
         r.status === 'APPROVED' &&
         (String(r.senderId) === cleanId || String(r.receiverId) === cleanId)
     );
+  }
+
+  public async findUserByTelegram(
+    telegramUsername: string,
+    excludeUserId?: string
+  ): Promise<any | null> {
+    await this.init();
+    const cleanTg = String(telegramUsername || '').trim().toLowerCase().replace(/^@+/, '');
+    if (!cleanTg) return null;
+    const cleanExclude = excludeUserId ? String(excludeUserId).trim() : null;
+
+    for (const prof of this.profiles) {
+      if (
+        cleanExclude &&
+        (String(prof?.userId) === cleanExclude || String(prof?.id) === cleanExclude)
+      ) {
+        continue;
+      }
+      const profTg = String(prof?.telegramUsername || '').trim().toLowerCase().replace(/^@+/, '');
+      if (profTg && profTg === cleanTg) {
+        return prof;
+      }
+    }
+
+    for (const u of this.users) {
+      if (
+        cleanExclude &&
+        (String(u?.id) === cleanExclude || String(u?.userId) === cleanExclude)
+      ) {
+        continue;
+      }
+      const uTg = String(u?.telegramUsername || '').trim().toLowerCase().replace(/^@+/, '');
+      if (uTg && uTg === cleanTg) {
+        return u;
+      }
+    }
+
+    return null;
   }
 
   public async disconnectTelegram(userId: string): Promise<void> {

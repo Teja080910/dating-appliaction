@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
+import Toast from 'react-native-toast-message';
 import NotificationBanner from '../../components/NotificationBanner';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -27,6 +28,7 @@ import { Colors, Spacing, useTheme } from '../../theme';
 import { getAbsoluteUrl } from '../../api/apiClient';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import { openTelegramChat } from '../../utils/telegramHelper';
+import { openWhatsAppChat } from '../../utils/whatsappHelper';
 import { t, useTranslation } from '../../i18n';
 
 const RequestsInboxScreen: React.FC = () => {
@@ -89,6 +91,7 @@ const RequestsInboxScreen: React.FC = () => {
     name: string;
     photo: string;
     username?: string;
+    phoneNumber?: string;
   } | null>(null);
 
   const { data: requests = [], isLoading, isRefetching } = receivedList;
@@ -186,6 +189,12 @@ const RequestsInboxScreen: React.FC = () => {
               setSelectedIds(new Set());
               setIsSelectMode(false);
               refreshAll();
+              Toast.show({
+                type: 'info',
+                text1: 'Invitations Deleted',
+                text2: `Removed ${count} invitation${count > 1 ? 's' : ''}.`,
+                visibilityTime: 2500,
+              });
             } catch (err: any) {
               Alert.alert(
                 t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
@@ -236,10 +245,25 @@ const RequestsInboxScreen: React.FC = () => {
         (sender.photos && sender.photos[0]) ||
         'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
 
+      const approvedPhone =
+        approvedRequest?.sender?.phoneNumber ||
+        approvedRequest?.sender?.mobile ||
+        approvedRequest?.sender?.phone ||
+        sender.phoneNumber ||
+        sender.mobile ||
+        sender.phone ||
+        '';
+
+      const approvedTg =
+        approvedRequest?.sender?.telegramUsername ||
+        sender.telegramUsername ||
+        '';
+
       setApprovedMatch({
         name: sender.displayName || sender.name || t('requests.requestsinboxscreen.dating_match'),
         photo: photoUrl,
-        username: approvedRequest?.sender?.telegramUsername || sender.telegramUsername,
+        username: approvedTg,
+        phoneNumber: approvedPhone,
       });
     } catch (err: any) {
       Alert.alert(
@@ -253,6 +277,14 @@ const RequestsInboxScreen: React.FC = () => {
     try {
       await reject.mutateAsync(request.id);
       refreshAll();
+      const sender = request.sender || {};
+      const senderName = cleanDisplayName(sender.displayName || sender.name);
+      Toast.show({
+        type: 'info',
+        text1: 'Invitation Declined',
+        text2: `Declined date proposal from ${senderName}.`,
+        visibilityTime: 2500,
+      });
     } catch (err: any) {
       Alert.alert(
         'Could not decline invitation',
@@ -282,6 +314,10 @@ const RequestsInboxScreen: React.FC = () => {
         id: targetUserId,
         displayName: cleanDisplayName(sender.displayName || sender.name),
         photos: sender.photos || [photoUrl],
+        mobile: sender.mobile || sender.phoneNumber || sender.phone || '',
+        phone: sender.phone || sender.mobile || sender.phoneNumber || '',
+        phoneNumber: sender.phoneNumber || sender.mobile || sender.phone || '',
+        telegramUsername: sender.telegramUsername || '',
       },
       image: photoUrl,
       requestId: item.id,
@@ -319,6 +355,10 @@ const RequestsInboxScreen: React.FC = () => {
     const isApproved = isAcceptedStatus(item.status);
     const itemIdStr = String(item.id);
     const isSelected = selectedIds.has(itemIdStr);
+    const senderPhone = sender.phoneNumber || sender.mobile || sender.phone || '';
+    const senderTg = sender.telegramUsername || '';
+    const hasWhatsApp = Boolean(senderPhone);
+    const hasTelegram = Boolean(senderTg);
 
     return (
       <TouchableOpacity
@@ -347,7 +387,13 @@ const RequestsInboxScreen: React.FC = () => {
           <Text style={styles.nameText} numberOfLines={1}>
             {displayName}
           </Text>
-          <Text style={styles.statusSubtext}>{statusText}</Text>
+          <Text style={styles.statusSubtext} numberOfLines={1}>
+            {isApproved
+              ? hasWhatsApp || hasTelegram
+                ? t('requests.requestsinboxscreen.request_accepted', { defaultValue: 'Invitation Accepted' })
+                : t('profile.contactdetails.awaiting_contact', { defaultValue: 'Awaiting contact info' })
+              : statusText}
+          </Text>
         </View>
 
         {!isSelectMode && !isApproved && (
@@ -378,14 +424,74 @@ const RequestsInboxScreen: React.FC = () => {
         )}
 
         {!isSelectMode && isApproved && (
-          <TouchableOpacity
-            style={styles.telegramBtn}
-            onPress={() => handleOpenTelegram(sender.telegramUsername)}
-            activeOpacity={0.8}
-          >
-            <Icon name="send" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
-            <Text style={styles.telegramBtnText}>{t('requests.requestsinboxscreen.chat')}</Text>
-          </TouchableOpacity>
+          hasWhatsApp && hasTelegram ? (
+            <View style={styles.multiChatRow}>
+              <TouchableOpacity
+                style={styles.whatsAppIconBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (!isSubscribed && !isUserWoman) {
+                    setPaywallVisible?.(true);
+                    return;
+                  }
+                  openWhatsAppChat(senderPhone);
+                }}
+              >
+                <Icon name="whatsapp" size={17} color="#FFFFFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.telegramIconBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (!isSubscribed && !isUserWoman) {
+                    setPaywallVisible?.(true);
+                    return;
+                  }
+                  handleOpenTelegram(senderTg);
+                }}
+              >
+                <Icon name="send" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : hasWhatsApp ? (
+            <TouchableOpacity
+              style={styles.whatsAppIconBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (!isSubscribed && !isUserWoman) {
+                  setPaywallVisible?.(true);
+                  return;
+                }
+                openWhatsAppChat(senderPhone);
+              }}
+            >
+              <Icon name="whatsapp" size={17} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : hasTelegram ? (
+            <TouchableOpacity
+              style={styles.telegramIconBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                if (!isSubscribed && !isUserWoman) {
+                  setPaywallVisible?.(true);
+                  return;
+                }
+                handleOpenTelegram(senderTg);
+              }}
+            >
+              <Icon name="send" size={14} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.profileIconBtn}
+              onPress={() => {
+                handleOpenProfile(item);
+              }}
+              activeOpacity={0.8}
+            >
+              <Icon name="account-outline" size={18} color={themeColors.textSecondary} />
+            </TouchableOpacity>
+          )
         )}
       </TouchableOpacity>
     );
@@ -568,24 +674,53 @@ const RequestsInboxScreen: React.FC = () => {
             <Text style={styles.modalSubtitle}>{t('requests.requestsinboxscreen.you_are_now_connected_with')}{' '}
               <Text style={{ fontWeight: '700', color: themeColors.text }}>{approvedMatch?.name}</Text>.
             </Text>
-            <TouchableOpacity
-              style={styles.modalTelegramBtnWrapper}
-              onPress={() => {
-                const u = approvedMatch?.username;
-                setApprovedMatch(null);
-                handleOpenTelegram(u);
-              }}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={[themeColors.primary, themeColors.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.modalTelegramBtn}
+            {approvedMatch?.phoneNumber ? (
+              <TouchableOpacity
+                style={[styles.modalTelegramBtnWrapper, { marginBottom: 10 }]}
+                onPress={() => {
+                  const phone = approvedMatch?.phoneNumber;
+                  setApprovedMatch(null);
+                  if (phone) openWhatsAppChat(phone);
+                }}
+                activeOpacity={0.85}
               >
-                <Text style={styles.modalTelegramBtnText}>{t('profile.userdetails.open_telegram')}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#25D366', '#128C7E']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.modalTelegramBtn}
+                >
+                  <Icon name="whatsapp" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.modalTelegramBtnText}>
+                    {t('profile.contactdetails.open_whatsapp', { defaultValue: 'Open WhatsApp' })}: {approvedMatch.phoneNumber}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : null}
+
+            {approvedMatch?.username ? (
+              <TouchableOpacity
+                style={styles.modalTelegramBtnWrapper}
+                onPress={() => {
+                  const u = approvedMatch?.username;
+                  setApprovedMatch(null);
+                  handleOpenTelegram(u);
+                }}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={[themeColors.primary, themeColors.secondary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.modalTelegramBtn}
+                >
+                  <Icon name="send" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.modalTelegramBtnText}>
+                    {t('profile.userdetails.open_telegram', { defaultValue: 'Open Telegram' })}: @{approvedMatch.username.replace(/^@+/, '')}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               style={styles.modalDoneBtn}
               onPress={() => {
@@ -870,6 +1005,42 @@ const createStyles = (colors: any) =>
       color: '#FFFFFF',
       fontSize: 14,
       fontWeight: '600',
+    },
+    multiChatRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    whatsAppIconBtn: {
+      backgroundColor: '#25D366',
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    telegramIconBtn: {
+      backgroundColor: '#0088cc',
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    profileIconBtn: {
+      backgroundColor: colors.surfaceLight || 'rgba(255, 255, 255, 0.08)',
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chatBtnText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
     },
     emptyAcceptedBox: {
       flex: 1,

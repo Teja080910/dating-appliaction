@@ -1,12 +1,14 @@
 import './src/theme/globalFontScaler';
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Routes from './src/screens/Navigations/Routes';
 import GlobalStateProvider from './src/context/GlobalStateProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AppState, AppStateStatus, Platform, PermissionsAndroid } from 'react-native';
+import { AppState, AppStateStatus, Platform, PermissionsAndroid, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/components/AmaraToast';
 import AppContext from './src/context/CreateGlobalStateContext';
 import { getUserId } from './src/utils/sessionHelper';
 import { initLanguage } from './src/i18n';
@@ -16,6 +18,7 @@ import { useConnection } from './src/api/useConnection';
 import {
   registerDeviceToken,
   setupPushNotificationListeners,
+  handleNotificationNavigation,
 } from './src/utils/pushNotificationHelper';
 
 const ServerSync = () => {
@@ -35,15 +38,32 @@ const ServerSync = () => {
 
   useEffect(() => {
     let isMounted = true;
-    getUserId()
-      .then((id) => {
+    const checkUser = async () => {
+      try {
+        const id = await getUserId();
         if (isMounted && id) {
-          setUserId(String(id));
+          const idStr = String(id);
+          setUserId((prev) => (prev !== idStr ? idStr : prev));
+        } else if (isMounted && !id) {
+          setUserId(null);
         }
-      })
-      .catch(() => null);
+      } catch {
+        // ignore
+      }
+    };
+
+    checkUser();
+    const interval = setInterval(checkUser, 2500);
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        checkUser();
+      }
+    });
+
     return () => {
       isMounted = false;
+      clearInterval(interval);
+      appStateSub.remove();
     };
   }, []);
 
@@ -98,11 +118,34 @@ const ServerSync = () => {
     return () => clearInterval(interval);
   }, [userId, refreshAll]);
 
-  // Push notification listeners: Live FCM messages update data silently in foreground
+  // Push notification listeners: Live FCM messages update data and display heads-up banner in foreground
   useEffect(() => {
-    const unsubscribePush = setupPushNotificationListeners(async () => {
+    const unsubscribePush = setupPushNotificationListeners(async (remoteMessage: any) => {
       // Instantly refresh requests and notifications
       refreshAll();
+
+      if (remoteMessage) {
+        const title =
+          remoteMessage?.notification?.title ||
+          remoteMessage?.data?.title ||
+          '💌 New Notification';
+        const body =
+          remoteMessage?.notification?.body ||
+          remoteMessage?.data?.body ||
+          remoteMessage?.data?.message ||
+          '';
+
+        Toast.show({
+          type: 'info',
+          text1: title,
+          text2: body,
+          visibilityTime: 4000,
+          onPress: () => {
+            Toast.hide();
+            handleNotificationNavigation(remoteMessage);
+          },
+        });
+      }
     });
 
     return () => {
@@ -127,13 +170,18 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <GlobalStateProvider>
-        <ServerSync />
-        <Routes />
-        <Toast />
-      </GlobalStateProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <GlobalStateProvider>
+          <ServerSync />
+          <Routes />
+          <Toast
+            config={toastConfig}
+            topOffset={Platform.OS === 'ios' ? 54 : ((StatusBar.currentHeight || 24) + 12)}
+          />
+        </GlobalStateProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 };
 

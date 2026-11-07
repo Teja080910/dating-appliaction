@@ -1,5 +1,7 @@
 import { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { mockStore } from './mockStore';
+import { validateStrongPassword } from '../utils/passwordValidation';
+import { resolveProfileDistanceKm } from '../utils/distanceHelper';
 
 // Helper to simulate realistic network delay (80ms - 200ms)
 const delay = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -138,6 +140,13 @@ export const handleMockRequest = async (
     if (password && confirmPassword && password !== confirmPassword) {
       throw createMockError(config, 400, 'Passwords do not match.');
     }
+    if (password && !validateStrongPassword(password).isValid) {
+      throw createMockError(
+        config,
+        400,
+        'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
+      );
+    }
     if (isUnderage(body.dob, body.age)) {
       throw createMockError(config, 400, 'You must be at least 18 years old to use AMARA.', 'AGE_RESTRICTION');
     }
@@ -150,7 +159,9 @@ export const handleMockRequest = async (
       message: `Registration initiated. Verification code sent to ${identifier}.`,
       otp, // Exposed in mock for automated testing
       sessionId,
-      data: { sessionId, email: isEmail ? identifier : undefined, mobile: !isEmail ? identifier : undefined, name },
+      selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
+      selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
+      data: { sessionId, email: isEmail ? identifier : undefined, mobile: !isEmail ? identifier : undefined, name, selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev', selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev' },
     });
   }
 
@@ -208,6 +219,8 @@ export const handleMockRequest = async (
       message: 'User registered successfully',
       token: `mock-jwt-token-${user.userId}`,
       userId: user.userId,
+      selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
+      selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
       user: {
         id: user.id,
         userId: user.userId,
@@ -304,6 +317,13 @@ export const handleMockRequest = async (
     const { otp, newPassword } = body;
     if (!identifier || !otp || !newPassword) {
       throw createMockError(config, 400, 'Email, reset code, and new password are required.');
+    }
+    if (!validateStrongPassword(newPassword).isValid) {
+      throw createMockError(
+        config,
+        400,
+        'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
+      );
     }
     if (!mockStore.verifyOtp(identifier, otp)) {
       throw createMockError(config, 400, 'Invalid OTP for password reset.');
@@ -430,6 +450,8 @@ export const handleMockRequest = async (
       netWorth: profile?.netWorth || '',
       mobile: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
       phone: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
+      phoneNumber: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
+      mobileNumber: (profile?.mobile && !profile.mobile.includes('@')) ? profile.mobile : ((user?.mobile && !user.mobile.includes('@')) ? user.mobile : ''),
       completion: 100,
     };
 
@@ -445,6 +467,10 @@ export const handleMockRequest = async (
 
     if (!isOwnProfile && (connectionStatus !== 'APPROVED' || !viewerHasActiveSub)) {
       responsePayload.telegramUsername = '';
+      responsePayload.mobile = '';
+      responsePayload.phone = '';
+      responsePayload.phoneNumber = '';
+      responsePayload.mobileNumber = '';
     }
 
     return createMockResponse(config, 200, responsePayload);
@@ -612,6 +638,16 @@ export const handleMockRequest = async (
     });
   }
 
+  // GET /selfie/verification-url or /selfie-verification-url
+  if (method === 'GET' && (url.includes('/selfie/verification-url') || url.includes('/selfie-verification-url') || url.includes('/selfie/url'))) {
+    return createMockResponse(config, 200, {
+      status: 'success',
+      selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
+      selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
+      url: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
+    });
+  }
+
   // POST /profile/gender-orientation
   if (method === 'POST' && url.includes('/profile/gender-orientation')) {
     const targetUserId = body.userId || (await mockStore.getCurrentUserId());
@@ -750,6 +786,30 @@ export const handleMockRequest = async (
     // Filter by Online Only
     if (body.onlyOnline) {
       filtered = filtered.filter(p => Boolean(p.online));
+    }
+
+    // Filter by Search Radius / Distance (when not worldwide)
+    const isWorldwide = Boolean(body.worldwide || queryParams?.worldwide);
+    const rawRadius = body.searchRadius ?? body.maxDistanceKm ?? body.radius ?? queryParams?.searchRadius ?? queryParams?.maxDistanceKm ?? queryParams?.radius;
+    const maxRadiusKm = Number(rawRadius);
+    if (!isWorldwide && Number.isFinite(maxRadiusKm) && maxRadiusKm > 0) {
+      filtered = filtered.filter((p) => {
+        let dist: number | null = null;
+        if (typeof p.distanceKm === 'number' && Number.isFinite(p.distanceKm)) {
+          dist = p.distanceKm;
+        } else if (typeof p.distance === 'number' && Number.isFinite(p.distance)) {
+          dist = p.distance;
+        } else if (typeof p.distance === 'string') {
+          const match = p.distance.match(/(\d+(\.\d+)?)/);
+          if (match) {
+            dist = parseFloat(match[1]);
+          }
+        }
+        if (dist === null) {
+          dist = resolveProfileDistanceKm(p, body.userLocation || null, body.city || body.location || null);
+        }
+        return dist !== null ? dist <= maxRadiusKm : true;
+      });
     }
 
     // Filter by City / Location (when not worldwide)
@@ -919,9 +979,19 @@ export const handleMockRequest = async (
   // POST /telegram/connect
   if (method === 'POST' && url.includes('/telegram/connect')) {
     const userId = body.userId || queryParams.userId || 'usr_man_101';
-    const telegramUsername = (body.telegramUsername || queryParams.username || body.username || '').replace('@', '');
-    if (!telegramUsername.trim()) {
+    const telegramUsername = (body.telegramUsername || queryParams.username || body.username || '').replace(/^@+/, '').trim();
+    if (!telegramUsername) {
       throw createMockError(config, 400, 'telegramUsername is required.');
+    }
+
+    // Uniqueness validation: Ensure no other user is linked to this Telegram handle
+    const existing = await mockStore.findUserByTelegram(telegramUsername, String(userId));
+    if (existing) {
+      throw createMockError(
+        config,
+        400,
+        `The Telegram handle @${telegramUsername} is already linked to another Amara account.`
+      );
     }
 
     const profile = await mockStore.getProfileByUserId(userId);
@@ -938,6 +1008,25 @@ export const handleMockRequest = async (
       status: 'success',
       message: 'Telegram connected successfully',
       telegramUsername,
+    });
+  }
+
+  // GET /telegram/bot-name, /telegram/bot
+  if (method === 'GET' && (url.includes('/telegram/bot-name') || url.includes('/telegram/bot') || url.includes('/telegram/botname'))) {
+    return createMockResponse(config, 200, {
+      status: 'success',
+      botUsername: 'amara_dating_bot',
+      botName: 'amara_dating_bot',
+      username: 'amara_dating_bot',
+    });
+  }
+
+  // POST /telegram/bot-link
+  if (method === 'POST' && url.includes('/telegram/bot-link')) {
+    return createMockResponse(config, 200, {
+      status: 'success',
+      link: 'https://t.me/amara_dating_bot?start=mock_start_token',
+      botName: 'amara_dating_bot',
     });
   }
 
@@ -1180,6 +1269,21 @@ export const handleMockRequest = async (
       baseProfiles = await mockStore.getProfiles('man', currentUserId || undefined);
     } else {
       baseProfiles = await mockStore.getProfiles('woman', currentUserId || undefined);
+    }
+    const maxRadiusKm = Number(queryParams?.radius);
+    if (Number.isFinite(maxRadiusKm) && maxRadiusKm > 0) {
+      baseProfiles = baseProfiles.filter((p) => {
+        let dist = 10;
+        if (typeof p.distanceKm === 'number' && Number.isFinite(p.distanceKm)) {
+          dist = p.distanceKm;
+        } else if (typeof p.distance === 'number' && Number.isFinite(p.distance)) {
+          dist = p.distance;
+        } else if (typeof p.distance === 'string') {
+          const match = p.distance.match(/(\d+(\.\d+)?)/);
+          if (match) dist = parseFloat(match[1]);
+        }
+        return dist <= maxRadiusKm;
+      });
     }
     return createMockResponse(config, 200, baseProfiles);
   }

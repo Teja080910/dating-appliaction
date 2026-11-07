@@ -18,7 +18,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useSupport } from '../../api/useSupport';
 import { Colors, Spacing, useTheme } from '../../theme';
+import Toast from 'react-native-toast-message';
 import { useAlert } from '../../components/AlertModal';
+import { openAmaraBot } from '../../utils/telegramHelper';
 import { t, useTranslation } from '../../i18n';
 
 const SupportScreen = () => {
@@ -52,11 +54,11 @@ const SupportScreen = () => {
         if (supported) {
           Linking.openURL(url);
         } else {
-          Linking.openURL('https://t.me/amara_dating_bot');
+          void openAmaraBot();
         }
       })
       .catch(() => {
-        Linking.openURL('https://t.me/amara_dating_bot');
+        void openAmaraBot();
       });
   };
 
@@ -73,8 +75,13 @@ const SupportScreen = () => {
       },
       {
         onSuccess: () => {
-          alert(t('profile.supportscreen.success'), t('profile.supportscreen.your_support_ticket_has_been_created'));
           setDescription('');
+          Toast.show({
+            type: 'success',
+            text1: t('profile.supportscreen.success', { defaultValue: 'Ticket Submitted' }),
+            text2: t('profile.supportscreen.your_support_ticket_has_been_created', { defaultValue: 'Your support ticket has been created.' }),
+            visibilityTime: 3000,
+          });
         },
         onError: (error: any) => {
           alert(

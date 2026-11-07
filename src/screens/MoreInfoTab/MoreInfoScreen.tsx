@@ -1,9 +1,9 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { DeviceEventEmitter, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useProfile } from '../../api/useProfile';
+import { useProfile, useMyProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
 import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
@@ -42,6 +42,8 @@ const MoreInfoScreen = () => {
   const {
     height,
     setHeight,
+    tempHeight,
+    setTempHeight,
     selectedAppearance,
     setSelectedAppearance,
     selectedBodyType,
@@ -64,74 +66,107 @@ const MoreInfoScreen = () => {
     setSelectedNetWorth,
   } = useContext(AppContext);
   const [loading, setLoading] = useState(false);
-  const { updateDetails, updatePreferences, useMyProfile } = useProfile();
+  const { updateDetails, updatePreferences } = useProfile();
   const profileQuery = useMyProfile(undefined);
 
-  useFocusEffect(
-    useCallback(() => {
-      profileQuery.refetch();
-    }, [])
-  );
-
-  useEffect(() => {
-    // Check local storage for all lifestyle keys in case backend sync is pending
-    AsyncStorage.multiGet([
-      '@amara_kid_count',
-      '@amara_net_worth',
-      '@amara_height',
-      '@amara_appearance',
-      '@amara_body_type',
-      '@amara_ethnicity',
-      '@amara_smoking',
-      '@amara_drinking',
-      '@amara_looking_for',
-      '@amara_languages',
-      '@amara_english_level',
-    ]).then((pairs) => {
+  const hydrateFromStorage = useCallback(async () => {
+    try {
+      const pairs = await AsyncStorage.multiGet([
+        '@amara_kid_count',
+        '@amara_net_worth',
+        '@amara_height',
+        '@amara_appearance',
+        '@amara_body_type',
+        '@amara_ethnicity',
+        '@amara_smoking',
+        '@amara_drinking',
+        '@amara_looking_for',
+        '@amara_languages',
+        '@amara_english_level',
+      ]);
       pairs.forEach(([key, val]) => {
-        if (!val) return;
-        if (key === '@amara_kid_count') setSelectedKids((prev: any) => prev || val);
-        if (key === '@amara_net_worth') setSelectedNetWorth((prev: any) => prev || val);
-        if (key === '@amara_height') setHeight((prev: any) => prev || Number(val));
-        if (key === '@amara_appearance') setSelectedAppearance((prev: any) => prev || val);
-        if (key === '@amara_body_type') setSelectedBodyType((prev: any) => prev || val);
-        if (key === '@amara_ethnicity') setSelectedEthinicity((prev: any) => prev || val);
-        if (key === '@amara_smoking') setSelectedSmoking((prev: any) => prev || val);
-        if (key === '@amara_drinking') setSelectedDrinking((prev: any) => prev || val);
-        if (key === '@amara_english_level') setEnglishSkillLevel((prev: any) => (prev !== undefined && prev !== null ? prev : Number(val)));
+        if (!val || val === 'null' || val === 'undefined') return;
+        if (key === '@amara_kid_count') {
+          setSelectedKids(String(val).replace(/^kids:\s*/i, '').trim());
+        }
+        if (key === '@amara_net_worth') {
+          setSelectedNetWorth(String(val).replace(/^\$\s*/, '').trim());
+        }
+        if (key === '@amara_height') {
+          const num = Number(val);
+          if (Number.isFinite(num) && num > 0) {
+            setHeight(num);
+            setTempHeight?.(num);
+          }
+        }
+        if (key === '@amara_appearance') setSelectedAppearance(val);
+        if (key === '@amara_body_type') setSelectedBodyType(val);
+        if (key === '@amara_ethnicity') setSelectedEthinicity(val);
+        if (key === '@amara_smoking') setSelectedSmoking(val);
+        if (key === '@amara_drinking') setSelectedDrinking(val);
+        if (key === '@amara_english_level') {
+          const lvl = Number(val);
+          if (Number.isFinite(lvl) && lvl >= 0 && lvl <= 3) {
+            setEnglishSkillLevel(lvl);
+          }
+        }
         if (key === '@amara_looking_for') {
           try {
             const parsed = JSON.parse(val);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              setSelectedLookingFor((prev: any) => (Array.isArray(prev) && prev.length > 0 ? prev : parsed));
+              setSelectedLookingFor(parsed);
             }
-          } catch {}
+          } catch {
+            const split = val.split(',').map((s) => s.trim()).filter(Boolean);
+            if (split.length > 0) setSelectedLookingFor(split);
+          }
         }
         if (key === '@amara_languages') {
           try {
             const parsed = JSON.parse(val);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              setSelectedLanguages((prev: any) => (Array.isArray(prev) && prev.length > 0 ? prev : parsed));
+              setSelectedLanguages(parsed);
             }
-          } catch {}
+          } catch {
+            const split = val.split(',').map((s) => s.trim()).filter(Boolean);
+            if (split.length > 0) setSelectedLanguages(split);
+          }
         }
       });
-    });
-  }, [setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
+    } catch (e) {
+      console.warn('[MoreInfo] Failed to hydrate from AsyncStorage:', e);
+    }
+  }, [
+    setEnglishSkillLevel,
+    setHeight,
+    setTempHeight,
+    setSelectedAppearance,
+    setSelectedBodyType,
+    setSelectedDrinking,
+    setSelectedEthinicity,
+    setSelectedKids,
+    setSelectedLanguages,
+    setSelectedLookingFor,
+    setSelectedNetWorth,
+    setSelectedSmoking,
+  ]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void hydrateFromStorage();
+      void profileQuery.refetch();
+    }, [hydrateFromStorage, profileQuery])
+  );
+
+  useEffect(() => {
+    void hydrateFromStorage();
+  }, [hydrateFromStorage]);
 
   useEffect(() => {
     const profile = profileQuery.data;
     if (!profile) {
       return;
     }
-
-    console.log('[MoreInfo] Profile loaded from API:', JSON.stringify({
-      ethnicity: profile.ethnicity,
-      lookingFor: profile.lookingFor,
-      smoke: profile.smoke,
-      kidCount: profile.kidCount,
-      netWorth: profile.netWorth,
-    }));
 
     const splitValues = (value?: string) =>
       String(value || '')
@@ -148,14 +183,28 @@ const MoreInfoScreen = () => {
 
     const englishLevelMap = ['basic', 'medium', 'good', 'very good'];
     const legacyEnglishMap = ['beginner', 'intermediate', 'advanced', 'native'];
-    const levelStr = String(profile.englishLevel || '').toLowerCase();
-    let englishIndex = englishLevelMap.indexOf(levelStr);
+    const rawLevelStr = String(profile.englishLevel || '').trim().toLowerCase();
+    let englishIndex = englishLevelMap.indexOf(rawLevelStr);
     if (englishIndex === -1) {
-      englishIndex = legacyEnglishMap.indexOf(levelStr);
+      englishIndex = legacyEnglishMap.indexOf(rawLevelStr);
+    }
+    const numLevel = Number(profile.englishLevel);
+    if (
+      englishIndex === -1 &&
+      Number.isFinite(numLevel) &&
+      numLevel >= 0 &&
+      numLevel <= 3 &&
+      String(profile.englishLevel).trim() !== ''
+    ) {
+      englishIndex = numLevel;
     }
 
     if (profile.height) {
-      setHeight(Number(profile.height));
+      const h = Number(profile.height);
+      if (Number.isFinite(h) && h > 0) {
+        setHeight(h);
+        setTempHeight?.(h);
+      }
     }
     if (profile.appearance) {
       setSelectedAppearance(profile.appearance);
@@ -178,16 +227,55 @@ const MoreInfoScreen = () => {
     if (visibleLookingFor.length > 0) {
       setSelectedLookingFor(visibleLookingFor);
     }
-    if (profile.kidCount || profile.kids) {
-      setSelectedKids(profile.kidCount || profile.kids);
+    const rawKids =
+      profile.kidCount !== undefined &&
+      profile.kidCount !== null &&
+      String(profile.kidCount).trim() !== ''
+        ? profile.kidCount
+        : profile.kids !== undefined &&
+          profile.kids !== null &&
+          String(profile.kids).trim() !== ''
+        ? profile.kids
+        : null;
+    if (rawKids !== null) {
+      setSelectedKids(String(rawKids).replace(/^kids:\s*/i, '').trim());
     }
     if (profile.netWorth) {
-      setSelectedNetWorth(profile.netWorth);
+      setSelectedNetWorth(String(profile.netWorth).replace(/^\$\s*/, '').trim());
     }
     if (englishIndex >= 0) {
       setEnglishSkillLevel(englishIndex);
     }
-  }, [profileQuery.data, setEnglishSkillLevel, setHeight, setSelectedAppearance, setSelectedBodyType, setSelectedDrinking, setSelectedEthinicity, setSelectedKids, setSelectedLanguages, setSelectedLookingFor, setSelectedNetWorth, setSelectedSmoking]);
+
+    // Persist to AsyncStorage for offline and immediate next load
+    AsyncStorage.multiSet([
+      ['@amara_height', String(profile.height || '')],
+      ['@amara_appearance', profile.appearance || ''],
+      ['@amara_body_type', profile.bodyType || ''],
+      ['@amara_ethnicity', profile.ethnicity || ''],
+      ['@amara_smoking', profile.smoke || ''],
+      ['@amara_drinking', profile.drink || ''],
+      ['@amara_looking_for', JSON.stringify(visibleLookingFor || [])],
+      ['@amara_languages', JSON.stringify(visibleLanguages || [])],
+      ['@amara_english_level', String(englishIndex >= 0 ? englishIndex : '')],
+      ['@amara_kid_count', rawKids !== null ? String(rawKids).replace(/^kids:\s*/i, '').trim() : ''],
+      ['@amara_net_worth', profile.netWorth ? String(profile.netWorth).replace(/^\$\s*/, '').trim() : ''],
+    ]).catch(() => {});
+  }, [
+    profileQuery.data,
+    setEnglishSkillLevel,
+    setHeight,
+    setTempHeight,
+    setSelectedAppearance,
+    setSelectedBodyType,
+    setSelectedDrinking,
+    setSelectedEthinicity,
+    setSelectedKids,
+    setSelectedLanguages,
+    setSelectedLookingFor,
+    setSelectedNetWorth,
+    setSelectedSmoking,
+  ]);
 
   const handleSave = async () => {
     const authSession = await getAuthSession();
@@ -201,8 +289,8 @@ const MoreInfoScreen = () => {
     try {
       setLoading(true);
 
-      const englishLevels = [t('onboarding.moredetailsscreen.basic'), t('profile.userdetails.medium'), 'Good', 'Very Good'];
-      const englishLevelStr = englishLevels[englishSkillLevel] || '';
+      const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
+      const englishLevelStr = englishLevels[Number(englishSkillLevel)] || 'Basic';
       const languageStr = Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '';
       const lookingForStr = Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '';
 
@@ -238,9 +326,12 @@ const MoreInfoScreen = () => {
         ['@amara_net_worth', selectedNetWorth || ''],
       ]);
 
-      await updateDetails.mutateAsync(detailsPayload);
-      await updatePreferences.mutateAsync(prefsPayload);
+      await Promise.allSettled([
+        updateDetails.mutateAsync(detailsPayload),
+        updatePreferences.mutateAsync(prefsPayload),
+      ]);
 
+      DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
       await profileQuery.refetch();
       alert(t('search.location.saved'), t('more_info.moreinfoscreen.your_profile_details_have_been_updated'), [
         { text: t('more_info.moreinfoscreen.close'), style: 'default' },

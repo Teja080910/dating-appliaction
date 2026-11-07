@@ -221,7 +221,13 @@ const GlobalStateProvider = ({ children }: any) => {
             AsyncStorage.getItem('@amara_net_worth'),
           ]);
 
-          if (storedHeight) setHeight(Number(storedHeight));
+          if (storedHeight) {
+            const h = Number(storedHeight);
+            if (Number.isFinite(h) && h > 0) {
+              setHeight(h);
+              setTempHeight(h);
+            }
+          }
           if (storedAppearance) setSelectedAppearance(storedAppearance);
           if (storedBodyType) setSelectedBodyType(storedBodyType);
           if (storedEthnicity) setSelectedEthnicity(storedEthnicity);
@@ -330,7 +336,7 @@ const GlobalStateProvider = ({ children }: any) => {
         }
         if (savedFilters.maxDistanceKm !== undefined) {
           const rawDist = Number(savedFilters.maxDistanceKm);
-          setDistanceRange(Number.isFinite(rawDist) ? Math.min(Math.max(rawDist, 5), 100) : 50);
+          setDistanceRange(Number.isFinite(rawDist) ? Math.min(Math.max(rawDist, 5), 200) : 50);
         }
         if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
           setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);

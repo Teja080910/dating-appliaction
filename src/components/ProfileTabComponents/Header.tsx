@@ -12,7 +12,12 @@ const Header = () => {
   const { isSubscribed } = useContext(AppContext);
   const { subscriptionStatus } = useSubscription();
   const planCode = String(subscriptionStatus?.plan || '').toUpperCase();
-  const planLabel = planCode === 'PREMIUM' ? 'ELITE' : planCode === 'GOLD' ? t('profile.header.premium') : t('profile.header.standard');
+  const planLabel =
+    planCode === 'ELITE' || planCode === 'PLATINUM'
+      ? 'ELITE'
+      : planCode === 'PREMIUM' || planCode === 'GOLD'
+      ? t('profile.header.premium')
+      : t('profile.header.standard');
 
   return (
     <View style={styles.headerContainer}>

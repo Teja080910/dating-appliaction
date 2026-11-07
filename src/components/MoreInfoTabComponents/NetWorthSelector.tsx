@@ -31,7 +31,9 @@ const NetWorthSelector = () => {
       </View>
       <View style={styles.optionsWrap}>
         {OPTIONS.map((option) => {
-          const isSelected = selectedNetWorth === option;
+          const cleanNetWorth = String(selectedNetWorth ?? '').replace(/^\$\s*/, '').trim().toLowerCase();
+          const cleanOption = option.replace(/^\$\s*/, '').trim().toLowerCase();
+          const isSelected = cleanNetWorth === cleanOption;
           return isSelected ? (
             <TouchableOpacity
               key={option}

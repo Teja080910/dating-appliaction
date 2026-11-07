@@ -387,11 +387,14 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { alert, AlertComponent } = useAlert();
-  const { setIsSubscribed, displayName, name, email, phoneNumber, gender } =
+  const { setIsSubscribed, isSubscribed, displayName, name, email, phoneNumber, gender } =
     useContext(AppContext);
-  const { createOrder, verifyPayment, activateSubscription } = useSubscription();
+  const { createOrder, verifyPayment, activateSubscription, subscriptionStatus, refetchStatus } = useSubscription();
   const [loading, setLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('PREMIUM');
+  const [activePlan, setActivePlan] = useState<string | null>(null);
+  const [activeDaysLeft, setActiveDaysLeft] = useState<number | null>(null);
+  const [activeEndDate, setActiveEndDate] = useState<string | null>(null);
   const [selectedPaymentMode, setSelectedPaymentMode] =
     useState<SupportedPaymentMode | 'all'>('all');
   const [activeSlide, setActiveSlide] = useState(0);
@@ -457,10 +460,45 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     }
 
     setLoading(false);
-    setSelectedPlanId('PREMIUM');
     setSelectedPaymentMode('all');
     setActiveSlide(0);
-  }, [visible]);
+
+    refetchStatus?.();
+    const loadActiveSub = async () => {
+      try {
+        const [storedSub, storedPlan, storedDays, storedEnd] = await Promise.all([
+          AsyncStorage.getItem('isSubscribed'),
+          AsyncStorage.getItem('@subscription_plan'),
+          AsyncStorage.getItem('@subscription_remainingDays'),
+          AsyncStorage.getItem('@subscription_endDate'),
+        ]);
+
+        const rawPlan = subscriptionStatus?.plan || storedPlan;
+        const isActive = Boolean(subscriptionStatus?.active || storedSub === 'true' || isSubscribed);
+        if (isActive && rawPlan) {
+          const normPlan = toBackendPlanName(rawPlan);
+          setActivePlan(normPlan);
+          setSelectedPlanId(normPlan);
+          const days =
+            subscriptionStatus?.remainingDays !== undefined && subscriptionStatus?.remainingDays !== null
+              ? subscriptionStatus.remainingDays
+              : storedDays
+              ? parseInt(storedDays, 10)
+              : null;
+          setActiveDaysLeft(days);
+          setActiveEndDate(subscriptionStatus?.endDate || storedEnd || null);
+        } else {
+          setActivePlan(null);
+          setActiveDaysLeft(null);
+          setActiveEndDate(null);
+          setSelectedPlanId('PREMIUM');
+        }
+      } catch {
+        setSelectedPlanId('PREMIUM');
+      }
+    };
+    void loadActiveSub();
+  }, [visible, isWoman, isSubscribed, subscriptionStatus?.active, subscriptionStatus?.plan]);
 
   useEffect(() => {
     if (!visible) return;
@@ -485,6 +523,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setActiveSlide(index);
     }
   };
+
+  const selectedPlan = useMemo(() => {
+    return getPlans().find((p) => p.id === selectedPlanId) || getPlans()[0];
+  }, [selectedPlanId]);
+
+  const isSelectedActive = Boolean(activePlan && activePlan === selectedPlanId);
 
   const completePaymentVerification = async (
     orderId: string,
@@ -517,6 +561,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       await AsyncStorage.setItem('isSubscribed', 'true');
       await AsyncStorage.setItem('@subscription_plan', backendPlan);
       const activatedPlan = getPlans().find((plan) => plan.id === planId) || getPlans()[0];
+      const durationDays = activatedPlan?.durationDays || 120;
+      const endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+      await AsyncStorage.setItem('@subscription_endDate', endDate);
+      await AsyncStorage.setItem('@subscription_remainingDays', String(durationDays));
+      setActivePlan(backendPlan);
+      setActiveDaysLeft(durationDays);
+      setActiveEndDate(endDate);
+      refetchStatus?.();
+
       Toast.show({
         type: 'success',
         text1: t('common.subscriptionmodal.payment_successful'),
@@ -531,6 +584,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       await AsyncStorage.setItem('isSubscribed', 'true');
       await AsyncStorage.setItem('@subscription_plan', backendPlan);
       const activatedPlan = getPlans().find((plan) => plan.id === planId) || getPlans()[0];
+      const durationDays = activatedPlan?.durationDays || 120;
+      const endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+      await AsyncStorage.setItem('@subscription_endDate', endDate);
+      await AsyncStorage.setItem('@subscription_remainingDays', String(durationDays));
+      setActivePlan(backendPlan);
+      setActiveDaysLeft(durationDays);
+      setActiveEndDate(endDate);
+      refetchStatus?.();
+
       Toast.show({
         type: 'success',
         text1: t('common.subscriptionmodal.payment_successful'),
@@ -546,6 +608,27 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const handleUpgradePress = async () => {
     if (loading) return;
 
+    if (isSelectedActive) {
+      alert(
+        'Active Subscription',
+        `You currently have the ${selectedPlan.name} Plan active (${activeDaysLeft !== null ? `${activeDaysLeft} days remaining` : 'Active'}). Would you like to extend your plan?`,
+        [
+          { text: t('profile.additionaluploadsection.cancel'), style: 'cancel', onPress: () => setLoading(false) },
+          {
+            text: 'Extend Plan',
+            onPress: () => {
+              void executeCheckout();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    await executeCheckout();
+  };
+
+  const executeCheckout = async () => {
     try {
       setLoading(true);
 
@@ -771,21 +854,28 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </View>
           </View>
 
-          {/* 2 Plans Side-by-Side */}
+          {/* 3 Plans Side-by-Side */}
           <View style={styles.plansRow}>
             {getPlans().map((plan) => {
               const isSelected = selectedPlanId === plan.id;
+              const isActivePlan = activePlan === plan.id;
               return (
                 <TouchableOpacity
                   key={plan.id}
                   style={[
                     styles.planCard,
                     isSelected && styles.selectedPlanCard,
+                    isActivePlan && !isSelected && styles.activePlanCardBorder,
                   ]}
                   onPress={() => setSelectedPlanId(plan.id)}
                   activeOpacity={0.85}
                 >
-                  {plan.badge ? (
+                  {isActivePlan ? (
+                    <View style={styles.activeCardBadge}>
+                      <Icon name="check" size={10} color="#FFFFFF" style={{ marginRight: 2 }} />
+                      <Text style={styles.activeCardBadgeText}>ACTIVE PLAN</Text>
+                    </View>
+                  ) : plan.badge ? (
                     <View style={styles.badgeContainer}>
                       <Text style={styles.badgeText}>{plan.badge}</Text>
                     </View>
@@ -840,6 +930,14 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   >
                     {plan.billedText}
                   </Text>
+
+                  {isActivePlan ? (
+                    <View style={[styles.activeStatusPill, isSelected && styles.activeStatusPillSelected]}>
+                      <Text style={[styles.activeStatusPillText, isSelected && styles.activeStatusPillTextSelected]}>
+                        {activeDaysLeft !== null ? `${activeDaysLeft} days left` : 'Active Plan'}
+                      </Text>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
@@ -847,7 +945,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
           {/* Plan feature note / disclaimer */}
           <Text style={styles.disclaimerText}>
-            {selectedPlanId === 'ELITE'
+            {isSelectedActive
+              ? `You currently have the ${selectedPlan.name} Plan active (${activeDaysLeft !== null ? `${activeDaysLeft} days remaining` : 'Active'}).`
+              : selectedPlanId === 'ELITE'
               ? 'Elite Plan: Unlimited daily connection requests for 365 days.'
               : selectedPlanId === 'PREMIUM'
               ? 'Premium Plan: 20 daily connection requests for 180 days.'
@@ -862,7 +962,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={[...themeColors.gradientPrimary]}
+              colors={
+                isSelectedActive
+                  ? ['#059669', '#10B981']
+                  : [...themeColors.gradientPrimary]
+              }
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.subscribeGradient}
@@ -870,7 +974,18 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.subscribeButtonText}>{t('common.subscriptionmodal.subscribe')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {isSelectedActive && (
+                    <Icon name="check-circle" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  )}
+                  <Text style={styles.subscribeButtonText}>
+                    {isSelectedActive
+                      ? `Active Plan (${selectedPlan?.label})`
+                      : activePlan
+                      ? `Upgrade to ${selectedPlan?.label} (${selectedPlan?.price})`
+                      : `${t('common.subscriptionmodal.subscribe')} (${selectedPlan?.price})`}
+                  </Text>
+                </View>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -917,8 +1032,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   );
 };
 
-const createStyles = (colors: any, isDark: boolean = true) =>
-  StyleSheet.create({
+function createStyles(colors: any, isDark: boolean = true) {
+  return StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: colors.background,
@@ -1026,6 +1141,50 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       shadowOpacity: 0.25,
       shadowRadius: 8,
       elevation: 4,
+    },
+    activePlanCardBorder: {
+      borderColor: '#10B981',
+      borderWidth: 2,
+    },
+    activePlanSelectedCard: {
+      borderWidth: 2.5,
+      borderColor: '#10B981',
+    },
+    activeCardBadge: {
+      position: 'absolute',
+      top: -10,
+      alignSelf: 'center',
+      backgroundColor: '#10B981',
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 10,
+      zIndex: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    activeCardBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 8.5,
+      fontWeight: '800',
+      letterSpacing: 0.3,
+    },
+    activeStatusPill: {
+      marginTop: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 8,
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#D1FAE5',
+    },
+    activeStatusPillSelected: {
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    },
+    activeStatusPillText: {
+      color: '#10B981',
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    activeStatusPillTextSelected: {
+      color: '#FFFFFF',
     },
     badgeContainer: {
       position: 'absolute',
@@ -1142,5 +1301,6 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       textDecorationLine: 'underline',
     },
   });
+}
 
 export default SubscriptionModal;

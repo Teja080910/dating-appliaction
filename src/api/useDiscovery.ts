@@ -181,12 +181,17 @@ const normalizeSearchRequest = (data: any) => {
     appearance: normalizeArrayFilter(data?.appearance),
     englishLevel: normalizeArrayFilter(data?.englishLevel),
     lookingFor: normalizeArrayFilter(data?.lookingFor),
-    searchRadius: Number.isFinite(Number(data?.searchRadius ?? data?.maxDistanceKm))
-      ? Number(data.searchRadius ?? data.maxDistanceKm)
+    searchRadius: Number.isFinite(Number(data?.searchRadius ?? data?.maxDistanceKm ?? data?.radius))
+      ? Number(data.searchRadius ?? data.maxDistanceKm ?? data.radius)
       : undefined,
-    maxDistanceKm: Number.isFinite(Number(data?.maxDistanceKm ?? data?.searchRadius))
-      ? Number(data.maxDistanceKm ?? data.searchRadius)
+    maxDistanceKm: Number.isFinite(Number(data?.maxDistanceKm ?? data?.searchRadius ?? data?.radius))
+      ? Number(data.maxDistanceKm ?? data.searchRadius ?? data.radius)
       : undefined,
+    radius: Number.isFinite(Number(data?.radius ?? data?.searchRadius ?? data?.maxDistanceKm))
+      ? Number(data.radius ?? data.searchRadius ?? data.maxDistanceKm)
+      : undefined,
+    latitude: Number.isFinite(Number(data?.latitude)) ? Number(data.latitude) : undefined,
+    longitude: Number.isFinite(Number(data?.longitude)) ? Number(data.longitude) : undefined,
     worldwide: typeof data?.worldwide === 'boolean' ? data.worldwide : undefined,
     city:
       typeof data?.city === 'string'

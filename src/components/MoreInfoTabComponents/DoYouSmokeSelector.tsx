@@ -29,7 +29,11 @@ const DoYouSmokeSelector = () => {
       </View>
       <View style={styles.optionsWrap}>
         {OPTIONS.map((option) => {
-          const isSelected = selectedSmoking === option;
+          const cleanSmoking = String(selectedSmoking ?? '').trim().toLowerCase();
+          const isSelected =
+            cleanSmoking === option.toLowerCase() ||
+            (option === 'Yes' && (cleanSmoking === 'true' || cleanSmoking === '1')) ||
+            (option === 'No' && (cleanSmoking === 'false' || cleanSmoking === '0'));
           return isSelected ? (
             <TouchableOpacity
               key={option}

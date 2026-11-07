@@ -105,6 +105,15 @@ const ProfileScreen = () => {
     }, [isSubscribed])
   );
 
+  useEffect(() => {
+    if (subscriptionStatus?.active) {
+      if (subscriptionStatus.plan) setSubPlan(subscriptionStatus.plan.toUpperCase());
+      if (subscriptionStatus.remainingDays !== undefined && subscriptionStatus.remainingDays !== null) {
+        setSubRemainingDays(subscriptionStatus.remainingDays);
+      }
+    }
+  }, [subscriptionStatus]);
+
   const handleChatWithUs = () => {
     setIsCopied(false);
     Linking.openURL('mailto:hi@amara.com').catch(() => {});

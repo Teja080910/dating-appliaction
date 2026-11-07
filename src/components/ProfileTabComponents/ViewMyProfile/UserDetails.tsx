@@ -30,7 +30,11 @@ import { getAuthToken, getUserId } from '../../../utils/sessionHelper';
 import { getUserFriendlyMessage, isSubscriptionGateError } from '../../../utils/userFriendlyMessages';
 import { useAlert } from '../../../components/AlertModal';
 import { openTelegramChat } from '../../../utils/telegramHelper';
+import { useMyTelegramStatus } from '../../../api/useTelegram';
+import { openWhatsAppChat, shareWhatsAppContact, extractPhone, extractTelegram, isInvalidPhoneNumber, isInvalidTelegramHandle } from '../../../utils/whatsappHelper';
 import { getLanguageFlag } from '../../../utils/languageHelper';
+import { resolveProfileDistance } from '../../../utils/distanceHelper';
+import { getCurrentLocation } from '../../../utils/geolocation';
 import { t, useTranslation } from '../../../i18n';
 import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
 import { mockStore } from '../../../mock/mockStore';
@@ -106,13 +110,54 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     selectedNetWorth,
     selectedKids,
     gender,
+    phoneNumber: contextPhone,
+    location,
   } = useContext(AppContext);
 
   const [localNetWorth, setLocalNetWorth] = useState<string | null>(null);
   const [localKids, setLocalKids] = useState<string | null>(null);
   const [viewerGender, setViewerGender] = useState<string>('');
+  const [ownTelegram, setOwnTelegram] = useState<string>('');
+  const [storedPhone, setStoredPhone] = useState<string>('');
+  const { data: myTgStatus } = useMyTelegramStatus(currentUserId != null ? String(currentUserId) : undefined);
   const { subscriptionStatus } = useSubscription(currentUserId != null ? String(currentUserId) : undefined);
   const [localSubActive, setLocalSubActive] = useState<boolean | null>(null);
+  const [liveUserCoords, setLiveUserCoords] = useState<{ latitude?: number; longitude?: number } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const loc = await getCurrentLocation(false);
+        if (isMounted && loc) {
+          setLiveUserCoords({ latitude: loc.latitude, longitude: loc.longitude });
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [tg, p1, p2] = await Promise.all([
+          AsyncStorage.getItem('telegramUsername'),
+          AsyncStorage.getItem('phoneNumber'),
+          AsyncStorage.getItem('userMobile'),
+        ]);
+        if (isMounted) {
+          if (tg) setOwnTelegram(tg.trim().replace(/^@+/, '').toLowerCase());
+          if (p1 || p2) setStoredPhone(p1 || p2 || '');
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -179,7 +224,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const { alert, AlertComponent } = useAlert();
   const isAcceptedStatus = (s?: string | null) => {
     const upper = String(s || '').trim().toUpperCase();
-    return upper === 'ACCEPTED' || upper === 'APPROVED';
+    return upper === 'ACCEPTED' || upper === 'APPROVED' || upper === 'MATCHED' || upper === 'CONNECTED' || upper === 'MUTUAL';
   };
   const isReceivedPendingRequest =
     requestRole === 'received' && !isAcceptedStatus(requestStatus);
@@ -242,6 +287,26 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     } catch {
       // User dismissed share dialog
     }
+  };
+
+  const handleOpenWhatsApp = (phone?: string) => {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
+    openWhatsAppChat(phone);
+  };
+
+  const handleShareWhatsApp = async (phone?: string) => {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
+    if (!phone) {
+      alert('WhatsApp Not Available', 'No phone number available to share.');
+      return;
+    }
+    shareWhatsAppContact(phone, profile?.displayName || profile?.name);
   };
 
   const normalizeTextValue = (value: unknown, fallback: string) => {
@@ -354,33 +419,202 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge || 25))
     : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, '24');
 
+  const isSameId = (a: any, b: any) => {
+    const sa = String(a || '').trim().toLowerCase();
+    const sb = String(b || '').trim().toLowerCase();
+    if (!sa || !sb || sa === '0' || sb === '0') return false;
+    if (sa === sb) return true;
+    const da = sa.replace(/[^\d]/g, '');
+    const db = sb.replace(/[^\d]/g, '');
+    if (da && db && da === db && da !== '0') return true;
+    return false;
+  };
+
   // Check if this user is already invited (from sent or received connections API)
   const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
   const matchingInvitation = sentConnections.find((inv: any) => {
-    const receiverId = inv?.receiver?.id ?? inv?.receiver?.userId ?? inv?.receiverId ?? inv?.id;
-    if (!receiverId || !resolvedTargetUserId) return false;
-    return String(receiverId).trim().toLowerCase() === String(resolvedTargetUserId).trim().toLowerCase();
+    if (requestId && String(inv?.id).trim() === String(requestId).trim()) return true;
+    const receiverId = inv?.receiver?.id ?? inv?.receiver?.userId ?? inv?.receiverId;
+    return isSameId(receiverId, resolvedTargetUserId);
   });
   const receivedConnections = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
   const matchingReceived = receivedConnections.find((inv: any) => {
-    const senderId = inv?.sender?.id ?? inv?.sender?.userId ?? inv?.senderId ?? inv?.id;
-    if (!senderId || !resolvedTargetUserId) return false;
-    return String(senderId).trim().toLowerCase() === String(resolvedTargetUserId).trim().toLowerCase();
+    if (requestId && String(inv?.id).trim() === String(requestId).trim()) return true;
+    const senderId = inv?.sender?.id ?? inv?.sender?.userId ?? inv?.senderId;
+    return isSameId(senderId, resolvedTargetUserId);
   });
   const isAlreadyInvited = Boolean(matchingInvitation);
+  const hasDirectUnlockedContacts = Boolean(
+    !isOwnProfile &&
+    (
+      (resolvedProfile?.phoneNumber && !isInvalidPhoneNumber(resolvedProfile?.phoneNumber)) ||
+      (resolvedProfile?.mobile && !isInvalidPhoneNumber(resolvedProfile?.mobile)) ||
+      (resolvedProfile?.phone && !isInvalidPhoneNumber(resolvedProfile?.phone)) ||
+      (resolvedProfile?.mobileNumber && !isInvalidPhoneNumber(resolvedProfile?.mobileNumber)) ||
+      (resolvedProfile?.telegramUsername && !isInvalidTelegramHandle(resolvedProfile?.telegramUsername)) ||
+      (profile?.phoneNumber && !isInvalidPhoneNumber(profile?.phoneNumber)) ||
+      (profile?.mobile && !isInvalidPhoneNumber(profile?.mobile)) ||
+      (profile?.phone && !isInvalidPhoneNumber(profile?.phone)) ||
+      (profile?.mobileNumber && !isInvalidPhoneNumber(profile?.mobileNumber)) ||
+      (profile?.telegramUsername && !isInvalidTelegramHandle(profile?.telegramUsername))
+    )
+  );
+
   const isApprovedInvitation =
     isAcceptedStatus(matchingInvitation?.status) ||
     isAcceptedStatus(matchingReceived?.status) ||
-    isAcceptedStatus(requestStatus);
+    isAcceptedStatus(requestStatus) ||
+    isAcceptedStatus((resolvedProfile as any)?.connectionStatus) ||
+    isAcceptedStatus((resolvedProfile as any)?.requestStatus) ||
+    hasDirectUnlockedContacts;
 
-  const targetTelegramUsername =
-    resolvedProfile?.telegramUsername ||
-    profile?.telegramUsername ||
-    matchingInvitation?.receiver?.telegramUsername ||
-    matchingInvitation?.sender?.telegramUsername ||
-    matchingReceived?.sender?.telegramUsername ||
-    matchingReceived?.receiver?.telegramUsername ||
-    '';
+  const targetTelegramUsername = (() => {
+    let raw = '';
+    if (isOwnProfile) {
+      raw = extractTelegram(
+        resolvedProfile,
+        profile,
+        propProfile,
+        ownTelegram,
+        myTgStatus?.telegramUsername
+      );
+    } else {
+      const isProfileMine =
+        isSameId(resolvedProfile?.id, currentUserId) ||
+        isSameId(resolvedProfile?.userId, currentUserId);
+      raw = extractTelegram(
+        matchingInvitation?.receiver,
+        (matchingInvitation as any)?.receiverProfile,
+        matchingReceived?.sender,
+        (matchingReceived as any)?.senderProfile,
+        !isProfileMine ? resolvedProfile : null,
+        !isProfileMine ? profile : null,
+        !isProfileMine ? propProfile : null
+      );
+    }
+    const clean = raw.trim().replace(/^@+/, '');
+    return clean;
+  })();
+
+  const targetPhoneNumber = (() => {
+    if (isOwnProfile) {
+      return extractPhone(
+        resolvedProfile,
+        profile,
+        propProfile,
+        contextPhone,
+        storedPhone
+      );
+    }
+    const isProfileMine =
+      isSameId(resolvedProfile?.id, currentUserId) ||
+      isSameId(resolvedProfile?.userId, currentUserId);
+    return extractPhone(
+      matchingInvitation?.receiver,
+      (matchingInvitation as any)?.receiverProfile,
+      matchingReceived?.sender,
+      (matchingReceived as any)?.senderProfile,
+      !isProfileMine ? resolvedProfile : null,
+      !isProfileMine ? profile : null,
+      !isProfileMine ? propProfile : null
+    );
+  })();
+
+  const renderContactCard = () => {
+    if (!targetPhoneNumber && !targetTelegramUsername) {
+      return (
+        <View style={styles.cleanContactCard}>
+          <View style={styles.cleanFallbackRow}>
+            <Feather
+              name={isOwnProfile ? "info" : "check-circle"}
+              size={18}
+              color={isOwnProfile ? themeColors.primary : "#10B981"}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.cleanContactSubtext}>
+              {isOwnProfile
+                ? t('profile.contactdetails.no_contacts_subtitle', {
+                    defaultValue: 'Add your WhatsApp or Telegram in Profile Settings so matches can connect with you.',
+                  })
+                : t('profile.userdetails.accepted_missing_contact', {
+                    defaultValue: `${resolvedProfile?.name || profile?.name || 'User'} has accepted, but hasn't added contact details yet.`,
+                  })}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.cleanContactCard}>
+        {targetPhoneNumber ? (
+          <View style={styles.cleanContactRow}>
+            <View style={styles.cleanIconWrapWhatsApp}>
+              <Icon name="whatsapp" size={20} color="#25D366" />
+            </View>
+            <View style={styles.cleanContactInfo}>
+              <Text style={styles.cleanContactLabel}>WhatsApp</Text>
+              <Text selectable={true} style={styles.cleanContactValue}>
+                {targetPhoneNumber}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.cleanChatBtnWhatsApp}
+              onPress={() => handleOpenWhatsApp(targetPhoneNumber)}
+            >
+              <Icon name="whatsapp" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+              <Text style={styles.cleanChatBtnText}>Chat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.cleanShareIconBtn}
+              onPress={() => handleShareWhatsApp(targetPhoneNumber)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Share WhatsApp Contact"
+            >
+              <Icon name="share-variant-outline" size={16} color={themeColors.textSecondary || '#94A3B8'} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {targetPhoneNumber && targetTelegramUsername ? (
+          <View style={styles.cleanContactDivider} />
+        ) : null}
+
+        {targetTelegramUsername ? (
+          <View style={styles.cleanContactRow}>
+            <View style={styles.cleanIconWrapTelegram}>
+              <Icon name="send" size={15} color={Colors.primary} />
+            </View>
+            <View style={styles.cleanContactInfo}>
+              <Text style={styles.cleanContactLabel}>Telegram</Text>
+              <Text selectable={true} style={styles.cleanContactValue}>
+                {`@${targetTelegramUsername.replace(/^@+/, '')}`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.cleanChatBtnTelegram}
+              onPress={() => handleOpenTelegram(targetTelegramUsername)}
+            >
+              <Icon name="send" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+              <Text style={styles.cleanChatBtnText}>Chat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.cleanShareIconBtn}
+              onPress={() => handleShareTelegram(targetTelegramUsername)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Share Telegram Handle"
+            >
+              <Icon name="share-variant-outline" size={16} color={themeColors.textSecondary || '#94A3B8'} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
   const parsedLanguages = normalizeTextValue(resolvedProfile?.language || profile.language, '')
     .split(',')
@@ -406,14 +640,41 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     resolvedProfile?.currentCity || profile?.currentCity,
     isOwnProfile ? t('profile.userdetails.your_location') : t('home.usercard.nearby')
   );
-  const distanceRaw = resolvedProfile?.distance || profile?.distance;
-  const distanceText = distanceRaw
-    ? (String(distanceRaw).toLowerCase().includes('away') ? String(distanceRaw) : t('home.usercard.away', { trimmed: distanceRaw }))
-    : '21 km away';
-  const cityText = normalizeTextValue(
-    resolvedProfile?.currentCity || profile?.currentCity,
-    'Dattatreya Ward, Bengaluru'
+  const distanceText = resolveProfileDistance(
+    resolvedProfile || profile,
+    liveUserCoords,
+    location
   );
+  const cityText = normalizeTextValue(
+    resolvedProfile?.currentCity || profile?.currentCity || resolvedProfile?.city || profile?.city,
+    location && location !== t('search.location.my_current_location') ? location : 'Nearby'
+  );
+  const placeText = normalizeTextValue(
+    resolvedProfile?.location ||
+    profile?.location ||
+    resolvedProfile?.place ||
+    profile?.place ||
+    resolvedProfile?.neighborhood ||
+    profile?.neighborhood ||
+    (resolvedProfile?.area && (resolvedProfile?.currentCity || resolvedProfile?.city)
+      ? `${resolvedProfile.area}, ${resolvedProfile.currentCity || resolvedProfile.city}`
+      : null) ||
+    resolvedProfile?.currentCity ||
+    profile?.currentCity ||
+    resolvedProfile?.city ||
+    profile?.city,
+    location && location !== t('search.location.my_current_location') ? location : 'Nearby'
+  );
+  const activeStatusText = (() => {
+    const isOnline = resolvedProfile?.online ?? profile?.online;
+    if (isOnline === true || isOnline === 'true') return 'Online now';
+    const lastActive = resolvedProfile?.lastActive || profile?.lastActive;
+    if (lastActive) {
+      const activeStr = String(lastActive).trim();
+      return activeStr.toLowerCase().startsWith('active') ? activeStr : `Active ${activeStr}`;
+    }
+    return t('profile.userdetails.active_today', { defaultValue: 'Active today' });
+  })();
   const canAttemptInvite = Boolean(resolvedTargetUserId);
 
   const handleInvite = async () => {
@@ -767,11 +1028,16 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           <Text style={styles.nameText}>{finalDisplayName || t('home.usercard.user')}, {displayAge}</Text>
           {isOwnProfile ? (
             <View style={styles.verifiedBadge}>
-              <Icon name="check-decagram-outline" size={16} color={Colors.primaryLight} style={styles.verifiedIcon} />
-              <Text style={styles.verifiedText}>{t('profile.userdetails.youre_verified_by_photo')}</Text>
+              <Icon name="check-decagram-outline" size={16} color={themeColors.primary || Colors.primary} style={styles.verifiedIcon} />
+              <Text style={[styles.verifiedText, { color: themeColors.primary || Colors.primary }]}>{t('profile.userdetails.youre_verified_by_photo')}</Text>
             </View>
           ) : (
-            <Icon name="check-circle" size={19} color={themeColors.primary || '#7C3AED'} style={{ marginLeft: 6 }} />
+            <View style={styles.verifiedBadge}>
+              <Icon name="check-circle-outline" size={16} color={themeColors.primary || Colors.primary} style={styles.verifiedIcon} />
+              <Text style={[styles.verifiedText, { color: themeColors.primary || Colors.primary }]}>
+                {t('profile.userdetails.photo_verified', { defaultValue: 'Photo verified' })}
+              </Text>
+            </View>
           )}
         </View>
 
@@ -779,15 +1045,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           <View style={styles.metaInfoRow}>
             <View style={styles.metaItem}>
               <Icon name="clock-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
-              <Text style={styles.metaText}>{t('profile.userdetails.active_today')}</Text>
+              <Text style={styles.metaText}>{activeStatusText}</Text>
             </View>
             <View style={styles.metaItem}>
-              <Icon name="map-marker-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
+              <Icon name="navigation-variant-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
               <Text style={styles.metaText}>{distanceText}</Text>
             </View>
             <View style={styles.metaItem}>
               <Icon name="office-building-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
-              <Text style={styles.metaText} numberOfLines={1}>{cityText}</Text>
+              <Text style={styles.metaText} numberOfLines={1}>{placeText}</Text>
             </View>
           </View>
         )}
@@ -923,7 +1189,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             </TouchableOpacity>
 
             {isAlreadyInvited && !isApprovedInvitation ? (
-              <Text style={styles.pendingInvitationText}>{t('profile.userdetails.invitation_pending_approval')}</Text>
+              <View style={styles.pendingInvitationBox}>
+                <Feather name="clock" size={20} color="#F59E0B" style={{ marginBottom: 6 }} />
+                <Text style={styles.pendingInvitationTitle}>
+                  {t('profile.userdetails.invitation_pending_approval', { defaultValue: 'Invitation Pending Approval' })}
+                </Text>
+                <Text style={styles.pendingInvitationSubtitle}>
+                  {t('profile.userdetails.contact_unlock_on_accept', {
+                    defaultValue: 'Her WhatsApp number and Telegram contact will unlock automatically once she accepts your invitation.',
+                  })}
+                </Text>
+              </View>
             ) : isApprovedInvitation ? (
               (!effectiveIsSubscribed && !isViewerWoman) ? (
                 <View style={styles.lockedTelegramContainer}>
@@ -933,10 +1209,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     </View>
                     <View style={styles.lockedTelegramTextBox}>
                       <Text style={styles.lockedTelegramTitle}>
-                        {t('profile.userdetails.telegram_locked_title', { defaultValue: 'Telegram Contact Locked' })}
+                        {t('profile.userdetails.contact_locked_title', { defaultValue: 'Contact Details Locked' })}
                       </Text>
                       <Text style={styles.lockedTelegramSubtitle}>
-                        {t('profile.userdetails.telegram_locked_desc', { defaultValue: 'An active subscription is required to connect on Telegram.' })}
+                        {t('profile.userdetails.contact_locked_desc', { defaultValue: 'An active subscription is required to connect on WhatsApp or Telegram.' })}
                       </Text>
                     </View>
                   </View>
@@ -953,49 +1229,27 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                     >
                       <Icon name="crown" size={18} color="#fff" style={{ marginRight: 8 }} />
                       <Text style={styles.openTelegramBtnText}>
-                        {t('profile.userdetails.upgrade_to_view_telegram', { defaultValue: 'Upgrade to View Telegram' })}
+                        {t('profile.userdetails.upgrade_to_view_contact', { defaultValue: 'Upgrade to View Contact' })}
                       </Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <View style={styles.approvedTelegramContainer}>
-                  <View style={styles.approvedTelegramInfoBox}>
-                    <Text style={styles.approvedTelegramLabel}>{t('profile.userdetails.telegram_contact')}</Text>
-                    <Text selectable={true} style={styles.approvedTelegramHandle}>
-                      {targetTelegramUsername ? `@${targetTelegramUsername.replace('@', '')}` : 'Not connected'}
-                    </Text>
-                  </View>
-                  <View style={styles.approvedTelegramBtnRow}>
-                    <TouchableOpacity
-                      activeOpacity={0.85}
-                      style={styles.openTelegramBtn}
-                      onPress={() => handleOpenTelegram(targetTelegramUsername)}
-                    >
-                      <LinearGradient
-                        colors={[Colors.primary, Colors.primaryLight]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.telegramGradient}
-                      >
-                        <Icon name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
-                        <Text style={styles.openTelegramBtnText}>{t('profile.userdetails.open_telegram')}</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                    {targetTelegramUsername ? (
-                      <TouchableOpacity
-                        activeOpacity={0.8}
-                        style={styles.shareTelegramBtn}
-                        onPress={() => handleShareTelegram(targetTelegramUsername)}
-                        accessibilityLabel="Share Telegram Handle"
-                      >
-                        <Icon name="share-variant-outline" size={20} color={Colors.primaryLight} />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                </View>
+                renderContactCard()
               )
             ) : null}
+        </View>
+      )}
+
+      {/* Own Contact Details (View My Profile) */}
+      {isOwnProfile && (
+        <View style={styles.actionSection}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>
+              {t('profile.contactdetails.contact_details', { defaultValue: 'Contact Details' })}
+            </Text>
+          </View>
+          {renderContactCard()}
         </View>
       )}
 
@@ -1350,8 +1604,14 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 6,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    borderWidth: 1.2,
+    borderColor: colors.border || colors.glassBorder || 'rgba(148, 163, 184, 0.3)',
+    gap: 8,
+    width: '100%',
+    marginVertical: 6,
   },
   reportText: {
     color: colors.textSecondary || '#94A3B8',
@@ -1432,6 +1692,29 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     textAlign: 'center',
     paddingVertical: 12,
   },
+  pendingInvitationBox: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLight || '#1E1B2E',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pendingInvitationTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  pendingInvitationSubtitle: {
+    color: colors.textSecondary || colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
   lockedTelegramContainer: {
     width: '100%',
     padding: 16,
@@ -1470,6 +1753,26 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     color: colors.textMuted || '#94A3B8',
   },
   lockedTelegramUpgradeBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  approvedWhatsAppContainer: {
+    width: '100%',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 211, 102, 0.3)',
+    marginBottom: 10,
+  },
+  approvedWhatsAppLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#25D366',
+    letterSpacing: 0.8,
+  },
+  openWhatsAppBtn: {
+    flex: 1,
     borderRadius: 14,
     overflow: 'hidden',
   },
@@ -1528,6 +1831,105 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.glassBorder,
+  },
+  cleanContactCard: {
+    width: '100%',
+    backgroundColor: colors.surfaceLight || '#1A1829',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.glassBorder || 'rgba(255, 255, 255, 0.08)',
+    marginTop: 8,
+  },
+  cleanContactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  cleanIconWrapWhatsApp: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(37, 211, 102, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cleanIconWrapTelegram: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cleanContactInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cleanContactLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary || '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  cleanContactValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cleanChatBtnWhatsApp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#25D366',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    marginRight: 8,
+  },
+  cleanChatBtnTelegram: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    marginRight: 8,
+  },
+  cleanChatBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  cleanShareIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLighter || '#252238',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.glassBorder || 'rgba(255, 255, 255, 0.08)',
+  },
+  cleanContactDivider: {
+    height: 1,
+    backgroundColor: colors.glassBorder || 'rgba(255, 255, 255, 0.06)',
+    marginVertical: 2,
+  },
+  cleanFallbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  cleanContactSubtext: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary || '#94A3B8',
+    lineHeight: 18,
   },
   reportModalOverlay: {
     flex: 1,

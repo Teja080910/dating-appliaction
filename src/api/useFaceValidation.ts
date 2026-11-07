@@ -1,8 +1,155 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { FACE_VALIDATION_URL } from '../environment/ApiConfig';
 import { getUserId } from '../utils/sessionHelper';
 import { getAuthSession } from '../utils/session';
+import apiClient from './apiClient';
+
+export const SELFIE_VERIFICATION_URL_STORAGE_KEY = '@amara_selfie_verification_url';
+export const DEFAULT_SELFIE_VERIFICATION_URL = (FACE_VALIDATION_URL || 'https://clutch-unashamed-lunacy.ngrok-free.dev')
+  .trim()
+  .replace(/\/+$/, '');
+
+let activeFaceValidationUrl = DEFAULT_SELFIE_VERIFICATION_URL;
+
+/**
+ * Extract selfie verification URL from any API response or payload
+ */
+export const extractSelfieVerificationUrl = (payload: any): string | null => {
+  if (!payload) return null;
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed.replace(/\/+$/, '');
+    }
+  }
+  if (typeof payload === 'object') {
+    const candidates = [
+      payload.selfieVerification,
+      payload.selfie_verification,
+      payload.selfieVerificationUrl,
+      payload.selfie_verification_url,
+      payload.selfieUrl,
+      payload.selfie_url,
+      payload.faceValidationUrl,
+      payload.face_validation_url,
+      payload.faceVerificationUrl,
+      payload.face_verification_url,
+      payload.verificationUrl,
+      payload.verification_url,
+      payload.aiVerificationUrl,
+      payload.ai_verification_url,
+      payload.data?.selfieVerification,
+      payload.data?.selfie_verification,
+      payload.data?.selfieVerificationUrl,
+      payload.data?.selfie_verification_url,
+      payload.data?.selfieUrl,
+      payload.data?.selfie_url,
+      payload.data?.faceValidationUrl,
+      payload.data?.face_validation_url,
+      payload.data?.faceVerificationUrl,
+      payload.data?.face_verification_url,
+      payload.data?.verificationUrl,
+      payload.data?.verification_url,
+      payload.data?.aiVerificationUrl,
+      payload.data?.ai_verification_url,
+      payload.user?.selfieVerification,
+      payload.user?.selfie_verification,
+      payload.user?.selfieVerificationUrl,
+      payload.user?.selfieUrl,
+      payload.user?.faceValidationUrl,
+      payload.user?.verificationUrl,
+      payload.config?.selfieVerification,
+      payload.config?.selfieVerificationUrl,
+      payload.config?.faceValidationUrl,
+    ];
+    for (const cand of candidates) {
+      if (typeof cand === 'string') {
+        const trimmed = cand.trim();
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+          return trimmed.replace(/\/+$/, '');
+        }
+      }
+    }
+  }
+  return null;
+};
+
+/**
+ * Persist the selfie verification URL to local storage and memory
+ */
+export const saveSelfieVerificationUrl = async (url: string): Promise<void> => {
+  if (!url || typeof url !== 'string') return;
+  const clean = url.trim().replace(/\/+$/, '');
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) return;
+  activeFaceValidationUrl = clean;
+  faceValidationClient.defaults.baseURL = clean;
+  await AsyncStorage.setItem(SELFIE_VERIFICATION_URL_STORAGE_KEY, clean).catch(() => {});
+  if (__DEV__) {
+    console.log('📸 [FaceValidation] Active base URL updated to:', clean);
+  }
+};
+
+/**
+ * Retrieve the cached selfie verification URL
+ */
+export const getStoredSelfieVerificationUrl = async (): Promise<string | null> => {
+  try {
+    const stored = await AsyncStorage.getItem(SELFIE_VERIFICATION_URL_STORAGE_KEY);
+    if (stored && (stored.startsWith('http://') || stored.startsWith('https://'))) {
+      const clean = stored.trim().replace(/\/+$/, '');
+      activeFaceValidationUrl = clean;
+      faceValidationClient.defaults.baseURL = clean;
+      return clean;
+    }
+  } catch {}
+  return null;
+};
+
+/**
+ * Fetch dynamic selfie verification URL from backend endpoint or cached storage,
+ * matching how fetchAmaraBotName works.
+ */
+export const fetchSelfieVerificationUrl = async (): Promise<string> => {
+  // 1. Try dedicated endpoints if the backend exposes one (e.g. /selfie/verification-url)
+  const candidateEndpoints = [
+    '/selfie/verification-url',
+    '/selfie-verification-url',
+    '/selfie/url',
+    '/verification/url',
+    '/profile/selfie/url',
+  ];
+  for (const ep of candidateEndpoints) {
+    try {
+      const res = await apiClient.get(ep);
+      const url = extractSelfieVerificationUrl(res?.data);
+      if (url) {
+        await saveSelfieVerificationUrl(url);
+        return url;
+      }
+    } catch {}
+  }
+
+  // 2. Return cached from AsyncStorage
+  const cached = await getStoredSelfieVerificationUrl();
+  if (cached) return cached;
+
+  // 3. Fallback to default
+  return DEFAULT_SELFIE_VERIFICATION_URL;
+};
+
+/**
+ * Hook to retrieve the dynamic Selfie Verification URL (same as useTelegramBotName).
+ */
+export const useSelfieVerificationUrl = () => {
+  return useQuery({
+    queryKey: ['selfie-verification-url'],
+    queryFn: fetchSelfieVerificationUrl,
+    staleTime: 1000 * 60 * 60, // 1 hour
+    gcTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+};
 
 export interface FaceValidationHealthResponse {
   status?: string;
@@ -26,12 +173,27 @@ export interface UserPhotosResponse {
 }
 
 export const faceValidationClient = axios.create({
-  baseURL: (FACE_VALIDATION_URL || 'https://clutch-unashamed-lunacy.ngrok-free.dev').trim().replace(/\/+$/, ''),
+  baseURL: DEFAULT_SELFIE_VERIFICATION_URL,
   timeout: 30000,
   headers: {
     Accept: 'application/json',
     'ngrok-skip-browser-warning': '1',
   },
+});
+
+// Dynamic baseURL interceptor: ensures each outgoing request uses the latest dynamic selfie verification URL
+faceValidationClient.interceptors.request.use(async (config) => {
+  try {
+    const stored = await AsyncStorage.getItem(SELFIE_VERIFICATION_URL_STORAGE_KEY);
+    if (stored && (stored.startsWith('http://') || stored.startsWith('https://'))) {
+      const clean = stored.trim().replace(/\/+$/, '');
+      activeFaceValidationUrl = clean;
+      config.baseURL = clean;
+    } else if (activeFaceValidationUrl) {
+      config.baseURL = activeFaceValidationUrl;
+    }
+  } catch {}
+  return config;
 });
 
 faceValidationClient.interceptors.response.use(

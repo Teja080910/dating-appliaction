@@ -44,6 +44,11 @@ export interface UserProfile {
   online?: boolean;
   lastSeen?: string; // format: date-time
   createdAt?: string; // format: date-time
+  phoneNumber?: string;
+  mobile?: string;
+  phone?: string;
+  mobileNumber?: string;
+  telegramUsername?: string;
 }
 
 export interface UserFilterRequest {
@@ -86,6 +91,24 @@ export interface RegisterRequest {
   confirmPassword: string;
   otp?: string;
   mobile?: string;
+}
+
+export interface RegisterResponseDTO {
+  status?: string;
+  message?: string;
+  token?: string;
+  userId?: string | number;
+  selfieVerification?: string;
+  selfieVerificationUrl?: string;
+  sessionId?: string;
+  otp?: string;
+  data?: {
+    selfieVerification?: string;
+    selfieVerificationUrl?: string;
+    sessionId?: string;
+    [key: string]: any;
+  };
+  user?: User;
 }
 
 export interface LoginRequest {

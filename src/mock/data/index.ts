@@ -43,6 +43,8 @@ export interface MockProfile {
   selfieVerified?: boolean;
   phone?: string;
   mobile?: string;
+  phoneNumber?: string;
+  mobileNumber?: string;
   email?: string;
   kidCount?: string;
   kids?: string;

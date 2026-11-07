@@ -246,17 +246,26 @@ const HowToUseScreen = () => {
             <View style={styles.pledgeRow}>
               <Icon name="check-circle" size={16} color={Colors.success} />
               <Text style={styles.pledgeText}>
-                <Text style={styles.boldText}>{t('profile.howtousescreen.photo_verified')}</Text>{t('profile.howtousescreen.every_profile_completes_a_live_gesture_selfie')}</Text>
+                <Text style={styles.boldText}>{t('profile.howtousescreen.photo_verified')}</Text>
+                {' '}
+                {t('profile.howtousescreen.every_profile_completes_a_live_gesture_selfie')}
+              </Text>
             </View>
             <View style={styles.pledgeRow}>
               <Icon name="check-circle" size={16} color={Colors.success} />
               <Text style={styles.pledgeText}>
-                <Text style={styles.boldText}>{t('profile.howtousescreen.no_commercial_dating')}</Text>{t('profile.howtousescreen.escorts_prostitution_and_sugar_dating_are_strictly_prohibited')}</Text>
+                <Text style={styles.boldText}>{t('profile.howtousescreen.no_commercial_dating')}</Text>
+                {' '}
+                {t('profile.howtousescreen.escorts_prostitution_and_sugar_dating_are_strictly_prohibited')}
+              </Text>
             </View>
             <View style={styles.pledgeRow}>
               <Icon name="check-circle" size={16} color={Colors.success} />
               <Text style={styles.pledgeText}>
-                <Text style={styles.boldText}>{t('profile.howtousescreen.high_quality')}</Text>{t('profile.howtousescreen.profiles_with_low_photo_quality_or_abusive_behavior_are_removed')}</Text>
+                <Text style={styles.boldText}>{t('profile.howtousescreen.high_quality')}</Text>
+                {' '}
+                {t('profile.howtousescreen.profiles_with_low_photo_quality_or_abusive_behavior_are_removed')}
+              </Text>
             </View>
           </View>
         </View>

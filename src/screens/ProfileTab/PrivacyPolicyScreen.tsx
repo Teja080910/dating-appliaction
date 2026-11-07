@@ -16,25 +16,21 @@ const PrivacyPolicyScreen = () => {
 
   const isPrivacy = type === 'privacy';
   const title = isPrivacy ? t('auth.forgotpasswordscreen.privacy_policy') : t('profile.privacypolicyscreen.terms_conditions');
-  const url = isPrivacy ? t('profile.privacypolicyscreen.amara_app_privacy') : t('profile.privacypolicyscreen.amara_app_terms');
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={themeColors.background} />
       
-      <View style={styles.browserBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="x" size={24} color={themeColors.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Icon name="arrow-left" size={24} color={themeColors.text} />
         </TouchableOpacity>
-        
-        <View style={styles.urlBar}>
-          <Icon name="lock" size={14} color={themeColors.success} />
-          <Text style={styles.urlText}>{url}</Text>
-        </View>
-        
-        <TouchableOpacity style={styles.moreButton}>
-          <Icon name="more-horizontal" size={24} color={themeColors.text} />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{title}</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -48,10 +44,10 @@ const PrivacyPolicyScreen = () => {
 
             <Section title={t('profile.privacypolicyscreen.2_the_data_we_collect_about_you')} styles={styles}>
               Personal data means any information about an individual from which that person can be identified.
-              {"\n\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.identity_data')}</Bold> includes username, marital status, title, date of birth and gender.
-              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.contact_data')}</Bold> includes email address and telephone numbers.
-              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.technical_data')}</Bold> includes IP address, login data, device info.
-              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.profile_data')}</Bold>{t('profile.privacypolicyscreen.includes_interests_preferences_and_photos')}</Section>
+              {"\n\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.identity_data')}</Bold>{' '}Includes username, marital status, title, date of birth and gender.
+              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.contact_data')}</Bold>{' '}Includes email address and telephone numbers.
+              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.technical_data')}</Bold>{' '}Includes IP address, login data, device info.
+              {"\n"}• <Bold styles={styles}>{t('profile.privacypolicyscreen.profile_data')}</Bold>{' '}Includes interests, preferences, and photos.</Section>
 
             <Section title={t('profile.privacypolicyscreen.3_how_we_use_your_data')} styles={styles}>{t('profile.privacypolicyscreen.we_use_your_data_mainly_to_provide_you_with_matching_partner_recommend')}</Section>
 
@@ -67,15 +63,8 @@ const PrivacyPolicyScreen = () => {
           </>
         )}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
-
-      <View style={styles.browserFooter}>
-        <Icon name="chevron-left" size={24} color={themeColors.textMuted} />
-        <Icon name="chevron-right" size={24} color={themeColors.textMuted} />
-        <Icon name="share" size={24} color={themeColors.textSecondary} />
-        <Icon name="refresh-cw" size={22} color={themeColors.textSecondary} />
-      </View>
     </SafeAreaView>
   );
 };
@@ -103,33 +92,31 @@ const createStyles = (themeColors: any) =>
       flex: 1,
       backgroundColor: themeColors.background,
     },
-    browserBar: {
+    header: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.sm,
-      backgroundColor: themeColors.surface,
+      paddingVertical: Spacing.md,
+      backgroundColor: themeColors.background,
       borderBottomWidth: 1,
       borderBottomColor: themeColors.borderLight,
     },
-    urlBar: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
+    backButton: {
+      width: 40,
+      height: 40,
       justifyContent: 'center',
-      backgroundColor: themeColors.inputBackground,
-      height: 36,
-      borderRadius: 18,
-      marginHorizontal: Spacing.lg,
+      alignItems: 'flex-start',
     },
-    urlText: {
-      fontSize: 14,
-      color: themeColors.textSecondary,
-      marginLeft: 6,
-      fontWeight: '500',
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: themeColors.text,
+      textAlign: 'center',
     },
-    backButton: { width: 30 },
-    moreButton: { width: 30 },
+    headerSpacer: {
+      width: 40,
+    },
     content: { padding: Spacing.xl },
     logoTitle: {
       fontSize: 32,
@@ -163,20 +150,6 @@ const createStyles = (themeColors: any) =>
     },
     boldText: {
       color: themeColors.text,
-    },
-    browserFooter: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      alignItems: 'center',
-      height: 60,
-      borderTopWidth: 1,
-      borderTopColor: themeColors.borderLight,
-      backgroundColor: themeColors.surface,
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      paddingBottom: Platform.OS === 'ios' ? 20 : 0,
     },
   });
 

@@ -30,7 +30,11 @@ const DrinkingSelector = () => {
       </View>
       <View style={styles.optionsWrap}>
         {OPTIONS.map((option) => {
-          const isSelected = selectedDrinking === option;
+          const cleanDrinking = String(selectedDrinking ?? '').trim().toLowerCase();
+          const isSelected =
+            cleanDrinking === option.toLowerCase() ||
+            (option === 'Yes' && (cleanDrinking === 'true' || cleanDrinking === '1')) ||
+            (option === 'No' && (cleanDrinking === 'false' || cleanDrinking === '0'));
           return isSelected ? (
             <TouchableOpacity
               key={option}

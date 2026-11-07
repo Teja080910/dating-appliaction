@@ -20,7 +20,7 @@ const EnglishSkillSelector = () => {
       </View>
       <View style={styles.optionsWrap}>
         {getLevels().map((level, index) => {
-          const isSelected = englishSkillLevel === index;
+          const isSelected = Number(englishSkillLevel) === index;
           return isSelected ? (
             <TouchableOpacity
               key={level}

@@ -28,7 +28,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useProfile } from '../../api/useProfile';
-import { useFaceValidation } from '../../api/useFaceValidation';
+import { useFaceValidation, useSelfieVerificationUrl } from '../../api/useFaceValidation';
 import { useTheme, Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
@@ -108,6 +108,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
   const { verifySelfie, uploadSelfie } = useProfile();
   const { uploadLivePhoto } = useFaceValidation();
+  const { data: dynamicSelfieUrl } = useSelfieVerificationUrl();
 
   // 1. Proactively check camera permission on mount and focus
   const checkCameraPermission = useCallback(async () => {

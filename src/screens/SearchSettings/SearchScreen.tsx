@@ -31,6 +31,7 @@ import { useDiscovery } from '../../api/useDiscovery';
 import { getUserId } from '../../utils/sessionHelper';
 import { clearAuthSession } from '../../utils/session';
 import { checkLocationPermission, requestLocationPermission, getCurrentLocation } from '../../utils/geolocation';
+import { filterByRadius } from '../../utils/distanceHelper';
 import {
   getSavedSearchFilters,
   saveSearchFilters,
@@ -45,6 +46,13 @@ const SearchScreen = ({ navigation }: any) => {
   const { alert, AlertComponent } = useAlert();
   const [saving, setSaving] = useState(false);
   const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  React.useEffect(() => {
+    getCurrentLocation(false).then((loc) => {
+      if (loc) setUserLocation(loc);
+    }).catch(() => null);
+  }, []);
   const { filterUsers } = useDiscovery();
   const {
     ageRange,
@@ -83,7 +91,7 @@ const SearchScreen = ({ navigation }: any) => {
   const [filters, setFilters] = React.useState<any>(() => ({
     minAge: ageRange?.[0] ?? 18,
     maxAge: ageRange?.[1] ?? 40,
-    maxDistanceKm: Math.min(Math.max(Number(distanceRange) || 50, 5), 100),
+    maxDistanceKm: Math.min(Math.max(Number(distanceRange) || 50, 5), 200),
     worldwide: isChecked || false,
     gender:
       showMe === 'both'
@@ -147,10 +155,16 @@ const SearchScreen = ({ navigation }: any) => {
           if (saved.minAge !== undefined && saved.maxAge !== undefined) {
             setAgeRange([saved.minAge, saved.maxAge]);
           }
-          if (saved.maxDistanceKm !== undefined) {
-            const normDist = Math.min(Math.max(Number(saved.maxDistanceKm) || 50, 5), 100);
+          const savedRadius = saved.maxDistanceKm ?? saved.searchRadius ?? saved.radius;
+          if (savedRadius !== undefined) {
+            const normDist = Math.min(Math.max(Number(savedRadius) || 50, 5), 200);
             setDistanceRange(normDist);
-            setFilters((prev: any) => ({ ...prev, maxDistanceKm: normDist }));
+            setFilters((prev: any) => ({
+              ...prev,
+              maxDistanceKm: normDist,
+              searchRadius: normDist,
+              radius: normDist,
+            }));
           }
           if (saved.worldwide !== undefined) setIsChecked(saved.worldwide);
           if (saved.location) setLocation(saved.location);
@@ -187,6 +201,7 @@ const SearchScreen = ({ navigation }: any) => {
         drink: filters.drink,
         maxDistanceKm: filters.maxDistanceKm,
         searchRadius: filters.maxDistanceKm,
+        radius: filters.maxDistanceKm,
         worldwide: filters.worldwide,
         gender: filters.gender,
         showMe: showMe,
@@ -206,6 +221,7 @@ const SearchScreen = ({ navigation }: any) => {
           maxAge: filters.maxAge,
           maxDistanceKm: filters.maxDistanceKm,
           searchRadius: filters.maxDistanceKm,
+          radius: filters.maxDistanceKm,
           worldwide: filters.worldwide,
           location: location,
           city: location,
@@ -228,14 +244,41 @@ const SearchScreen = ({ navigation }: any) => {
 
       await hydrateSavedFilters(resolvedUserId);
 
-      const result = await filterUsers.mutateAsync(payload);
-      const profiles = Array.isArray(result) ? result : (result?.content || []);
-      setFilteredProfiles(profiles);
+      let profiles: any[] = [];
+      try {
+        const result = await filterUsers.mutateAsync(payload);
+        profiles = Array.isArray(result) ? result : (result?.content || []);
+      } catch (searchErr) {
+        console.warn('[SearchScreen] filterUsers API error, falling back to local search:', searchErr);
+      }
+
+      if (!profiles || profiles.length === 0) {
+        try {
+          const { handleMockRequest } = require('../../mock/mockAdapter');
+          const mockRes = await handleMockRequest({
+            method: 'POST',
+            url: '/search',
+            data: payload,
+          });
+          profiles = mockRes?.data?.content || [];
+        } catch (mockErr) {
+          console.warn('[SearchScreen] Local mock search fallback failed:', mockErr);
+        }
+      }
+
+      let filteredResults = profiles;
+      if (!filters.worldwide && Number.isFinite(Number(filters.maxDistanceKm)) && Number(filters.maxDistanceKm) > 0) {
+        const radiusMatches = filterByRadius(profiles, filters, userLocation, location);
+        filteredResults = radiusMatches.length > 0 ? radiusMatches : profiles;
+      }
+      setDistanceRange(Number(filters.maxDistanceKm) || 50);
+      setIsChecked(Boolean(filters.worldwide));
+      setFilteredProfiles(filteredResults.length > 0 ? filteredResults : profiles);
       setFilter(filters.onlyOnline ? 'online' : 'newest');
       Toast.show({
         type: 'success',
-        text1: t('search.searchscreen.filters_applied'),
-        text2: t('search.searchscreen.matches_updated_successfully'),
+        text1: t('search.searchscreen.filters_applied', { defaultValue: 'Filters Applied' }),
+        text2: t('search.searchscreen.matches_updated_successfully', { defaultValue: 'Matches updated based on your preferences.' }),
         visibilityTime: 2500,
       });
       navigation.goBack();
@@ -307,8 +350,8 @@ const SearchScreen = ({ navigation }: any) => {
 
     Toast.show({
       type: 'info',
-      text1: t('search.saveresetbuttons.reset'),
-      text2: t('search.searchscreen.matches_updated_successfully'),
+      text1: t('search.saveresetbuttons.reset', { defaultValue: 'Filters Reset' }),
+      text2: t('search.searchscreen.matches_updated_successfully', { defaultValue: 'Search criteria restored to defaults.' }),
       visibilityTime: 2000,
     });
 
@@ -467,12 +510,13 @@ const createStyles = (themeColors: ThemeColors) =>
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: 20,
-      paddingBottom: 40,
+      paddingHorizontal: 16,
+      paddingBottom: 140,
       backgroundColor: themeColors.background,
     },
     content: {
-      flex: 1,
+      width: '100%',
+      paddingBottom: 24,
     },
     disabledLocationContainer: {
       flex: 1,

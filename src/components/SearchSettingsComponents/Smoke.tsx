@@ -82,14 +82,12 @@ const createStyles = (themeColors: ThemeColors) =>
       gap: 8,
     },
     option: {
-      paddingHorizontal: 18,
-      paddingVertical: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
       borderRadius: 9999,
       borderWidth: 1,
       borderColor: themeColors.borderLight,
       backgroundColor: themeColors.surface,
-      marginBottom: 8,
-      marginRight: 6,
     },
     optionSelected: {
       backgroundColor: themeColors.primary,

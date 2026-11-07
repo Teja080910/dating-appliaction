@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -12,6 +12,7 @@ import {
   Modal,
   Platform,
   Linking,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -19,11 +20,13 @@ import Feather from 'react-native-vector-icons/Feather';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { completeOnboarding } from '../../utils/session';
-import { useTelegram } from '../../api/useTelegram';
+import { useTelegram, useTelegramBotName, useMyTelegramStatus, fetchAmaraBotName, fetchAmaraBotLink, DEFAULT_AMARA_BOT_USERNAME } from '../../api/useTelegram';
 import { useProfile } from '../../api/useProfile';
 import { Colors, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
+import { openAmaraBot } from '../../utils/telegramHelper';
+import { extractTelegram } from '../../utils/whatsappHelper';
 
 const ConnectTelegramScreen = ({ navigation, route }: any) => {
   useTranslation();
@@ -32,6 +35,8 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
   const isOnboarding = !isTab && !fromProfile;
 
   const { connectTelegram, disconnectTelegram } = useTelegram();
+  const { data: dynamicBotName } = useTelegramBotName();
+  const { data: myTgStatus, refetch: refetchTgStatus } = useMyTelegramStatus();
   const { useMyProfile } = useProfile();
   const { data: profile, refetch: refetchProfile } = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
@@ -39,16 +44,28 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
 
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const isDisconnectedRef = useRef(false);
 
-  const rawConnected = profile?.telegramUsername || '';
-  const cleanConnected = rawConnected.replace(/^@+/, '');
+  const cleanConnected = isDisconnectedRef.current
+    ? ''
+    : extractTelegram(myTgStatus?.telegramUsername, profile?.telegramUsername);
   const [telegramUsername, setTelegramUsername] = useState(cleanConnected);
 
   useEffect(() => {
-    if (cleanConnected) {
+    if (!isDisconnectedRef.current && cleanConnected) {
       setTelegramUsername(cleanConnected);
     }
   }, [cleanConnected]);
+
+  // When returning to the app from Telegram, auto-refresh status
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void Promise.allSettled([refetchProfile(), refetchTgStatus?.()]);
+      }
+    });
+    return () => sub.remove();
+  }, [refetchProfile, refetchTgStatus]);
 
   useFocusEffect(
     useCallback(() => {
@@ -88,19 +105,14 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
   };
 
   const handleConnectTelegramPress = async () => {
-    // Open Telegram bot directly
-    const botUrl = 'https://t.me/amara_dating_bot';
-    const appUrl = 'tg://resolve?domain=amara_dating_bot';
-
+    isDisconnectedRef.current = false;
+    // 1. Fetch bot link with 1-click user connect parameter (?start=USER_{userId})
     try {
-      const supported = await Linking.canOpenURL(appUrl);
-      if (supported) {
-        await Linking.openURL(appUrl);
-      } else {
-        await Linking.openURL(botUrl);
-      }
+      const botLink = await fetchAmaraBotLink();
+      await openAmaraBot(botLink);
     } catch {
-      Linking.openURL(botUrl).catch(() => {});
+      const activeBot = await fetchAmaraBotName().catch(() => dynamicBotName || DEFAULT_AMARA_BOT_USERNAME);
+      await openAmaraBot(activeBot);
     }
 
     // Open username linking modal
@@ -124,10 +136,11 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
       return;
     }
 
+    isDisconnectedRef.current = false;
     setLoading(true);
     try {
       await connectTelegram.mutateAsync({ userId: '', username });
-      await refetchProfile();
+      await Promise.allSettled([refetchProfile(), refetchTgStatus?.()]);
       setLoading(false);
       setModalVisible(false);
       alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
@@ -138,17 +151,20 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
   };
 
   const handleDisconnect = async () => {
+    isDisconnectedRef.current = true;
+    setTelegramUsername('');
     setLoading(true);
     try {
       await disconnectTelegram.mutateAsync({ userId: '' });
-      await refetchProfile();
-      setTelegramUsername('');
+      await Promise.allSettled([refetchProfile(), refetchTgStatus?.()]);
       setLoading(false);
       setModalVisible(false);
       alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     } catch (error: any) {
       setLoading(false);
-      alert(t('profile.additionaluploadsection.error'), error?.message || t('onboarding.connecttelegramscreen.could_not_disconnect_telegram'));
+      setTelegramUsername('');
+      setModalVisible(false);
+      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     }
   };
 

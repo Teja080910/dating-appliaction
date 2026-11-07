@@ -91,6 +91,7 @@ export interface SavedSearchFilters {
   maxAge?: number;
   maxDistanceKm?: number;
   searchRadius?: number;
+  radius?: number;
   worldwide?: boolean;
   location?: string;
   city?: string;

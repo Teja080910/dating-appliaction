@@ -74,11 +74,9 @@ const createStyles = (themeColors: ThemeColors) =>
       borderWidth: 1,
       borderColor: themeColors.borderLight,
       borderRadius: 9999,
-      paddingVertical: 10,
-      paddingHorizontal: 18,
+      paddingVertical: 9,
+      paddingHorizontal: 16,
       backgroundColor: themeColors.surface,
-      marginBottom: 8,
-      marginRight: 6,
     },
     selectedOption: {
       backgroundColor: themeColors.primary,

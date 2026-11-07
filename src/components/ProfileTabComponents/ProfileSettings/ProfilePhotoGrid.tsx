@@ -214,6 +214,12 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
                       const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
                       setImageMap(mapped.imageIdByIndex);
                       setServerImages(mapped.normalized);
+                      setImages(mapped.slots);
+                      if (mapped.profileImageUrl) {
+                        setProfileImage(mapped.profileImageUrl);
+                        setProfileImageUrl(mapped.profileImageUrl);
+                      }
+                      AsyncStorage.setItem('onboardingImages', JSON.stringify(mapped.slots)).catch(() => {});
                     },
                   });
                 }

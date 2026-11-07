@@ -6,6 +6,7 @@ import { getUserId } from '../utils/sessionHelper';
 import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 import { registerDeviceToken } from '../utils/pushNotificationHelper';
 import { generateDeterministicMobile } from '../utils/authPayload';
+import { extractSelfieVerificationUrl, saveSelfieVerificationUrl } from './useFaceValidation';
 
 type VerifyRegisterOtpRequest = {
   email?: string;
@@ -87,6 +88,11 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
       ? payload.data
       : null;
 
+  const selfieUrl = extractSelfieVerificationUrl(payload) || extractSelfieVerificationUrl(nestedData);
+  if (selfieUrl) {
+    void saveSelfieVerificationUrl(selfieUrl);
+  }
+
   return {
     ...payload,
     ...(nestedData || {}),
@@ -105,6 +111,7 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
       payload?.verification_session_id ||
       nestedData?.verification_session_id ||
       null,
+    selfieVerificationUrl: selfieUrl || null,
   };
 };
 
@@ -114,8 +121,16 @@ export const useAuth = () => {
       console.log('[AUTH] Server response received.');
     }
 
+    const selfieUrl = extractSelfieVerificationUrl(data);
+    if (selfieUrl) {
+      await saveSelfieVerificationUrl(selfieUrl);
+    }
+
     if (hasSessionToken(data)) {
       const session = await saveAuthSession(data);
+      if (session?.userId) {
+        registerDeviceToken(session.userId).catch(() => null);
+      }
 
       if (__DEV__) {
         console.log('🔍 [AUTH] Extracted session:', {
@@ -150,6 +165,10 @@ export const useAuth = () => {
         otp: String(data.otp ?? '').trim(),
       };
       const res = await apiClient.post('/register', payload);
+      const selfieUrl = extractSelfieVerificationUrl(res?.data);
+      if (selfieUrl) {
+        await saveSelfieVerificationUrl(selfieUrl);
+      }
       return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
     },
   });
@@ -158,6 +177,10 @@ export const useAuth = () => {
   const register = useMutation({
     mutationFn: async (data: CompleteRegisterRequest) => {
       const res = await apiClient.post('/register', data);
+      const selfieUrl = extractSelfieVerificationUrl(res?.data);
+      if (selfieUrl) {
+        await saveSelfieVerificationUrl(selfieUrl);
+      }
       return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
     },
   });
@@ -170,13 +193,16 @@ export const useAuth = () => {
       const effectiveMobile =
         data.mobile && !data.mobile.includes('@')
           ? data.mobile
-          : (cleanEmail ? generateDeterministicMobile(cleanEmail) : undefined);
+          : undefined;
 
       const payload = {
         ...data,
         ...(cleanEmail ? { email: cleanEmail } : {}),
         ...(effectiveMobile ? { mobile: effectiveMobile } : {}),
       };
+      if (!effectiveMobile) {
+        delete (payload as any).mobile;
+      }
       const res = await apiClient.post('/login', payload);
       const normalizedResponse = normalizeAuthResponse(res.data, res.headers);
       const persisted = await persistSessionIfAvailable(normalizedResponse);
@@ -186,15 +212,33 @@ export const useAuth = () => {
 
       if (persisted?.token) {
         const userEmail = String(payload.email || persisted?.user?.email || '').trim().toLowerCase();
+        const rawSavedMobile = String(persisted?.user?.mobile || data?.mobile || '').trim();
+        const fakeHash = cleanEmail ? generateDeterministicMobile(cleanEmail) : '';
+        const isFakeMobile = Boolean(fakeHash && rawSavedMobile.replace(/\D/g, '') === fakeHash);
+        const validMobile = !isFakeMobile && rawSavedMobile && !rawSavedMobile.includes('@') && rawSavedMobile.length >= 7 ? rawSavedMobile : '';
+
+        // If user already saved a real phone number in storage on this device, restore it!
+        let storedUserPhone = '';
+        if (cleanUserId) {
+          storedUserPhone = (await AsyncStorage.getItem(`user_phone_${cleanUserId}`)) || '';
+        }
+        if (!storedUserPhone) {
+          storedUserPhone = (await AsyncStorage.getItem('phoneNumber')) || '';
+        }
+        const finalPhone = validMobile || storedUserPhone;
+
         await AsyncStorage.multiSet([
           ['userToken', persisted.token],
           ['userEmail', userEmail],
           ['email', userEmail],
-          ['userMobile', String(data?.mobile ?? persisted?.user?.mobile ?? '').trim()],
+          ['userMobile', finalPhone],
           ['userId', String(cleanUserId ?? '')],
           ['sessionId', String(persisted?.sessionId ?? '')],
           ['username', String(persisted?.username ?? '')],
         ]);
+        if (finalPhone) {
+          await AsyncStorage.setItem('phoneNumber', finalPhone);
+        }
 
         if (__DEV__) {
           console.log('✅ Stored session:', {
@@ -204,6 +248,7 @@ export const useAuth = () => {
             cleanUserId: cleanUserId, // 🔥 important debug
             sessionId: persisted.sessionId,
             username: persisted.username,
+            mobile: finalPhone,
           });
         }
         if (cleanUserId) {
@@ -229,7 +274,7 @@ export const useAuth = () => {
       const effectiveMobile =
         data.mobile && !data.mobile.includes('@')
           ? data.mobile
-          : (cleanEmail ? generateDeterministicMobile(cleanEmail) : undefined);
+          : undefined;
 
       // Canonical payload matching Postman collection & API specification:
       // Includes email, unique mobile identifier, otp, and sessionId.
@@ -244,6 +289,10 @@ export const useAuth = () => {
 
       try {
         const res = await apiClient.post('/verify-register/otp', payload);
+        const selfieUrl = extractSelfieVerificationUrl(res?.data);
+        if (selfieUrl) {
+          await saveSelfieVerificationUrl(selfieUrl);
+        }
         return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
       } catch (err: any) {
         const status = Number(err?.response?.status || err?.status);
@@ -252,6 +301,10 @@ export const useAuth = () => {
         // If /verify-register/otp failed with 404, 400, or 409, try fallback to /auth/verify-otp
         try {
           const fallbackRes = await apiClient.post('/auth/verify-otp', payload);
+          const selfieUrl = extractSelfieVerificationUrl(fallbackRes?.data);
+          if (selfieUrl) {
+            await saveSelfieVerificationUrl(selfieUrl);
+          }
           return persistSessionIfAvailable(normalizeAuthResponse(fallbackRes.data, fallbackRes.headers));
         } catch (fallbackErr) {
           // If fallback also fails, re-throw original error

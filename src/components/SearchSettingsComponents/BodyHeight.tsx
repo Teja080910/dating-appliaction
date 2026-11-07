@@ -1,5 +1,5 @@
-import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, LayoutChangeEvent } from 'react-native';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent, useWindowDimensions } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
@@ -14,7 +14,13 @@ const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { bodyHeight, setBodyHeight } = useContext(AppContext);
-  const [sliderWidth, setSliderWidth] = useState<number>(260);
+  const { width: windowWidth } = useWindowDimensions();
+  const computeSliderWidth = (w: number) => Math.max(180, Math.round(w - 32 - 24));
+  const [sliderWidth, setSliderWidth] = useState<number>(() => computeSliderWidth(windowWidth));
+
+  useEffect(() => {
+    setSliderWidth(computeSliderWidth(windowWidth));
+  }, [windowWidth]);
 
   const safeMin = Math.min(Math.max(bodyHeight?.[0] ?? 120, 120), 220);
   const safeMax = Math.min(Math.max(bodyHeight?.[1] ?? 220, safeMin), 220);
@@ -30,12 +36,12 @@ const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
   const handleLayout = (e: LayoutChangeEvent) => {
     const availableWidth = e.nativeEvent.layout.width;
     if (availableWidth > 60) {
-      setSliderWidth(Math.max(180, availableWidth - 28));
+      setSliderWidth(Math.max(180, Math.round(availableWidth - 24)));
     }
   };
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
+    <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{t('search.bodyheight.height_range')}</Text>
         <Text style={styles.valueText}>

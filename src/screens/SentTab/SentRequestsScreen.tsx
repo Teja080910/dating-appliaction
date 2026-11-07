@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Toast from 'react-native-toast-message';
 
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
@@ -28,6 +29,7 @@ import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import NotificationBanner from '../../components/NotificationBanner';
 import { openTelegramChat } from '../../utils/telegramHelper';
+import { openWhatsAppChat } from '../../utils/whatsappHelper';
 import { t, useTranslation } from '../../i18n';
 
 const girl1 = require('../../assets/MessageTabImages/girl1.webp');
@@ -222,6 +224,12 @@ const SentRequestsScreen: React.FC = () => {
               setSelectedIds(new Set());
               setIsSelectMode(false);
               refreshAll();
+              Toast.show({
+                type: 'info',
+                text1: 'Invitations Deleted',
+                text2: `Removed ${count} invitation${count > 1 ? 's' : ''}.`,
+                visibilityTime: 2500,
+              });
             } catch (err: any) {
               Alert.alert(
                 t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
@@ -279,7 +287,12 @@ const SentRequestsScreen: React.FC = () => {
             try {
               setRestoringId(String(item.id));
               await apiClient.post('/connections/restore-access', { requestId: item.id });
-              Alert.alert('Access Restored', t('sent.sentrequestsscreen.you_can_now_connect_with', { name }));
+              Toast.show({
+                type: 'success',
+                text1: 'Access Restored',
+                text2: t('sent.sentrequestsscreen.you_can_now_connect_with', { name }),
+                visibilityTime: 3000,
+              });
               refreshAll();
             } catch {
               // Open paywall if subscription needed
@@ -323,8 +336,15 @@ const SentRequestsScreen: React.FC = () => {
         id: targetUserId,
         displayName: cleanDisplayName(receiver.displayName || receiver.name),
         photos: receiver.photos || [photoUrl],
+        mobile: receiver.mobile || receiver.phoneNumber || receiver.phone || '',
+        phone: receiver.phone || receiver.mobile || receiver.phoneNumber || '',
+        phoneNumber: receiver.phoneNumber || receiver.mobile || receiver.phone || '',
+        telegramUsername: receiver.telegramUsername || '',
       },
       image: photoUrl,
+      requestId: item.id,
+      requestRole: 'sent',
+      requestStatus: item.status,
     });
   };
 
@@ -349,6 +369,10 @@ const SentRequestsScreen: React.FC = () => {
     const timeText = formatRelativeTime(item.createdAt);
     const itemIdStr = String(item.id);
     const isSelected = selectedIds.has(itemIdStr);
+    const receiverPhone = receiver.phoneNumber || receiver.mobile || receiver.phone || '';
+    const receiverTg = receiver.telegramUsername || '';
+    const hasWhatsApp = Boolean(receiverPhone);
+    const hasTelegram = Boolean(receiverTg);
 
     return (
       <TouchableOpacity
@@ -377,8 +401,19 @@ const SentRequestsScreen: React.FC = () => {
           <Text style={styles.nameAgeText} numberOfLines={1}>
             {displayName}{age}
           </Text>
+          <Text style={styles.statusSubtext} numberOfLines={1}>
+            {activeTab === 'accepted'
+              ? hasWhatsApp || hasTelegram
+                ? t('requests.requestsinboxscreen.request_accepted', { defaultValue: 'Invitation Accepted' })
+                : t('profile.contactdetails.awaiting_contact', { defaultValue: 'Awaiting contact info' })
+              : t('sent.sentrequestsscreen.pending_reply', { defaultValue: 'Pending reply' })}
+          </Text>
+        </View>
 
-          {activeTab === 'accepted' ? (
+        <View style={styles.rightCol}>
+          <Text style={styles.timestampText}>{timeText}</Text>
+
+          {!isSelectMode && activeTab === 'accepted' ? (
             item.accessExpired || (!effectiveIsSubscribed && !isUserWoman) ? (
               <TouchableOpacity
                 style={styles.restoreBtnWrapper}
@@ -412,30 +447,76 @@ const SentRequestsScreen: React.FC = () => {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-            ) : (
+            ) : hasWhatsApp && hasTelegram ? (
+              <View style={styles.multiChatRow}>
+                <TouchableOpacity
+                  style={styles.whatsAppIconBtn}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (!effectiveIsSubscribed && !isUserWoman) {
+                      setPaywallVisible?.(true);
+                      return;
+                    }
+                    openWhatsAppChat(receiverPhone);
+                  }}
+                >
+                  <Icon name="whatsapp" size={17} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.telegramIconBtn}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    if (!effectiveIsSubscribed && !isUserWoman) {
+                      setPaywallVisible?.(true);
+                      return;
+                    }
+                    openTelegramChat(receiverTg);
+                  }}
+                >
+                  <Icon name="send" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ) : hasWhatsApp ? (
               <TouchableOpacity
-                style={styles.chatBtn}
+                style={styles.whatsAppIconBtn}
                 activeOpacity={0.8}
                 onPress={() => {
                   if (!effectiveIsSubscribed && !isUserWoman) {
                     setPaywallVisible?.(true);
                     return;
                   }
-                  openTelegramChat(receiver.telegramUsername);
+                  openWhatsAppChat(receiverPhone);
                 }}
               >
-                <Icon name="send" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-                <Text style={styles.chatBtnText}>{t('requests.requestsinboxscreen.chat')}</Text>
+                <Icon name="whatsapp" size={17} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : hasTelegram ? (
+              <TouchableOpacity
+                style={styles.telegramIconBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (!effectiveIsSubscribed && !isUserWoman) {
+                    setPaywallVisible?.(true);
+                    return;
+                  }
+                  openTelegramChat(receiverTg);
+                }}
+              >
+                <Icon name="send" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.profileIconBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  handleOpenProfile(item);
+                }}
+              >
+                <Icon name="account-outline" size={18} color={themeColors.textSecondary} />
               </TouchableOpacity>
             )
-          ) : (
-            <View style={styles.pendingBadge}>
-              <Text style={styles.pendingBadgeText}>{t('sent.sentrequestsscreen.pending_reply')}</Text>
-            </View>
-          )}
+          ) : null}
         </View>
-
-        <Text style={styles.timestampText}>{timeText}</Text>
       </TouchableOpacity>
     );
   };
@@ -893,12 +974,23 @@ const createStyles = (colors: any) =>
     },
     nameAgeText: {
       color: colors.text,
-      fontSize: 17,
+      fontSize: 16,
       fontWeight: '700',
-      marginBottom: 6,
+      marginBottom: 3,
+    },
+    statusSubtext: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    rightCol: {
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      alignSelf: 'stretch',
+      marginLeft: 10,
+      paddingVertical: 2,
     },
     restoreBtnWrapper: {
-      alignSelf: 'flex-start',
       borderRadius: 16,
       overflow: 'hidden',
     },
@@ -922,17 +1014,48 @@ const createStyles = (colors: any) =>
       fontWeight: '700',
     },
     chatBtn: {
-      alignSelf: 'flex-start',
       backgroundColor: '#0088cc',
       borderRadius: 16,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       paddingVertical: 6,
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
+    },
+    multiChatRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    whatsAppIconBtn: {
+      backgroundColor: '#25D366',
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    telegramIconBtn: {
+      backgroundColor: '#0088cc',
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    profileIconBtn: {
+      backgroundColor: colors.surfaceLight || 'rgba(255, 255, 255, 0.08)',
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     chatBtnText: {
       color: '#FFFFFF',
-      fontSize: 13,
+      fontSize: 12.5,
       fontWeight: '700',
     },
     pendingBadge: {
@@ -951,10 +1074,9 @@ const createStyles = (colors: any) =>
     },
     timestampText: {
       color: colors.textMuted,
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '400',
-      alignSelf: 'flex-start',
-      marginTop: 2,
+      marginBottom: 6,
     },
     centerBox: {
       flex: 1,

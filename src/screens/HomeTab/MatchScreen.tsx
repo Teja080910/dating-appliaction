@@ -11,6 +11,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Feather';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
@@ -19,6 +20,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 import { Colors, Spacing, Shadows } from '../../theme';
 import { getAuthToken } from '../../utils/sessionHelper';
+import { useMyProfile } from '../../api/useProfile';
 import { t, useTranslation } from '../../i18n';
 
 const GIRL_FALLBACK_IMAGES = [
@@ -117,7 +119,34 @@ const MatchScreen = () => {
 
   const params = route.params as any;
   const matchedUser = params?.matchedUser || { name: t('home.usercard.user'), image: null };
+  const routeCurrentUser = params?.currentUser || null;
   const theirName = matchedUser?.name || matchedUser?.displayName || t('home.usercard.user');
+
+  // Load my profile from query if context photos are empty
+  const { data: myServerProfile } = useMyProfile();
+  const [storedMyImage, setStoredMyImage] = useState<string | null>(null);
+  const [storedGender, setStoredGender] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadStoredUser = async () => {
+      try {
+        const [img, g1, g2] = await Promise.all([
+          AsyncStorage.getItem('profileImage'),
+          AsyncStorage.getItem('selectedGender'),
+          AsyncStorage.getItem('userGender'),
+        ]);
+        if (isMounted) {
+          if (img) setStoredMyImage(img);
+          if (g1 || g2) setStoredGender(g1 || g2);
+        }
+      } catch {}
+    };
+    void loadStoredUser();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const rawTheirImage = useMemo(() => {
     const candidate = [
@@ -137,18 +166,32 @@ const MatchScreen = () => {
 
   const rawMyImage = useMemo(() => {
     const candidate = [
+      routeCurrentUser?.image,
       profileImageUrl,
       profileImage,
       images,
+      myServerProfile?.profileImageUrl,
+      myServerProfile?.images,
+      storedMyImage,
     ]
       .map(extractFirstImagePath)
       .find(Boolean);
 
     return candidate ? getAbsoluteUrl(candidate) : null;
-  }, [profileImageUrl, profileImage, images]);
+  }, [routeCurrentUser, profileImageUrl, profileImage, images, myServerProfile, storedMyImage]);
 
-  const isMyGenderMale = oppositeGender === 'straight_woman';
+  // Determine user gender: default to male if sending request on discovery
+  const resolvedMyGender = String(
+    routeCurrentUser?.gender ||
+    storedGender ||
+    myServerProfile?.gender ||
+    (oppositeGender === 'straight_woman' ? 'man' : '')
+  ).toLowerCase();
+  const isMyGenderMale = resolvedMyGender.includes('man') || resolvedMyGender === 'male' || oppositeGender === 'straight_woman' || !resolvedMyGender;
+
   const myFallback = useMemo(() => getFallbackAsset('my-profile', isMyGenderMale), [isMyGenderMale]);
+
+  // Target profile gender (she is female when a male sends request)
   const isTheirGenderMale = matchedUser?.gender
     ? String(matchedUser.gender).toLowerCase().includes('man') || String(matchedUser.gender).toLowerCase() === 'male'
     : !isMyGenderMale;
@@ -228,7 +271,7 @@ const MatchScreen = () => {
                   <Image
                     source={theirSource}
                     style={[styles.avatar, { borderRadius: avatarSize / 2 - 3 }]}
-                    onError={() => setMyImageFailed(true)}
+                    onError={() => setTheirImageFailed(true)}
                   />
                 </LinearGradient>
               </View>

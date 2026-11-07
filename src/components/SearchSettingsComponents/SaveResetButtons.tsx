@@ -35,7 +35,7 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
     else {
       setAgeRange([18, 55]);
       setLocation(t('search.location.my_current_location'));
-      setDistanceRange(1100);
+      setDistanceRange(50);
       setBodyHeight([120, 200]);
       setSearchLanguages([]);
       setSelectedOptions([]);
@@ -49,9 +49,10 @@ const SaveResetButtons: React.FC<SaveResetButtonsProps> = ({ onSave, onReset, sa
   };
 
   // Ensure buttons sit safely above the navigation bar / gesture bar on all devices
-  const bottomInset = insets.bottom > 0
-    ? insets.bottom + Spacing.sm
-    : (Platform.OS === 'android' ? 24 : Spacing.lg);
+  const bottomInset = Math.max(
+    insets.bottom > 0 ? insets.bottom + 12 : (Platform.OS === 'android' ? 48 : Spacing.lg),
+    Platform.OS === 'android' ? (insets.bottom > 0 ? insets.bottom + 12 : 48) : 20
+  );
 
   return (
     <View style={[styles.container, { paddingBottom: bottomInset }]}>
@@ -93,11 +94,11 @@ const createStyles = (themeColors: ThemeColors) =>
     container: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 12,
       backgroundColor: themeColors.background,
       borderTopWidth: 1,
-      borderTopColor: themeColors.borderLight,
+      borderTopColor: 'rgba(255, 255, 255, 0.08)',
     },
     button: {
       flex: 1,

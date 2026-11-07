@@ -17,7 +17,10 @@ export type RootParamList = {
     fallbackImage?: number;
   };
   OTPScreen: { sessionId?: string; phone?: string; mobile?: string; name?: string; password?: string; confirmPassword?: string };
-  MatchScreen: { matchedUser: any };
+  MatchScreen: {
+    matchedUser?: any;
+    currentUser?: any;
+  };
   PrivacyPolicy: { type: 'privacy' | 'terms' };
   BottomTabs: undefined;
   AboutProfile: undefined;

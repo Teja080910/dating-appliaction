@@ -1,5 +1,5 @@
-import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, LayoutChangeEvent } from 'react-native';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent, useWindowDimensions } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors, Spacing } from '../../theme';
@@ -14,7 +14,13 @@ const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { ageRange, setAgeRange } = useContext(AppContext);
-  const [sliderWidth, setSliderWidth] = useState<number>(260);
+  const { width: windowWidth } = useWindowDimensions();
+  const computeSliderWidth = (w: number) => Math.max(180, Math.round(w - 32 - 24));
+  const [sliderWidth, setSliderWidth] = useState<number>(() => computeSliderWidth(windowWidth));
+
+  useEffect(() => {
+    setSliderWidth(computeSliderWidth(windowWidth));
+  }, [windowWidth]);
 
   const safeMin = Math.min(Math.max(ageRange?.[0] ?? 18, 18), 55);
   const safeMax = Math.min(Math.max(ageRange?.[1] ?? 40, safeMin), 55);
@@ -30,14 +36,12 @@ const AgeRangeSlider: React.FC<AgeRangeSliderProps> = ({ onChange }) => {
   const handleLayout = (e: LayoutChangeEvent) => {
     const availableWidth = e.nativeEvent.layout.width;
     if (availableWidth > 60) {
-      // sliderLength is the distance between the marker centres. Keep the
-      // markers inside the measured content area and avoid a fixed 300px bar.
-      setSliderWidth(Math.max(180, availableWidth - 26));
+      setSliderWidth(Math.max(180, Math.round(availableWidth - 24)));
     }
   };
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
+    <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{t('search.agerange.age_range')}</Text>
         <Text style={styles.valueText}>

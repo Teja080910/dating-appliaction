@@ -21,7 +21,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme, type ThemeColors } from '../../theme';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import { t, useTranslation } from '../../i18n';
-import { useFaceValidation } from '../../api/useFaceValidation';
+import { useFaceValidation, useSelfieVerificationUrl } from '../../api/useFaceValidation';
 import { getUserId } from '../../utils/sessionHelper';
 import { getAuthSession } from '../../utils/session';
 
@@ -43,6 +43,7 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     verifiedSelfie,
   } = useContext(AppContext);
   const { uploadVerificationPhotos } = useFaceValidation();
+  useSelfieVerificationUrl();
   const [isCheckingPhotos, setIsCheckingPhotos] = useState(false);
 
   // We enforce 6 slots

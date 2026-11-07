@@ -139,6 +139,7 @@ const UserCard = ({
 
     const rawProfile = profileData?.profile || profileData || {};
     const targetUserId = id || rawProfile?.userId || rawProfile?.id;
+    const resolvedCity = rawProfile?.currentCity || rawProfile?.city || (typeof safeDistance === 'string' && !safeDistance.toLowerCase().includes('away') && !safeDistance.toLowerCase().includes('nearby') ? safeDistance : undefined);
     const fullProfileData = {
       ...rawProfile,
       id: targetUserId,
@@ -149,7 +150,15 @@ const UserCard = ({
       age: safeAge,
       gender: rawProfile?.gender || 'woman',
       bio: rawProfile?.bio || '',
-      currentCity: safeDistance,
+      currentCity: resolvedCity,
+      city: resolvedCity,
+      location: rawProfile?.location || rawProfile?.place || null,
+      place: rawProfile?.place || null,
+      neighborhood: rawProfile?.neighborhood || null,
+      area: rawProfile?.area || null,
+      lastActive: rawProfile?.lastActive || null,
+      distance: rawProfile?.distance || formattedDistance,
+      distanceKm: rawProfile?.distanceKm,
       online: isOnline,
       isNew,
       profileImageUrl: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
@@ -173,7 +182,7 @@ const UserCard = ({
     if (trimmed.toLowerCase().includes('away')) return trimmed;
     if (/^\d+(\.\d+)?$/.test(trimmed)) return t('home.usercard.km_away', { trimmed });
     if (/^\d+(\.\d+)?\s*km$/i.test(trimmed)) return t('home.usercard.away', { trimmed });
-    return t('home.usercard.away', { trimmed });
+    return trimmed;
   };
 
   const formattedDistance = formatDistanceDisplay(safeDistance);

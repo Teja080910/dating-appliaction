@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useEffect,
   useRef,
+  useMemo,
 } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -32,6 +33,10 @@ import {
   buildRegisterPayload,
   normalizeMobileNumber,
 } from '../../utils/authPayload';
+import {
+  validateStrongPassword,
+  getPasswordRequirementsSummary,
+} from '../../utils/passwordValidation';
 import { t, useTranslation } from '../../i18n';
 
 const RegisterScreen = ({ navigation }: any) => {
@@ -67,6 +72,8 @@ const RegisterScreen = ({ navigation }: any) => {
   const { sendRegisterOtp } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
   const isSubmittingRef = useRef(false);
+
+  const passwordValidation = useMemo(() => validateStrongPassword(password), [password]);
 
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -174,8 +181,11 @@ const RegisterScreen = ({ navigation }: any) => {
       alert(t('auth.registerscreen.passwords_mismatch'), t('auth.forgotpasswordscreen.passwords_do_not_match'));
       return;
     }
-    if (password.length < 6) {
-      alert(t('auth.forgotpasswordscreen.weak_password'), t('auth.forgotpasswordscreen.password_must_be_at_least_6_characters'));
+    if (!passwordValidation.isValid) {
+      alert(
+        t('auth.forgotpasswordscreen.weak_password', { defaultValue: 'Weak Password' }),
+        getPasswordRequirementsSummary(passwordValidation)
+      );
       return;
     }
 
@@ -359,6 +369,28 @@ const RegisterScreen = ({ navigation }: any) => {
                       </TouchableOpacity>
                     </View>
                   </View>
+
+                  {/* Password Requirements Checklist */}
+                  {password.length > 0 && !passwordValidation.isValid && (
+                    <View style={styles.passwordHintCard}>
+                      <Text style={styles.passwordHintTitle}>Password Requirements</Text>
+                      <View style={styles.passwordReqRow}>
+                        {passwordValidation.requirements.map((req) => (
+                          <View key={req.id} style={styles.reqChip}>
+                            <Icon
+                              name={req.met ? 'check-circle' : 'circle-outline'}
+                              size={12}
+                              color={req.met ? '#10B981' : '#9CA3AF'}
+                              style={{ marginRight: 4 }}
+                            />
+                            <Text style={[styles.reqChipText, req.met && styles.reqChipTextMet]}>
+                              {req.label}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
 
                   {/* Confirm Password Card */}
                   <View style={styles.inputCard}>
@@ -565,5 +597,38 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  passwordHintCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 11,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  passwordHintTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  passwordReqRow: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  reqChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 1,
+  },
+  reqChipText: {
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontWeight: '500',
+  },
+  reqChipTextMet: {
+    color: '#10B981',
+    fontWeight: '600',
   },
 });

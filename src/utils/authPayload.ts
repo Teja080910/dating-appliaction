@@ -32,10 +32,9 @@ export const buildLoginPayload = (
 ): LoginRequest => {
   const clean = normalizeIdentifier(identifier);
   const isEmail = clean.includes('@');
-  const derivedMobile = isEmail ? generateDeterministicMobile(clean) : clean;
   return {
     email: isEmail ? clean : (clean ? `${clean}@amara.com` : ''),
-    mobile: derivedMobile,
+    ...(isEmail ? {} : { mobile: clean }),
     password: String(password ?? '').trim(),
   } as LoginRequest;
 };
@@ -58,7 +57,7 @@ export const buildRegisterPayload = (input: {
   const cleanMobile =
     rawMobile && !rawMobile.includes('@')
       ? normalizeIdentifier(rawMobile)
-      : (cleanEmail ? generateDeterministicMobile(cleanEmail) : undefined);
+      : undefined;
 
   return {
     name: String(input.name ?? '').trim(),

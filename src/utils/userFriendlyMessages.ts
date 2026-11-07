@@ -21,6 +21,9 @@ export const getUserFriendlyMessage = (value: unknown, fallback = 'Please try ag
   if (!message) return fallback;
 
   const lower = message.toLowerCase();
+  if (lower.includes('password') && (lower.includes('weak') || lower.includes('strong') || lower.includes('uppercase') || lower.includes('special') || lower.includes('contain') || lower.includes('must be at least'))) {
+    return 'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character (!@#$%^&*).';
+  }
   if (lower.includes('profile must be complete')) {
     return 'Please finish your profile and add at least 2 photos before sending an invitation.';
   }

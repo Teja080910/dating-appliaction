@@ -10,7 +10,9 @@ const HeightSelector = () => {
   useTranslation();
   const { themeColors } = useTheme();
   const { height, setHeight, tempHeight, setTempHeight } = useContext(AppContext);
-  const currentHeight = Number(tempHeight || height || 171);
+  const [dragHeight, setDragHeight] = React.useState<number | null>(null);
+
+  const effectiveHeight = Number(dragHeight ?? height ?? tempHeight ?? 171);
 
   return (
     <View style={styles.container}>
@@ -19,7 +21,7 @@ const HeightSelector = () => {
         <View style={styles.textColumn}>
           <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.heightselector.your_height')}</Text>
           <Text style={[styles.valueText, { color: themeColors.textSecondary }]}>
-            {currentHeight} cm
+            {effectiveHeight} cm
           </Text>
         </View>
       </View>
@@ -32,11 +34,16 @@ const HeightSelector = () => {
           minimumTrackTintColor={themeColors.primary}
           maximumTrackTintColor={themeColors.surfaceLight}
           thumbTintColor={themeColors.primaryLight}
-          value={currentHeight}
-          onValueChange={(value) => setTempHeight(Math.round(value))}
+          value={effectiveHeight}
+          onValueChange={(value) => {
+            const rounded = Math.round(value);
+            setDragHeight(rounded);
+            setTempHeight?.(rounded);
+          }}
           onSlidingComplete={(value) => {
             const rounded = Math.round(value);
-            setTempHeight(rounded);
+            setDragHeight(null);
+            setTempHeight?.(rounded);
             setHeight(rounded);
           }}
         />

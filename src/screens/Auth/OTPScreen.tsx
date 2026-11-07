@@ -25,7 +25,7 @@ import { clearOnboardingState, STORAGE_KEYS, markTermsAccepted } from '../../uti
 import { usePrivacy } from '../../api/usePrivacy';
 import { AsyncStorageService } from '../../utils/types/AsyncStorage';
 import { mockStore } from '../../mock/mockStore';
-import { buildRegisterPayload, normalizeMobileNumber, generateDeterministicMobile } from '../../utils/authPayload';
+import { buildRegisterPayload, normalizeMobileNumber } from '../../utils/authPayload';
 import { t, useTranslation } from '../../i18n';
 
 const extractApiErrorMessage = (error: any, fallback: string) => {
@@ -150,9 +150,7 @@ const OTPScreen = ({ navigation, route }: any) => {
   const effectiveName = String(name ?? contextName ?? '').trim();
   const effectivePassword = String(password ?? contextPassword ?? '').trim();
   const effectiveConfirmPassword = String(confirmPassword ?? effectivePassword).trim();
-  const effectiveMobile =
-    (!isEmail ? normalizeMobileNumber(recipient || contextPhoneNumber) : '') ||
-    (isEmail ? generateDeterministicMobile(recipient) : '');
+  const effectiveMobile = !isEmail ? normalizeMobileNumber(recipient || contextPhoneNumber) : '';
 
   useFocusEffect(
     useCallback(() => {

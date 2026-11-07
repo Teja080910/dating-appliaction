@@ -25,6 +25,7 @@ import { getCurrentLocation } from "../../utils/geolocation";
 import { useLocation } from "../../api/useLocation";
 import { useTheme, ThemeColors, Spacing } from "../../theme";
 import { useAlert } from "../AlertModal";
+import Toast from "react-native-toast-message";
 import { t, useTranslation } from '../../i18n';
 
 export interface SavedLocationItem {
@@ -325,6 +326,13 @@ const Location = () => {
       setIsMapVisible(false);
       setSearchQuery("");
       setSuggestions([]);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Location Updated',
+        text2: `${t('search.location.using_gps_location', { defaultValue: 'Using current location' })}: ${resolvedCity}`,
+        visibilityTime: 2500,
+      });
     } catch (err: any) {
       alert(
         t('search.location.location_error'),
@@ -369,6 +377,13 @@ const Location = () => {
     setLocationModalVisible(false);
     setIsMapVisible(false);
     setSearchQuery("");
+
+    Toast.show({
+      type: 'success',
+      text1: 'Location Set',
+      text2: item.name || item.fullAddress,
+      visibilityTime: 2500,
+    });
   };
 
   // Delete saved location
@@ -376,6 +391,13 @@ const Location = () => {
     const updated = savedLocations.filter((s) => s.id !== id);
     setSavedLocations(updated);
     await AsyncStorage.setItem(STORAGE_SAVED_LOCATIONS, JSON.stringify(updated));
+
+    Toast.show({
+      type: 'info',
+      text1: 'Location Removed',
+      text2: 'Saved location was removed.',
+      visibilityTime: 2000,
+    });
   };
 
   // Confirm and set active from Map view
@@ -425,6 +447,13 @@ const Location = () => {
     setLocationModalVisible(false);
     setSearchQuery("");
     setSuggestions([]);
+
+    Toast.show({
+      type: 'success',
+      text1: 'Location Updated',
+      text2: `Search location set to ${locName}`,
+      visibilityTime: 2500,
+    });
   };
 
   // Re-center map to original selected coordinates

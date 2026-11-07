@@ -178,6 +178,11 @@ export const clearAuthSession = async () => {
     USER_VERIFIED_KEY,
     'userToken',
     'userMobile',
+    'phoneNumber',
+    'telegramUsername',
+    '@telegram_username',
+    'telegramLink',
+    '@amara_telegram_disconnected',
   ]);
 
   try {

@@ -1,12 +1,14 @@
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   ImageSourcePropType,
+  Linking,
   Platform,
   ScrollView,
   StatusBar,
@@ -16,7 +18,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Feather";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import apiClient, { getAbsoluteUrl, isApiHostedUrl } from "../../api/apiClient";
@@ -24,6 +26,7 @@ import { useConnection } from "../../api/useConnection";
 import { useSubscription } from "../../api/useSubscription";
 import { useUserImages } from "../../api/useImages";
 import { useMyProfile } from "../../api/useProfile";
+import { useMyTelegramStatus } from "../../api/useTelegram";
 import UserDetails from "../../components/ProfileTabComponents/ViewMyProfile/UserDetails";
 import NotificationBanner from "../../components/NotificationBanner";
 import SubscriptionModal from "../../components/SubscriptionModal";
@@ -32,6 +35,7 @@ import { Colors, useTheme } from "../../theme";
 import { useAlert } from "../../components/AlertModal";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
 import { mockStore } from "../../mock/mockStore";
+import { openWhatsAppChat, extractPhone, extractTelegram } from "../../utils/whatsappHelper";
 
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
@@ -126,8 +130,9 @@ const resolveNumericIdentifier = (...values: unknown[]) => {
 
 const ViewMyProfileScreen = () => {
   useTranslation();
+  const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const heroHeight = Math.min(Math.max(screenWidth * 1.15, 320), Math.min(screenHeight * 0.58, 540));
+  const heroCardHeight = Math.min(Math.max(Math.round(screenHeight * 0.44), 260), 400);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route = useRoute<any>();
   const { alert, AlertComponent } = useAlert();
@@ -159,9 +164,33 @@ const ViewMyProfileScreen = () => {
     setPaywallVisible,
     isSubscribed,
     setIsSubscribed,
+    phoneNumber: contextPhone,
   } = useContext(AppContext);
 
   const [localPaywallVisible, setLocalPaywallVisible] = useState(false);
+  const [storedPhone, setStoredPhone] = useState<string>('');
+  const [storedTelegram, setStoredTelegram] = useState<string>('');
+  const { data: myTgStatus } = useMyTelegramStatus();
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [p1, p2, tg] = await Promise.all([
+          AsyncStorage.getItem('phoneNumber'),
+          AsyncStorage.getItem('userMobile'),
+          AsyncStorage.getItem('telegramUsername'),
+        ]);
+        if (isMounted) {
+          if (p1 || p2) setStoredPhone(p1 || p2 || '');
+          if (tg) setStoredTelegram(tg.replace(/^@+/, ''));
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const openSubscriptionPlans = () => {
     console.log('[ViewMyProfileScreen] openSubscriptionPlans: Opening plans modal');
@@ -397,15 +426,31 @@ const ViewMyProfileScreen = () => {
   );
   const numericTargetId = hasValidTargetId ? String(targetId) : null;
 
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
+  const refetchProfileRef = useRef(refetchProfile);
+  refetchProfileRef.current = refetchProfile;
+  const selectedNetWorthRef = useRef(selectedNetWorth);
+  selectedNetWorthRef.current = selectedNetWorth;
+  const selectedKidsRef = useRef(selectedKids);
+  selectedKidsRef.current = selectedKids;
+
   useFocusEffect(
     React.useCallback(() => {
+      void refetchProfileRef.current?.();
+      void connectionRef.current?.sentList?.refetch?.();
+      void connectionRef.current?.receivedList?.refetch?.();
+
       if (isViewingSelf) {
-        void refetchProfile();
         AsyncStorage.getItem('@amara_net_worth').then((val) => {
-          if (val && setSelectedNetWorth) setSelectedNetWorth(val);
+          if (val && val !== selectedNetWorthRef.current && setSelectedNetWorth) {
+            setSelectedNetWorth(val);
+          }
         });
         AsyncStorage.getItem('@amara_kid_count').then((val) => {
-          if (val && setSelectedKids) setSelectedKids(val);
+          if (val && val !== selectedKidsRef.current && setSelectedKids) {
+            setSelectedKids(val);
+          }
         });
         const activeTarget = myId || numericTargetId;
         if (activeTarget) {
@@ -416,7 +461,7 @@ const ViewMyProfileScreen = () => {
           });
         }
       }
-    }, [isViewingSelf, refetchProfile, myId, numericTargetId, setSelectedNetWorth, setSelectedKids]),
+    }, [isViewingSelf, myId, numericTargetId, setSelectedNetWorth, setSelectedKids]),
   );
 
   useEffect(() => {
@@ -459,18 +504,80 @@ const ViewMyProfileScreen = () => {
     setActiveIndex(index);
   };
 
+  const isSameId = (a: any, b: any) => {
+    const sa = String(a || '').trim().toLowerCase();
+    const sb = String(b || '').trim().toLowerCase();
+    if (!sa || !sb || sa === '0' || sb === '0') return false;
+    if (sa === sb) return true;
+    const da = sa.replace(/[^\d]/g, '');
+    const db = sb.replace(/[^\d]/g, '');
+    if (da && db && da === db && da !== '0') return true;
+    return false;
+  };
+
+  const isAcceptedStatus = (st?: string | null) => {
+    if (!st) return false;
+    const s = String(st).toUpperCase();
+    return s === 'APPROVED' || s === 'ACCEPTED' || s === 'SUCCESS';
+  };
+
   const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
-  const isAlreadyInvited = useMemo(() => {
-    if (!numericTargetId) return false;
-    const target = String(numericTargetId).trim().toLowerCase();
-    return sentConnections.some((inv: any) => {
+  const matchingInvitation = useMemo(() => {
+    if (!numericTargetId) return null;
+    return sentConnections.find((inv: any) => {
+      if (requestId && String(inv?.id).trim() === String(requestId).trim()) return true;
       const receiver = inv?.receiver;
-      const rId = String(receiver?.id ?? '').trim().toLowerCase();
-      const rUserId = String(receiver?.userId ?? '').trim().toLowerCase();
-      const invReceiverId = String(inv?.receiverId ?? '').trim().toLowerCase();
-      return (rId && rId === target) || (rUserId && rUserId === target) || (invReceiverId && invReceiverId === target);
+      const rId = receiver?.id ?? receiver?.userId ?? inv?.receiverId;
+      return isSameId(rId, numericTargetId);
     });
-  }, [sentConnections, numericTargetId]);
+  }, [sentConnections, numericTargetId, requestId]);
+
+  const receivedConnections = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
+  const matchingReceived = useMemo(() => {
+    if (!numericTargetId) return null;
+    return receivedConnections.find((inv: any) => {
+      if (requestId && String(inv?.id).trim() === String(requestId).trim()) return true;
+      const sender = inv?.sender;
+      const sId = sender?.id ?? sender?.userId ?? inv?.senderId;
+      return isSameId(sId, numericTargetId);
+    });
+  }, [receivedConnections, numericTargetId, requestId]);
+
+  const mutualConnections = Array.isArray(connection.connectionList?.data) ? connection.connectionList.data : [];
+  const matchingMatch = useMemo(() => {
+    if (!numericTargetId) return null;
+    return mutualConnections.find((conn: any) => {
+      const uId = conn?.receiver?.id ?? conn?.receiver?.userId ?? conn?.sender?.id ?? conn?.sender?.userId ?? conn?.id;
+      return isSameId(uId, numericTargetId);
+    });
+  }, [mutualConnections, numericTargetId]);
+
+  const isAcceptedMatch = useMemo(() => {
+    return (
+      Boolean(matchingMatch) ||
+      isAcceptedStatus(matchingInvitation?.status) ||
+      isAcceptedStatus(matchingReceived?.status) ||
+      isAcceptedStatus(requestStatus)
+    );
+  }, [matchingMatch, matchingInvitation, matchingReceived, requestStatus]);
+
+  const isAlreadyInvited = Boolean(matchingInvitation);
+  const isPendingInvite = isAlreadyInvited && !isAcceptedMatch;
+
+  const openWhatsAppUrl = (phone: string) => {
+    void openWhatsAppChat(phone);
+  };
+
+  const openTelegramUrl = (username: string) => {
+    const cleanUser = username.trim().replace(/^@+/, '');
+    const url = `https://t.me/${cleanUser}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert(
+        t('profile.contactdetails.telegram_not_installed', { defaultValue: 'Telegram Not Installed' }),
+        t('profile.contactdetails.telegram_not_installed_desc', { defaultValue: 'Please install Telegram or visit the link in your browser.' })
+      );
+    });
+  };
 
   const handleLike = async () => {
     let activeSubscribed = effectiveIsSubscribed;
@@ -579,13 +686,25 @@ const ViewMyProfileScreen = () => {
           (Array.isArray(mergedProfile?.images) ? mergedProfile.images[0] : null) ||
           mergedProfile?.imageUrl ||
           null;
+        const myImage =
+          profileImageUrl ||
+          profileImage ||
+          (Array.isArray(contextImages) ? contextImages.find(Boolean) : null) ||
+          null;
         navigation.navigate('MatchScreen', {
           matchedUser: {
             id: numericTargetId,
             name: mergedProfile?.displayName || mergedProfile?.name || t('home.usercard.user'),
             image: matchedImage,
+            gender: mergedProfile?.gender || (isViewerWoman ? 'man' : 'woman'),
             age: mergedProfile?.age || null,
             city: mergedProfile?.currentCity || null,
+          },
+          currentUser: {
+            id: senderId,
+            name: displayName || name || t('home.usercard.user'),
+            image: myImage,
+            gender: gender || (isViewerWoman ? 'woman' : 'man'),
           },
         });
       },
@@ -652,10 +771,10 @@ const ViewMyProfileScreen = () => {
         : item;
 
     return (
-      <View style={{ width: screenWidth, height: heroHeight }}>
+      <View style={{ width: screenWidth, height: heroCardHeight }}>
         <Image
           source={imageSource}
-          style={[styles.image, { height: heroHeight }]}
+          style={[styles.image, { height: heroCardHeight }]}
         />
       </View>
     );
@@ -678,6 +797,15 @@ const ViewMyProfileScreen = () => {
     return calculatedAge > 0 ? calculatedAge : null;
   }, [date]);
 
+  const isTargetUserFetched = useMemo(() => {
+    if (isViewingSelf || !numericTargetId || !fetchedProfile) return false;
+    const flatFetched = flattenProfileSource(fetchedProfile);
+    return Boolean(
+      (isSameId(flatFetched?.id, numericTargetId) || isSameId(flatFetched?.userId, numericTargetId)) &&
+      !isSameId(flatFetched?.id, myId)
+    );
+  }, [isViewingSelf, numericTargetId, fetchedProfile, myId]);
+
   const mergedProfile = useMemo(() => {
     const fetched = flattenProfileSource(fetchedProfile);
     const routed = flattenProfileSource(routeProfileData);
@@ -694,13 +822,13 @@ const ViewMyProfileScreen = () => {
       dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
 
     const targetImages = dedupeImageUris([
+      galleryImages,
       fetched?.photos,
       fetched?.images,
       fetched?.allImages,
       routed?.photos,
       routed?.images,
       routed?.allImages,
-      galleryImages,
       fetched?.profileImageUrl,
       routed?.profileImageUrl,
       routeImage,
@@ -710,78 +838,112 @@ const ViewMyProfileScreen = () => {
     const fetchedPhotos = Array.isArray(fetched?.photos) && fetched.photos.length > 0
       ? dedupeImageUris([fetched.photos])
       : [];
-    const ownImages = activeContextPhotos.length > 0
-      ? activeContextPhotos
-      : fetchedPhotos.length > 0
-        ? fetchedPhotos
-        : galleryImages.length > 0
-          ? galleryImages
+    const ownImages = galleryImages.length > 0
+      ? galleryImages
+      : activeContextPhotos.length > 0
+        ? activeContextPhotos
+        : fetchedPhotos.length > 0
+          ? fetchedPhotos
           : dedupeImageUris([profileImageUrl, profileImage]);
 
     const mergedImages = isViewingSelf ? ownImages : targetImages;
 
+    const baseData = isViewingSelf
+      ? { ...routed, ...fetched }
+      : (isTargetUserFetched ? { ...routed, ...fetched } : { ...routed });
+
     return {
-      ...routed,
-      ...fetched,
-      id: (isViewingSelf ? (fetched?.id || myId) : (fetched?.id || routed?.id || numericTargetId)) || null,
+      ...baseData,
+      id: (isViewingSelf ? (fetched?.id || myId) : (numericTargetId || (isTargetUserFetched ? fetched?.id : null) || routed?.id)) || null,
       targetUserId: isViewingSelf ? null : (numericTargetId || routed?.targetUserId || routed?.userId || null),
       name: isViewingSelf
         ? (normalizeTextValue(fetched?.name) || normalizeTextValue(name) || normalizeTextValue(displayName) || t('home.usercard.user'))
-        : (normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || t('home.usercard.user')),
+        : (normalizeTextValue(routed?.name) || (isTargetUserFetched ? normalizeTextValue(fetched?.name) : '') || normalizeTextValue(routed?.displayName) || (isTargetUserFetched ? normalizeTextValue(fetched?.displayName) : '') || t('home.usercard.user')),
       displayName: isViewingSelf
         ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(displayName) || normalizeTextValue(name) || t('home.usercard.user'))
-        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(routed?.name) || normalizeTextValue(fetched?.name) || t('home.usercard.user')),
+        : (normalizeTextValue(routed?.displayName) || (isTargetUserFetched ? normalizeTextValue(fetched?.displayName) : '') || normalizeTextValue(routed?.name) || (isTargetUserFetched ? normalizeTextValue(fetched?.name) : '') || t('home.usercard.user')),
       age: isViewingSelf
         ? (fetched?.age || ownAge || null)
-        : (routed?.age || fetched?.age || null),
+        : (routed?.age || (isTargetUserFetched ? fetched?.age : null) || null),
       bio: isViewingSelf
         ? (normalizeTextValue(fetched?.bio) || normalizeTextValue(profileText) || '')
-        : (normalizeTextValue(routed?.bio) || normalizeTextValue(fetched?.bio) || ''),
+        : (normalizeTextValue(routed?.bio) || (isTargetUserFetched ? normalizeTextValue(fetched?.bio) : '') || ''),
       height: isViewingSelf
         ? (fetched?.height || height || null)
-        : (routed?.height || fetched?.height || null),
+        : (routed?.height || (isTargetUserFetched ? fetched?.height : null) || null),
       appearance: isViewingSelf
         ? (normalizeTextValue(fetched?.appearance) || normalizeTextValue(selectedAppearance) || '')
-        : (normalizeTextValue(routed?.appearance) || normalizeTextValue(fetched?.appearance) || ''),
+        : (normalizeTextValue(routed?.appearance) || (isTargetUserFetched ? normalizeTextValue(fetched?.appearance) : '') || ''),
       bodyType: isViewingSelf
         ? (normalizeTextValue(fetched?.bodyType) || normalizeTextValue(selectedBodyType) || '')
-        : (normalizeTextValue(routed?.bodyType) || normalizeTextValue(fetched?.bodyType) || ''),
+        : (normalizeTextValue(routed?.bodyType) || (isTargetUserFetched ? normalizeTextValue(fetched?.bodyType) : '') || ''),
       language: isViewingSelf
         ? (normalizeTextValue(fetched?.language) || contextLanguage || '')
-        : (normalizeTextValue(routed?.language) || normalizeTextValue(fetched?.language) || t('profile.userdetails.english')),
+        : (normalizeTextValue(routed?.language) || (isTargetUserFetched ? normalizeTextValue(fetched?.language) : '') || t('profile.userdetails.english')),
       englishLevel: isViewingSelf
         ? (normalizeTextValue(fetched?.englishLevel) || contextEnglishLevel || '')
-        : (normalizeTextValue(routed?.englishLevel) || normalizeTextValue(fetched?.englishLevel) || t('profile.viewmyprofilescreen.conversational')),
+        : (normalizeTextValue(routed?.englishLevel) || (isTargetUserFetched ? normalizeTextValue(fetched?.englishLevel) : '') || t('profile.viewmyprofilescreen.conversational')),
       ethnicity: isViewingSelf
         ? (normalizeTextValue(fetched?.ethnicity) || normalizeTextValue(selectedEthinicity) || '')
-        : (normalizeTextValue(routed?.ethnicity) || normalizeTextValue(fetched?.ethnicity) || t('profile.viewmyprofilescreen.asian')),
+        : (normalizeTextValue(routed?.ethnicity) || (isTargetUserFetched ? normalizeTextValue(fetched?.ethnicity) : '') || t('profile.viewmyprofilescreen.asian')),
       smoke: isViewingSelf
         ? (normalizeTextValue(fetched?.smoke) || normalizeTextValue(selectedSmoking) || '')
-        : (normalizeTextValue(routed?.smoke) || normalizeTextValue(fetched?.smoke) || t('profile.viewmyprofilescreen.never')),
+        : (normalizeTextValue(routed?.smoke) || (isTargetUserFetched ? normalizeTextValue(fetched?.smoke) : '') || t('profile.viewmyprofilescreen.never')),
       drink: isViewingSelf
         ? (normalizeTextValue(fetched?.drink) || normalizeTextValue(selectedDrinking) || '')
-        : (normalizeTextValue(routed?.drink) || normalizeTextValue(fetched?.drink) || t('profile.viewmyprofilescreen.socially')),
+        : (normalizeTextValue(routed?.drink) || (isTargetUserFetched ? normalizeTextValue(fetched?.drink) : '') || t('profile.viewmyprofilescreen.socially')),
       lookingFor: isViewingSelf
         ? (normalizeTextValue(fetched?.lookingFor) || contextLookingFor || '')
-        : (normalizeTextValue(routed?.lookingFor) || normalizeTextValue(fetched?.lookingFor) || t('profile.viewmyprofilescreen.long_term')),
+        : (normalizeTextValue(routed?.lookingFor) || (isTargetUserFetched ? normalizeTextValue(fetched?.lookingFor) : '') || t('profile.viewmyprofilescreen.long_term')),
       kidCount: isViewingSelf
         ? (normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids) || normalizeTextValue(selectedKids) || '')
-        : (normalizeTextValue(routed?.kidCount) || normalizeTextValue(routed?.kids) || normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids) || ''),
+        : (normalizeTextValue(routed?.kidCount) || normalizeTextValue(routed?.kids) || (isTargetUserFetched ? (normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids)) : '') || ''),
       kids: isViewingSelf
         ? (normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount) || normalizeTextValue(selectedKids) || '')
-        : (normalizeTextValue(routed?.kids) || normalizeTextValue(routed?.kidCount) || normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount) || ''),
+        : (normalizeTextValue(routed?.kids) || normalizeTextValue(routed?.kidCount) || (isTargetUserFetched ? (normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount)) : '') || ''),
       netWorth: isViewingSelf
         ? (normalizeTextValue(fetched?.netWorth) || normalizeTextValue(selectedNetWorth) || '')
-        : (normalizeTextValue(routed?.netWorth) || normalizeTextValue(fetched?.netWorth) || ''),
+        : (normalizeTextValue(routed?.netWorth) || (isTargetUserFetched ? normalizeTextValue(fetched?.netWorth) : '') || ''),
       currentCity: isViewingSelf
         ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(location) || '')
-        : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(fetched?.currentCity) || t('home.usercard.nearby')),
+        : (normalizeTextValue(routed?.currentCity) || (isTargetUserFetched ? normalizeTextValue(fetched?.currentCity) : '') || normalizeTextValue(routed?.city) || t('home.usercard.nearby')),
+      location: isViewingSelf
+        ? (normalizeTextValue(fetched?.location) || normalizeTextValue(location) || '')
+        : (normalizeTextValue(routed?.location) || (isTargetUserFetched ? normalizeTextValue(fetched?.location) : '') || normalizeTextValue(routed?.place) || ''),
+      place: routed?.place || fetched?.place || null,
+      neighborhood: routed?.neighborhood || fetched?.neighborhood || null,
+      area: routed?.area || fetched?.area || null,
+      lastActive: routed?.lastActive || fetched?.lastActive || null,
+      online: Boolean(routed?.online ?? fetched?.online ?? false),
+      distance: isViewingSelf
+        ? ''
+        : (routed?.distance || (isTargetUserFetched ? fetched?.distance : '') || ''),
+      distanceKm: isViewingSelf
+        ? null
+        : (routed?.distanceKm ?? (isTargetUserFetched ? fetched?.distanceKm : null) ?? null),
+      latitude: routed?.latitude ?? fetched?.latitude ?? routed?.lat ?? fetched?.lat ?? null,
+      longitude: routed?.longitude ?? fetched?.longitude ?? routed?.lng ?? fetched?.lng ?? null,
       verifiedSelfie: isViewingSelf
         ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
-        : Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
+        : Boolean((isTargetUserFetched ? (fetched?.verifiedSelfie ?? fetched?.selfieVerified) : null) ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
+      telegramUsername: isViewingSelf
+        ? (normalizeTextValue(fetched?.telegramUsername) || normalizeTextValue(storedTelegram) || normalizeTextValue(myTgStatus?.telegramUsername) || '')
+        : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : '')),
+      phoneNumber: isViewingSelf
+        ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : '')),
+      mobile: isViewingSelf
+        ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : '')),
+      phone: isViewingSelf
+        ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : '')),
+      mobileNumber: isViewingSelf
+        ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : '')),
       profileImageUrl: isViewingSelf
         ? (contextPrimaryImage || (ownImages[0] || null) || normalizeTextValue(fetched?.profileImageUrl))
-        : (normalizeTextValue(routed?.profileImageUrl) || normalizeTextValue(fetched?.profileImageUrl) || routeImage || (targetImages[0] || null)),
+        : (normalizeTextValue(routed?.profileImageUrl) || (isTargetUserFetched ? normalizeTextValue(fetched?.profileImageUrl) : '') || routeImage || (targetImages[0] || null)),
       images: mergedImages.length > 0 ? mergedImages : (routeImage ? [routeImage] : []),
     };
   }, [
@@ -812,7 +974,78 @@ const ViewMyProfileScreen = () => {
     selectedSmoking,
     verifiedSelfie,
     contextImages,
+    isTargetUserFetched,
   ]);
+
+  const targetPartyFromMatch = useMemo(() => {
+    if (!matchingMatch || !numericTargetId) return null;
+    const sId = matchingMatch?.sender?.id ?? matchingMatch?.sender?.userId;
+    const rId = matchingMatch?.receiver?.id ?? matchingMatch?.receiver?.userId;
+    if (isSameId(sId, numericTargetId)) return matchingMatch.sender;
+    if (isSameId(rId, numericTargetId)) return matchingMatch.receiver;
+    return null;
+  }, [matchingMatch, numericTargetId]);
+
+  const isProfileOfTarget = useCallback((obj: any) => {
+    if (!obj) return false;
+    const objId = obj?.id ?? obj?.userId ?? obj?.targetUserId;
+    if (objId && numericTargetId && isSameId(objId, numericTargetId)) return true;
+    if (myId && objId && isSameId(objId, myId)) return false;
+    return Boolean(!myId && objId && numericTargetId && isSameId(objId, numericTargetId));
+  }, [numericTargetId, myId]);
+
+  const acceptedChatPhone = useMemo(() => {
+    return extractPhone(
+      isProfileOfTarget(routeProfileData) ? routeProfileData : null,
+      isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
+      matchingInvitation?.receiver,
+      (matchingInvitation as any)?.receiverProfile,
+      matchingReceived?.sender,
+      (matchingReceived as any)?.senderProfile,
+      targetPartyFromMatch
+    );
+  }, [routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
+
+  const acceptedChatTg = useMemo(() => {
+    return extractTelegram(
+      isProfileOfTarget(routeProfileData) ? routeProfileData : null,
+      isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
+      matchingInvitation?.receiver,
+      (matchingInvitation as any)?.receiverProfile,
+      matchingReceived?.sender,
+      (matchingReceived as any)?.senderProfile,
+      targetPartyFromMatch
+    );
+  }, [routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
+
+  const handleOpenAcceptedChat = useCallback(() => {
+    const phone = acceptedChatPhone;
+    const tg = acceptedChatTg;
+
+    if (phone && tg) {
+      Alert.alert(
+        t('profile.contactdetails.choose_contact_method', { defaultValue: 'Choose Contact Method' }),
+        t('profile.contactdetails.select_chat_app', { defaultValue: 'Would you like to chat via WhatsApp or Telegram?' }),
+        [
+          { text: 'WhatsApp', onPress: () => openWhatsAppUrl(phone) },
+          { text: 'Telegram', onPress: () => openTelegramUrl(tg) },
+          { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+        ]
+      );
+    } else if (phone) {
+      openWhatsAppUrl(phone);
+    } else if (tg) {
+      openTelegramUrl(tg);
+    } else {
+      Alert.alert(
+        t('requests.requestsinboxscreen.accepted_request_title', { defaultValue: 'Invitation Accepted!' }),
+        t('profile.userdetails.no_contact_alert', {
+          defaultValue: `${mergedProfile?.name || 'Your match'} has accepted your invitation, but has not added her WhatsApp or Telegram yet.`,
+        }),
+        [{ text: t('common.ok', { defaultValue: 'OK' }) }]
+      );
+    }
+  }, [acceptedChatPhone, acceptedChatTg, mergedProfile]);
 
   if (loading) {
     return (
@@ -876,12 +1109,17 @@ const ViewMyProfileScreen = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, !isViewingSelf && requestRole !== 'received' ? styles.scrollContentWithFooter : null]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          !isViewingSelf && requestRole !== 'received'
+            ? { paddingBottom: 90 + Math.max(insets.bottom, Platform.OS === 'android' ? 28 : 20) }
+            : { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 28 : 24) },
+        ]}
       >
         {/* Hero Photo Carousel */}
         <View style={styles.sliderWrapper}>
           {sliderImages.length > 0 ? (
-            <View style={styles.imageCard}>
+            <View style={[styles.imageCard, { height: heroCardHeight }]}>
               <Image
                 source={
                   typeof sliderImages[activeIndex] === 'string'
@@ -965,7 +1203,7 @@ const ViewMyProfileScreen = () => {
               )}
             </View>
           ) : (
-            <View style={styles.emptyHero}>
+            <View style={[styles.emptyHero, { height: heroCardHeight }]}>
               <Icon name="image" size={42} color={Colors.textMuted} />
             </View>
           )}
@@ -981,18 +1219,26 @@ const ViewMyProfileScreen = () => {
         />
       </ScrollView>
 
-      {/* Sticky Bottom Full-Width Send Invite / Upgrade Pill */}
-      {!isViewingSelf && requestRole !== 'received' && (
-        <View style={styles.stickyBottomBar}>
+      {/* Sticky Bottom Full-Width Send Invite / Upgrade Pill (Hidden once match is accepted) */}
+      {!isViewingSelf && requestRole !== 'received' && !isAcceptedMatch && (
+        <View style={[styles.stickyBottomBar, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 26 : 20) }]}>
           <TouchableOpacity
             style={[
               styles.sendInvitePill,
               (!effectiveIsSubscribed && !isViewerWoman) && styles.upgradeBottomPill,
-              (effectiveIsSubscribed || isViewerWoman) && (isAlreadyInvited || likeMutation.isPending) && styles.sendInvitePillDisabled,
+              (effectiveIsSubscribed || isViewerWoman) && (isPendingInvite || likeMutation.isPending) && styles.sendInvitePillDisabled,
             ]}
             activeOpacity={0.85}
-            onPress={(!effectiveIsSubscribed && !isViewerWoman) ? openSubscriptionPlans : handleLike}
-            disabled={(!effectiveIsSubscribed && !isViewerWoman) ? false : (isAlreadyInvited || likeMutation.isPending)}
+            onPress={
+              (!effectiveIsSubscribed && !isViewerWoman)
+                ? openSubscriptionPlans
+                : handleLike
+            }
+            disabled={
+              (!effectiveIsSubscribed && !isViewerWoman)
+                ? false
+                : (isPendingInvite || likeMutation.isPending)
+            }
           >
             {likeMutation.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -1002,7 +1248,7 @@ const ViewMyProfileScreen = () => {
                   name={
                     (!effectiveIsSubscribed && !isViewerWoman)
                       ? "crown"
-                      : isAlreadyInvited
+                      : isPendingInvite
                       ? "check-circle-outline"
                       : "send"
                   }
@@ -1013,7 +1259,7 @@ const ViewMyProfileScreen = () => {
                 <Text style={styles.sendInviteText}>
                   {(!effectiveIsSubscribed && !isViewerWoman)
                     ? t('profile.viewmyprofilescreen.upgrade', { defaultValue: 'Upgrade' })
-                    : isAlreadyInvited
+                    : isPendingInvite
                     ? t('profile.viewmyprofilescreen.invitation_sent')
                     : t('profile.viewmyprofilescreen.send_invite')}
                 </Text>
@@ -1227,6 +1473,20 @@ const createStyles = (colors: any, isDark: boolean = true) =>
     upgradeBottomPill: {
       backgroundColor: colors.primary || '#7C3AED',
       shadowColor: colors.primary || '#7C3AED',
+      shadowOpacity: 0.45,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    chatBottomPill: {
+      backgroundColor: '#25D366',
+      shadowColor: '#25D366',
+      shadowOpacity: 0.45,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    telegramBottomPill: {
+      backgroundColor: '#0088cc',
+      shadowColor: '#0088cc',
       shadowOpacity: 0.45,
       shadowRadius: 8,
       elevation: 6,

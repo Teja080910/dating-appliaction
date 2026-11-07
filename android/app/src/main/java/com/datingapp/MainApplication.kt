@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
@@ -52,16 +53,22 @@ class MainApplication : Application(), ReactApplication {
 
   private fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channelId = "amara_default_channel"
-      val name = "Amara Notifications"
-      val descriptionText = "Notifications for date proposals, matches, and messages"
-      val importance = NotificationManager.IMPORTANCE_HIGH
-      val channel = NotificationChannel(channelId, name, importance).apply {
-        description = descriptionText
-        enableVibration(true)
+      val notificationManager = getSystemService(NotificationManager::class.java) ?: return
+      val channels = listOf(
+        Triple("amara_default_channel", "Amara Notifications", "Notifications for date proposals, matches, and messages"),
+        Triple("fcm_fallback_notification_channel", "General Alerts", "General application alerts and notifications"),
+        Triple("default", "Default", "Default notification channel")
+      )
+      for ((id, name, desc) in channels) {
+        val channel = NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH).apply {
+          description = desc
+          enableVibration(true)
+          enableLights(true)
+          setShowBadge(true)
+          lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        notificationManager.createNotificationChannel(channel)
       }
-      val notificationManager = getSystemService(NotificationManager::class.java)
-      notificationManager?.createNotificationChannel(channel)
     }
   }
 
