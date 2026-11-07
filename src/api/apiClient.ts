@@ -51,12 +51,8 @@ const hybridAdapter = async (config: any) => {
 
   const url = String(config.url || '');
   const isDataEndpoint =
-    url.includes('/search') ||
-    url.includes('/users/filter') ||
-    url.includes('/dashboard/') ||
     url.includes('/notification') ||
-    url.includes('/emails/my') ||
-    url.includes('/connections/');
+    url.includes('/emails/my');
 
   if (defaultAxiosAdapter) {
     try {

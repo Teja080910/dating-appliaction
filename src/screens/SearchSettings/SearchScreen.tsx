@@ -36,6 +36,7 @@ import {
   getSavedSearchFilters,
   saveSearchFilters,
   clearSavedSearchFilters,
+  getActiveFilterCount,
 } from '../../utils/types/AsyncStorage';
 import { t, useTranslation } from '../../i18n';
 
@@ -213,36 +214,57 @@ const SearchScreen = ({ navigation }: any) => {
         size: 20,
       };
 
+      const filterToPersist = {
+        minAge: filters.minAge,
+        maxAge: filters.maxAge,
+        maxDistanceKm: filters.maxDistanceKm,
+        searchRadius: filters.maxDistanceKm,
+        radius: filters.maxDistanceKm,
+        worldwide: filters.worldwide,
+        location: location,
+        city: location,
+        minHeight: filters.minHeight,
+        maxHeight: filters.maxHeight,
+        bodyType: filters.bodyType,
+        appearance: filters.appearance,
+        language: filters.language,
+        englishLevel: filters.englishLevel,
+        ethnicity: filters.ethnicity,
+        lookingFor: filters.lookingFor,
+        smoke: filters.smoke,
+        drink: filters.drink,
+        gender: filters.gender,
+        showMe: showMe,
+        onlyOnline: filters.onlyOnline,
+      };
+
+      const activeCount = getActiveFilterCount(filterToPersist);
+      const isFilterActive = activeCount > 0;
+
       // Persist filters to AsyncStorage
       await saveSearchFilters(
         {
-          isFilterActive: true,
-          minAge: filters.minAge,
-          maxAge: filters.maxAge,
-          maxDistanceKm: filters.maxDistanceKm,
-          searchRadius: filters.maxDistanceKm,
-          radius: filters.maxDistanceKm,
-          worldwide: filters.worldwide,
-          location: location,
-          city: location,
-          minHeight: filters.minHeight,
-          maxHeight: filters.maxHeight,
-          bodyType: filters.bodyType,
-          appearance: filters.appearance,
-          language: filters.language,
-          englishLevel: filters.englishLevel,
-          ethnicity: filters.ethnicity,
-          lookingFor: filters.lookingFor,
-          smoke: filters.smoke,
-          drink: filters.drink,
-          gender: filters.gender,
-          showMe: showMe,
-          onlyOnline: filters.onlyOnline,
+          ...filterToPersist,
+          isFilterActive,
         },
         resolvedUserId
       );
 
       await hydrateSavedFilters(resolvedUserId);
+
+      if (!isFilterActive) {
+        setDistanceRange(50);
+        setIsChecked(false);
+        setFilteredProfiles(null);
+        Toast.show({
+          type: 'success',
+          text1: t('search.searchscreen.filters_applied', { defaultValue: 'Preferences Saved' }),
+          text2: t('search.searchscreen.matches_updated_successfully', { defaultValue: 'Default preferences restored.' }),
+          visibilityTime: 2000,
+        });
+        navigation.goBack();
+        return;
+      }
 
       let profiles: any[] = [];
       try {
@@ -250,6 +272,27 @@ const SearchScreen = ({ navigation }: any) => {
         profiles = Array.isArray(result) ? result : (result?.content || []);
       } catch (searchErr) {
         console.warn('[SearchScreen] filterUsers API error, falling back to local search:', searchErr);
+      }
+
+      if (!profiles || profiles.length === 0) {
+        try {
+          const dashRes = await apiClient.get('/dashboard/recent', {
+            params: {
+              page: 0,
+              size: 20,
+              userId: resolvedUserId || undefined,
+              gender: showMe === 'straight_man' ? 'man' : 'woman',
+            },
+          });
+          const rawItems = Array.isArray(dashRes?.data?.content)
+            ? dashRes.data.content
+            : Array.isArray(dashRes?.data)
+              ? dashRes.data
+              : [];
+          if (rawItems.length > 0) {
+            profiles = rawItems;
+          }
+        } catch {}
       }
 
       if (!profiles || profiles.length === 0) {

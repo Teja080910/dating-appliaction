@@ -170,6 +170,9 @@ export const getActiveFilterCount = (filters?: SavedSearchFilters | null): numbe
   if (filters.drink !== undefined && filters.drink !== null && filters.drink !== '') {
     count++;
   }
+  if (filters.onlyOnline === true) {
+    count++;
+  }
 
   return count;
 };

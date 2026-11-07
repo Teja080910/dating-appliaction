@@ -28,25 +28,28 @@ const hasActiveSearchFilters = (saved: any): boolean => {
   if (!saved || typeof saved !== 'object') return false;
   if (saved.isFilterActive === false) return false;
   return Boolean(
-    saved.isFilterActive === true ||
     saved.showMe === 'straight_man' ||
     saved.showMe === 'both' ||
     (Array.isArray(saved.gender) && (saved.gender.includes(t('home.userlist.male')) || saved.gender.length > 1)) ||
-    (saved.minAge !== undefined && (saved.minAge !== 18 || saved.maxAge !== 40)) ||
-    (saved.minHeight !== undefined && (saved.minHeight !== 120 || saved.maxHeight !== 200)) ||
+    (saved.minAge !== undefined && (saved.minAge > 18 || saved.maxAge < 40)) ||
+    (saved.minHeight !== undefined && (saved.minHeight > 120 || saved.maxHeight < 200)) ||
     (Array.isArray(saved.bodyType) && saved.bodyType.length > 0) ||
     (Array.isArray(saved.appearance) && saved.appearance.length > 0) ||
     (Array.isArray(saved.language) && saved.language.length > 0) ||
     (Array.isArray(saved.englishLevel) && saved.englishLevel.length > 0) ||
     (Array.isArray(saved.ethnicity) && saved.ethnicity.length > 0) ||
     (Array.isArray(saved.lookingFor) && saved.lookingFor.length > 0) ||
-    saved.smoke !== undefined ||
-    saved.drink !== undefined ||
-    (saved.location && saved.location !== t('search.location.my_current_location') && saved.location !== 'Mumbai, India') ||
+    (saved.smoke !== undefined && saved.smoke !== null && saved.smoke !== '') ||
+    (saved.drink !== undefined && saved.drink !== null && saved.drink !== '') ||
+    (saved.location &&
+      saved.location.trim() !== '' &&
+      saved.location !== t('search.location.my_current_location') &&
+      saved.location !== 'Mumbai, India') ||
     saved.worldwide === true ||
-    (saved.maxDistanceKm !== undefined && saved.maxDistanceKm !== 50 && saved.maxDistanceKm !== 200) ||
-    (saved.searchRadius !== undefined && saved.searchRadius !== 50 && saved.searchRadius !== 200) ||
-    (saved.radius !== undefined && saved.radius !== 50 && saved.radius !== 200)
+    saved.onlyOnline === true ||
+    (saved.maxDistanceKm !== undefined && saved.maxDistanceKm < 50) ||
+    (saved.searchRadius !== undefined && saved.searchRadius < 50) ||
+    (saved.radius !== undefined && saved.radius < 50)
   );
 };
 
@@ -109,6 +112,9 @@ const resolveProfileUserId = (item: any): string | number | null => {
     item?.userId, item?.profile?.userId,
     item?.user?.userId, item?.profile?.user?.userId,
     item?.id, item?.user?.id, item?.profile?.user?.id,
+    item?.ID, item?.user?.ID,
+    item?.email, item?.user?.email, item?.profile?.email,
+    item?.name,
   ];
   for (const id of ids) {
     if (id === null || id === undefined) continue;
@@ -117,6 +123,7 @@ const resolveProfileUserId = (item: any): string | number | null => {
     if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) return normalized;
     const num = Number(id);
     if (Number.isFinite(num) && num > 0) return num;
+    return normalized;
   }
   return null;
 };
@@ -124,26 +131,59 @@ const resolveProfileUserId = (item: any): string | number | null => {
 const parseUserCollection = (data: any) =>
   (Array.isArray(data?.content) ? data.content : null) ||
   (Array.isArray(data?.data) ? data.data : null) ||
+  (Array.isArray(data?.users) ? data.users : null) ||
+  (Array.isArray(data?.profiles) ? data.profiles : null) ||
   (Array.isArray(data) ? data : []);
+
+const isFemaleGenderValue = (val: string) => {
+  const s = String(val || '').toLowerCase().trim();
+  return (
+    s === 'f' ||
+    s === 'female' ||
+    s === 'woman' ||
+    s === 'straight_woman' ||
+    s.startsWith('f') ||
+    s.includes('female') ||
+    s.includes('woman')
+  );
+};
+
+const isMaleGenderValue = (val: string) => {
+  const s = String(val || '').toLowerCase().trim();
+  return (
+    s === 'm' ||
+    s === 'male' ||
+    s === 'man' ||
+    s === 'straight_man' ||
+    (s.startsWith('m') && !s.includes('female')) ||
+    (s.includes('male') && !s.includes('female')) ||
+    (s.includes('man') && !s.includes('woman'))
+  );
+};
 
 const matchesGenderSelection = (
   item: any,
   selectedGender: string | null,
   activeGenders?: string[] | null
 ) => {
-  const gender = normalizeText(item?.profile?.gender || item?.gender);
-  const isMan = gender === 'man' || gender === 'male';
-  const isWoman = gender === 'woman' || gender === 'female';
+  const rawGender =
+    item?.profile?.gender ||
+    item?.gender ||
+    item?.user?.gender ||
+    item?.sex ||
+    item?.userGender ||
+    '';
+  const gender = normalizeText(rawGender);
+
+  // If gender is completely empty/unspecified on a real DB account, keep it
+  if (!gender) return true;
+
+  const isMan = isMaleGenderValue(gender);
+  const isWoman = isFemaleGenderValue(gender);
 
   if (activeGenders && activeGenders.length > 0) {
-    const wantsMen = activeGenders.some((g) => {
-      const s = String(g).toLowerCase().trim();
-      return s === 'male' || s === 'man' || s === 'straight_man' || (s.includes('male') && !s.includes('female')) || (s.includes('man') && !s.includes('woman')) || s === 'both';
-    });
-    const wantsWomen = activeGenders.some((g) => {
-      const s = String(g).toLowerCase().trim();
-      return s === 'female' || s === 'woman' || s === 'straight_woman' || s.includes('female') || s.includes('woman') || s === 'both';
-    });
+    const wantsMen = activeGenders.some((g) => isMaleGenderValue(g) || String(g).toLowerCase() === 'both');
+    const wantsWomen = activeGenders.some((g) => isFemaleGenderValue(g) || String(g).toLowerCase() === 'both');
     if (wantsMen && wantsWomen) return isMan || isWoman;
     if (wantsMen) return isMan;
     if (wantsWomen) return isWoman;
@@ -249,13 +289,11 @@ const UserList = ({
         try {
           if (hasFilters) {
             // Apply saved filters across both tabs:
-            // "Active now" -> filters + onlyOnline: true & sortBy: 'active'
-            // "Just joined" -> filters + onlyOnline: false & sortBy: 'createdAt'
             const searchPayload: Record<string, any> = {
               ...savedFilters,
               userId: resolvedUserId || undefined,
               gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
-              onlyOnline: mode === 'online',
+              onlyOnline: savedFilters?.onlyOnline === true,
               sortBy: mode === 'online' ? 'active' : 'createdAt',
               maxDistanceKm: savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius,
               searchRadius: savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius,
@@ -267,6 +305,36 @@ const UserList = ({
             };
             const searchRes = await filterUsersMutationRef.current(searchPayload);
             items = parseUserCollection(searchRes);
+
+            // If backend search returned empty, fallback to dashboard recent/online
+            // so live database accounts (like newly registered users) are never hidden
+            if (!items || items.length === 0) {
+              try {
+                const endpoint = mode === 'online' ? '/dashboard/online' : '/dashboard/recent';
+                const dashRes = await apiClient.get(endpoint, {
+                  params: {
+                    page: 0,
+                    size: 20,
+                    userId: resolvedUserId || undefined,
+                    gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+                  },
+                });
+                const dashItems = parseUserCollection(dashRes.data);
+                if (dashItems && dashItems.length > 0) {
+                  items = dashItems;
+                } else if (endpoint === '/dashboard/online') {
+                  const recentRes = await apiClient.get('/dashboard/recent', {
+                    params: {
+                      page: 0,
+                      size: 20,
+                      userId: resolvedUserId || undefined,
+                      gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+                    },
+                  });
+                  items = parseUserCollection(recentRes.data);
+                }
+              } catch {}
+            }
           } else if (filteredProfiles !== null && filteredProfiles.length > 0) {
             items = filteredProfiles;
           } else if (mode === 'online') {
@@ -281,13 +349,42 @@ const UserList = ({
               });
               items = parseUserCollection(res.data);
             } catch (onlineError) {
-              console.log('[UserList] online failed → using online-only search');
-              const searchRes = await searchUsersMutationRef.current({
-                onlyOnline: true,
-                sortBy: 'active',
-                gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+              console.log('[UserList] /dashboard/online failed, trying fallback');
+            }
+
+            // Also fetch /dashboard/recent to include recently active accounts (like One)
+            // so both online and recently active women appear on the "Last Active" tab!
+            try {
+              const recentRes = await apiClient.get('/dashboard/recent', {
+                params: {
+                  page: 0,
+                  size: 20,
+                  userId: resolvedUserId || undefined,
+                  gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+                },
               });
-              items = parseUserCollection(searchRes);
+              const recentItems = parseUserCollection(recentRes.data);
+              if (recentItems && recentItems.length > 0) {
+                const existingIds = new Set(
+                  items.map((i: any) => String(resolveProfileUserId(i) || i?.id || ''))
+                );
+                for (const rItem of recentItems) {
+                  const rId = String(resolveProfileUserId(rItem) || rItem?.id || '');
+                  if (rId && !existingIds.has(rId)) {
+                    existingIds.add(rId);
+                    items.push(rItem);
+                  }
+                }
+              }
+            } catch (recentErr) {
+              if (!items || items.length === 0) {
+                console.log('[UserList] recent failed → using search');
+                const searchRes = await searchUsersMutationRef.current({
+                  sortBy: 'recent',
+                  gender: selectedGender === 'straight_man' ? 'man' : 'woman',
+                });
+                items = parseUserCollection(searchRes);
+              }
             }
           } else {
             try {
@@ -355,7 +452,7 @@ const UserList = ({
                   !p.ethnicity || savedFilters.ethnicity.some((eth: string) => String(p.ethnicity).toLowerCase().includes(eth.toLowerCase()))
                 );
               }
-              if (mode === 'online' || savedFilters.onlyOnline) {
+              if (savedFilters.onlyOnline) {
                 filtered = filtered.filter((p: any) => p.online === true);
               }
               items = filtered.length > 0 ? filtered : baseProfiles;
@@ -372,7 +469,7 @@ const UserList = ({
         const unblockedItems = items.filter((item) => !isBlockedProfile(item, blockedUserIds));
         const genderMatched = unblockedItems.filter((item) =>
           matchesGenderSelection(item, selectedGender, activeGenders) &&
-          (mode !== 'online' || item?.online === true || item?.profile?.online === true)
+          (!savedFilters?.onlyOnline || item?.online === true || item?.profile?.online === true)
         );
         const invitable = keepInvitableProfiles(genderMatched);
         const shouldApplyRadiusFilter = Boolean(
@@ -435,7 +532,7 @@ const UserList = ({
           ...savedFilters,
           userId: resolvedUserId || undefined,
           gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
-          onlyOnline: mode === 'online',
+          onlyOnline: savedFilters?.onlyOnline === true,
           sortBy: mode === 'online' ? 'active' : 'createdAt',
           page: nextPage,
           size: 10,
@@ -552,7 +649,14 @@ const UserList = ({
       }
       renderItem={({ item }) => {
         const profile = item?.profile || item;
-        const rawName = String(profile?.name || profile?.displayName || item?.name || t('home.usercard.user'));
+        const rawName = String(
+          profile?.name ||
+          profile?.displayName ||
+          item?.name ||
+          item?.email?.split('@')[0] ||
+          profile?.email?.split('@')[0] ||
+          t('home.usercard.user')
+        );
         const cleanName = rawName.replace(/,\s*\d+$/, '').trim();
         const safeAge = profile?.age || item?.age || '24';
         return (

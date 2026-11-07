@@ -194,9 +194,15 @@ const normalizeSearchRequest = (data: any) => {
     longitude: Number.isFinite(Number(data?.longitude)) ? Number(data.longitude) : undefined,
     worldwide: typeof data?.worldwide === 'boolean' ? data.worldwide : undefined,
     city:
-      typeof data?.city === 'string'
+      typeof data?.city === 'string' &&
+      data.city.trim() !== '' &&
+      data.city.trim() !== 'Mumbai, India' &&
+      data.city.trim() !== 'My current location'
         ? data.city.trim()
-        : typeof data?.location === 'string'
+        : typeof data?.location === 'string' &&
+          data.location.trim() !== '' &&
+          data.location.trim() !== 'Mumbai, India' &&
+          data.location.trim() !== 'My current location'
           ? data.location.trim()
           : undefined,
     onlyOnline: data?.onlyOnline === true ? true : undefined,

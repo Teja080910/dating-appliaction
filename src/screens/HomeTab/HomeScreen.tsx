@@ -120,6 +120,22 @@ const HomeScreen = () => {
       try {
         const location = await getCurrentLocation();
         setUserLocation(location);
+        if (location?.latitude && location?.longitude) {
+          const uid = await getUserId();
+          if (uid) {
+            apiClient.post(
+              '/location/add',
+              {
+                userId: uid,
+                latitude: location.latitude,
+                longitude: location.longitude,
+                lat: location.latitude,
+                lng: location.longitude,
+              },
+              { params: { userId: uid } }
+            ).catch(() => null);
+          }
+        }
       } catch {
         // Location permission denied or unavailable
       }
