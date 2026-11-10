@@ -102,11 +102,43 @@ export const parsePhoneNumberAndCountry = (rawPhone?: string | null) => {
   const str = String(rawPhone).trim();
   if (!str) return null;
 
-  // Sort by code length descending so +351 matches before +35 or +1
+  const digits = str.replace(/\D/g, '');
+
+  // 1. Check Indian mobile number with single or repeated 91 prefix (e.g. 91919014701586, +91 919014701586, 919014701586)
+  const indianRepeatMatch = digits.match(/^(?:91)+([6-9]\d{9})$/);
+  if (indianRepeatMatch) {
+    const india = COUNTRIES_LIST.find((c) => c.code === '+91');
+    return {
+      country: india,
+      code: '+91',
+      name: 'India',
+      flag: '🇮🇳',
+      number: indianRepeatMatch[1],
+    };
+  }
+
+  // 2. 10-digit Indian mobile number
+  if (digits.length === 10 && /^[6-9]/.test(digits)) {
+    const india = COUNTRIES_LIST.find((c) => c.code === '+91');
+    return {
+      country: india,
+      code: '+91',
+      name: 'India',
+      flag: '🇮🇳',
+      number: digits,
+    };
+  }
+
+  // 3. Match country code with leading +
   const sorted = [...COUNTRIES_LIST].sort((a, b) => b.code.length - a.code.length);
   const matched = sorted.find((c) => str.startsWith(c.code));
   if (matched) {
-    const remaining = str.slice(matched.code.length).trim();
+    let remaining = str.slice(matched.code.length).trim();
+    const codeDigits = matched.code.replace('+', '');
+    // If remaining still starts with duplicate country code digits (e.g. +91 919014701586)
+    while (remaining.startsWith(codeDigits) && remaining.length >= codeDigits.length + 7) {
+      remaining = remaining.slice(codeDigits.length).trim();
+    }
     return {
       country: matched,
       code: matched.code,
@@ -115,6 +147,27 @@ export const parsePhoneNumberAndCountry = (rawPhone?: string | null) => {
       number: remaining.replace(/[^\d\s-]/g, '').trim(),
     };
   }
+
+  // 4. Match country code without leading + (e.g. 447123456789)
+  const matchedWithoutPlus = sorted.find((c) => {
+    const cd = c.code.replace('+', '');
+    return digits.startsWith(cd) && digits.length >= cd.length + 7;
+  });
+  if (matchedWithoutPlus) {
+    const cd = matchedWithoutPlus.code.replace('+', '');
+    let remainingDigits = digits.slice(cd.length);
+    while (remainingDigits.startsWith(cd) && remainingDigits.length >= cd.length + 7) {
+      remainingDigits = remainingDigits.slice(cd.length);
+    }
+    return {
+      country: matchedWithoutPlus,
+      code: matchedWithoutPlus.code,
+      name: matchedWithoutPlus.name,
+      flag: matchedWithoutPlus.flag,
+      number: remainingDigits,
+    };
+  }
+
   const match = str.match(/^(\+\d{1,4})\s*(.*)$/);
   if (match) {
     return {
@@ -132,6 +185,51 @@ export const parsePhoneNumberAndCountry = (rawPhone?: string | null) => {
     flag: null,
     number: str.replace(/^[^\d+]+/, '').replace(/^-+/, '').replace(/[^\d\s-]/g, '').trim(),
   };
+};
+
+/**
+ * Extracts pure national number digits for display and text entry,
+ * stripping any prepended country dial codes (e.g. 919014701586 -> 9014701586).
+ */
+export const extractNationalNumber = (
+  rawNumber?: string | null,
+  currentCountryCode?: string | null
+): string => {
+  if (!rawNumber) return '';
+  const str = String(rawNumber).trim();
+  if (!str || str.includes('@') || /[a-zA-Z]/.test(str)) return '';
+
+  const digits = str.replace(/\D/g, '');
+  if (!digits) return '';
+
+  const ccDigits = String(currentCountryCode || '').replace(/\D/g, '');
+
+  // 1. Indian number with single or repeated 91 prefix (e.g. 919014701586, 91919014701586, +91 919014701586)
+  if (ccDigits === '91' || !ccDigits) {
+    const indianRepeat = digits.match(/^(?:91)+([6-9]\d{9})$/);
+    if (indianRepeat) {
+      return indianRepeat[1];
+    }
+    // 11 digits starting with 0 (STD prefix)
+    if (digits.length === 11 && digits.startsWith('0') && /^[6-9]/.test(digits.slice(1))) {
+      return digits.slice(1);
+    }
+    // Standard 10-digit Indian mobile
+    if (digits.length === 10 && /^[6-9]/.test(digits)) {
+      return digits;
+    }
+  }
+
+  // 2. Starts with current country code digits (e.g. +44 for UK, +1 for US)
+  if (ccDigits && digits.startsWith(ccDigits) && digits.length >= ccDigits.length + 7) {
+    let clean = digits;
+    while (clean.startsWith(ccDigits) && clean.length >= ccDigits.length + 7) {
+      clean = clean.slice(ccDigits.length);
+    }
+    return clean;
+  }
+
+  return digits;
 };
 
 interface ContactDetailsProps {
@@ -295,6 +393,22 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     }
   };
 
+  const handlePhoneNumberChange = (val: string) => {
+    const raw = val.trim();
+    if (raw.startsWith('+')) {
+      const parsed = parsePhoneNumberAndCountry(raw);
+      if (parsed) {
+        if (parsed.code) setCountryCode(parsed.code);
+        if (parsed.name) setCountryName(parsed.name);
+        if (parsed.flag) setCountryFlag(parsed.flag);
+        setPhoneNumber(parsed.number);
+        return;
+      }
+    }
+    const cleanNational = extractNationalNumber(val, countryCode);
+    setPhoneNumber(cleanNational);
+  };
+
   return (
     <View style={styles.container}>
       {/* Section Title: Contact details */}
@@ -355,12 +469,8 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
                 placeholder="1234567890"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
-                value={
-                  phoneNumber && !phoneNumber.includes('@') && !/[a-zA-Z]/.test(phoneNumber)
-                    ? phoneNumber
-                    : ''
-                }
-                onChangeText={(val) => setPhoneNumber(val.replace(/[^\d\s-]/g, ''))}
+                value={extractNationalNumber(phoneNumber, countryCode)}
+                onChangeText={handlePhoneNumberChange}
               />
             </View>
           </View>

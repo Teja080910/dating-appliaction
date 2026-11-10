@@ -20,7 +20,7 @@ import { useProfile } from '../../../api/useProfile';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../../theme';
 import { getAuthSession, isResolvedApiUserId } from '../../../utils/session';
-import { getAuthToken } from '../../../utils/sessionHelper';
+import { getAuthToken, getUserId } from '../../../utils/sessionHelper';
 import { useAlert } from '../../AlertModal';
 import { requestPermissions } from '../../../utils/types/permission';
 import { t, useTranslation } from '../../../i18n';
@@ -29,13 +29,14 @@ const TOTAL_SLOTS = 6;
 
 interface ProfilePhotoGridProps {
   initialPhotos?: (string | null)[];
+  userId?: string;
 }
 
-const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) => {
+const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, userId: propUserId }) => {
   useTranslation();
   const { themeColors, isDark } = useTheme();
   const { width } = useWindowDimensions();
-  const { alert } = useAlert();
+  const { alert, AlertComponent } = useAlert();
   const {
     images,
     setImages,
@@ -59,6 +60,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
   const hasUserEdited = useRef(false);
   const isInitRef = useRef(false);
   const hasHydratedFromInitial = useRef(false);
+  const activeUserKeyRef = useRef<string | null>(null);
   const getAllImagesRef = useRef(getAllImages.mutate);
   getAllImagesRef.current = getAllImages.mutate;
 
@@ -74,81 +76,172 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
     };
   }, []);
 
-  // Hydrate once when initialPhotos arrives if context is empty and user hasn't edited
-  useEffect(() => {
-    if (hasHydratedFromInitial.current || hasUserEdited.current) return;
-    const currentValid = (images || []).filter(Boolean);
-    if (currentValid.length === 0 && initialPhotos && initialPhotos.some(Boolean)) {
-      hasHydratedFromInitial.current = true;
-      const validInitial = initialPhotos.filter(Boolean) as string[];
-      const resolvedSlots: (string | null)[] = [...validInitial];
-      while (resolvedSlots.length < TOTAL_SLOTS) {
-        resolvedSlots.push(null);
-      }
-      setImages(resolvedSlots);
-      if (resolvedSlots[0]) {
-        setProfileImage(resolvedSlots[0]);
-        setProfileImageUrl(resolvedSlots[0]);
-      }
-      AsyncStorage.setItem('onboardingImages', JSON.stringify(resolvedSlots)).catch(() => {});
-    }
-  }, [initialPhotos]);
-
   const resolveActiveUserId = useCallback(async () => {
+    if (propUserId && isResolvedApiUserId(propUserId)) {
+      return String(propUserId);
+    }
     if (authUserId && isResolvedApiUserId(authUserId)) {
       return String(authUserId);
     }
-    const authSession = await getAuthSession();
+    const storedUid = await getUserId().catch(() => null);
+    if (storedUid && isResolvedApiUserId(storedUid)) {
+      return String(storedUid);
+    }
+    const directUid = await AsyncStorage.getItem('userId').catch(() => null);
+    if (directUid && isResolvedApiUserId(directUid)) {
+      return String(directUid);
+    }
+    const authSession = await getAuthSession().catch(() => null);
     if (authSession?.userId && isResolvedApiUserId(authSession.userId)) {
       return String(authSession.userId);
     }
     return null;
-  }, [authUserId]);
+  }, [authUserId, propUserId]);
+
+  const getFilenameFromUrl = (u?: string | null) => {
+    if (!u) return '';
+    const clean = u.split('?')[0].split('#')[0];
+    return clean.substring(clean.lastIndexOf('/') + 1);
+  };
+
+  const isDeletedUri = useCallback((uri: string | null | undefined, deletedList: string[]) => {
+    if (!uri) return false;
+    const clean = uri.trim();
+    const abs = getAbsoluteUrl(clean) || clean;
+    const fn = getFilenameFromUrl(clean);
+    return deletedList.some((d) => {
+      if (!d) return false;
+      if (d === clean || d === abs) return true;
+      const dfn = getFilenameFromUrl(d);
+      if (fn && dfn && fn === dfn) return true;
+      return false;
+    });
+  }, []);
+
+  const getDeletedUris = useCallback(async (activeUid?: string | null) => {
+    try {
+      const key = activeUid ? `deleted_photos_${activeUid}` : 'deleted_image_uris';
+      const raw = await AsyncStorage.getItem(key);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const recordDeletedUri = useCallback(async (uri: string | null | undefined, activeUid?: string | null) => {
+    if (!uri) return;
+    try {
+      const key = activeUid ? `deleted_photos_${activeUid}` : 'deleted_image_uris';
+      const raw = await AsyncStorage.getItem(key);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      if (!list.includes(uri)) {
+        list.push(uri);
+        const abs = getAbsoluteUrl(uri);
+        if (abs && !list.includes(abs)) list.push(abs);
+        await AsyncStorage.setItem(key, JSON.stringify(list));
+      }
+    } catch {}
+  }, []);
+
+  // Reset hydration and edits when switching users
+  useEffect(() => {
+    const currentUid = propUserId ? String(propUserId) : null;
+    if (currentUid && activeUserKeyRef.current && activeUserKeyRef.current !== currentUid) {
+      hasHydratedFromInitial.current = false;
+      hasUserEdited.current = false;
+      isInitRef.current = false;
+      setImages([null, null, null, null, null, null]);
+    }
+    if (currentUid) {
+      activeUserKeyRef.current = currentUid;
+    }
+  }, [propUserId, setImages]);
+
+  // Hydrate from initialPhotos (profileQuery / server data) if user hasn't edited
+  useEffect(() => {
+    if (hasHydratedFromInitial.current || hasUserEdited.current) return;
+    if (initialPhotos && initialPhotos.some(Boolean)) {
+      hasHydratedFromInitial.current = true;
+      void (async () => {
+        const uid = localUserId || (await resolveActiveUserId());
+        const deletedList = await getDeletedUris(uid);
+        const validInitial = initialPhotos
+          .filter(Boolean)
+          .filter((u) => !isDeletedUri(u, deletedList)) as string[];
+        const resolvedSlots: (string | null)[] = [...validInitial];
+        while (resolvedSlots.length < TOTAL_SLOTS) {
+          resolvedSlots.push(null);
+        }
+        setImages(resolvedSlots);
+        if (resolvedSlots[0]) {
+          setProfileImage(resolvedSlots[0]);
+          setProfileImageUrl(resolvedSlots[0]);
+        }
+        if (uid) {
+          AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(resolvedSlots)).catch(() => {});
+        }
+        AsyncStorage.setItem('onboardingImages', JSON.stringify(resolvedSlots)).catch(() => {});
+      })();
+    }
+  }, [initialPhotos, isDeletedUri, getDeletedUris, localUserId, resolveActiveUserId, setImages, setProfileImage, setProfileImageUrl, propUserId]);
 
   useEffect(() => {
-    if (isInitRef.current) return;
-    isInitRef.current = true;
-
     const init = async () => {
+      const uid = await resolveActiveUserId();
+      if (uid) {
+        setLocalUserId(uid);
+        setAuthUserId?.(uid);
+      }
+
+      if (isInitRef.current && activeUserKeyRef.current === uid) return;
+      isInitRef.current = true;
+      if (uid) activeUserKeyRef.current = uid;
+
       const currentValid = (images || []).filter(Boolean);
       if (currentValid.length === 0) {
         try {
-          const stored = await AsyncStorage.getItem('onboardingImages');
+          const userKey = uid ? `user_photos_${uid}` : 'onboardingImages';
+          const stored = await AsyncStorage.getItem(userKey);
           if (stored) {
             const parsed = JSON.parse(stored);
             if (Array.isArray(parsed) && parsed.some(Boolean) && !hasUserEdited.current) {
-              const slots = [...parsed];
+              const deletedList = await getDeletedUris(uid);
+              const slots = parsed.filter((u) => u && !isDeletedUri(u, deletedList));
               while (slots.length < TOTAL_SLOTS) slots.push(null);
-              setImages(slots);
-              if (slots[0]) {
-                setProfileImage(slots[0]);
-                setProfileImageUrl(slots[0]);
+              if (slots.some(Boolean)) {
+                setImages(slots);
+                if (slots[0]) {
+                  setProfileImage(slots[0]);
+                  setProfileImageUrl(slots[0]);
+                }
               }
             }
           }
         } catch {}
       }
 
-      const uid = await resolveActiveUserId();
       if (uid) {
-        setLocalUserId(uid);
-        setAuthUserId?.(uid);
         getAllImagesRef.current(uid, {
-          onSuccess: (data: any) => {
-            if (hasUserEdited.current) return;
+          onSuccess: async (data: any) => {
             const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
-            if (mapped.slots.some(Boolean)) {
-              const resolvedSlots = [...mapped.slots];
-              while (resolvedSlots.length < TOTAL_SLOTS) {
-                resolvedSlots.push(null);
+            // Always keep imageMap and serverImages up to date so deletion matching has IDs
+            setImageMap(mapped.imageIdByIndex);
+            setServerImages(mapped.normalized);
+
+            if (hasUserEdited.current) return;
+            const deletedList = await getDeletedUris(uid);
+            const activeSlots = mapped.slots.filter((u) => u && !isDeletedUri(u, deletedList));
+            while (activeSlots.length < TOTAL_SLOTS) {
+              activeSlots.push(null);
+            }
+            if (activeSlots.some(Boolean)) {
+              setImages(activeSlots);
+              if (activeSlots[0]) {
+                setProfileImage(activeSlots[0]);
+                setProfileImageUrl(activeSlots[0]);
               }
-              setImages(resolvedSlots);
-              setImageMap(mapped.imageIdByIndex);
-              setServerImages(mapped.normalized);
-              if (mapped.profileImageUrl) {
-                setProfileImage(mapped.profileImageUrl);
-                setProfileImageUrl(mapped.profileImageUrl);
-              }
+              AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(activeSlots)).catch(() => {});
             }
           },
           onError: () => {},
@@ -156,7 +249,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
       }
     };
     void init();
-  }, []);
+  }, [resolveActiveUserId, propUserId]);
 
   const handlePickImage = (index: number) => {
     setSelectedSlotIndex(index);
@@ -240,28 +333,46 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
     }
   };
 
-  const handleDeleteImage = (index: number) => {
+  const performDeleteImage = async (index: number) => {
     const currentList = [...(images || [])];
-    const nonNullCount = currentList.filter(Boolean).length;
+    hasUserEdited.current = true;
+    const targetUri = currentList[index];
 
-    // Requirement: A profile must have at least 1 photo. Prevent deleting the only remaining photo.
-    if (nonNullCount <= 1) {
-      setShowFacePhotoModal(true);
-      return;
+    let currentServerImages = serverImages;
+    let currentImageMap = imageMap;
+    const uid = localUserId || (await resolveActiveUserId());
+    if (uid && !localUserId) setLocalUserId(uid);
+
+    // If serverImages hasn't loaded yet or imageId isn't found, fetch from server to obtain true IDs
+    if ((currentServerImages.length === 0 || !currentImageMap[index]) && uid) {
+      try {
+        const fetched = await getAllImages.mutateAsync(uid);
+        const mapped = mapImagesToSlots(fetched, TOTAL_SLOTS);
+        currentServerImages = mapped.normalized;
+        currentImageMap = mapped.imageIdByIndex;
+        setServerImages(mapped.normalized);
+        setImageMap(mapped.imageIdByIndex);
+      } catch (e) {
+        console.warn('[ProfilePhotoGrid] Could not refresh server images before delete:', e);
+      }
     }
 
-    hasUserEdited.current = true;
+    const targetFilename = getFilenameFromUrl(targetUri);
+    const matched = currentServerImages.find((img) => {
+      if (img.id === null || img.id === undefined) return false;
+      if (!img.imageUrl || !targetUri) return false;
+      if (img.imageUrl === targetUri) return true;
+      if (getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri)) return true;
+      const imgFilename = getFilenameFromUrl(img.imageUrl);
+      if (targetFilename && imgFilename && targetFilename === imgFilename) return true;
+      return false;
+    });
 
-    // Resolve target image ID from imageMap or fallback to matching serverImages by URL
-    const targetUri = currentList[index];
-    const matched = serverImages.find(
-      (img) =>
-        img.id !== null &&
-        img.imageUrl &&
-        targetUri &&
-        (img.imageUrl === targetUri || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri))
-    );
-    const imageId = imageMap[index] ?? matched?.id;
+    const imageId = currentImageMap[index] ?? matched?.id ?? (currentServerImages[index]?.id ? Number(currentServerImages[index].id) : undefined);
+
+    // Record as deleted in AsyncStorage so this URI is never re-hydrated by cached queries
+    if (targetUri) void recordDeletedUri(targetUri, uid);
+    if (matched?.imageUrl) void recordDeletedUri(matched.imageUrl, uid);
 
     // 1. Instant optimistic update: filter out deleted image and shift remaining forward
     const remainingPhotos = currentList.filter((item, i) => i !== index && Boolean(item)) as string[];
@@ -276,8 +387,11 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
     setProfileImage(newPrimary);
     setProfileImageUrl(newPrimary);
 
-    // 3. Persist to AsyncStorage immediately
+    // 3. Persist to AsyncStorage immediately (both global and user-scoped)
     AsyncStorage.setItem('onboardingImages', JSON.stringify(nextSlots)).catch(() => {});
+    if (uid) {
+      AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(nextSlots)).catch(() => {});
+    }
     if (newPrimary) {
       AsyncStorage.setItem('profileImage', newPrimary).catch(() => {});
     } else {
@@ -304,31 +418,65 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
 
     // 6. Delete on server if image ID is present
     if (imageId) {
-      deleteImage.mutate(imageId, {
-        onSuccess: () => {
-          // If the deleted photo was slot 0 (primary) and we have remaining photos, promote slot 0 on backend
-          if (index === 0 && localUserId && nextSlots[0]) {
-            const nextPrimaryId = serverImages.find(
-              (img) =>
-                img.id !== imageId &&
-                img.imageUrl &&
-                nextSlots[0] &&
-                (img.imageUrl === nextSlots[0] || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(nextSlots[0]))
-            )?.id;
-            if (nextPrimaryId) {
-              setProfilePhoto.mutate({ uid: localUserId, imageId: nextPrimaryId });
+      deleteImage.mutate(
+        { imageId, userId: uid || undefined },
+        {
+          onSuccess: () => {
+            // If the deleted photo was slot 0 (primary) and we have remaining photos, promote slot 0 on backend
+            if (index === 0 && uid && nextSlots[0]) {
+              const nextPrimaryId = currentServerImages.find(
+                (img) =>
+                  img.id !== imageId &&
+                  img.imageUrl &&
+                  nextSlots[0] &&
+                  (img.imageUrl === nextSlots[0] ||
+                    getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(nextSlots[0]) ||
+                    (getFilenameFromUrl(img.imageUrl) && getFilenameFromUrl(img.imageUrl) === getFilenameFromUrl(nextSlots[0])))
+              )?.id;
+              if (nextPrimaryId) {
+                setProfilePhoto.mutate({ uid, imageId: nextPrimaryId });
+              }
             }
-          }
-        },
-        onError: (err) => {
-          console.warn('Delete image server error:', err);
-        },
-      });
+          },
+          onError: (err) => {
+            console.warn('[ProfilePhotoGrid] Delete image server error:', err);
+          },
+        }
+      );
     }
+  };
+
+  const handleDeleteImage = (index: number) => {
+    const currentList = [...(images || [])];
+    const nonNullCount = currentList.filter(Boolean).length;
+
+    // Requirement: A profile must have at least 1 photo. Prevent deleting the only remaining photo.
+    if (nonNullCount <= 1) {
+      setShowFacePhotoModal(true);
+      return;
+    }
+
+    alert(
+      t('profile.additionaluploadsection.remove_photo', { defaultValue: 'Remove Photo' }),
+      t('profile.uploadimage.are_you_sure_you_want_to_delete_this_photo', {
+        defaultValue: 'Are you sure you want to remove this photo from your profile?',
+      }),
+      [
+        {
+          text: t('profile.additionaluploadsection.cancel', { defaultValue: 'Cancel' }),
+          style: 'cancel',
+        },
+        {
+          text: t('profile.uploadimage.delete', { defaultValue: 'Remove' }),
+          style: 'destructive',
+          onPress: () => performDeleteImage(index),
+        },
+      ]
+    );
+  };
 
     // Note: Dedicated image endpoints (/users/images/{id}) manage photos.
     // The backend rejects 'photos' in /profile/update with HTTP 400.
-  };
 
   const itemWidth = Math.floor((width - 40 - 20) / 3);
   const itemHeight = Math.floor(itemWidth * 1.35);
@@ -530,6 +678,8 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos }) =>
           </View>
         </View>
       </Modal>
+      {/* Photo Removal / Face Photo Confirmation Dialog */}
+      {AlertComponent}
     </View>
   );
 };

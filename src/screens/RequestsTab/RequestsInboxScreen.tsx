@@ -20,7 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import Toast from 'react-native-toast-message';
 import NotificationBanner from '../../components/NotificationBanner';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -189,12 +188,6 @@ const RequestsInboxScreen: React.FC = () => {
               setSelectedIds(new Set());
               setIsSelectMode(false);
               refreshAll();
-              Toast.show({
-                type: 'info',
-                text1: 'Invitations Deleted',
-                text2: `Removed ${count} invitation${count > 1 ? 's' : ''}.`,
-                visibilityTime: 2500,
-              });
             } catch (err: any) {
               Alert.alert(
                 t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
@@ -277,14 +270,6 @@ const RequestsInboxScreen: React.FC = () => {
     try {
       await reject.mutateAsync(request.id);
       refreshAll();
-      const sender = request.sender || {};
-      const senderName = cleanDisplayName(sender.displayName || sender.name);
-      Toast.show({
-        type: 'info',
-        text1: 'Invitation Declined',
-        text2: `Declined date proposal from ${senderName}.`,
-        visibilityTime: 2500,
-      });
     } catch (err: any) {
       Alert.alert(
         'Could not decline invitation',

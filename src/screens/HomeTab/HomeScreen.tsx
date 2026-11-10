@@ -36,6 +36,9 @@ const HomeScreen = () => {
     let isMounted = true;
     const fetchGender = async () => {
       try {
+        const uid = await getUserId();
+        const userScopedGender = uid ? await AsyncStorage.getItem(`user_gender_${uid}`).catch(() => null) : null;
+
         const [storedSelectedGender, storedUserGender, storedUser, storedUserData] = await Promise.all([
           getGender(),
           AsyncStorage.getItem('userGender'),
@@ -43,9 +46,9 @@ const HomeScreen = () => {
           AsyncStorage.getItem('userData'),
         ]);
 
-        let raw = storedSelectedGender || storedUserGender || '';
+        let raw = userScopedGender || storedSelectedGender || storedUserGender || '';
 
-        // If not explicit or defaulted to lgbtqia, check stored user objects
+        // If not explicit, check stored user objects
         if (!raw || raw === 'lgbtqia') {
           for (const jsonStr of [storedUser, storedUserData]) {
             if (jsonStr) {
@@ -66,19 +69,19 @@ const HomeScreen = () => {
           }
         }
 
-        // If still not definitively known, check API profile
-        if (!raw || raw === 'lgbtqia') {
-          const uid = await getUserId();
-          if (uid) {
-            try {
-              const res = await apiClient.post('/profile/me', null, { params: { userId: uid } });
-              const apiGender = res?.data?.gender || res?.data?.profile?.gender;
-              if (apiGender) {
-                raw = String(apiGender);
-              }
-            } catch {
-              // fallback
+        // If still not definitively known or from another account, check live API profile
+        if (!userScopedGender && uid) {
+          try {
+            const res = await apiClient
+              .get(`/profile/me/${uid}`)
+              .catch(() => apiClient.post('/profile/me', null, { params: { userId: uid } }))
+              .catch(() => null);
+            const apiGender = res?.data?.gender || res?.data?.profile?.gender;
+            if (apiGender) {
+              raw = String(apiGender);
             }
+          } catch {
+            // fallback
           }
         }
 
@@ -92,12 +95,18 @@ const HomeScreen = () => {
             setShowMe('straight_man');
             await AsyncStorage.setItem('selectedGender', 'straight_woman');
             await AsyncStorage.setItem('userGender', 'straight_woman');
+            if (uid) {
+              await AsyncStorage.setItem(`user_gender_${uid}`, 'straight_woman');
+            }
           } else {
             setCurrentUserGender('man');
             setOppositeGender('straight_woman');
             setShowMe('straight_woman');
             await AsyncStorage.setItem('selectedGender', 'straight_man');
             await AsyncStorage.setItem('userGender', 'straight_man');
+            if (uid) {
+              await AsyncStorage.setItem(`user_gender_${uid}`, 'straight_man');
+            }
           }
         }
       } catch (err) {

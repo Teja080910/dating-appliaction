@@ -59,6 +59,7 @@ const MoreDetailsScreen = ({ navigation }: any) => {
     profileImage,
     profileImageUrl,
     selected,
+    gender: contextGender,
     authUserId,
     verifiedSelfie,
   } = useContext(AppContext);
@@ -95,17 +96,28 @@ const MoreDetailsScreen = ({ navigation }: any) => {
     }
   };
 
-  const resolveGenderOrientation = (sel?: string | null) => {
-    switch (sel) {
-      case 'straight_woman':
-        return { gender: 'woman', orientation: 'straight' };
-      case 'straight_man':
-        return { gender: 'man', orientation: 'straight' };
-      case 'lgbtqia':
-        return { gender: 'lgbtqia', orientation: 'lgbtqia' };
-      default:
-        return { gender: 'woman', orientation: 'straight' };
+  const resolveGenderOrientation = async (sel?: string | null) => {
+    let candidate = sel || contextGender;
+    if (!candidate) {
+      try {
+        const uid = (await AsyncStorage.getItem('userId')) || '';
+        const scoped = uid ? await AsyncStorage.getItem(`user_gender_${uid}`) : null;
+        const g1 = await AsyncStorage.getItem('selectedGender');
+        const g2 = await AsyncStorage.getItem('userGender');
+        candidate = scoped || g1 || g2;
+      } catch {}
     }
+    const clean = String(candidate || '').toLowerCase();
+    if (clean.includes('man') || clean.includes('male') || clean === 'straight_man') {
+      return { gender: 'man', orientation: 'straight' };
+    }
+    if (clean.includes('woman') || clean.includes('female') || clean === 'straight_woman') {
+      return { gender: 'woman', orientation: 'straight' };
+    }
+    if (clean.includes('lgbtq')) {
+      return { gender: 'lgbtqia', orientation: 'lgbtqia' };
+    }
+    return { gender: 'man', orientation: 'straight' };
   };
 
   const normalizeTextValue = (value: unknown, fallback: string) => {
@@ -160,7 +172,7 @@ const MoreDetailsScreen = ({ navigation }: any) => {
         calculatedAge -= 1;
       }
 
-      const { gender, orientation } = resolveGenderOrientation(selected);
+      const { gender, orientation } = await resolveGenderOrientation(selected);
 
       // 2. Resolve stored bio if context empty
       let storedBio = profileText;

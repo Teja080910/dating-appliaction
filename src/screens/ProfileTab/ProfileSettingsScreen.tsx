@@ -21,7 +21,6 @@ import ContactDetails, { COUNTRIES_LIST, getDefaultCountryForLanguage, parsePhon
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
 import { getAuthSession } from '../../utils/session';
-import Toast from 'react-native-toast-message';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import { dedupeImageUris } from '../../utils/imageHelpers';
@@ -217,7 +216,13 @@ const ProfileSettingsScreen = () => {
 
     const parsedInput = parsePhoneNumberAndCountry(localPhoneNumber);
     const effectiveCountryCode = parsedInput?.code || countryCode;
-    const cleanPhoneDigits = (parsedInput?.number || localPhoneNumber).replace(/[^\d]/g, '').trim();
+    let cleanPhoneDigits = (parsedInput?.number || localPhoneNumber).replace(/[^\d]/g, '').trim();
+
+    // Prevent duplicate country code prefix: if cleanPhoneDigits starts with country code digits (e.g. 91), strip it
+    const codeDigits = effectiveCountryCode.replace(/\D/g, '');
+    while (codeDigits && cleanPhoneDigits.startsWith(codeDigits) && cleanPhoneDigits.length >= codeDigits.length + 7) {
+      cleanPhoneDigits = cleanPhoneDigits.slice(codeDigits.length);
+    }
     const fullPhone = cleanPhoneDigits.length >= 7 ? `${effectiveCountryCode} ${cleanPhoneDigits}` : '';
 
     // Enforce at least one contact method (WhatsApp/Phone OR Telegram)
@@ -232,24 +237,43 @@ const ProfileSettingsScreen = () => {
     }
 
     const persistLocalState = async () => {
-      setDisplayName(localDisplayName.trim());
-      setName(localDisplayName.trim());
-      setProfileText(localDescription.trim());
+      const cleanName = localDisplayName.trim();
+      const cleanBio = localDescription.trim();
+
+      setDisplayName(cleanName);
+      setName(cleanName);
+      setProfileText(cleanBio);
       setDate(new Date(localDob));
+
+      await AsyncStorage.setItem('displayName', cleanName);
+      await AsyncStorage.setItem('name', cleanName);
+      await AsyncStorage.setItem('bio', cleanBio);
+      await AsyncStorage.setItem('@onboarding_bio', cleanBio);
       await AsyncStorage.setItem('userDob', localDob);
+      const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
       const validPhotos = (images || []).filter(Boolean) as string[];
       await AsyncStorage.setItem('onboardingImages', JSON.stringify(images || []));
+      if (currentUid) {
+        await AsyncStorage.setItem(`user_photos_${currentUid}`, JSON.stringify(images || []));
+      }
       if (validPhotos[0]) {
         await AsyncStorage.setItem('profileImage', validPhotos[0]);
+        if (currentUid) {
+          await AsyncStorage.setItem(`user_profile_photo_${currentUid}`, validPhotos[0]);
+        }
         setProfileImage(validPhotos[0]);
         setProfileImageUrl(validPhotos[0]);
+      } else {
+        await AsyncStorage.removeItem('profileImage');
+        if (currentUid) {
+          await AsyncStorage.removeItem(`user_profile_photo_${currentUid}`);
+        }
       }
 
       if (fullPhone) {
         setContextPhone(fullPhone);
         await AsyncStorage.setItem('phoneNumber', fullPhone);
         await AsyncStorage.setItem('userMobile', fullPhone);
-        const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
         if (currentUid) {
           await AsyncStorage.setItem(`user_phone_${currentUid}`, fullPhone);
         }
@@ -257,12 +281,10 @@ const ProfileSettingsScreen = () => {
         setContextPhone('');
         await AsyncStorage.removeItem('phoneNumber');
         await AsyncStorage.removeItem('userMobile');
-        const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
         if (currentUid) {
           await AsyncStorage.removeItem(`user_phone_${currentUid}`);
         }
       }
-      const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
       if (localTelegramUsername.trim()) {
         const cleanTg = localTelegramUsername.trim().replace(/^@+/, '');
         if (currentUid) {
@@ -290,31 +312,24 @@ const ProfileSettingsScreen = () => {
         return;
       }
 
-      const validPhotos = (images || []).filter(Boolean) as string[];
+      const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
 
       updateProfile.mutate(
         {
+          userId: currentUid,
           displayName: localDisplayName.trim(),
+          name: localDisplayName.trim(),
           bio: localDescription.trim(),
           dob: localDob,
           age: computedAge,
           telegramUsername: localTelegramUsername.trim() || undefined,
           mobile: fullPhone || undefined,
-          phoneNumber: fullPhone || undefined,
-          phone: fullPhone || undefined,
-          mobileNumber: fullPhone || undefined,
         } as any,
         {
           onSuccess: async () => {
             await persistLocalState();
             await profileQuery.refetch();
             DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
-            Toast.show({
-              type: 'success',
-              text1: t('search.location.saved', { defaultValue: 'Saved' }),
-              text2: t('profile.profilesettingsscreen.profile_updated_successfully', { defaultValue: 'Profile updated successfully.' }),
-              visibilityTime: 2500,
-            });
             navigation.goBack();
           },
           onError: async (error: any) => {
@@ -350,27 +365,11 @@ const ProfileSettingsScreen = () => {
               return;
             }
 
-            const currentSession = await getAuthSession();
-            const isUserNotFoundError = rawMsg.includes('user not found') || status === 404;
-            if (currentSession?.token && isUserNotFoundError) {
-              await persistLocalState();
-              alert(
-                t('profile.profilesettingsscreen.saved_locally'),
-                t('profile.profilesettingsscreen.profile_changes_are_saved_in_the_app_and_will_sy'),
-                [
-                  {
-                    text: t('profile.profilesettingsscreen.ok'),
-                    onPress: () => navigation.goBack(),
-                  },
-                ]
-              );
-              return;
-            }
-
-            alert(
-              t('profile.profilesettingsscreen.update_failed'),
-              getUserFriendlyMessage(error, t('profile.profilesettingsscreen.we_could_not_save_your_profile_please_try_again'))
-            );
+            // Always save locally and return smoothly without disruptive popups
+            await persistLocalState();
+            await profileQuery.refetch();
+            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
+            navigation.goBack();
           },
           onSettled: () => setLoading(false),
         }
@@ -400,7 +399,10 @@ const ProfileSettingsScreen = () => {
 
         <Description value={localDescription} onChange={setLocalDescription} />
 
-        <ProfilePhotoGrid initialPhotos={profilePhotos} />
+        <ProfilePhotoGrid
+          initialPhotos={profilePhotos}
+          userId={String(profileQuery.data?.userId || profileQuery.data?.id || '') || undefined}
+        />
 
         {/* Contact Details (WhatsApp & Telegram) */}
         <ContactDetails

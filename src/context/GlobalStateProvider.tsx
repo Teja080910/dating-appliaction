@@ -150,6 +150,9 @@ const GlobalStateProvider = ({ children }: any) => {
           storedTheme,
           storedBio,
           storedDob,
+          userScopedImages,
+          userScopedProfileImage,
+          deletedRaw,
         ] = await Promise.all([
           AsyncStorage.getItem('name'),
           AsyncStorage.getItem('displayName'),
@@ -161,6 +164,9 @@ const GlobalStateProvider = ({ children }: any) => {
           AsyncStorage.getItem('@app_appearance_theme'),
           AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
           AsyncStorage.getItem('userDob'),
+          id ? AsyncStorage.getItem(`user_photos_${id}`).catch(() => null) : Promise.resolve(null),
+          id ? AsyncStorage.getItem(`user_profile_photo_${id}`).catch(() => null) : Promise.resolve(null),
+          id ? AsyncStorage.getItem(`deleted_photos_${id}`).catch(() => null) : Promise.resolve(null),
         ]);
         if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
           setThemeMode(storedTheme);
@@ -180,19 +186,50 @@ const GlobalStateProvider = ({ children }: any) => {
             } catch {}
           }
           const resolvedGender = storedGender || storedUserGender;
-          if (resolvedGender) setGender(resolvedGender);
-
-          if (storedImages) {
-            try {
-              const parsed = JSON.parse(storedImages);
-              if (Array.isArray(parsed) && parsed.some(Boolean)) {
-                setImages(parsed);
-              }
-            } catch (e) {}
+          if (resolvedGender) {
+            setGender(resolvedGender);
+            setSelected(resolvedGender);
           }
-          if (storedProfileImage) {
-            setProfileImage(storedProfileImage);
-            setProfileImageUrl(storedProfileImage);
+
+          // Photos MUST be strictly scoped to the active account identity.
+          // Never fall back to un-scoped 'onboardingImages' when logged in under a specific userId.
+          const effectiveImages = userScopedImages || (id ? null : storedImages);
+          if (effectiveImages) {
+            try {
+              const parsed = JSON.parse(effectiveImages);
+              if (Array.isArray(parsed) && parsed.some(Boolean)) {
+                const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+                const filtered = parsed.map((u) => (u && deletedList.includes(u) ? null : u));
+                while (filtered.length < MAX_PROFILE_IMAGES) filtered.push(null);
+                setImages(filtered);
+              } else {
+                setImages(emptyImageSlots());
+              }
+            } catch (e) {
+              setImages(emptyImageSlots());
+            }
+          } else {
+            setImages(emptyImageSlots());
+          }
+
+          const effectiveProfilePhoto = userScopedProfileImage || (id ? null : storedProfileImage);
+          if (effectiveProfilePhoto) {
+            try {
+              const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+              if (!deletedList.includes(effectiveProfilePhoto)) {
+                setProfileImage(effectiveProfilePhoto);
+                setProfileImageUrl(effectiveProfilePhoto);
+              } else {
+                setProfileImage(null);
+                setProfileImageUrl(null);
+              }
+            } catch {
+              setProfileImage(effectiveProfilePhoto);
+              setProfileImageUrl(effectiveProfilePhoto);
+            }
+          } else {
+            setProfileImage(null);
+            setProfileImageUrl(null);
           }
 
           const [
@@ -469,6 +506,10 @@ const GlobalStateProvider = ({ children }: any) => {
       setShowMe('straight_woman');
       // Preserved across logout/login per user requirement
       setImages(emptyImageSlots());
+      setProfileImage(null);
+      setProfileImageUrl(null);
+      setSelectedUserImage(null);
+      AsyncStorage.multiRemove(['onboardingImages', 'profileImage']).catch(() => {});
       setLogin(false);
       setIsSubscribed(false);
       setInvitations([]);

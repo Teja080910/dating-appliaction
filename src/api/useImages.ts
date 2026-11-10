@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient, { getAbsoluteUrl, toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
@@ -217,26 +218,50 @@ export const useUserImages = (userId?: string) => {
 
 
   const deleteImage = useMutation({
-    mutationFn: async (imageId: number | string) => {
+    mutationFn: async (
+      input: number | string | { imageId: number | string; userId?: string }
+    ) => {
+      const rawId = typeof input === 'object' && input !== null ? input.imageId : input;
+      const candidateUid = typeof input === 'object' && input !== null ? input.userId : undefined;
+      const normalizedUserId = await resolveUserId(candidateUid);
+      const parsedNum = Number(rawId);
+      const validId = Number.isFinite(parsedNum) ? parsedNum : rawId;
+
+      // Official Swagger endpoint: DELETE /users/images/{imageId}
+      const numericId = Number(validId);
       try {
-        const res = await apiClient.delete(`/users/images/${imageId}`);
+        const res = await apiClient.delete(`/users/images/${numericId}`);
         return res.data;
-      } catch (err) {
-        const normalizedUserId = await resolveUserId();
+      } catch (err: any) {
         if (normalizedUserId) {
-          const res = await apiClient.delete(`/users/${normalizedUserId}/images/${imageId}`);
-          return res.data;
+          try {
+            const fallbackRes = await apiClient.delete(`/users/${normalizedUserId}/images/${numericId}`);
+            return fallbackRes.data;
+          } catch (e) {}
         }
         throw err;
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (_, variables) => {
+      const candidateUid = typeof variables === 'object' && variables !== null ? variables.userId : undefined;
       await queryClient.invalidateQueries({
-        queryKey: ['userImages', userId],
+        queryKey: ['userImages'],
       });
+      if (candidateUid || userId) {
+        await queryClient.invalidateQueries({
+          queryKey: ['userImages', candidateUid || userId],
+        });
+      }
       await queryClient.invalidateQueries({
         queryKey: ['myProfile'],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ['profile-me'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['profile'],
+      });
+      DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
     },
   });
 

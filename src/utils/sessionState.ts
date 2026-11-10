@@ -166,13 +166,16 @@ export const normalizeTextValue = (value: unknown): string | null => {
 };
 
 export const clearAuthSession = async () => {
-  await AsyncStorage.multiRemove([
+  const currentUid = (await AsyncStorage.getItem(STORAGE_KEYS.userId).catch(() => null)) || '';
+
+  const keysToRemove = [
     STORAGE_KEYS.token,
     STORAGE_KEYS.userId,
     STORAGE_KEYS.isLoggedIn,
     STORAGE_KEYS.user,
     STORAGE_KEYS.userData,
     STORAGE_KEYS.isSubscribed,
+    STORAGE_KEYS.selectedGender,
     'isSubscribed',
     '@subscription_plan',
     USER_VERIFIED_KEY,
@@ -183,7 +186,26 @@ export const clearAuthSession = async () => {
     '@telegram_username',
     'telegramLink',
     '@amara_telegram_disconnected',
-  ]);
+    'selectedGender',
+    'userGender',
+    'GenderOrientation',
+    'gender',
+    'current_user_gender',
+    'oppositeGender',
+    'showMe',
+  ];
+
+  if (currentUid) {
+    keysToRemove.push(
+      `user_gender_${currentUid}`,
+      `user_phone_${currentUid}`,
+      `user_telegram_${currentUid}`,
+      `@telegram_username_${currentUid}`,
+      `@amara_telegram_disconnected_${currentUid}`
+    );
+  }
+
+  await AsyncStorage.multiRemove(keysToRemove).catch(() => {});
 
   try {
     await AsyncStorageService.clearToken();

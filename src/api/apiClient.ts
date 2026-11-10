@@ -92,10 +92,23 @@ const hybridAdapter = async (config: any) => {
         return response;
       }
     } catch (backendError: any) {
+      const status = Number(backendError?.response?.status || 0);
+      const method = String(config?.method || 'get').toLowerCase();
+
       // Re-throw 401 session expiration so auth handler can redirect to login
-      if (backendError?.response?.status === 401) {
+      if (status === 401) {
         throw backendError;
       }
+
+      // Re-throw client/validation errors and mutation rejections so caller fallbacks
+      // and UI validation handlers (such as 409 Conflict, 400 Bad Request) execute.
+      if (method !== 'get' && status >= 400) {
+        throw backendError;
+      }
+      if (status === 400 || status === 403 || status === 409 || status === 422) {
+        throw backendError;
+      }
+
       if (__DEV__) {
         console.log('[ApiClient] Backend request failed, falling back to mock data:', url, backendError?.message);
       }

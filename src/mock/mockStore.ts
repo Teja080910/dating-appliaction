@@ -141,7 +141,19 @@ class MockStore {
       for (const defaultProfile of mockData.profiles) {
         const existingIdx = this.profiles.findIndex((p) => String(p.userId) === String(defaultProfile.userId));
         if (existingIdx >= 0) {
-          this.profiles[existingIdx] = { ...defaultProfile };
+          const existing = this.profiles[existingIdx];
+          const hasUserCustomPhotos = Array.isArray(existing.photos) && existing.photos.some((url: string) => !defaultProfile.photos.includes(url));
+          const hasUserDeletedPhotos = Array.isArray(existing.photos) && existing.photos.length < defaultProfile.photos.length;
+
+          this.profiles[existingIdx] = {
+            ...defaultProfile,
+            ...existing,
+            photos: (hasUserCustomPhotos || hasUserDeletedPhotos) ? existing.photos : defaultProfile.photos,
+            photo: (hasUserCustomPhotos || hasUserDeletedPhotos) ? (existing.photo || existing.photos?.[0]) : defaultProfile.photo,
+          };
+          if (hasUserCustomPhotos || hasUserDeletedPhotos) {
+            (this.profiles[existingIdx] as any).profileImageUrl = (existing as any).profileImageUrl || existing.photos?.[0];
+          }
         } else {
           this.profiles.push(defaultProfile);
         }
@@ -808,13 +820,24 @@ class MockStore {
       if (removed?.imageUrl) {
         let profilesChanged = false;
         this.profiles.forEach((p) => {
-          if (Array.isArray(p.photos) && p.photos.includes(removed.imageUrl)) {
-            p.photos = p.photos.filter((url: string) => url !== removed.imageUrl);
-            profilesChanged = true;
-          }
-          if ((p as any).profileImageUrl === removed.imageUrl) {
-            (p as any).profileImageUrl = p.photos?.[0] || null;
-            profilesChanged = true;
+          // Strictly delete only for the profile of the user who owns this image!
+          const isOwner =
+            !removed.userId ||
+            String(p.userId).toLowerCase() === String(removed.userId).toLowerCase() ||
+            String(p.id).toLowerCase() === String(removed.userId).toLowerCase();
+          if (isOwner) {
+            if (Array.isArray(p.photos) && p.photos.includes(removed.imageUrl)) {
+              p.photos = p.photos.filter((url: string) => url !== removed.imageUrl);
+              profilesChanged = true;
+            }
+            if ((p as any).profileImageUrl === removed.imageUrl) {
+              (p as any).profileImageUrl = p.photos?.[0] || null;
+              profilesChanged = true;
+            }
+            if (p.photo === removed.imageUrl) {
+              p.photo = p.photos?.[0] || undefined;
+              profilesChanged = true;
+            }
           }
         });
         if (profilesChanged) {

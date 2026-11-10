@@ -22,6 +22,7 @@ jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'MaterialCom
 jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('react-native-vector-icons/Feather', () => 'Feather');
 jest.mock('react-native-vector-icons/MaterialIcons', () => 'MaterialIcons');
+jest.mock('react-native-linear-gradient', () => 'LinearGradient');
 
 jest.mock('@react-navigation/native', () => ({
   createNavigationContainerRef: () => ({

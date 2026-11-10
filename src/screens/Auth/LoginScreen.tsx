@@ -47,6 +47,9 @@ const LoginScreen = ({ navigation, route }: any) => {
     setGender,
     setAuthUserId,
     setIsSubscribed,
+    setImages,
+    setProfileImage,
+    setProfileImageUrl,
   } = useContext(AppContext);
 
   const [email, setEmail] = useState(route?.params?.email ? String(route.params.email).trim() : '');
@@ -132,11 +135,42 @@ const LoginScreen = ({ navigation, route }: any) => {
         const user = data?.user || session.user || data?.data?.user || data?.data || {};
         const userName = user.name || user.displayName || user.username || '';
         const rawGender = String(user.gender || data?.gender || session.user?.gender || '').toLowerCase();
-        const userGender =
+        let userGender =
           rawGender.includes('woman') || rawGender.includes('female')
             ? 'straight_woman'
-            : 'straight_man';
+            : (rawGender.includes('man') || rawGender.includes('male'))
+            ? 'straight_man'
+            : '';
         const resolvedUid = String(session.userId || user.userId || user.id || '');
+
+        // Immediately resolve actual gender from backend profile if missing in auth response
+        if (resolvedUid) {
+          try {
+            const profRes = await apiClient
+              .get(`/profile/me/${resolvedUid}`)
+              .catch(() => apiClient.get('/profile/me', { params: { userId: resolvedUid } }))
+              .catch(() => null);
+            const liveGender = String(
+              profRes?.data?.gender || profRes?.data?.profile?.gender || ''
+            ).toLowerCase();
+            if (liveGender) {
+              if (liveGender.includes('woman') || liveGender.includes('female')) {
+                userGender = 'straight_woman';
+              } else if (liveGender.includes('man') || liveGender.includes('male')) {
+                userGender = 'straight_man';
+              }
+            }
+          } catch {}
+        }
+
+        // If still unresolved, check user-scoped storage before defaulting to straight_man
+        if (!userGender && resolvedUid) {
+          const scopedGender = await AsyncStorage.getItem(`user_gender_${resolvedUid}`).catch(() => null);
+          if (scopedGender) userGender = scopedGender;
+        }
+        if (!userGender) {
+          userGender = 'straight_man';
+        }
 
         if (userName) {
           setName(userName);
@@ -148,6 +182,9 @@ const LoginScreen = ({ navigation, route }: any) => {
         if (resolvedUid) {
           setAuthUserId(resolvedUid);
         }
+        setImages?.([null, null, null, null, null, null]);
+        setProfileImage?.(null);
+        setProfileImageUrl?.(null);
 
         const asyncStorageItems: [string, string][] = [
           ['isLoggedIn', 'true'],
@@ -158,6 +195,9 @@ const LoginScreen = ({ navigation, route }: any) => {
         }
         if (userGender) {
           asyncStorageItems.push(['selectedGender', userGender], ['userGender', userGender]);
+          if (resolvedUid) {
+            asyncStorageItems.push([`user_gender_${resolvedUid}`, userGender]);
+          }
         }
         if (resolvedUid) {
           asyncStorageItems.push(['userId', resolvedUid], ['user_id', resolvedUid]);

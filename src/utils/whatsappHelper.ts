@@ -106,20 +106,66 @@ export const extractTelegram = (...sources: any[]): string => {
 };
 
 /**
- * Normalizes a phone string to digits only (preserving leading plus if present).
+ * Normalizes a phone string to international digits without '+' (e.g. 919014701586).
+ * Automatically cleans up repeated country code prefixes (e.g. 9191... or +91 91...).
  */
 export const normalizePhoneDigits = (phone?: string | null): string => {
   if (!phone) return '';
   const trimmed = String(phone).trim();
-  // Keep digits only
-  const digits = trimmed.replace(/[^\d]/g, '');
+  let digits = trimmed.replace(/[^\d]/g, '');
   if (!digits) return '';
 
-  // If 10 digits starting with 6, 7, 8, 9 (standard Indian mobile format) without country code, prefix with 91
+  // 1. Detect and strip repeated country code for India (9191... or multiple 91s)
+  // An Indian mobile number is 10 digits starting with 6, 7, 8, or 9
+  const indianRepeatMatch = digits.match(/^(?:91)+([6-9]\d{9})$/);
+  if (indianRepeatMatch) {
+    return `91${indianRepeatMatch[1]}`;
+  }
+
+  // 2. Standard 10-digit Indian mobile number without country code
   if (digits.length === 10 && /^[6-9]/.test(digits)) {
     return `91${digits}`;
   }
+
+  // 3. Indian number with leading 0 (e.g. 09014701586)
+  if (digits.length === 11 && digits.startsWith('0') && /^[6-9]/.test(digits.slice(1))) {
+    return `91${digits.slice(1)}`;
+  }
+
+  // 4. General check for duplicated country codes across all countries (e.g. 4444... for UK, 11... for US)
+  const countryCodes = ['852', '886', '971', '966', '373', '375', '351', '91', '44', '61', '34', '52', '57', '54', '55', '49', '43', '41', '40', '33', '32', '86', '81', '62', '60', '39', '7', '1'];
+  for (const cc of countryCodes) {
+    const doubleCc = `${cc}${cc}`;
+    if (digits.startsWith(doubleCc) && digits.length >= doubleCc.length + 5) {
+      let clean = digits;
+      while (clean.startsWith(doubleCc) && clean.length >= doubleCc.length + 5) {
+        clean = clean.slice(cc.length);
+      }
+      return clean;
+    }
+  }
+
   return digits;
+};
+
+/**
+ * Formats a phone number for user-friendly display (e.g. +91 90147 01586).
+ * Safely strips any accidental duplicate country code prefixes.
+ */
+export const formatDisplayPhone = (phone?: string | null): string => {
+  if (!phone) return '';
+  const cleanDigits = normalizePhoneDigits(phone);
+  if (!cleanDigits) return phone ? String(phone).trim() : '';
+
+  // For Indian numbers: 91 followed by 10 digits
+  const indianMatch = cleanDigits.match(/^91([6-9]\d{9})$/);
+  if (indianMatch) {
+    const num = indianMatch[1];
+    return `+91 ${num.slice(0, 5)} ${num.slice(5)}`;
+  }
+
+  // General format: +<digits>
+  return `+${cleanDigits}`;
 };
 
 /**

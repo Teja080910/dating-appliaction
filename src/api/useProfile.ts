@@ -378,6 +378,9 @@ export const useProfile = () => {
     await queryClient.invalidateQueries({queryKey: ['myProfile', uid]});
     await queryClient.invalidateQueries({queryKey: ['profileCompletion']});
     await queryClient.invalidateQueries({queryKey: ['profileCompletion', uid]});
+    await queryClient.invalidateQueries({queryKey: ['profile-me']});
+    await queryClient.invalidateQueries({queryKey: ['profile']});
+    await queryClient.invalidateQueries({queryKey: ['my-telegram-status']});
     DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid });
   };
 
@@ -591,6 +594,8 @@ export const useProfile = () => {
     bio?: string;
     dob?: string;
     age?: number;
+    gender?: string;
+    orientation?: string;
     language?: string;
     bodyType?: string;
     appearance?: string;
@@ -615,66 +620,188 @@ export const useProfile = () => {
     mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
-      const payload: Record<string, any> = {
-        userId: resolvedUserId,
-        ...data,
+      const effectivePhone = (
+        data.mobile ||
+        data.phoneNumber ||
+        data.phone ||
+        data.mobileNumber ||
+        ''
+      ).trim();
+
+      const cleanTelegram = data.telegramUsername
+        ? String(data.telegramUsername).trim().replace(/^@+/, '')
+        : undefined;
+
+      // Spring Boot ProfileUpdateRequest schema strictly supports:
+      // userId, name, displayName, gender, orientation, bio, dob, mobile, age, height,
+      // appearance, bodyType, language, englishLevel, ethnicity, kidCount, netWorth,
+      // smoke, drink, lookingFor, telegramUsername.
+      // Extra client aliases (e.g. phoneNumber, phone, mobileNumber, photos) cause
+      // Jackson deserialization failures (HTTP 400 Bad Request) on the live backend.
+      const cleanPayload: Record<string, any> = {
+        userId: String(resolvedUserId),
       };
 
-      if (data.displayName || data.name) {
-        payload.name = data.name || data.displayName;
-        payload.displayName = data.displayName || data.name;
+      const resolvedName = (data.displayName || data.name || '').trim();
+      if (resolvedName) {
+        cleanPayload.name = resolvedName;
+        cleanPayload.displayName = resolvedName;
       }
-
-      const effectivePhone = data.phoneNumber || data.mobile || data.phone || data.mobileNumber;
+      if (data.bio !== undefined) {
+        cleanPayload.bio = data.bio;
+      }
+      if (data.dob) {
+        cleanPayload.dob = data.dob;
+      }
+      if (data.age !== undefined && data.age !== null) {
+        cleanPayload.age = Number(data.age);
+      }
       if (effectivePhone) {
-        payload.mobile = effectivePhone;
-        payload.phoneNumber = effectivePhone;
-        payload.phone = effectivePhone;
-        payload.mobileNumber = effectivePhone;
+        cleanPayload.mobile = effectivePhone;
+      }
+      if (cleanTelegram) {
+        cleanPayload.telegramUsername = cleanTelegram;
+      }
+      if (data.gender) {
+        cleanPayload.gender = data.gender;
+      }
+      if (data.orientation) {
+        cleanPayload.orientation = data.orientation;
+      }
+      if (data.height !== undefined && data.height !== null) {
+        cleanPayload.height = Number(data.height);
+      }
+      if (data.appearance) {
+        cleanPayload.appearance = data.appearance;
+      }
+      if (data.bodyType) {
+        cleanPayload.bodyType = data.bodyType;
+      }
+      if (data.language) {
+        cleanPayload.language = data.language;
+      }
+      if (data.englishLevel) {
+        cleanPayload.englishLevel = data.englishLevel;
+      }
+      if (data.ethnicity) {
+        cleanPayload.ethnicity = data.ethnicity;
+      }
+      const kidCountVal = data.kidCount || data.kids;
+      if (kidCountVal) {
+        cleanPayload.kidCount = String(kidCountVal);
+      }
+      if (data.netWorth) {
+        cleanPayload.netWorth = String(data.netWorth);
+      }
+      if (data.smoke) {
+        cleanPayload.smoke = String(data.smoke);
+      }
+      if (data.drink) {
+        cleanPayload.drink = String(data.drink);
+      }
+      if (data.lookingFor) {
+        cleanPayload.lookingFor = String(data.lookingFor);
       }
 
-      // Profile photos are managed strictly via dedicated /profile/upload-image and /users/images/{id} endpoints.
-      // Backend /profile/update rejects the photos field with HTTP 400 BAD_REQUEST.
-      delete payload.photos;
-      delete payload.images;
+      const numericUserId = Number(resolvedUserId);
 
-      // Try general comprehensive /profile/update endpoint first to preserve all detailed fields.
-      // If it fails or is unavailable, fallback to granular update-basic, update-details, and update-preferences.
+      // Spring Boot backend strictly enforces distinct DTO contracts:
+      // 1. UpdateBasicDTO: { userId: Long, displayName: String, bio: String, age: Integer }
+      // 2. UpdateDetailsDTO: { userId: Long, language: String, bodyType: String, appearance: String, height: Integer }
+      // 3. UpdatePreferencesDTO: { userId: Long, lookingFor: String, smoke: String, drink: String }
+      // 4. GenderOrientationRequest: { userId: Long, gender: String, orientation: String }
+      // 5. Telegram: POST /telegram/connect?userId={userId}&username={username}
+      // Sending unexpected fields like 'name', 'dob', 'mobile' to UpdateBasicDTO causes
+      // Spring Jackson deserialization errors (HTTP 400 Bad Request).
+      const basicPayload: {
+        userId: number;
+        displayName: string;
+        bio: string;
+        age: number;
+      } = {
+        userId: numericUserId,
+        displayName: String(cleanPayload.displayName || cleanPayload.name || 'User').trim(),
+        bio: String(cleanPayload.bio || '').trim(),
+        age: Number(cleanPayload.age) || 21,
+      };
+
+      let basicResponseData: any = null;
       try {
-        const res = await apiClient.put('/profile/update', payload);
-        return res.data;
-      } catch (err) {
-        const basicRes = await apiClient.put('/profile/update-basic', {
-          userId: resolvedUserId,
-          name: payload.name || payload.displayName || 'User',
-          displayName: payload.displayName || payload.name || 'User',
-          bio: payload.bio || '',
-          dob: payload.dob || '1998-01-01',
-          age: payload.age || 21,
-          mobile: payload.mobile || '',
-        });
-        await Promise.allSettled([
-          apiClient.put('/profile/update-details', {
-            userId: resolvedUserId,
-            language: payload.language,
-            bodyType: payload.bodyType,
-            appearance: payload.appearance,
-            height: payload.height,
-            englishLevel: payload.englishLevel || '',
-            ethnicity: payload.ethnicity || '',
-            kidCount: payload.kidCount || payload.kids || '',
-            netWorth: payload.netWorth || '',
-          }),
-          apiClient.put('/profile/update-preferences', {
-            userId: resolvedUserId,
-            lookingFor: payload.lookingFor,
-            smoke: payload.smoke,
-            drink: payload.drink,
-            ethnicity: payload.ethnicity || '',
-          }),
-        ]);
-        return basicRes.data;
+        const basicRes = await apiClient.put('/profile/update-basic', basicPayload);
+        basicResponseData = basicRes.data;
+      } catch (basicErr: any) {
+        console.warn('[updateProfile] /profile/update-basic failed:', basicErr?.message);
+        // Fallback attempt to general /profile/update if available
+        try {
+          const fallbackRes = await apiClient.put('/profile/update', cleanPayload);
+          basicResponseData = fallbackRes.data;
+        } catch {}
       }
+
+      // Concurrently update secondary profile endpoints if relevant fields are present
+      const secondaryPromises: Promise<any>[] = [];
+
+      // Update Details (height, bodyType, appearance, language)
+      if (cleanPayload.height !== undefined || cleanPayload.bodyType || cleanPayload.appearance || cleanPayload.language) {
+        const detailsPayload: {
+          userId: number;
+          language?: string;
+          bodyType?: string;
+          appearance?: string;
+          height?: number;
+        } = {
+          userId: numericUserId,
+        };
+        if (cleanPayload.language) detailsPayload.language = String(cleanPayload.language);
+        if (cleanPayload.bodyType) detailsPayload.bodyType = String(cleanPayload.bodyType);
+        if (cleanPayload.appearance) detailsPayload.appearance = String(cleanPayload.appearance);
+        if (cleanPayload.height !== undefined && cleanPayload.height !== null && !isNaN(Number(cleanPayload.height))) {
+          detailsPayload.height = Number(cleanPayload.height);
+        }
+        secondaryPromises.push(apiClient.put('/profile/update-details', detailsPayload).catch(() => {}));
+      }
+
+      // Update Preferences (lookingFor, smoke, drink)
+      if (cleanPayload.lookingFor || cleanPayload.smoke || cleanPayload.drink) {
+        const preferencesPayload: {
+          userId: number;
+          lookingFor?: string;
+          smoke?: string;
+          drink?: string;
+        } = {
+          userId: numericUserId,
+        };
+        if (cleanPayload.lookingFor) preferencesPayload.lookingFor = String(cleanPayload.lookingFor);
+        if (cleanPayload.smoke) preferencesPayload.smoke = String(cleanPayload.smoke);
+        if (cleanPayload.drink) preferencesPayload.drink = String(cleanPayload.drink);
+        secondaryPromises.push(apiClient.put('/profile/update-preferences', preferencesPayload).catch(() => {}));
+      }
+
+      // Update Gender & Orientation
+      if (cleanPayload.gender || cleanPayload.orientation) {
+        secondaryPromises.push(
+          apiClient.post('/profile/gender-orientation', {
+            userId: numericUserId,
+            gender: String(cleanPayload.gender || 'man'),
+            orientation: String(cleanPayload.orientation || 'straight'),
+          }).catch(() => {})
+        );
+      }
+
+      // Update Telegram Account
+      if (cleanTelegram) {
+        secondaryPromises.push(
+          apiClient.post('/telegram/connect', null, {
+            params: {
+              userId: numericUserId,
+              username: cleanTelegram,
+            },
+          }).catch(() => {})
+        );
+      }
+
+      await Promise.allSettled(secondaryPromises);
+      return basicResponseData || { status: 'success' };
     },
     onSuccess: async () => {
       await invalidateProfile();
@@ -688,6 +815,7 @@ export const useProfile = () => {
     bio: string;
     dob?: string;
     age: number;
+    mobile?: string;
   };
 
   const updateBasic = useMutation<any, Error, UpdateBasicInput>({
@@ -695,12 +823,10 @@ export const useProfile = () => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
       const payload = {
-        userId: resolvedUserId,
-        name: data.name || data.displayName,
+        userId: Number(resolvedUserId),
         displayName: data.displayName,
         bio: data.bio,
-        dob: data.dob,
-        age: data.age,
+        age: Number(data.age) || 21,
       };
 
       const res = await apiClient.put('/profile/update-basic', payload).catch(() =>

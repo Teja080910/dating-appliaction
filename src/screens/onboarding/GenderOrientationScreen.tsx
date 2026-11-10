@@ -17,6 +17,7 @@ import { saveGender } from '../../utils/types/AsyncStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme';
 import { useProfile } from '../../api/useProfile';
+import apiClient from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
@@ -51,15 +52,32 @@ const GenderOrientationScreen = ({ navigation }: any) => {
         setSelected(selection);
         await saveGender(selection);
         const resolvedUserId = await getUserId();
+        if (resolvedUserId) {
+          await AsyncStorage.setItem(`user_gender_${resolvedUserId}`, selection);
+        }
 
-        const genderPayload =
+        const normalizedGender =
           selection === 'straight_woman'
-            ? { userId: resolvedUserId, gender: 'woman', orientation: 'straight' }
+            ? 'woman'
             : selection === 'straight_man'
-              ? { userId: resolvedUserId, gender: 'man', orientation: 'straight' }
-              : { userId: resolvedUserId, gender: 'lgbtqia', orientation: 'lgbtqia' };
+              ? 'man'
+              : 'lgbtqia';
 
+        const genderPayload = {
+          userId: resolvedUserId,
+          gender: normalizedGender,
+          orientation: selection === 'lgbtqia' ? 'lgbtqia' : 'straight',
+        };
+
+        // Dual-write: POST /profile/gender-orientation and PUT /profile/update
         await genderOrientation.mutateAsync(genderPayload);
+        if (resolvedUserId) {
+          await apiClient.put('/profile/update', {
+            userId: resolvedUserId,
+            gender: normalizedGender,
+          }).catch(() => {});
+        }
+
         await AsyncStorage.setItem('GenderOrientation', 'true');
         navigation.navigate('DisplayName');
       } catch (error) {

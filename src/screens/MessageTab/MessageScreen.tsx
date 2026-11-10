@@ -19,7 +19,6 @@ import { getGender } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import Toast from 'react-native-toast-message';
 import { getUserId } from '../../utils/sessionHelper';
 import useSubscriptionGate from '../../utils/useSubscriptionGate';
 import { useConnection } from '../../api/useConnection';
@@ -206,7 +205,6 @@ export default function MessageScreen() {
         void connection.receivedList.refetch();
         void connection.sentList.refetch();
         void connection.connectionList.refetch();
-        Toast.show({ type: 'success', text1: t('messages.messagescreen.invitation_accepted'), text2: t('messages.messagescreen.you_can_now_chat_with', { item: item.name || item.username || 'them' }) });
         setActiveMainTab('messages');
       },
       onError: () => { alert(t('profile.additionaluploadsection.error'), t('messages.messagescreen.failed_to_accept_invitation')); },

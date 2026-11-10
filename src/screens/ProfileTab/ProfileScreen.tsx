@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, CommonActions, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Toast from 'react-native-toast-message';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useAuth } from '../../api/useAuth';
 import { clearFullSession } from '../../utils/session';
@@ -114,9 +113,11 @@ const ProfileScreen = () => {
     }
   }, [subscriptionStatus]);
 
+  const SUPPORT_EMAIL = 'khushboo.sharma@berrybloomer.com';
+
   const handleChatWithUs = () => {
     setIsCopied(false);
-    Linking.openURL('mailto:hi@amara.com').catch(() => {});
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {});
     setChatModalVisible(true);
   };
 
@@ -468,7 +469,7 @@ const ProfileScreen = () => {
               ]}
               activeOpacity={0.7}
               onPress={() => {
-                Linking.openURL('mailto:hi@amara.com').catch(() => {});
+                Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch(() => {});
               }}
             >
               <Text
@@ -477,16 +478,11 @@ const ProfileScreen = () => {
                   styles.chatEmailText,
                   { color: isDark ? '#FFFFFF' : '#000000', flex: 1 },
                 ]}
-              >{t('profile.profilescreen.hi_amara_com')}</Text>
+              >{SUPPORT_EMAIL}</Text>
               <TouchableOpacity
                 onPress={() => {
-                  Clipboard.setString(t('profile.profilescreen.hi_amara_com'));
+                  Clipboard.setString(SUPPORT_EMAIL);
                   setIsCopied(true);
-                  Toast.show({
-                    type: 'success',
-                    text1: t('profile.profilescreen.copied_to_clipboard'),
-                    text2: t('profile.profilescreen.hi_amara_com'),
-                  });
                 }}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={{ padding: 4 }}

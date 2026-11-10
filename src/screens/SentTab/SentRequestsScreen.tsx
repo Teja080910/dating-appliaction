@@ -18,8 +18,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import Toast from 'react-native-toast-message';
-
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
 import { useSubscription } from '../../api/useSubscription';
@@ -224,12 +222,6 @@ const SentRequestsScreen: React.FC = () => {
               setSelectedIds(new Set());
               setIsSelectMode(false);
               refreshAll();
-              Toast.show({
-                type: 'info',
-                text1: 'Invitations Deleted',
-                text2: `Removed ${count} invitation${count > 1 ? 's' : ''}.`,
-                visibilityTime: 2500,
-              });
             } catch (err: any) {
               Alert.alert(
                 t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
@@ -287,12 +279,6 @@ const SentRequestsScreen: React.FC = () => {
             try {
               setRestoringId(String(item.id));
               await apiClient.post('/connections/restore-access', { requestId: item.id });
-              Toast.show({
-                type: 'success',
-                text1: 'Access Restored',
-                text2: t('sent.sentrequestsscreen.you_can_now_connect_with', { name }),
-                visibilityTime: 3000,
-              });
               refreshAll();
             } catch {
               // Open paywall if subscription needed

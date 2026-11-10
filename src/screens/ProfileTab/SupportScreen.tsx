@@ -18,7 +18,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootParamList } from '../../utils/types/navigation.types';
 import { useSupport } from '../../api/useSupport';
 import { Colors, Spacing, useTheme } from '../../theme';
-import Toast from 'react-native-toast-message';
 import { useAlert } from '../../components/AlertModal';
 import { openAmaraBot } from '../../utils/telegramHelper';
 import { t, useTranslation } from '../../i18n';
@@ -76,12 +75,6 @@ const SupportScreen = () => {
       {
         onSuccess: () => {
           setDescription('');
-          Toast.show({
-            type: 'success',
-            text1: t('profile.supportscreen.success', { defaultValue: 'Ticket Submitted' }),
-            text2: t('profile.supportscreen.your_support_ticket_has_been_created', { defaultValue: 'Your support ticket has been created.' }),
-            visibilityTime: 3000,
-          });
         },
         onError: (error: any) => {
           alert(
@@ -100,9 +93,7 @@ const SupportScreen = () => {
         text: t('more_info.moreinfoscreen.close'),
         onPress: () => {
           closeTicket.mutate(ticketId, {
-            onSuccess: () => {
-              alert(t('profile.supportscreen.ticket_closed'), t('profile.supportscreen.the_support_ticket_has_been_marked_as_closed'));
-            },
+            onSuccess: () => {},
             onError: (error: any) => {
               alert(
                 t('profile.supportscreen.close_failed'),

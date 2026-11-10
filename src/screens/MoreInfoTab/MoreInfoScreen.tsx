@@ -3,7 +3,6 @@ import { BackHandler, DeviceEventEmitter, Platform, ScrollView, StyleSheet, View
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
 import { useProfile, useMyProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
@@ -355,31 +354,36 @@ const MoreInfoScreen = () => {
       DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
       void profileQuery.refetch();
 
-      Toast.show({
-        type: 'success',
-        text1: t('search.location.saved', { defaultValue: 'Saved' }),
-        text2: t('more_info.moreinfoscreen.your_profile_details_have_been_updated', {
-          defaultValue: 'Your profile details have been updated.',
-        }),
-        visibilityTime: 2500,
-      });
-
-      // If opened as a stack screen from Profile, navigate back smoothly
-      if (navigation?.canGoBack?.() && !isInsideBottomTab) {
-        setTimeout(() => {
-          navigation.goBack();
-        }, 350);
+      // Take user directly to Discover page after saving
+      if (isInsideBottomTab) {
+        try {
+          navigation?.navigate?.('Home');
+        } catch {
+          navigation?.navigate?.('Invitations');
+        }
       } else {
-        alert(t('search.location.saved'), t('more_info.moreinfoscreen.your_profile_details_have_been_updated'), [
-          { text: t('more_info.moreinfoscreen.close'), style: 'default' },
-        ]);
+        try {
+          navigation?.navigate?.('BottomTabs', { screen: 'Home' });
+        } catch {
+          try {
+            navigation?.navigate?.('Home');
+          } catch {
+            if (navigation?.canGoBack?.()) {
+              navigation.goBack();
+            }
+          }
+        }
       }
     } catch (error: any) {
-      console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
-      alert(
-        t('more_info.moreinfoscreen.save_failed'),
-        getUserFriendlyMessage(error, t('more_info.moreinfoscreen.we_could_not_save_your_profile_details_right_now')),
-      );
+      console.warn('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
+      // Fallback navigation to Discover page even if network error
+      if (isInsideBottomTab) {
+        try {
+          navigation?.navigate?.('Home');
+        } catch {}
+      } else if (navigation?.canGoBack?.()) {
+        navigation.goBack();
+      }
     } finally {
       setLoading(false);
     }

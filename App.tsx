@@ -7,8 +7,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppState, AppStateStatus, Platform, PermissionsAndroid, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import Toast from 'react-native-toast-message';
-import { toastConfig } from './src/components/AmaraToast';
 import AppContext from './src/context/CreateGlobalStateContext';
 import { getUserId } from './src/utils/sessionHelper';
 import { initLanguage } from './src/i18n';
@@ -125,26 +123,7 @@ const ServerSync = () => {
       refreshAll();
 
       if (remoteMessage) {
-        const title =
-          remoteMessage?.notification?.title ||
-          remoteMessage?.data?.title ||
-          '💌 New Notification';
-        const body =
-          remoteMessage?.notification?.body ||
-          remoteMessage?.data?.body ||
-          remoteMessage?.data?.message ||
-          '';
-
-        Toast.show({
-          type: 'info',
-          text1: title,
-          text2: body,
-          visibilityTime: 4000,
-          onPress: () => {
-            Toast.hide();
-            handleNotificationNavigation(remoteMessage);
-          },
-        });
+        handleNotificationNavigation(remoteMessage);
       }
     });
 
@@ -175,10 +154,6 @@ const App = () => {
         <GlobalStateProvider>
           <ServerSync />
           <Routes />
-          <Toast
-            config={toastConfig}
-            topOffset={Platform.OS === 'ios' ? 54 : ((StatusBar.currentHeight || 24) + 12)}
-          />
         </GlobalStateProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

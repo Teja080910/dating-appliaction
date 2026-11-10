@@ -18,7 +18,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../context/CreateGlobalStateContext';
 import { useSubscription, toBackendPlanName } from '../api/useSubscription';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
 import RazorpayCheckout from 'react-native-razorpay';
 import RazorpayMock from './RazorpayMock';
 import { useAlert } from './AlertModal';
@@ -570,11 +569,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setActiveEndDate(endDate);
       refetchStatus?.();
 
-      Toast.show({
-        type: 'success',
-        text1: t('common.subscriptionmodal.payment_successful'),
-        text2: t('common.subscriptionmodal.membership_is_now_active', { activatedPlan: activatedPlan?.name || t('common.subscriptionmodal.your_plan') }),
-      });
       setShowMockRazorpay(false);
       onClose();
     } catch (err: any) {
@@ -593,11 +587,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setActiveEndDate(endDate);
       refetchStatus?.();
 
-      Toast.show({
-        type: 'success',
-        text1: t('common.subscriptionmodal.payment_successful'),
-        text2: t('common.subscriptionmodal.membership_is_now_active', { activatedPlan: activatedPlan?.name || t('common.subscriptionmodal.your_plan') }),
-      });
       setShowMockRazorpay(false);
       onClose();
     } finally {

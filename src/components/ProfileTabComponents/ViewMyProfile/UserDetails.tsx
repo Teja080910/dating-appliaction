@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
-import Toast from 'react-native-toast-message';
 import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -31,7 +30,7 @@ import { getUserFriendlyMessage, isSubscriptionGateError } from '../../../utils/
 import { useAlert } from '../../../components/AlertModal';
 import { openTelegramChat } from '../../../utils/telegramHelper';
 import { useMyTelegramStatus } from '../../../api/useTelegram';
-import { openWhatsAppChat, shareWhatsAppContact, extractPhone, extractTelegram, isInvalidPhoneNumber, isInvalidTelegramHandle } from '../../../utils/whatsappHelper';
+import { openWhatsAppChat, shareWhatsAppContact, extractPhone, extractTelegram, isInvalidPhoneNumber, isInvalidTelegramHandle, formatDisplayPhone } from '../../../utils/whatsappHelper';
 import { getLanguageFlag } from '../../../utils/languageHelper';
 import { resolveProfileDistance } from '../../../utils/distanceHelper';
 import { getCurrentLocation } from '../../../utils/geolocation';
@@ -188,12 +187,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   useEffect(() => {
     let isMounted = true;
     (async () => {
+      const uid = await getUserId().catch(() => null);
+      const scopedGender = uid ? await AsyncStorage.getItem(`user_gender_${uid}`).catch(() => null) : null;
       const [g1, g2] = await Promise.all([
         AsyncStorage.getItem('userGender'),
         AsyncStorage.getItem('selectedGender'),
       ]);
       if (isMounted) {
-        setViewerGender((g1 || g2 || gender || '').toLowerCase());
+        setViewerGender((scopedGender || g1 || g2 || gender || '').toLowerCase());
       }
     })();
     return () => {
@@ -556,7 +557,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             <View style={styles.cleanContactInfo}>
               <Text style={styles.cleanContactLabel}>WhatsApp</Text>
               <Text selectable={true} style={styles.cleanContactValue}>
-                {targetPhoneNumber}
+                {formatDisplayPhone(targetPhoneNumber)}
               </Text>
             </View>
             <TouchableOpacity
@@ -743,34 +744,19 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         resolvedProfileUserId: resolvedProfile?.userId,
         resolvedProfileTargetUserId: resolvedProfile?.targetUserId,
       });
-      Toast.show({
-        type: 'error',
-        text1: t('profile.userdetails.user_unavailable'),
-        text2: t('profile.userdetails.this_profile_cannot_be_invited_right_now'),
-      });
       return;
     }
 
     if (!activeCurrentUserId) {
-      const token = await getAuthToken();
-      Toast.show({
-        type: 'error',
-        text1: t('profile.userdetails.account_sync_needed'),
-        text2: token
-          ? t('profile.userdetails.your_login_is_missing_a_valid_account_id_from_the_server')
-          : t('profile.userdetails.please_log_in_again_and_try_once_more'),
-      });
       return;
     }
 
     const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (normalizeId(resolvedTargetUserId) === normalizeId(activeCurrentUserId)) {
-      Toast.show({ type: 'error', text1: t('profile.userdetails.action_not_allowed'), text2: t('profile.userdetails.you_cannot_invite_yourself') });
       return;
     }
 
     if (isAlreadyInvited) {
-        Toast.show({ type: 'info', text1: t('profile.userdetails.already_invited') });
         return;
     }
 
@@ -822,7 +808,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       onSuccess: () => {
         connection.sentList.refetch();
         connection.refreshAll();
-        Toast.show({ type: 'success', text1: t('profile.userdetails.invitation_sent') });
       },
       onError: (error: any) => {
         const errorDetails = String(
@@ -840,33 +825,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             (errorDetails.includes('duplicate') || errorDetails.includes('already')))
         ) {
           connection.sentList.refetch();
-          Toast.show({ type: 'info', text1: t('profile.userdetails.already_invited') });
           return;
         }
         if (isSubscriptionGateError(error)) {
-          if (
-            errorDetails.includes('daily') ||
-            errorDetails.includes('quota') ||
-            errorDetails.includes('limit')
-          ) {
-            alert(
-              'Daily Limit Reached',
-              'You have reached your daily request limit for your current plan. Upgrade to send more requests today!',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Upgrade Plan', onPress: () => setPaywallVisible?.(true) },
-              ]
-            );
-          } else {
-            setPaywallVisible(true);
-          }
+          setPaywallVisible(true);
           return;
         }
-        Toast.show({
-          type: 'error',
-          text1: t('profile.userdetails.invite_failed'),
-          text2: getUserFriendlyMessage(error, t('profile.userdetails.please_try_again_in_a_moment')),
-        });
       },
     });
   };
@@ -887,13 +851,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     }
 
     if (!resolvedTargetUserId || !activeBy) {
-      Toast.show({ type: 'error', text1: t('profile.userdetails.user_unavailable') });
       return;
     }
 
     const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (normalizeId(resolvedTargetUserId) === normalizeId(activeBy)) {
-      Toast.show({ type: 'error', text1: t('profile.userdetails.action_not_allowed'), text2: t('profile.userdetails.you_cannot_report_your_own_profile') });
       return;
     }
 
@@ -923,11 +885,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     }
 
     setReportModalVisible(false);
-    Toast.show({
-      type: 'success',
-      text1: t('profile.userdetails.user_blocked'),
-      text2: t('profile.userdetails.this_user_has_been_blocked'),
-    });
     navigation.goBack();
   };
 
@@ -962,7 +919,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const handleReportAndBlock = async () => {
     if (!selectedReason) {
-      Toast.show({ type: 'error', text1: t('profile.userdetails.please_select_a_reason') });
       return;
     }
 
@@ -973,7 +929,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
     const activeTarget = resolvedTargetUserId ? String(resolvedTargetUserId).trim() : '';
     if (!activeTarget || activeTarget === 'undefined' || activeTarget === 'null') {
-      Toast.show({ type: 'error', text1: t('profile.userdetails.target_user_unavailable') });
       return;
     }
 
@@ -995,20 +950,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         onSuccess: () => {
           setIsSubmittingReport(false);
           setReportModalVisible(false);
-          Toast.show({
-            type: 'success',
-            text1: t('profile.userdetails.report_submitted'),
-            text2: t('profile.userdetails.thank_you_the_user_has_been_reported_and_blocked'),
-          });
           navigation.goBack();
         },
-        onError: (err: any) => {
+        onError: () => {
           setIsSubmittingReport(false);
-          Toast.show({
-            type: 'error',
-            text1: t('profile.userdetails.report_failed'),
-            text2: getUserFriendlyMessage(err, t('profile.userdetails.unable_to_submit_report_please_try_again')),
-          });
         },
       }
     );

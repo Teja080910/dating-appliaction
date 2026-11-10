@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import Toast from 'react-native-toast-message';
 
 import SearchSettingsHeader from '../../components/SearchSettingsComponents/SearchSettingHeader';
 import AgeRangeSlider from '../../components/SearchSettingsComponents/AgeRange';
@@ -26,7 +25,6 @@ import SaveResetButtons from '../../components/SearchSettingsComponents/SaveRese
 
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors } from '../../theme';
-import { useAlert } from '../../components/AlertModal';
 import { useDiscovery } from '../../api/useDiscovery';
 import apiClient from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
@@ -45,7 +43,6 @@ const SearchScreen = ({ navigation }: any) => {
   useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
-  const { alert, AlertComponent } = useAlert();
   const [saving, setSaving] = useState(false);
   const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -257,12 +254,6 @@ const SearchScreen = ({ navigation }: any) => {
         setDistanceRange(50);
         setIsChecked(false);
         setFilteredProfiles(null);
-        Toast.show({
-          type: 'success',
-          text1: t('search.searchscreen.filters_applied', { defaultValue: 'Preferences Saved' }),
-          text2: t('search.searchscreen.matches_updated_successfully', { defaultValue: 'Default preferences restored.' }),
-          visibilityTime: 2000,
-        });
         navigation.goBack();
         return;
       }
@@ -319,21 +310,11 @@ const SearchScreen = ({ navigation }: any) => {
       setIsChecked(Boolean(filters.worldwide));
       setFilteredProfiles(filteredResults.length > 0 ? filteredResults : profiles);
       setFilter(filters.onlyOnline ? 'online' : 'newest');
-      Toast.show({
-        type: 'success',
-        text1: t('search.searchscreen.filters_applied', { defaultValue: 'Filters Applied' }),
-        text2: t('search.searchscreen.matches_updated_successfully', { defaultValue: 'Matches updated based on your preferences.' }),
-        visibilityTime: 2500,
-      });
       navigation.goBack();
     } catch (err: any) {
-      const serverMessage =
-        err?.response?.data?.message ||
-        err?.response?.data ||
-        (typeof err?.message === 'string' ? err.message : null);
+      console.warn('[SearchScreen] Apply filters error:', err);
       if (err?.response?.status === 401) {
         await clearAuthSession();
-        alert(t('auth.otpscreen.session_expired'), t('search.searchscreen.please_login_again_to_continue'));
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
@@ -341,12 +322,7 @@ const SearchScreen = ({ navigation }: any) => {
           })
         );
       } else {
-        alert(
-          t('profile.additionaluploadsection.error'),
-          serverMessage
-            ? t('search.searchscreen.failed_to_apply_filters', { String: String(serverMessage) })
-            : 'Failed to apply filters. Please try again.',
-        );
+        navigation.goBack();
       }
     } finally {
       setSaving(false);
@@ -391,13 +367,6 @@ const SearchScreen = ({ navigation }: any) => {
     setIsChecked(false);
     setLocation(t('search.location.my_current_location'));
     setFilteredProfiles(null);
-
-    Toast.show({
-      type: 'info',
-      text1: t('search.saveresetbuttons.reset', { defaultValue: 'Filters Reset' }),
-      text2: t('search.searchscreen.matches_updated_successfully', { defaultValue: 'Search criteria restored to defaults.' }),
-      visibilityTime: 2000,
-    });
 
     // Clear saved storage in background
     getUserId()
@@ -538,7 +507,6 @@ const SearchScreen = ({ navigation }: any) => {
         onReset={handleReset}
         saving={saving}
       />
-      {AlertComponent}
     </SafeAreaView>
   );
 };

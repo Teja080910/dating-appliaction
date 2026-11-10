@@ -16,7 +16,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import { useReport, BlockedUserItem } from '../../api/useReport';
 import { Colors, Spacing, useTheme, type ThemeColors } from '../../theme';
-import Toast from 'react-native-toast-message';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
 
@@ -49,14 +48,6 @@ const BlockedUsersScreen = () => {
               setUnblockingId(user.userId);
               await unblock.mutateAsync({ targetUserId: user.userId });
               await refetch();
-              Toast.show({
-                type: 'success',
-                text1: 'User Unblocked',
-                text2: t('profile.blockedusers.user_unblocked_success', {
-                  defaultValue: `${user.name || 'User'} has been unblocked.`,
-                }),
-                visibilityTime: 2500,
-              });
             } catch (err: any) {
               alert(
                 t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),

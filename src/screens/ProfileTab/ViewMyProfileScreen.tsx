@@ -5,6 +5,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   FlatList,
   Image,
   ImageSourcePropType,
@@ -132,7 +133,8 @@ const ViewMyProfileScreen = () => {
   useTranslation();
   const insets = useSafeAreaInsets();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const heroCardHeight = Math.min(Math.max(Math.round(screenHeight * 0.44), 260), 400);
+  // 1 : 1.28-1.34 aspect ratio matches the Discover grid framing so portrait photos and heads are fully visible without being cropped
+  const heroCardHeight = Math.min(Math.max(Math.round(screenWidth * 1.28), 380), 500);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route = useRoute<any>();
   const { alert, AlertComponent } = useAlert();
@@ -238,7 +240,8 @@ const ViewMyProfileScreen = () => {
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const [myId, setMyId] = useState<string | null>(null);
-  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [ownGalleryImages, setOwnGalleryImages] = useState<string[]>([]);
+  const [targetGalleryImages, setTargetGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const { subscriptionStatus } = useSubscription(myId);
   const [localSubActive, setLocalSubActive] = useState<boolean | null>(null);
@@ -452,23 +455,38 @@ const ViewMyProfileScreen = () => {
             setSelectedKids(val);
           }
         });
-        const activeTarget = myId || numericTargetId;
-        if (activeTarget) {
-          getAllImagesRef.current(String(activeTarget), {
+        if (myId) {
+          getAllImagesRef.current(String(myId), {
             onSuccess: (data: any) => {
-              setGalleryImages(dedupeImageUris([data]));
+              setOwnGalleryImages(dedupeImageUris([data]));
             },
           });
         }
       }
-    }, [isViewingSelf, myId, numericTargetId, setSelectedNetWorth, setSelectedKids]),
+    }, [isViewingSelf, myId, setSelectedNetWorth, setSelectedKids]),
   );
 
   useEffect(() => {
-    let isMounted = true;
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', () => {
+      void refetchProfileRef.current?.();
+      if (isViewingSelf && myId) {
+        getAllImagesRef.current(String(myId), {
+          onSuccess: (data: any) => {
+            setOwnGalleryImages(dedupeImageUris([data]));
+          },
+        });
+      }
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [isViewingSelf, myId]);
 
-    if (!numericTargetId) {
-      setGalleryImages([]);
+  useEffect(() => {
+    let isMounted = true;
+    setTargetGalleryImages([]); // Clear immediately when switching target to prevent leaking other profiles
+
+    if (!numericTargetId || isViewingSelf) {
       return () => {
         isMounted = false;
       };
@@ -476,15 +494,12 @@ const ViewMyProfileScreen = () => {
 
     getAllImages.mutate(String(numericTargetId), {
       onSuccess: (data: any) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setGalleryImages(dedupeImageUris([data]));
+        if (!isMounted) return;
+        setTargetGalleryImages(dedupeImageUris([data]));
       },
       onError: () => {
         if (isMounted) {
-          setGalleryImages([]);
+          setTargetGalleryImages([]);
         }
       },
     });
@@ -492,7 +507,7 @@ const ViewMyProfileScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, [numericTargetId]);
+  }, [numericTargetId, isViewingSelf]);
 
   const flatlistRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -822,26 +837,25 @@ const ViewMyProfileScreen = () => {
       dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
 
     const targetImages = dedupeImageUris([
-      galleryImages,
-      fetched?.photos,
-      fetched?.images,
-      fetched?.allImages,
+      targetGalleryImages,
       routed?.photos,
       routed?.images,
       routed?.allImages,
-      fetched?.profileImageUrl,
-      routed?.profileImageUrl,
       routeImage,
+      routed?.profileImageUrl,
+      fetched?.photos,
+      fetched?.images,
+      fetched?.profileImageUrl,
     ]);
 
     const activeContextPhotos = (contextImages || []).filter(Boolean) as string[];
     const fetchedPhotos = Array.isArray(fetched?.photos) && fetched.photos.length > 0
       ? dedupeImageUris([fetched.photos])
       : [];
-    const ownImages = galleryImages.length > 0
-      ? galleryImages
-      : activeContextPhotos.length > 0
-        ? activeContextPhotos
+    const ownImages = activeContextPhotos.length > 0
+      ? activeContextPhotos
+      : ownGalleryImages.length > 0
+        ? ownGalleryImages
         : fetchedPhotos.length > 0
           ? fetchedPhotos
           : dedupeImageUris([profileImageUrl, profileImage]);
@@ -951,7 +965,8 @@ const ViewMyProfileScreen = () => {
     displayName,
     englishSkillLevel,
     fetchedProfile,
-    galleryImages,
+    ownGalleryImages,
+    targetGalleryImages,
     height,
     location,
     myId,
@@ -1337,7 +1352,7 @@ const createStyles = (colors: any, isDark: boolean = true) =>
     },
     imageCard: {
       width: '100%',
-      height: 440,
+      height: 480,
       borderRadius: 14,
       overflow: 'hidden',
       position: 'relative',
