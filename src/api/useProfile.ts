@@ -104,18 +104,26 @@ const normalizeProfile = (payload: any) => {
     source?.phoneNumber,
     source?.phone,
     source?.mobileNumber,
+    source?.whatsapp,
+    source?.whatsappNumber,
     nestedProfile?.phoneNumber,
     nestedProfile?.mobile,
     nestedProfile?.phone,
     nestedProfile?.mobileNumber,
+    nestedProfile?.whatsapp,
+    nestedProfile?.whatsappNumber,
     payloadSource?.phoneNumber,
     payloadSource?.phone,
     payloadSource?.mobile,
     payloadSource?.mobileNumber,
+    payloadSource?.whatsapp,
+    payloadSource?.whatsappNumber,
     nestedUser?.phoneNumber,
     nestedUser?.mobile,
     nestedUser?.phone,
     nestedUser?.mobileNumber,
+    nestedUser?.whatsapp,
+    nestedUser?.whatsappNumber,
   ].find(isRealPhone) || '';
   const cleanResolvedPhone = String(resolvedPhone).trim();
 
@@ -638,16 +646,12 @@ export const useProfile = () => {
       } catch (err) {
         const basicRes = await apiClient.put('/profile/update-basic', {
           userId: resolvedUserId,
-          name: payload.name,
-          displayName: payload.displayName,
-          bio: payload.bio,
-          dob: payload.dob,
-          age: payload.age,
-          mobile: payload.mobile,
-          phoneNumber: payload.phoneNumber,
-          phone: payload.phone,
-          mobileNumber: payload.mobileNumber,
-          telegramUsername: payload.telegramUsername,
+          name: payload.name || payload.displayName || 'User',
+          displayName: payload.displayName || payload.name || 'User',
+          bio: payload.bio || '',
+          dob: payload.dob || '1998-01-01',
+          age: payload.age || 21,
+          mobile: payload.mobile || '',
         });
         await Promise.allSettled([
           apiClient.put('/profile/update-details', {

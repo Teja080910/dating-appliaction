@@ -647,5 +647,7 @@
   "common.accept": "Принять",
   "common.select_all": "Выбрать все",
   "common.delete": "Удалить",
-  "common.cancel": "Отмена"
+  "common.cancel": "Отмена",
+  "profile.profilesettingsscreen.phone_already_exists_title": "Номер уже используется",
+  "profile.profilesettingsscreen.phone_already_exists_desc": "Этот номер WhatsApp / телефон уже зарегистрирован в другой учетной записи. Пожалуйста, укажите другой номер."
 }

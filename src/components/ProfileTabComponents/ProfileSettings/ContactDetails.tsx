@@ -130,7 +130,7 @@ export const parsePhoneNumberAndCountry = (rawPhone?: string | null) => {
     code: null,
     name: null,
     flag: null,
-    number: str.replace(/[^\d\s-]/g, '').trim(),
+    number: str.replace(/^[^\d+]+/, '').replace(/^-+/, '').replace(/[^\d\s-]/g, '').trim(),
   };
 };
 

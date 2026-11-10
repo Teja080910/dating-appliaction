@@ -21,6 +21,14 @@ export const getUserFriendlyMessage = (value: unknown, fallback = 'Please try ag
   if (!message) return fallback;
 
   const lower = message.toLowerCase();
+  if (
+    (lower.includes('mobile') || lower.includes('phone') || lower.includes('number') || lower.includes('contact')) &&
+    (lower.includes('already') || lower.includes('duplicate') || lower.includes('exist') || lower.includes('in use') || lower.includes('taken'))
+  ) {
+    return t('profile.profilesettingsscreen.phone_already_exists_desc', {
+      defaultValue: 'This WhatsApp / phone number is already registered with another account. Please use a different number.',
+    });
+  }
   if (lower.includes('password') && (lower.includes('weak') || lower.includes('strong') || lower.includes('uppercase') || lower.includes('special') || lower.includes('contain') || lower.includes('must be at least'))) {
     return 'Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character (!@#$%^&*).';
   }

@@ -626,6 +626,21 @@ class MockStore {
     const existingIndex = this.profiles.findIndex((p) => String(p.userId) === userId);
 
     const effectivePhone = profileData.mobile || (profileData as any).phoneNumber || profileData.phone || (profileData as any).mobileNumber;
+    if (effectivePhone) {
+      const cleanTarget = String(effectivePhone).replace(/[^\d]/g, '');
+      if (cleanTarget.length >= 7) {
+        const conflictingUser = this.users.find(
+          (u) =>
+            String(u.userId) !== userId &&
+            String(u.id) !== userId &&
+            u.mobile &&
+            u.mobile.replace(/[^\d]/g, '') === cleanTarget
+        );
+        if (conflictingUser) {
+          throw new Error('This phone number is already registered with another account.');
+        }
+      }
+    }
     let updated: MockProfile;
     if (existingIndex >= 0) {
       updated = {

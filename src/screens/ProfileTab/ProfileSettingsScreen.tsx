@@ -318,15 +318,41 @@ const ProfileSettingsScreen = () => {
             navigation.goBack();
           },
           onError: async (error: any) => {
+            const status = Number(error?.response?.status || error?.status);
+            const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
+            const rawMsg = String(
+              error?.response?.data?.message ||
+              error?.response?.data?.error ||
+              (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+              error?.message ||
+              ''
+            ).toLowerCase();
+
+            const isDuplicatePhone =
+              status === 409 ||
+              code === 'CONFLICT' ||
+              code === 'DUPLICATE_ENTRY' ||
+              rawMsg.includes('already exists') ||
+              rawMsg.includes('already registered') ||
+              rawMsg.includes('already in use') ||
+              rawMsg.includes('duplicate');
+
+            if (isDuplicatePhone) {
+              alert(
+                t('profile.profilesettingsscreen.phone_already_exists_title', {
+                  defaultValue: 'Number Already in Use',
+                }),
+                t('profile.profilesettingsscreen.phone_already_exists_desc', {
+                  defaultValue:
+                    'This WhatsApp/phone number is already registered with another account. Please use a different number.',
+                })
+              );
+              return;
+            }
+
             const currentSession = await getAuthSession();
-            if (
-              currentSession?.token &&
-              (Number(error?.response?.status) === 400 ||
-                Number(error?.response?.status) === 404 ||
-                String(error?.response?.data?.message || error?.message || '')
-                  .toLowerCase()
-                  .includes('user not found'))
-            ) {
+            const isUserNotFoundError = rawMsg.includes('user not found') || status === 404;
+            if (currentSession?.token && isUserNotFoundError) {
               await persistLocalState();
               alert(
                 t('profile.profilesettingsscreen.saved_locally'),

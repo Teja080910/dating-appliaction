@@ -227,18 +227,22 @@ export const useAuth = () => {
         }
         const finalPhone = validMobile || storedUserPhone;
 
-        await AsyncStorage.multiSet([
+        const storagePairs: [string, string][] = [
           ['userToken', persisted.token],
           ['userEmail', userEmail],
           ['email', userEmail],
-          ['userMobile', finalPhone],
           ['userId', String(cleanUserId ?? '')],
           ['sessionId', String(persisted?.sessionId ?? '')],
           ['username', String(persisted?.username ?? '')],
-        ]);
+        ];
         if (finalPhone) {
-          await AsyncStorage.setItem('phoneNumber', finalPhone);
+          storagePairs.push(['userMobile', finalPhone]);
+          storagePairs.push(['phoneNumber', finalPhone]);
+          if (cleanUserId) {
+            storagePairs.push([`user_phone_${cleanUserId}`, finalPhone]);
+          }
         }
+        await AsyncStorage.multiSet(storagePairs);
 
         if (__DEV__) {
           console.log('✅ Stored session:', {

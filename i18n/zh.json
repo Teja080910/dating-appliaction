@@ -646,5 +646,7 @@
   "common.accept": "接受",
   "common.select_all": "全选",
   "common.delete": "删除",
-  "common.cancel": "取消"
+  "common.cancel": "取消",
+  "profile.profilesettingsscreen.phone_already_exists_title": "号码已被使用",
+  "profile.profilesettingsscreen.phone_already_exists_desc": "该 WhatsApp / 电话号码已被其他账户注册，请使用其他号码。"
 }

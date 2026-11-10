@@ -648,5 +648,7 @@
   "common.accept": "Accept",
   "common.select_all": "Select All",
   "common.delete": "Delete",
-  "common.cancel": "Cancel"
+  "common.cancel": "Cancel",
+  "profile.profilesettingsscreen.phone_already_exists_title": "Number Already in Use",
+  "profile.profilesettingsscreen.phone_already_exists_desc": "This WhatsApp / phone number is already registered with another account. Please use a different number."
 }

@@ -647,5 +647,7 @@
   "common.accept": "Acceptă",
   "common.select_all": "Selectează tot",
   "common.delete": "Șterge",
-  "common.cancel": "Anulează"
+  "common.cancel": "Anulează",
+  "profile.profilesettingsscreen.phone_already_exists_title": "Număr deja utilizat",
+  "profile.profilesettingsscreen.phone_already_exists_desc": "Acest număr de WhatsApp / telefon este deja înregistrat pe alt cont. Te rugăm să folosești un număr diferit."
 }

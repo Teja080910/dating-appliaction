@@ -647,5 +647,7 @@
   "common.accept": "承認",
   "common.select_all": "すべて選択",
   "common.delete": "削除",
-  "common.cancel": "キャンセル"
+  "common.cancel": "キャンセル",
+  "profile.profilesettingsscreen.phone_already_exists_title": "既に使用されている番号です",
+  "profile.profilesettingsscreen.phone_already_exists_desc": "このWhatsApp／電話番号はすでに別のアカウントに登録されています。別の番号をご使用ください。"
 }

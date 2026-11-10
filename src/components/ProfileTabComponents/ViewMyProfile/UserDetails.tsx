@@ -143,14 +143,15 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     let isMounted = true;
     (async () => {
       try {
-        const [tg, p1, p2] = await Promise.all([
+        const [tg, p1, p2, p3] = await Promise.all([
           AsyncStorage.getItem('telegramUsername'),
           AsyncStorage.getItem('phoneNumber'),
           AsyncStorage.getItem('userMobile'),
+          currentUserId ? AsyncStorage.getItem(`user_phone_${currentUserId}`) : null,
         ]);
         if (isMounted) {
           if (tg) setOwnTelegram(tg.trim().replace(/^@+/, '').toLowerCase());
-          if (p1 || p2) setStoredPhone(p1 || p2 || '');
+          if (p1 || p2 || p3) setStoredPhone(p3 || p1 || p2 || '');
         }
       } catch {}
     })();

@@ -112,7 +112,14 @@ export const normalizePhoneDigits = (phone?: string | null): string => {
   if (!phone) return '';
   const trimmed = String(phone).trim();
   // Keep digits only
-  return trimmed.replace(/[^\d]/g, '');
+  const digits = trimmed.replace(/[^\d]/g, '');
+  if (!digits) return '';
+
+  // If 10 digits starting with 6, 7, 8, 9 (standard Indian mobile format) without country code, prefix with 91
+  if (digits.length === 10 && /^[6-9]/.test(digits)) {
+    return `91${digits}`;
+  }
+  return digits;
 };
 
 /**

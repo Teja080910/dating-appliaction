@@ -647,5 +647,7 @@
   "common.accept": "Terima",
   "common.select_all": "Pilih semua",
   "common.delete": "Hapus",
-  "common.cancel": "Batal"
+  "common.cancel": "Batal",
+  "profile.profilesettingsscreen.phone_already_exists_title": "Nomor Sudah Digunakan",
+  "profile.profilesettingsscreen.phone_already_exists_desc": "Nomor WhatsApp / telepon ini sudah terdaftar di akun lain. Silakan gunakan nomor yang berbeda."
 }
