@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { DeviceEventEmitter } from 'react-native';
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -324,7 +324,10 @@ export const useMyProfile = (uid?: any) => {
     return () => { cancelled = true; };
   }, [resolvedUserId, refreshKey]);
 
-  return { data, isLoading: loading, error, refetch };
+  return useMemo(
+    () => ({ data, isLoading: loading, error, refetch }),
+    [data, loading, error, refetch]
+  );
 };
 
 export const useProfileCompletion = (uid: any) => {
@@ -496,7 +499,21 @@ export const useProfile = () => {
 
       const res = await apiClient
         .put('/profile/update-preferences', payload)
-        .catch(() => apiClient.put('/profile/update', payload));
+        .catch(async () => {
+          const [name, dName, bio, dob] = await Promise.all([
+            AsyncStorage.getItem('userName'),
+            AsyncStorage.getItem('displayName'),
+            AsyncStorage.getItem('userBio'),
+            AsyncStorage.getItem('userDob'),
+          ]);
+          return apiClient.put('/profile/update', {
+            ...payload,
+            name: name || dName || 'User',
+            displayName: dName || name || 'User',
+            bio: bio || '',
+            dob: dob || '1998-01-01',
+          });
+        });
       return res.data;
     },
     onSuccess: async () => {
@@ -537,7 +554,21 @@ export const useProfile = () => {
       // required when editing only these fields.
       const res = await apiClient
         .put('/profile/update-details', payload)
-        .catch(() => apiClient.put('/profile/update', payload));
+        .catch(async () => {
+          const [name, dName, bio, dob] = await Promise.all([
+            AsyncStorage.getItem('userName'),
+            AsyncStorage.getItem('displayName'),
+            AsyncStorage.getItem('userBio'),
+            AsyncStorage.getItem('userDob'),
+          ]);
+          return apiClient.put('/profile/update', {
+            ...payload,
+            name: name || dName || 'User',
+            displayName: dName || name || 'User',
+            bio: bio || '',
+            dob: dob || '1998-01-01',
+          });
+        });
       return res.data;
     },
     onSuccess: async () => {

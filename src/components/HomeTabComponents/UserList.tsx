@@ -434,22 +434,22 @@ const UserList = ({
               }
               if (Array.isArray(savedFilters.bodyType) && savedFilters.bodyType.length > 0) {
                 filtered = filtered.filter((p: any) =>
-                  !p.bodyType || savedFilters.bodyType.some((bt: string) => String(p.bodyType).toLowerCase().includes(bt.toLowerCase()))
+                  !p.bodyType || savedFilters.bodyType?.some((bt: string) => String(p.bodyType).toLowerCase().includes(bt.toLowerCase()))
                 );
               }
               if (Array.isArray(savedFilters.appearance) && savedFilters.appearance.length > 0) {
                 filtered = filtered.filter((p: any) =>
-                  !p.appearance || savedFilters.appearance.some((app: string) => String(p.appearance).toLowerCase().includes(app.toLowerCase()))
+                  !p.appearance || savedFilters.appearance?.some((app: string) => String(p.appearance).toLowerCase().includes(app.toLowerCase()))
                 );
               }
               if (Array.isArray(savedFilters.language) && savedFilters.language.length > 0) {
                 filtered = filtered.filter((p: any) =>
-                  !p.language || savedFilters.language.some((lang: string) => String(p.language).toLowerCase().includes(lang.toLowerCase()))
+                  !p.language || savedFilters.language?.some((lang: string) => String(p.language).toLowerCase().includes(lang.toLowerCase()))
                 );
               }
               if (Array.isArray(savedFilters.ethnicity) && savedFilters.ethnicity.length > 0) {
                 filtered = filtered.filter((p: any) =>
-                  !p.ethnicity || savedFilters.ethnicity.some((eth: string) => String(p.ethnicity).toLowerCase().includes(eth.toLowerCase()))
+                  !p.ethnicity || savedFilters.ethnicity?.some((eth: string) => String(p.ethnicity).toLowerCase().includes(eth.toLowerCase()))
                 );
               }
               if (savedFilters.onlyOnline) {

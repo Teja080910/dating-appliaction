@@ -22,6 +22,7 @@ import { useAlert } from '../../components/AlertModal';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useLocation } from '../../api/useLocation';
 import { getCurrentLocation } from '../../utils/geolocation';
+import apiClient from '../../api/apiClient';
 
 const STORAGE_CITY = '@amara_user_city';
 const STORAGE_COUNTRY = '@amara_user_country';
@@ -74,7 +75,28 @@ const reverseGeocodeCoordinates = async (
   lat: number,
   lng: number
 ): Promise<{ city: string; country: string; state: string }> => {
-  // 1. Try Nominatim reverse API
+  // 1. Try BigDataCloud Client Reverse Geocoding API (Fast, reliable, doesn't block mobile apps)
+  try {
+    const res = await axios.get(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+      { timeout: 4000 }
+    );
+    if (res.data) {
+      const city =
+        res.data.city ||
+        res.data.locality ||
+        res.data.localityInfo?.administrative?.[2]?.name ||
+        res.data.localityInfo?.administrative?.[1]?.name ||
+        '';
+      const country = res.data.countryName || 'India';
+      const state = res.data.principalSubdivision || '';
+      if (city) {
+        return { city, country, state };
+      }
+    }
+  } catch {}
+
+  // 2. Try Nominatim reverse API
   try {
     const res = await axios.get(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`,
@@ -101,7 +123,7 @@ const reverseGeocodeCoordinates = async (
     }
   } catch {}
 
-  // 2. Try Photon reverse API
+  // 3. Try Photon reverse API
   try {
     const res = await axios.get(
       `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`,
@@ -119,7 +141,7 @@ const reverseGeocodeCoordinates = async (
     }
   } catch {}
 
-  // 3. Fallback to nearest landmark city
+  // 4. Fallback to nearest landmark city
   const nearest = findNearestFallbackCity(lat, lng);
   return {
     city: nearest.name,
@@ -182,7 +204,7 @@ const ResetLocationScreen: React.FC = () => {
     try {
       setLoading(true);
 
-      // 1. Fetch real GPS position
+      // 1. Fetch real GPS position (with network provider & IP fallback)
       const coords = await getCurrentLocation(true);
 
       // 2. Reverse geocode to City & Country
@@ -196,11 +218,18 @@ const ResetLocationScreen: React.FC = () => {
       setCountry(newCountry);
 
       // 4. Update AsyncStorage & Global Context
-      await AsyncStorage.setItem(STORAGE_CITY, newCity);
-      await AsyncStorage.setItem(STORAGE_COUNTRY, newCountry);
+      await AsyncStorage.multiSet([
+        [STORAGE_CITY, newCity],
+        [STORAGE_COUNTRY, newCountry],
+        ['userCity', newCity],
+        ['userCountry', newCountry],
+        ['userState', newState],
+        ['userLat', String(coords.latitude)],
+        ['userLng', String(coords.longitude)],
+      ]);
       setLocation(`${newCity}, ${newCountry}`);
 
-      // 5. Sync with backend API
+      // 5. Sync with backend location API
       addLocation.mutate({
         city: newCity,
         state: newState,
@@ -208,6 +237,17 @@ const ResetLocationScreen: React.FC = () => {
         lat: coords.latitude,
         lng: coords.longitude,
       });
+
+      // 6. Sync coordinates & city with user profile
+      apiClient
+        .put('/profile/update', {
+          city: newCity,
+          country: newCountry,
+          state: newState,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        })
+        .catch(() => {});
 
       alert(
         t('profile.resetlocationscreen.location_updated'),

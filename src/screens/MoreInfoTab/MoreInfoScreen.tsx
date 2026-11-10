@@ -1,8 +1,9 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { DeviceEventEmitter, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { BackHandler, DeviceEventEmitter, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 import { useProfile, useMyProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
@@ -33,11 +34,25 @@ const MoreInfoScreen = () => {
   const { alert, AlertComponent } = useAlert();
   const insets = useSafeAreaInsets();
   const route = useRoute();
+  const navigation = useNavigation<any>();
 
   const isInsideBottomTab = route.name === 'AboutMe' || Boolean((route as any).name?.toLowerCase().includes('about'));
   const bottomMargin = isInsideBottomTab
     ? (Platform.OS === 'ios' ? 70 : 66) + Math.max(insets.bottom, 0)
     : Math.max(insets.bottom, 14);
+
+  // Handle hardware back button on Android
+  useEffect(() => {
+    const onHardwareBack = () => {
+      if (navigation?.canGoBack?.() && !isInsideBottomTab) {
+        navigation.goBack();
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [navigation, isInsideBottomTab]);
 
   const {
     height,
@@ -69,104 +84,118 @@ const MoreInfoScreen = () => {
   const { updateDetails, updatePreferences } = useProfile();
   const profileQuery = useMyProfile(undefined);
 
-  const hydrateFromStorage = useCallback(async () => {
-    try {
-      const pairs = await AsyncStorage.multiGet([
-        '@amara_kid_count',
-        '@amara_net_worth',
-        '@amara_height',
-        '@amara_appearance',
-        '@amara_body_type',
-        '@amara_ethnicity',
-        '@amara_smoking',
-        '@amara_drinking',
-        '@amara_looking_for',
-        '@amara_languages',
-        '@amara_english_level',
-      ]);
-      pairs.forEach(([key, val]) => {
-        if (!val || val === 'null' || val === 'undefined') return;
-        if (key === '@amara_kid_count') {
-          setSelectedKids(String(val).replace(/^kids:\s*/i, '').trim());
-        }
-        if (key === '@amara_net_worth') {
-          setSelectedNetWorth(String(val).replace(/^\$\s*/, '').trim());
-        }
-        if (key === '@amara_height') {
-          const num = Number(val);
-          if (Number.isFinite(num) && num > 0) {
-            setHeight(num);
-            setTempHeight?.(num);
-          }
-        }
-        if (key === '@amara_appearance') setSelectedAppearance(val);
-        if (key === '@amara_body_type') setSelectedBodyType(val);
-        if (key === '@amara_ethnicity') setSelectedEthinicity(val);
-        if (key === '@amara_smoking') setSelectedSmoking(val);
-        if (key === '@amara_drinking') setSelectedDrinking(val);
-        if (key === '@amara_english_level') {
-          const lvl = Number(val);
-          if (Number.isFinite(lvl) && lvl >= 0 && lvl <= 3) {
-            setEnglishSkillLevel(lvl);
-          }
-        }
-        if (key === '@amara_looking_for') {
-          try {
-            const parsed = JSON.parse(val);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setSelectedLookingFor(parsed);
-            }
-          } catch {
-            const split = val.split(',').map((s) => s.trim()).filter(Boolean);
-            if (split.length > 0) setSelectedLookingFor(split);
-          }
-        }
-        if (key === '@amara_languages') {
-          try {
-            const parsed = JSON.parse(val);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setSelectedLanguages(parsed);
-            }
-          } catch {
-            const split = val.split(',').map((s) => s.trim()).filter(Boolean);
-            if (split.length > 0) setSelectedLanguages(split);
-          }
-        }
-      });
-    } catch (e) {
-      console.warn('[MoreInfo] Failed to hydrate from AsyncStorage:', e);
-    }
-  }, [
-    setEnglishSkillLevel,
-    setHeight,
-    setTempHeight,
-    setSelectedAppearance,
-    setSelectedBodyType,
-    setSelectedDrinking,
-    setSelectedEthinicity,
-    setSelectedKids,
-    setSelectedLanguages,
-    setSelectedLookingFor,
-    setSelectedNetWorth,
-    setSelectedSmoking,
-  ]);
+  const isHydratedRef = useRef(false);
+  const lastSyncedProfileKeyRef = useRef<string | null>(null);
+  const refetchProfileRef = useRef(profileQuery.refetch);
+  refetchProfileRef.current = profileQuery.refetch;
 
+  // Hydrate once from AsyncStorage on mount
+  useEffect(() => {
+    if (isHydratedRef.current) return;
+    isHydratedRef.current = true;
+
+    AsyncStorage.multiGet([
+      '@amara_kid_count',
+      '@amara_net_worth',
+      '@amara_height',
+      '@amara_appearance',
+      '@amara_body_type',
+      '@amara_ethnicity',
+      '@amara_smoking',
+      '@amara_drinking',
+      '@amara_looking_for',
+      '@amara_languages',
+      '@amara_english_level',
+    ])
+      .then((pairs) => {
+        pairs.forEach(([key, val]) => {
+          if (!val || val === 'null' || val === 'undefined') return;
+          if (key === '@amara_kid_count') {
+            setSelectedKids(String(val).replace(/^kids:\s*/i, '').trim());
+          }
+          if (key === '@amara_net_worth') {
+            setSelectedNetWorth(String(val).replace(/^\$\s*/, '').trim());
+          }
+          if (key === '@amara_height') {
+            const num = Number(val);
+            if (Number.isFinite(num) && num > 0) {
+              setHeight(num);
+              setTempHeight?.(num);
+            }
+          }
+          if (key === '@amara_appearance') setSelectedAppearance(val);
+          if (key === '@amara_body_type') setSelectedBodyType(val);
+          if (key === '@amara_ethnicity') setSelectedEthinicity(val);
+          if (key === '@amara_smoking') setSelectedSmoking(val);
+          if (key === '@amara_drinking') setSelectedDrinking(val);
+          if (key === '@amara_english_level') {
+            const lvl = Number(val);
+            if (Number.isFinite(lvl) && lvl >= 0 && lvl <= 3) {
+              setEnglishSkillLevel(lvl);
+            }
+          }
+          if (key === '@amara_looking_for') {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setSelectedLookingFor(parsed);
+              }
+            } catch {
+              const split = val.split(',').map((s) => s.trim()).filter(Boolean);
+              if (split.length > 0) setSelectedLookingFor(split);
+            }
+          }
+          if (key === '@amara_languages') {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setSelectedLanguages(parsed);
+              }
+            } catch {
+              const split = val.split(',').map((s) => s.trim()).filter(Boolean);
+              if (split.length > 0) setSelectedLanguages(split);
+            }
+          }
+        });
+      })
+      .catch((e) => {
+        console.warn('[MoreInfo] Failed to hydrate from AsyncStorage:', e);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // On screen focus, refetch fresh profile data without re-triggering render loops
   useFocusEffect(
     useCallback(() => {
-      void hydrateFromStorage();
-      void profileQuery.refetch();
-    }, [hydrateFromStorage, profileQuery])
+      refetchProfileRef.current?.();
+    }, [])
   );
-
-  useEffect(() => {
-    void hydrateFromStorage();
-  }, [hydrateFromStorage]);
 
   useEffect(() => {
     const profile = profileQuery.data;
     if (!profile) {
       return;
     }
+
+    const currentKey = JSON.stringify({
+      height: profile.height,
+      appearance: profile.appearance,
+      bodyType: profile.bodyType,
+      language: profile.language,
+      ethnicity: profile.ethnicity,
+      smoke: profile.smoke,
+      drink: profile.drink,
+      lookingFor: profile.lookingFor,
+      kidCount: profile.kidCount,
+      kids: profile.kids,
+      netWorth: profile.netWorth,
+      englishLevel: profile.englishLevel,
+    });
+
+    if (lastSyncedProfileKeyRef.current === currentKey) {
+      return;
+    }
+    lastSyncedProfileKeyRef.current = currentKey;
 
     const splitValues = (value?: string) =>
       String(value || '')
@@ -247,35 +276,25 @@ const MoreInfoScreen = () => {
       setEnglishSkillLevel(englishIndex);
     }
 
-    // Persist to AsyncStorage for offline and immediate next load
-    AsyncStorage.multiSet([
-      ['@amara_height', String(profile.height || '')],
-      ['@amara_appearance', profile.appearance || ''],
-      ['@amara_body_type', profile.bodyType || ''],
-      ['@amara_ethnicity', profile.ethnicity || ''],
-      ['@amara_smoking', profile.smoke || ''],
-      ['@amara_drinking', profile.drink || ''],
-      ['@amara_looking_for', JSON.stringify(visibleLookingFor || [])],
-      ['@amara_languages', JSON.stringify(visibleLanguages || [])],
-      ['@amara_english_level', String(englishIndex >= 0 ? englishIndex : '')],
-      ['@amara_kid_count', rawKids !== null ? String(rawKids).replace(/^kids:\s*/i, '').trim() : ''],
-      ['@amara_net_worth', profile.netWorth ? String(profile.netWorth).replace(/^\$\s*/, '').trim() : ''],
-    ]).catch(() => {});
-  }, [
-    profileQuery.data,
-    setEnglishSkillLevel,
-    setHeight,
-    setTempHeight,
-    setSelectedAppearance,
-    setSelectedBodyType,
-    setSelectedDrinking,
-    setSelectedEthinicity,
-    setSelectedKids,
-    setSelectedLanguages,
-    setSelectedLookingFor,
-    setSelectedNetWorth,
-    setSelectedSmoking,
-  ]);
+    // Persist to AsyncStorage for offline and immediate next load - ONLY non-empty values so we never wipe saved state
+    const storageUpdates: [string, string][] = [];
+    if (profile.height) storageUpdates.push(['@amara_height', String(profile.height)]);
+    if (profile.appearance) storageUpdates.push(['@amara_appearance', profile.appearance]);
+    if (profile.bodyType) storageUpdates.push(['@amara_body_type', profile.bodyType]);
+    if (profile.ethnicity) storageUpdates.push(['@amara_ethnicity', profile.ethnicity]);
+    if (profile.smoke) storageUpdates.push(['@amara_smoking', profile.smoke]);
+    if (profile.drink) storageUpdates.push(['@amara_drinking', profile.drink]);
+    if (visibleLookingFor.length > 0) storageUpdates.push(['@amara_looking_for', JSON.stringify(visibleLookingFor)]);
+    if (visibleLanguages.length > 0) storageUpdates.push(['@amara_languages', JSON.stringify(visibleLanguages)]);
+    if (englishIndex >= 0) storageUpdates.push(['@amara_english_level', String(englishIndex)]);
+    if (rawKids !== null && String(rawKids).trim()) storageUpdates.push(['@amara_kid_count', String(rawKids).replace(/^kids:\s*/i, '').trim()]);
+    if (profile.netWorth) storageUpdates.push(['@amara_net_worth', String(profile.netWorth).replace(/^\$\s*/, '').trim()]);
+
+    if (storageUpdates.length > 0) {
+      AsyncStorage.multiSet(storageUpdates).catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileQuery.data]);
 
   const handleSave = async () => {
     const authSession = await getAuthSession();
@@ -312,6 +331,7 @@ const MoreInfoScreen = () => {
         ethnicity: selectedEthinicity || '',
       };
 
+      // 1. Immediately save to AsyncStorage so local state is guaranteed persistent
       await AsyncStorage.multiSet([
         ['@amara_height', String(height || '')],
         ['@amara_appearance', selectedAppearance || ''],
@@ -326,16 +346,34 @@ const MoreInfoScreen = () => {
         ['@amara_net_worth', selectedNetWorth || ''],
       ]);
 
+      // 2. Sync to backend API
       await Promise.allSettled([
         updateDetails.mutateAsync(detailsPayload),
         updatePreferences.mutateAsync(prefsPayload),
       ]);
 
       DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
-      await profileQuery.refetch();
-      alert(t('search.location.saved'), t('more_info.moreinfoscreen.your_profile_details_have_been_updated'), [
-        { text: t('more_info.moreinfoscreen.close'), style: 'default' },
-      ]);
+      void profileQuery.refetch();
+
+      Toast.show({
+        type: 'success',
+        text1: t('search.location.saved', { defaultValue: 'Saved' }),
+        text2: t('more_info.moreinfoscreen.your_profile_details_have_been_updated', {
+          defaultValue: 'Your profile details have been updated.',
+        }),
+        visibilityTime: 2500,
+      });
+
+      // If opened as a stack screen from Profile, navigate back smoothly
+      if (navigation?.canGoBack?.() && !isInsideBottomTab) {
+        setTimeout(() => {
+          navigation.goBack();
+        }, 350);
+      } else {
+        alert(t('search.location.saved'), t('more_info.moreinfoscreen.your_profile_details_have_been_updated'), [
+          { text: t('more_info.moreinfoscreen.close'), style: 'default' },
+        ]);
+      }
     } catch (error: any) {
       console.log('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
       alert(
@@ -352,7 +390,10 @@ const MoreInfoScreen = () => {
       edges={['top', 'left', 'right']}
       style={[styles.container, { backgroundColor: themeColors.background }]}
     >
-      <Header />
+      <Header
+        showBackButton={!isInsideBottomTab && navigation?.canGoBack?.()}
+        onBackPress={() => navigation?.goBack?.()}
+      />
       <ScrollView
         style={[styles.scrollView, { backgroundColor: themeColors.background }]}
         contentContainerStyle={[

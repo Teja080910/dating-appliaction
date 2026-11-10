@@ -28,6 +28,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { useTheme, ThemeColors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { useDiscovery } from '../../api/useDiscovery';
+import apiClient from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
 import { clearAuthSession } from '../../utils/session';
 import { checkLocationPermission, requestLocationPermission, getCurrentLocation } from '../../utils/geolocation';
