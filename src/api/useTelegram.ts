@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './apiClient';
-import { getUserId } from '../utils/sessionHelper';
+import { getUserId, getAuthToken } from '../utils/sessionHelper';
 import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 
 /**
@@ -336,32 +336,76 @@ export const fetchAmaraBotName = async (): Promise<string> => {
  * Example response: {"status":"success","link":"https://t.me/AmaraofficialBot?start=3205e528bcdb4f83ad44adefca1eae57"}
  */
 export const fetchAmaraBotLink = async (userIdCandidate?: string | number): Promise<string> => {
+  const botName = await fetchAmaraBotName().catch(() => DEFAULT_AMARA_BOT_USERNAME);
+  const activeBot = botName || DEFAULT_AMARA_BOT_USERNAME;
+
   try {
     const resolvedUserId = await resolveBackendTelegramUserId(userIdCandidate);
-    const res = await apiClient.post('/telegram/bot-link', null, {
-      params: { userId: resolvedUserId },
-    });
-    const link =
-      res?.data?.link ||
-      res?.data?.url ||
-      res?.data?.telegramLink ||
-      (typeof res?.data === 'string' && res.data.includes('t.me/') ? res.data : null);
-    if (link && typeof link === 'string') {
-      const cleanLink = link.trim();
-      const extractedBot = extractBotUsername(cleanLink);
-      if (extractedBot) {
-        await AsyncStorage.setItem(BOT_NAME_STORAGE_KEY, extractedBot).catch(() => {});
+    const numId = Number(resolvedUserId);
+    const effectiveUserId = Number.isFinite(numId) && numId > 0 ? numId : resolvedUserId;
+    const sessionToken = (await getAuthToken()) || (await AsyncStorage.getItem('userToken'));
+
+    const res = await apiClient.post(
+      '/telegram/bot-link',
+      null, // Backend expects no body
+      {
+        params: { userId: effectiveUserId }, // Query string
+        headers: {
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
       }
-      return cleanLink;
+    );
+
+    const raw = res?.data;
+    let rawLinkOrToken = '';
+    if (typeof raw === 'string') {
+      rawLinkOrToken = raw.trim();
+    } else if (raw && typeof raw === 'object') {
+      const cand =
+        raw.link ||
+        raw.url ||
+        raw.telegramLink ||
+        raw.botLink ||
+        raw.token ||
+        raw.startToken ||
+        raw.start_token ||
+        raw.Data ||
+        raw.data;
+      if (typeof cand === 'string') {
+        rawLinkOrToken = cand.trim();
+      } else if (cand && typeof cand === 'object') {
+        const nested =
+          cand.link ||
+          cand.url ||
+          cand.telegramLink ||
+          cand.botLink ||
+          cand.token ||
+          cand.startToken ||
+          cand.start_token;
+        if (typeof nested === 'string') {
+          rawLinkOrToken = nested.trim();
+        }
+      }
     }
-  } catch (err) {
-    // If bot-link fails, fallback to general bot-name
+
+    if (rawLinkOrToken) {
+      const tokenMatch = rawLinkOrToken.match(/[?&]start=([^&#\s]+)/i);
+      const token = tokenMatch ? tokenMatch[1] : (!rawLinkOrToken.includes('/') ? rawLinkOrToken : '');
+      if (token) {
+        console.log(`🤖 [TelegramBot] Acquired 15-minute start token: ${token}`);
+        return `https://t.me/${activeBot}?start=${token}`;
+      }
+      if (rawLinkOrToken.includes('t.me/')) {
+        const parts = rawLinkOrToken.split('?');
+        const query = parts[1] ? `?${parts[1]}` : '';
+        return `https://t.me/${activeBot}${query}`;
+      }
+    }
+  } catch (err: any) {
+    console.warn('[fetchAmaraBotLink] POST /telegram/bot-link failed:', err?.response?.data || err.message);
   }
 
-  const botName = await fetchAmaraBotName();
-  const resolvedUserId = await resolveBackendTelegramUserId(userIdCandidate).catch(() => null);
-  const startParam = resolvedUserId ? `?start=USER_${resolvedUserId}` : '';
-  return `https://t.me/${botName || DEFAULT_AMARA_BOT_USERNAME}${startParam}`;
+  return `https://t.me/${activeBot}`;
 };
 
 /**

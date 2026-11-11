@@ -1,8 +1,9 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   Dimensions,
   FlatList,
   Image,
@@ -72,7 +73,20 @@ const SentRequestsScreen: React.FC = () => {
   const isUserWoman = rawUserGender.includes('woman') || rawUserGender.includes('female');
 
   const { sentList, refreshAll, cancel } = useConnection();
-  const { data: requests = [], isLoading, isRefetching } = sentList;
+  const { data: requests = [], isLoading } = sentList;
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+
+  const refreshAllRef = useRef(refreshAll);
+  refreshAllRef.current = refreshAll;
+
+  const handleManualRefresh = useCallback(async () => {
+    setManualRefreshing(true);
+    try {
+      await refreshAllRef.current();
+    } finally {
+      setManualRefreshing(false);
+    }
+  }, []);
 
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState<boolean>(false);
@@ -133,15 +147,29 @@ const SentRequestsScreen: React.FC = () => {
       if (route?.params?.initialTab) {
         setActiveTab(route.params.initialTab);
       }
-      refreshAll();
+      refreshAllRef.current();
     }, [route?.params?.initialTab])
   );
+
+  // Real-time synchronization when connections update across the app
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('AMARA_CONNECTION_UPDATED', () => {
+      refreshAllRef.current();
+    });
+    return () => sub.remove();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const isAcceptedStatus = (status?: string) => {
     const s = String(status || '').trim().toUpperCase();
-    return s === 'ACCEPTED' || s === 'APPROVED';
+    return (
+      s === 'ACCEPTED' ||
+      s === 'APPROVED' ||
+      s === 'MATCHED' ||
+      s === 'CONNECTED' ||
+      s === 'MUTUAL'
+    );
   };
 
   // Group requests into pending vs accepted (excluding deleted items)
@@ -702,9 +730,10 @@ const SentRequestsScreen: React.FC = () => {
               keyboardDismissMode="on-drag"
               refreshControl={
                 <RefreshControl
-                  refreshing={isRefetching}
-                  onRefresh={refreshAll}
+                  refreshing={manualRefreshing}
+                  onRefresh={handleManualRefresh}
                   tintColor={themeColors.primary}
+                  colors={[themeColors.primary]}
                 />
               }
             />

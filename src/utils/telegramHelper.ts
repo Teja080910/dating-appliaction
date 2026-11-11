@@ -1,5 +1,6 @@
 import { Alert, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { formatDisplayPhone, normalizePhoneDigits } from "./whatsappHelper";
 import { t } from '../i18n';
 
 /**
@@ -122,4 +123,132 @@ export const openAmaraBot = async (customBotNameOrUrl?: string): Promise<void> =
       `Please open Telegram or visit:\n\n${webUrl}`
     );
   }
+};
+
+export interface TelegramMatchNotificationParams {
+  femaleName: string;
+  femaleAge?: number | string | null;
+  femaleLocation?: string | null;
+  femaleTelegram?: string | null;
+  femaleWhatsApp?: string | null;
+  femalePhoto?: string | null;
+  femaleBio?: string | null;
+  femaleProfession?: string | null;
+  femaleEducation?: string | null;
+  maleTelegram?: string | null;
+  maleUserId?: string | number | null;
+}
+
+/**
+ * Dispatches an automated match notification via the Amara Telegram Bot,
+ * delivering the female's connected profile and contact details (WhatsApp & Telegram)
+ * directly to the male user's Telegram.
+ */
+export const dispatchTelegramMatchNotification = async (
+  params: TelegramMatchNotificationParams
+): Promise<boolean> => {
+  const {
+    femaleName,
+    femaleAge,
+    femaleLocation,
+    femaleTelegram,
+    femaleWhatsApp,
+    femalePhoto,
+    femaleBio,
+    femaleProfession,
+    femaleEducation,
+    maleTelegram,
+    maleUserId,
+  } = params;
+
+  const cleanMaleTg = String(maleTelegram || '').trim().replace(/^@+/, '');
+  const cleanFemaleTg = String(femaleTelegram || '').trim().replace(/^@+/, '');
+  const displayPhone = femaleWhatsApp ? formatDisplayPhone(femaleWhatsApp) : '';
+  const digitsPhone = femaleWhatsApp ? normalizePhoneDigits(femaleWhatsApp) : '';
+
+  const ageLoc = [femaleAge ? `${femaleAge} years` : '', femaleLocation].filter(Boolean).join(' • ');
+
+  let messageText = `🎉 *Interest Accepted!* 🎉\n\n`;
+  messageText += `Congratulations! 🎉\n`;
+  messageText += `Your interest request has been accepted by *${femaleName}* on Amara! ❤️\n\n`;
+  messageText += `👤 *Profile Details:*\n`;
+  messageText += `• Name: *${femaleName}* ✅\n`;
+  if (ageLoc) messageText += `• Age & City: *${ageLoc}*\n`;
+  if (femaleProfession) messageText += `• Profession: 💼 *${femaleProfession}*\n`;
+  if (femaleEducation) messageText += `• Education: 🎓 *${femaleEducation}*\n`;
+  if (femaleBio) messageText += `• About: _${femaleBio}_\n`;
+
+  if (cleanFemaleTg || displayPhone) {
+    messageText += `\n📲 *Direct Contact:*\n`;
+    if (cleanFemaleTg) messageText += `💬 *Telegram:* @${cleanFemaleTg}\n`;
+    if (displayPhone) messageText += `📱 *WhatsApp:* ${displayPhone} (https://wa.me/${digitsPhone})\n`;
+  }
+
+  messageText += `\n_You can now view her full profile and start a conversation on the Amara App._`;
+
+  // 1. Try sending to Amara Telegram Bot webhook server (port 9396)
+  const webhookUrls = [
+    'http://168.144.95.58:9396/notify-match',
+    'http://localhost:9396/notify-match',
+    'http://10.0.2.2:9396/notify-match',
+  ];
+
+  for (const url of webhookUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          maleTelegram: cleanMaleTg,
+          maleUserId: String(maleUserId || ''),
+          femaleName,
+          femaleAge,
+          femaleLocation,
+          femaleTelegram: cleanFemaleTg,
+          femaleWhatsApp: displayPhone || femaleWhatsApp || '',
+          femalePhoto: femalePhoto || '',
+          femaleProfession: femaleProfession || '',
+          femaleEducation: femaleEducation || '',
+          femaleBio: femaleBio || '',
+          message: messageText,
+        }),
+      });
+      clearTimeout(timeoutId);
+      if (response && response.ok) {
+        console.log(`✅ [Telegram Notification] Bot webhook dispatched successfully to ${url}`);
+        return true;
+      }
+    } catch {}
+  }
+
+  // 2. Direct Telegram Bot API fallback using token
+  const BOT_TOKEN = '8623345787:AAHbtum1TKbgW1xprMwKzOm510pmQiVTpNg';
+  try {
+    const storedChatId =
+      (await AsyncStorage.getItem(`@amara_tg_chat_id_${maleUserId}`).catch(() => null)) ||
+      (cleanMaleTg ? await AsyncStorage.getItem(`@amara_tg_chat_id_${cleanMaleTg.toLowerCase()}`).catch(() => null) : null);
+
+    if (storedChatId) {
+      const directRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: storedChatId,
+          text: messageText,
+          parse_mode: 'Markdown',
+        }),
+      });
+      if (directRes && directRes.ok) {
+        console.log('✅ [Telegram Notification] Sent directly via Telegram Bot API to chatId:', storedChatId);
+        return true;
+      }
+    }
+  } catch (err: any) {
+    console.warn('⚠️ [Telegram Notification] Direct Bot API error:', err?.message);
+  }
+
+  return false;
 };

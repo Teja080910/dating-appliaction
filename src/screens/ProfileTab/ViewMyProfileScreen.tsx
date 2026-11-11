@@ -429,6 +429,26 @@ const ViewMyProfileScreen = () => {
   );
   const numericTargetId = hasValidTargetId ? String(targetId) : null;
 
+  const [deletedUris, setDeletedUris] = useState<string[]>([]);
+  const loadDeletedUris = useCallback(async () => {
+    try {
+      const activeUid = myId || (await getUserId().catch(() => null));
+      if (activeUid) {
+        const raw = await AsyncStorage.getItem(`deleted_photos_${activeUid}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setDeletedUris(parsed.map(String));
+          }
+        }
+      }
+    } catch {}
+  }, [myId]);
+
+  useEffect(() => {
+    void loadDeletedUris();
+  }, [loadDeletedUris]);
+
   const connectionRef = useRef(connection);
   connectionRef.current = connection;
   const refetchProfileRef = useRef(refetchProfile);
@@ -440,6 +460,7 @@ const ViewMyProfileScreen = () => {
 
   useFocusEffect(
     React.useCallback(() => {
+      void loadDeletedUris();
       void refetchProfileRef.current?.();
       void connectionRef.current?.sentList?.refetch?.();
       void connectionRef.current?.receivedList?.refetch?.();
@@ -463,11 +484,12 @@ const ViewMyProfileScreen = () => {
           });
         }
       }
-    }, [isViewingSelf, myId, setSelectedNetWorth, setSelectedKids]),
+    }, [isViewingSelf, myId, setSelectedNetWorth, setSelectedKids, loadDeletedUris]),
   );
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', () => {
+      void loadDeletedUris();
       void refetchProfileRef.current?.();
       if (isViewingSelf && myId) {
         getAllImagesRef.current(String(myId), {
@@ -480,7 +502,7 @@ const ViewMyProfileScreen = () => {
     return () => {
       sub.remove();
     };
-  }, [isViewingSelf, myId]);
+  }, [isViewingSelf, myId, loadDeletedUris]);
 
   useEffect(() => {
     let isMounted = true;
@@ -836,29 +858,57 @@ const ViewMyProfileScreen = () => {
     const contextPrimaryImage =
       dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
 
-    const targetImages = dedupeImageUris([
-      targetGalleryImages,
-      routed?.photos,
-      routed?.images,
-      routed?.allImages,
-      routeImage,
-      routed?.profileImageUrl,
-      fetched?.photos,
-      fetched?.images,
-      fetched?.profileImageUrl,
-    ]);
+    const filterOutDeleted = (list: (string | null | undefined)[]) => {
+      if (!deletedUris || deletedUris.length === 0) return dedupeImageUris(list);
+      const getFn = (u?: string | null) => {
+        if (!u) return '';
+        const c = u.split('?')[0].split('#')[0];
+        return c.substring(c.lastIndexOf('/') + 1);
+      };
+      return dedupeImageUris(list).filter((uri) => {
+        if (!uri) return false;
+        const clean = uri.trim();
+        const abs = getAbsoluteUrl(clean) || clean;
+        const fn = getFn(clean);
+        return !deletedUris.some((d) => {
+          if (!d) return false;
+          if (d === clean || d === abs) return true;
+          const dfn = getFn(d);
+          if (fn && dfn && fn === dfn) return true;
+          return false;
+        });
+      });
+    };
 
-    const activeContextPhotos = (contextImages || []).filter(Boolean) as string[];
-    const fetchedPhotos = Array.isArray(fetched?.photos) && fetched.photos.length > 0
-      ? dedupeImageUris([fetched.photos])
-      : [];
+    const activeContextPhotos = filterOutDeleted(contextImages || []);
+    const fetchedPhotos = filterOutDeleted(Array.isArray(fetched?.photos) ? fetched.photos : []);
+    const ownGallery = filterOutDeleted(ownGalleryImages || []);
+    const liveTargetGallery = filterOutDeleted(targetGalleryImages || []);
+
+    // Prioritize authoritative live sources:
+    // 1. targetGalleryImages (fetched live from /users/{userId}/images)
+    // 2. fetchedPhotos (fetched live from /profile/get or /profile/me)
+    // 3. routed photos/images (fallback when no live server gallery exists)
+    const targetImages =
+      liveTargetGallery.length > 0
+        ? liveTargetGallery
+        : fetchedPhotos.length > 0
+        ? fetchedPhotos
+        : filterOutDeleted([
+            routed?.photos,
+            routed?.images,
+            routed?.allImages,
+            routeImage,
+            routed?.profileImageUrl,
+          ]);
+
     const ownImages = activeContextPhotos.length > 0
       ? activeContextPhotos
-      : ownGalleryImages.length > 0
-        ? ownGalleryImages
+      : ownGallery.length > 0
+        ? ownGallery
         : fetchedPhotos.length > 0
           ? fetchedPhotos
-          : dedupeImageUris([profileImageUrl, profileImage]);
+          : filterOutDeleted([profileImageUrl, profileImage]);
 
     const mergedImages = isViewingSelf ? ownImages : targetImages;
 
@@ -942,19 +992,19 @@ const ViewMyProfileScreen = () => {
         : Boolean((isTargetUserFetched ? (fetched?.verifiedSelfie ?? fetched?.selfieVerified) : null) ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
       telegramUsername: isViewingSelf
         ? (normalizeTextValue(fetched?.telegramUsername) || normalizeTextValue(storedTelegram) || normalizeTextValue(myTgStatus?.telegramUsername) || '')
-        : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : '')),
+        : (isViewerWoman ? '' : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : ''))),
       phoneNumber: isViewingSelf
         ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
-        : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : '')),
+        : (isViewerWoman ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobile: isViewingSelf
         ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
-        : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : '')),
+        : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       phone: isViewingSelf
         ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
-        : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : '')),
+        : (isViewerWoman ? '' : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobileNumber: isViewingSelf
         ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
-        : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : '')),
+        : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : ''))),
       profileImageUrl: isViewingSelf
         ? (contextPrimaryImage || (ownImages[0] || null) || normalizeTextValue(fetched?.profileImageUrl))
         : (normalizeTextValue(routed?.profileImageUrl) || (isTargetUserFetched ? normalizeTextValue(fetched?.profileImageUrl) : '') || routeImage || (targetImages[0] || null)),
@@ -990,6 +1040,7 @@ const ViewMyProfileScreen = () => {
     verifiedSelfie,
     contextImages,
     isTargetUserFetched,
+    deletedUris,
   ]);
 
   const targetPartyFromMatch = useMemo(() => {
@@ -1010,6 +1061,7 @@ const ViewMyProfileScreen = () => {
   }, [numericTargetId, myId]);
 
   const acceptedChatPhone = useMemo(() => {
+    if (isViewerWoman) return '';
     return extractPhone(
       isProfileOfTarget(routeProfileData) ? routeProfileData : null,
       isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
@@ -1019,9 +1071,10 @@ const ViewMyProfileScreen = () => {
       (matchingReceived as any)?.senderProfile,
       targetPartyFromMatch
     );
-  }, [routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
+  }, [isViewerWoman, routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
 
   const acceptedChatTg = useMemo(() => {
+    if (isViewerWoman) return '';
     return extractTelegram(
       isProfileOfTarget(routeProfileData) ? routeProfileData : null,
       isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
@@ -1031,7 +1084,7 @@ const ViewMyProfileScreen = () => {
       (matchingReceived as any)?.senderProfile,
       targetPartyFromMatch
     );
-  }, [routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
+  }, [isViewerWoman, routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
 
   const handleOpenAcceptedChat = useCallback(() => {
     const phone = acceptedChatPhone;
@@ -1075,11 +1128,12 @@ const ViewMyProfileScreen = () => {
       ? (mergedProfile?.images && mergedProfile.images.length > 0
           ? mergedProfile.images
           : dedupeImageUris([mergedProfile?.profileImageUrl]))
-      : dedupeImageUris([
-          mergedProfile?.images,
-          mergedProfile?.profileImageUrl,
-          routeImage,
-        ])
+      : (mergedProfile?.images && mergedProfile.images.length > 0
+          ? mergedProfile.images
+          : dedupeImageUris([
+              mergedProfile?.profileImageUrl,
+              routeImage,
+            ]))
   ).map((image: string | null | undefined) => getAbsoluteUrl(image));
   const sliderImages =
     profileImages.length > 0

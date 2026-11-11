@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, Dispatch, SetStateAction } from "react";
-import { useColorScheme } from "react-native";
+import { useColorScheme, DeviceEventEmitter } from "react-native";
 import AppContext from "./CreateGlobalStateContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
@@ -287,6 +287,26 @@ const GlobalStateProvider = ({ children }: any) => {
               if (Array.isArray(parsed) && parsed.length > 0) setSelectedLanguages(parsed);
             } catch {}
           }
+
+          // Live server synchronization for profile photos to prevent stale local cache
+          if (id) {
+            try {
+              apiClient.get(`/users/${id}/images`).then((res) => {
+                const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
+                if (list.length > 0) {
+                  const liveUrls = list.map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null)).filter(Boolean);
+                  if (liveUrls.length > 0) {
+                    const slots = [...liveUrls];
+                    while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+                    setImages(slots);
+                    setProfileImage(slots[0]);
+                    setProfileImageUrl(slots[0]);
+                    AsyncStorage.setItem(`user_photos_${id}`, JSON.stringify(slots)).catch(() => {});
+                  }
+                }
+              }).catch(() => {});
+            } catch {}
+          }
         } else {
           setImages(emptyImageSlots());
           setProfileImage(null);
@@ -361,6 +381,30 @@ const GlobalStateProvider = ({ children }: any) => {
     };
 
     initializeApp();
+  }, []);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', async (event?: any) => {
+      const activeId = event?.uid || (await getUserId().catch(() => null));
+      if (activeId) {
+        try {
+          const res = await apiClient.get(`/users/${activeId}/images`).catch(() => null);
+          const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
+          if (list.length > 0) {
+            const liveUrls = list.map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null)).filter(Boolean);
+            if (liveUrls.length > 0) {
+              const slots = [...liveUrls];
+              while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+              setImages(slots);
+              setProfileImage(slots[0]);
+              setProfileImageUrl(slots[0]);
+              AsyncStorage.setItem(`user_photos_${activeId}`, JSON.stringify(slots)).catch(() => {});
+            }
+          }
+        } catch {}
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const hydrateSavedFilters = async (customUserId?: string | number | null) => {

@@ -55,7 +55,7 @@ export interface MockRequest {
   id: string;
   senderId: string;
   receiverId: string;
-  status: 'PENDING' | 'APPROVED';
+  status: 'PENDING' | 'APPROVED' | 'CANCELLED' | 'REJECTED' | 'DECLINED' | string;
   createdAt: string;
   updatedAt: string;
   accessExpired?: boolean;

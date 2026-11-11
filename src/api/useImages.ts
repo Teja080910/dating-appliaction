@@ -208,39 +208,73 @@ export const useUserImages = (userId?: string) => {
         throw new Error('UserId not resolved');
       }
 
-      const res = await apiClient.get(`/users/${normalizedUserId}/images`);
-      const payload = res.data;
+      let payload: any = null;
+      try {
+        const res = await apiClient.get(`/users/${normalizedUserId}/images`);
+        payload = res.data;
+      } catch (e1) {
+        try {
+          const res = await apiClient.get(`/images/users/${normalizedUserId}`);
+          payload = res.data;
+        } catch (e2) {
+          try {
+            const res = await apiClient.get(`/images/${normalizedUserId}`);
+            payload = res.data;
+          } catch (e3) {
+            const res = await apiClient.get(`/profile/get`, { params: { userId: normalizedUserId } });
+            payload = res.data;
+          }
+        }
+      }
 
       return normalizeUserImagesResponse(payload);
     },
   });
 
-
-
   const deleteImage = useMutation({
     mutationFn: async (
-      input: number | string | { imageId: number | string; userId?: string }
+      input: number | string | { imageId: number | string; userId?: string; imageUrl?: string }
     ) => {
       const rawId = typeof input === 'object' && input !== null ? input.imageId : input;
       const candidateUid = typeof input === 'object' && input !== null ? input.userId : undefined;
+      const candidateImageUrl = typeof input === 'object' && input !== null ? input.imageUrl : undefined;
       const normalizedUserId = await resolveUserId(candidateUid);
       const parsedNum = Number(rawId);
-      const validId = Number.isFinite(parsedNum) ? parsedNum : rawId;
+      const isNumeric = Number.isFinite(parsedNum) && parsedNum > 0;
+      const validId = isNumeric ? parsedNum : rawId;
 
-      // Official Swagger endpoint: DELETE /users/images/{imageId}
-      const numericId = Number(validId);
-      try {
-        const res = await apiClient.delete(`/users/images/${numericId}`);
-        return res.data;
-      } catch (err: any) {
-        if (normalizedUserId) {
-          try {
-            const fallbackRes = await apiClient.delete(`/users/${normalizedUserId}/images/${numericId}`);
-            return fallbackRes.data;
-          } catch (e) {}
-        }
-        throw err;
+      const deleteParams: Record<string, any> = {};
+      if (normalizedUserId) deleteParams.userId = normalizedUserId;
+      if (candidateImageUrl) deleteParams.imageUrl = candidateImageUrl;
+
+      const attempts: Array<() => Promise<any>> = [];
+      if (isNumeric) {
+        // Primary backend endpoint per specification: DELETE /images/{id}
+        attempts.push(() => apiClient.delete(`/images/${validId}`, { params: deleteParams, data: deleteParams }));
       }
+      if (normalizedUserId && isNumeric) {
+        attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${validId}`, { params: deleteParams, data: deleteParams }));
+      }
+      if (isNumeric) {
+        attempts.push(() => apiClient.delete(`/users/images/${validId}`, { params: deleteParams, data: deleteParams }));
+      }
+      attempts.push(() => apiClient.delete(`/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
+      if (normalizedUserId) {
+        attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
+        attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images`, { params: deleteParams, data: deleteParams }));
+      }
+      attempts.push(() => apiClient.delete(`/users/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
+
+      let lastError: any = null;
+      for (const attempt of attempts) {
+        try {
+          const res = await attempt();
+          return res.data;
+        } catch (err: any) {
+          lastError = err;
+        }
+      }
+      throw lastError;
     },
     onSuccess: async (_, variables) => {
       const candidateUid = typeof variables === 'object' && variables !== null ? variables.userId : undefined;
@@ -261,7 +295,17 @@ export const useUserImages = (userId?: string) => {
       await queryClient.invalidateQueries({
         queryKey: ['profile'],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ['connections'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['connections-received'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['connections-sent'],
+      });
       DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
+      DeviceEventEmitter.emit('AMARA_CONNECTION_UPDATED');
     },
   });
 

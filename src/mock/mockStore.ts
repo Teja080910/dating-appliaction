@@ -116,6 +116,16 @@ class MockStore {
   private blockedUsers: Record<string, string[]> = {};
   private initialized = false;
 
+  private matchUserId(a?: any, b?: any): boolean {
+    if (!a || !b) return false;
+    const sa = String(a).toLowerCase().trim();
+    const sb = String(b).toLowerCase().trim();
+    if (sa === sb) return true;
+    const na = sa.replace(/\D/g, '');
+    const nb = sb.replace(/\D/g, '');
+    return Boolean(na && nb && na === nb);
+  }
+
   public async init() {
     if (this.initialized) return;
 
@@ -177,13 +187,33 @@ class MockStore {
         if (receiverGender === 'man' || receiverGender === 'male') return false;
         return true;
       });
-      // Also ensure all default mockData.requests exist
+      // Also ensure all default mockData.requests exist without clobbering user-modified statuses (e.g. APPROVED)
       for (const defaultReq of mockData.requests) {
         const matchIdx = validRequests.findIndex((r) => r.id === defaultReq.id);
         if (matchIdx < 0) {
           validRequests.push(defaultReq);
         } else {
-          validRequests[matchIdx] = { ...defaultReq };
+          const existing = validRequests[matchIdx];
+          validRequests[matchIdx] = {
+            ...defaultReq,
+            ...existing,
+            status: existing.status || defaultReq.status,
+            updatedAt: existing.updatedAt || defaultReq.updatedAt,
+          };
+        }
+      }
+
+      // Re-apply any accepted/declined connections from persistent AsyncStorage
+      for (const r of validRequests) {
+        const reqAccepted = (await AsyncStorage.getItem(`accepted_conn_${r.id}`).catch(() => null)) === 'true';
+        const senderAccepted = r.senderId ? (await AsyncStorage.getItem(`accepted_conn_${r.senderId}`).catch(() => null)) === 'true' : false;
+        if (reqAccepted || senderAccepted) {
+          r.status = 'APPROVED';
+        }
+        const reqDeclined = (await AsyncStorage.getItem(`declined_conn_${r.id}`).catch(() => null)) === 'true';
+        const senderDeclined = r.senderId ? (await AsyncStorage.getItem(`declined_conn_${r.senderId}`).catch(() => null)) === 'true' : false;
+        if (reqDeclined || senderDeclined) {
+          r.status = 'DECLINED';
         }
       }
       validRequests.forEach((r) => {
@@ -699,7 +729,7 @@ class MockStore {
     if (Array.isArray(profileData.photos)) {
       const validPhotos = profileData.photos.filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
       // Cleanly replace user images to match the exact profile photos list
-      this.images = this.images.filter((img) => String(img.userId) !== userId);
+      this.images = this.images.filter((img) => !this.matchUserId(img.userId, userId));
       validPhotos.forEach((photoUrl, idx) => {
         const id = this.images.length ? Math.max(...this.images.map((img) => img.id)) + 1 : 1;
         this.images.push({
@@ -714,6 +744,23 @@ class MockStore {
         });
       });
       await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
+
+      // Also sync this.requests where userId is sender
+      let reqsChanged = false;
+      this.requests.forEach((r) => {
+        if (this.matchUserId(r.senderId, userId) || this.matchUserId(r.sender?.userId, userId)) {
+          if (r.sender) {
+            r.sender.photos = validPhotos;
+            r.sender.photo = validPhotos[0] || '';
+          }
+          (r as any).senderPhotos = validPhotos;
+          (r as any).senderPhoto = validPhotos[0] || '';
+          reqsChanged = true;
+        }
+      });
+      if (reqsChanged) {
+        await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests));
+      }
     }
 
     return updated;
@@ -809,41 +856,127 @@ class MockStore {
     return updated;
   }
 
-  public async deleteUserImage(imageId: number): Promise<boolean> {
+  public async deleteUserImage(
+    imageIdOrUrl: number | string,
+    userId?: string,
+    explicitUrl?: string
+  ): Promise<boolean> {
     await this.init();
-    const index = this.images.findIndex((i) => i.id === imageId);
+    const cleanTargetId = String(imageIdOrUrl || '').trim();
+    const cleanUserId = userId ? String(userId).trim().toLowerCase() : '';
+    const numericId = Number(cleanTargetId);
+    const isNum = Number.isFinite(numericId) && numericId > 0;
+
+    let index = -1;
+    const getImgUrl = (i: any) => String(i?.imageUrl || i?.url || '');
+    if (isNum) {
+      index = this.images.findIndex((i) => i.id === numericId || String(i.id) === cleanTargetId);
+    } else if (cleanTargetId && !cleanTargetId.startsWith('http') && !cleanTargetId.includes('/')) {
+      index = this.images.findIndex((i) => String(i.id) === cleanTargetId);
+    }
+
+    if (index === -1 && explicitUrl) {
+      index = this.images.findIndex(
+        (i) => getImgUrl(i) === explicitUrl || (cleanUserId && this.matchUserId(i.userId, cleanUserId) && getImgUrl(i).includes(explicitUrl))
+      );
+    }
+    if (index === -1 && cleanTargetId) {
+      index = this.images.findIndex(
+        (i) => getImgUrl(i) === cleanTargetId || (cleanUserId && this.matchUserId(i.userId, cleanUserId) && getImgUrl(i).includes(cleanTargetId))
+      );
+    }
+
+    let removedUrl: string = explicitUrl || '';
+    let targetOwnerId: string = cleanUserId;
+
     if (index >= 0) {
       const removed = this.images[index];
       this.images.splice(index, 1);
       await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
+      if (getImgUrl(removed)) removedUrl = getImgUrl(removed);
+      if (removed.userId) targetOwnerId = targetOwnerId || String(removed.userId);
+    }
 
-      if (removed?.imageUrl) {
-        let profilesChanged = false;
-        this.profiles.forEach((p) => {
-          // Strictly delete only for the profile of the user who owns this image!
-          const isOwner =
-            !removed.userId ||
-            String(p.userId).toLowerCase() === String(removed.userId).toLowerCase() ||
-            String(p.id).toLowerCase() === String(removed.userId).toLowerCase();
-          if (isOwner) {
-            if (Array.isArray(p.photos) && p.photos.includes(removed.imageUrl)) {
-              p.photos = p.photos.filter((url: string) => url !== removed.imageUrl);
-              profilesChanged = true;
-            }
-            if ((p as any).profileImageUrl === removed.imageUrl) {
-              (p as any).profileImageUrl = p.photos?.[0] || null;
-              profilesChanged = true;
-            }
-            if (p.photo === removed.imageUrl) {
-              p.photo = p.photos?.[0] || undefined;
-              profilesChanged = true;
-            }
+    if (!removedUrl && typeof imageIdOrUrl === 'string' && (imageIdOrUrl.startsWith('http') || imageIdOrUrl.startsWith('file:') || imageIdOrUrl.includes('/'))) {
+      removedUrl = imageIdOrUrl;
+    }
+
+    if (removedUrl || isNum) {
+      let profilesChanged = false;
+      this.profiles.forEach((p) => {
+        const isOwner =
+          !targetOwnerId ||
+          this.matchUserId(p.userId, targetOwnerId) ||
+          this.matchUserId(p.id, targetOwnerId) ||
+          (removedUrl && Array.isArray(p.photos) && p.photos.includes(removedUrl));
+
+        if (isOwner) {
+          if (Array.isArray(p.photos) && removedUrl) {
+            const beforeLen = p.photos.length;
+            p.photos = p.photos.filter((url: string) => url !== removedUrl);
+            if (p.photos.length !== beforeLen) profilesChanged = true;
           }
-        });
-        if (profilesChanged) {
-          await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
+          if ((p as any).profileImageUrl === removedUrl) {
+            (p as any).profileImageUrl = p.photos?.[0] || null;
+            profilesChanged = true;
+          }
+          if (p.photo === removedUrl) {
+            p.photo = p.photos?.[0] || undefined;
+            profilesChanged = true;
+          }
         }
+      });
+      if (profilesChanged) {
+        await AsyncStorage.setItem(PROFILES_KEY, JSON.stringify(this.profiles));
       }
+
+      // Also clean up any requests referencing the user or the deleted image
+      let requestsChanged = false;
+      this.requests.forEach((r) => {
+        const isSenderOwner =
+          (targetOwnerId && (this.matchUserId(r.senderId, targetOwnerId) || this.matchUserId(r.sender?.userId, targetOwnerId) || this.matchUserId(r.sender?.id, targetOwnerId))) ||
+          (removedUrl && Array.isArray(r.sender?.photos) && r.sender.photos.includes(removedUrl));
+
+        if (isSenderOwner && r.sender) {
+          if (Array.isArray(r.sender.photos) && removedUrl) {
+            const before = r.sender.photos.length;
+            r.sender.photos = r.sender.photos.filter((u: string) => u !== removedUrl);
+            if (r.sender.photos.length !== before) requestsChanged = true;
+          }
+          if (Array.isArray((r as any).senderPhotos) && removedUrl) {
+            (r as any).senderPhotos = (r as any).senderPhotos.filter((u: string) => u !== removedUrl);
+            requestsChanged = true;
+          }
+          if (r.sender.photo === removedUrl) {
+            r.sender.photo = r.sender.photos?.[0] || '';
+            requestsChanged = true;
+          }
+          if ((r as any).senderPhoto === removedUrl) {
+            (r as any).senderPhoto = r.sender.photos?.[0] || '';
+            requestsChanged = true;
+          }
+        }
+
+        const isReceiverOwner =
+          (targetOwnerId && (this.matchUserId(r.receiverId, targetOwnerId) || this.matchUserId(r.receiver?.userId, targetOwnerId) || this.matchUserId(r.receiver?.id, targetOwnerId))) ||
+          (removedUrl && Array.isArray(r.receiver?.photos) && r.receiver.photos.includes(removedUrl));
+
+        if (isReceiverOwner && r.receiver) {
+          if (Array.isArray(r.receiver.photos) && removedUrl) {
+            const before = r.receiver.photos.length;
+            r.receiver.photos = r.receiver.photos.filter((u: string) => u !== removedUrl);
+            if (r.receiver.photos.length !== before) requestsChanged = true;
+          }
+          if (r.receiver.photo === removedUrl) {
+            r.receiver.photo = r.receiver.photos?.[0] || '';
+            requestsChanged = true;
+          }
+        }
+      });
+      if (requestsChanged) {
+        await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests));
+      }
+
       return true;
     }
     return false;
@@ -863,13 +996,41 @@ class MockStore {
     const hasActiveSub = isWoman || (subscription && subscription.status === 'ACTIVE');
 
     return this.requests
-      .filter((r) => String(r.senderId) === String(userId))
+      .filter((r) => this.matchUserId(r.senderId, userId) || this.matchUserId(r.sender?.id, userId) || this.matchUserId(r.sender?.userId, userId))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((r) => {
-        const sProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(p.id) === String(r.senderId));
-        const rProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(p.id) === String(r.receiverId));
-        const sUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(u.id) === String(r.senderId));
-        const rUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(u.id) === String(r.receiverId));
+        const sProfile = this.profiles.find((p) => this.matchUserId(p.userId, r.senderId) || this.matchUserId(p.id, r.senderId) || (r.sender?.userId && this.matchUserId(p.userId, r.sender.userId)));
+        const rProfile = this.profiles.find((p) => this.matchUserId(p.userId, r.receiverId) || this.matchUserId(p.id, r.receiverId) || (r.receiver?.userId && this.matchUserId(p.userId, r.receiver.userId)));
+        const sUser = this.users.find((u) => this.matchUserId(u.userId, r.senderId) || this.matchUserId(u.id, r.senderId));
+        const rUser = this.users.find((u) => this.matchUserId(u.userId, r.receiverId) || this.matchUserId(u.id, r.receiverId));
+
+        const sImgs = this.images
+          .filter((img) => this.matchUserId(img.userId, r.senderId) || (r.sender?.userId && this.matchUserId(img.userId, r.sender.userId)))
+          .map((img) => img.imageUrl);
+        const resolvedSenderPhotos =
+          sProfile && Array.isArray(sProfile.photos) && sProfile.photos.length > 0
+            ? sProfile.photos
+            : sImgs.length > 0
+            ? sImgs
+            : Array.isArray(r.sender?.photos)
+            ? r.sender.photos
+            : [];
+        const resolvedSenderPhoto =
+          resolvedSenderPhotos[0] || sProfile?.photo || (sProfile as any)?.profileImageUrl || r.sender?.photo || '';
+
+        const rImgs = this.images
+          .filter((img) => this.matchUserId(img.userId, r.receiverId) || (r.receiver?.userId && this.matchUserId(img.userId, r.receiver.userId)))
+          .map((img) => img.imageUrl);
+        const resolvedReceiverPhotos =
+          rProfile && Array.isArray(rProfile.photos) && rProfile.photos.length > 0
+            ? rProfile.photos
+            : rImgs.length > 0
+            ? rImgs
+            : Array.isArray(r.receiver?.photos)
+            ? r.receiver.photos
+            : [];
+        const resolvedReceiverPhoto =
+          resolvedReceiverPhotos[0] || rProfile?.photo || (rProfile as any)?.profileImageUrl || r.receiver?.photo || '';
 
         const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || sUser?.telegramUsername || '';
         const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || rUser?.telegramUsername || '';
@@ -896,19 +1057,34 @@ class MockStore {
           (rUser as any)?.phone ||
           '';
 
+        const baseSender = r.sender
+          ? {
+              ...r.sender,
+              photos: resolvedSenderPhotos,
+              photo: resolvedSenderPhoto,
+            }
+          : undefined;
+        const baseReceiver = r.receiver
+          ? {
+              ...r.receiver,
+              photos: resolvedReceiverPhotos,
+              photo: resolvedReceiverPhoto,
+            }
+          : undefined;
+
         if (r.status !== 'APPROVED' || !hasActiveSub) {
           return {
             ...r,
             accessExpired: !hasActiveSub,
-            sender: r.sender ? { ...r.sender, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
-            receiver: r.receiver ? { ...r.receiver, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
+            sender: baseSender ? { ...baseSender, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
+            receiver: baseReceiver ? { ...baseReceiver, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
           };
         }
         return {
           ...r,
           accessExpired: Boolean(r.accessExpired),
-          sender: r.sender ? { ...r.sender, telegramUsername: sTg, mobile: sPhone, phone: sPhone, phoneNumber: sPhone } : undefined,
-          receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg, mobile: rPhone, phone: rPhone, phoneNumber: rPhone } : undefined,
+          sender: baseSender ? { ...baseSender, telegramUsername: sTg, mobile: sPhone, phone: sPhone, phoneNumber: sPhone } : undefined,
+          receiver: baseReceiver ? { ...baseReceiver, telegramUsername: rTg, mobile: rPhone, phone: rPhone, phoneNumber: rPhone } : undefined,
         };
       });
   }
@@ -916,13 +1092,41 @@ class MockStore {
   public async getReceivedRequests(userId: string): Promise<MockRequest[]> {
     await this.init();
     return this.requests
-      .filter((r) => String(r.receiverId) === String(userId))
+      .filter((r) => this.matchUserId(r.receiverId, userId) || this.matchUserId(r.receiver?.id, userId) || this.matchUserId(r.receiver?.userId, userId))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((r) => {
-        const sProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(p.id) === String(r.senderId));
-        const rProfile = this.profiles.find((p) => String(p.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(p.id) === String(r.receiverId));
-        const sUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.senderId).toLowerCase() || String(u.id) === String(r.senderId));
-        const rUser = this.users.find((u) => String(u.userId).toLowerCase() === String(r.receiverId).toLowerCase() || String(u.id) === String(r.receiverId));
+        const sProfile = this.profiles.find((p) => this.matchUserId(p.userId, r.senderId) || this.matchUserId(p.id, r.senderId) || (r.sender?.userId && this.matchUserId(p.userId, r.sender.userId)));
+        const rProfile = this.profiles.find((p) => this.matchUserId(p.userId, r.receiverId) || this.matchUserId(p.id, r.receiverId) || (r.receiver?.userId && this.matchUserId(p.userId, r.receiver.userId)));
+        const sUser = this.users.find((u) => this.matchUserId(u.userId, r.senderId) || this.matchUserId(u.id, r.senderId));
+        const rUser = this.users.find((u) => this.matchUserId(u.userId, r.receiverId) || this.matchUserId(u.id, r.receiverId));
+
+        const sImgs = this.images
+          .filter((img) => this.matchUserId(img.userId, r.senderId) || (r.sender?.userId && this.matchUserId(img.userId, r.sender.userId)))
+          .map((img) => img.imageUrl);
+        const resolvedSenderPhotos =
+          sProfile && Array.isArray(sProfile.photos) && sProfile.photos.length > 0
+            ? sProfile.photos
+            : sImgs.length > 0
+            ? sImgs
+            : Array.isArray(r.sender?.photos)
+            ? r.sender.photos
+            : [];
+        const resolvedSenderPhoto =
+          resolvedSenderPhotos[0] || sProfile?.photo || (sProfile as any)?.profileImageUrl || r.sender?.photo || '';
+
+        const rImgs = this.images
+          .filter((img) => this.matchUserId(img.userId, r.receiverId) || (r.receiver?.userId && this.matchUserId(img.userId, r.receiver.userId)))
+          .map((img) => img.imageUrl);
+        const resolvedReceiverPhotos =
+          rProfile && Array.isArray(rProfile.photos) && rProfile.photos.length > 0
+            ? rProfile.photos
+            : rImgs.length > 0
+            ? rImgs
+            : Array.isArray(r.receiver?.photos)
+            ? r.receiver.photos
+            : [];
+        const resolvedReceiverPhoto =
+          resolvedReceiverPhotos[0] || rProfile?.photo || (rProfile as any)?.profileImageUrl || r.receiver?.photo || '';
 
         const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || sUser?.telegramUsername || '';
         const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || rUser?.telegramUsername || '';
@@ -949,22 +1153,37 @@ class MockStore {
           (rUser as any)?.phone ||
           '';
 
+        const baseSender = r.sender
+          ? {
+              ...r.sender,
+              photos: resolvedSenderPhotos,
+              photo: resolvedSenderPhoto,
+            }
+          : undefined;
+        const baseReceiver = r.receiver
+          ? {
+              ...r.receiver,
+              photos: resolvedReceiverPhotos,
+              photo: resolvedReceiverPhoto,
+            }
+          : undefined;
+
         if (r.status !== 'APPROVED') {
           return {
             ...r,
-            sender: r.sender ? { ...r.sender, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
-            receiver: r.receiver ? { ...r.receiver, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
+            sender: baseSender ? { ...baseSender, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
+            receiver: baseReceiver ? { ...baseReceiver, telegramUsername: '', mobile: '', phone: '', phoneNumber: '' } : undefined,
           };
         }
         return {
           ...r,
-          sender: r.sender ? { ...r.sender, telegramUsername: sTg, mobile: sPhone, phone: sPhone, phoneNumber: sPhone } : undefined,
-          receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg, mobile: rPhone, phone: rPhone, phoneNumber: rPhone } : undefined,
+          sender: baseSender ? { ...baseSender, telegramUsername: sTg, mobile: sPhone, phone: sPhone, phoneNumber: sPhone } : undefined,
+          receiver: baseReceiver ? { ...baseReceiver, telegramUsername: rTg, mobile: rPhone, phone: rPhone, phoneNumber: rPhone } : undefined,
         };
       });
   }
 
-  public async getRequestStatus(user1: string, user2: string): Promise<'NONE' | 'PENDING' | 'APPROVED'> {
+  public async getRequestStatus(user1: string, user2: string): Promise<'NONE' | 'PENDING' | 'APPROVED' | string> {
     await this.init();
     const clean1 = String(user1 || '').trim().toLowerCase();
     const clean2 = String(user2 || '').trim().toLowerCase();
@@ -984,7 +1203,7 @@ class MockStore {
     return req ? req.status : 'NONE';
   }
 
-  public async getConnectionStatus(user1: string, user2: string): Promise<'NONE' | 'PENDING' | 'APPROVED'> {
+  public async getConnectionStatus(user1: string, user2: string): Promise<'NONE' | 'PENDING' | 'APPROVED' | string> {
     return this.getRequestStatus(user1, user2);
   }
 
@@ -1136,20 +1355,28 @@ class MockStore {
       reqIndex = this.requests.findIndex(
         (r) =>
           String(r.id) === searchId ||
-          (receiverId && String(r.senderId) === searchId && String(r.receiverId) === String(receiverId))
+          this.matchUserId(r.id, searchId) ||
+          (receiverId
+            ? (this.matchUserId(r.senderId, searchId) || this.matchUserId(r.sender?.id, searchId)) &&
+              (this.matchUserId(r.receiverId, receiverId) || this.matchUserId(r.receiver?.id, receiverId))
+            : (this.matchUserId(r.senderId, searchId) || this.matchUserId(r.sender?.id, searchId)))
       );
     }
 
     // Fallback: If requestId wasn't matched or was null/empty, find the first pending request for the receiver
     if (reqIndex === -1 && receiverId) {
       reqIndex = this.requests.findIndex(
-        (r) => String(r.receiverId) === String(receiverId) && r.status === 'PENDING'
+        (r) =>
+          (this.matchUserId(r.receiverId, receiverId) || this.matchUserId(r.receiver?.id, receiverId)) &&
+          r.status === 'PENDING'
       );
     }
 
     // Fallback: If still not found, check if ANY request matches receiverId
     if (reqIndex === -1 && receiverId) {
-      reqIndex = this.requests.findIndex((r) => String(r.receiverId) === String(receiverId));
+      reqIndex = this.requests.findIndex(
+        (r) => this.matchUserId(r.receiverId, receiverId) || this.matchUserId(r.receiver?.id, receiverId)
+      );
     }
 
     if (reqIndex === -1) {
@@ -1169,6 +1396,13 @@ class MockStore {
 
     this.requests[reqIndex] = updated;
     await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests));
+    await AsyncStorage.setItem(`accepted_conn_${updated.id}`, 'true').catch(() => {});
+    if (updated.senderId) {
+      await AsyncStorage.setItem(`accepted_conn_${updated.senderId}`, 'true').catch(() => {});
+    }
+    if (updated.sender?.id) {
+      await AsyncStorage.setItem(`accepted_conn_${updated.sender.id}`, 'true').catch(() => {});
+    }
 
     // Dispatch notification to sender if permitted
     try {
@@ -1399,11 +1633,13 @@ class MockStore {
 
   public async getApprovedConnections(userId: string): Promise<MockRequest[]> {
     await this.init();
-    const cleanId = String(userId);
     return this.requests.filter(
       (r) =>
         r.status === 'APPROVED' &&
-        (String(r.senderId) === cleanId || String(r.receiverId) === cleanId)
+        (this.matchUserId(r.senderId, userId) ||
+          this.matchUserId(r.receiverId, userId) ||
+          this.matchUserId(r.sender?.id, userId) ||
+          this.matchUserId(r.receiver?.id, userId))
     );
   }
 

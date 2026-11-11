@@ -344,7 +344,6 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
       await refetchTgStatus?.();
       setTgLoading(false);
       setTelegramModalVisible(false);
-      alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
     } catch (error: any) {
       setTgLoading(false);
       const serverMessage =
@@ -369,7 +368,6 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
 
       setTelegramUsername(username);
       setTelegramModalVisible(false);
-      alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_saved', { username }));
     }
   };
 
@@ -383,13 +381,11 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
       await refetchTgStatus?.();
       setTgLoading(false);
       setTelegramModalVisible(false);
-      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     } catch (error: any) {
       setTgLoading(false);
       setTelegramUsername('');
       setInputTelegram('');
       setTelegramModalVisible(false);
-      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     }
   };
 

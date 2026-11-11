@@ -3,6 +3,7 @@ import { BackHandler, DeviceEventEmitter, Platform, ScrollView, StyleSheet, View
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getGender } from '../../utils/types/AsyncStorage';
 import { useProfile, useMyProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
@@ -78,6 +79,7 @@ const MoreInfoScreen = () => {
     setSelectedKids,
     selectedNetWorth,
     setSelectedNetWorth,
+    gender,
   } = useContext(AppContext);
   const [loading, setLoading] = useState(false);
   const { updateDetails, updatePreferences } = useProfile();
@@ -354,36 +356,73 @@ const MoreInfoScreen = () => {
       DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
       void profileQuery.refetch();
 
-      // Take user directly to Discover page after saving
+      const resolveMainLandingTab = async (): Promise<string> => {
+        try {
+          const routeNames: string[] = navigation.getState()?.routeNames || [];
+          if (routeNames.includes('Invitations')) return 'Invitations';
+          if (routeNames.includes('Home')) return 'Home';
+        } catch {}
+
+        const profileGender = String(profileQuery.data?.gender || '').toLowerCase();
+        if (profileGender.includes('woman') || profileGender.includes('female')) return 'Invitations';
+        if (profileGender.includes('man') || profileGender.includes('male')) return 'Home';
+
+        const contextGender = String(gender || '').toLowerCase();
+        if (contextGender.includes('woman') || contextGender.includes('female')) return 'Invitations';
+        if (contextGender.includes('man') || contextGender.includes('male')) return 'Home';
+
+        try {
+          const [g1, g2, u, userData] = await Promise.all([
+            getGender(),
+            AsyncStorage.getItem('userGender'),
+            AsyncStorage.getItem('user'),
+            AsyncStorage.getItem('userData'),
+          ]);
+          const combined = `${g1 || ''} ${g2 || ''} ${u || ''} ${userData || ''}`.toLowerCase();
+          if (combined.includes('woman') || combined.includes('female')) return 'Invitations';
+        } catch {}
+
+        return 'Home';
+      };
+
+      const defaultLandingTab = await resolveMainLandingTab();
+
       if (isInsideBottomTab) {
         try {
-          navigation?.navigate?.('Home');
-        } catch {
-          navigation?.navigate?.('Invitations');
-        }
+          const routeNames: string[] = navigation.getState()?.routeNames || [];
+          if (routeNames.includes(defaultLandingTab)) {
+            navigation?.navigate?.(defaultLandingTab);
+          } else if (routeNames.includes('Invitations')) {
+            navigation?.navigate?.('Invitations');
+          } else if (routeNames.includes('Home')) {
+            navigation?.navigate?.('Home');
+          }
+        } catch {}
+      } else if (navigation?.canGoBack?.()) {
+        navigation.goBack();
       } else {
         try {
-          navigation?.navigate?.('BottomTabs', { screen: 'Home' });
+          navigation?.navigate?.('BottomTabs', { screen: defaultLandingTab });
         } catch {
-          try {
-            navigation?.navigate?.('Home');
-          } catch {
-            if (navigation?.canGoBack?.()) {
-              navigation.goBack();
-            }
+          if (navigation?.canGoBack?.()) {
+            navigation.goBack();
           }
         }
       }
     } catch (error: any) {
       console.warn('[MoreInfo] SAVE FAILED:', error?.message, error?.response?.data);
-      // Fallback navigation to Discover page even if network error
-      if (isInsideBottomTab) {
-        try {
-          navigation?.navigate?.('Home');
-        } catch {}
-      } else if (navigation?.canGoBack?.()) {
-        navigation.goBack();
-      }
+      try {
+        const routeNames: string[] = navigation.getState()?.routeNames || [];
+        if (isInsideBottomTab) {
+          if (routeNames.includes('Invitations')) {
+            navigation?.navigate?.('Invitations');
+          } else if (routeNames.includes('Home')) {
+            navigation?.navigate?.('Home');
+          }
+        } else if (navigation?.canGoBack?.()) {
+          navigation.goBack();
+        }
+      } catch {}
     } finally {
       setLoading(false);
     }

@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient, { toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 import { getAuthSession, isResolvedApiUserId } from '../utils/session';
+import { normalizeConnections } from './useConnection';
 import { t } from '../i18n';
 
 export interface NotificationItem {
   id: number | string;
+  type?: string;
   title: string;
   body: string;
   message: string;
@@ -101,12 +104,127 @@ export const useNotification = (userId?: string | number) => {
       queryKey,
       queryFn: async () => {
         const resolvedUserId = await resolveBackendUserId();
-        const response = await apiClient.get('/notification', {
-          params: { userId: toApiUserId(resolvedUserId) },
+        let backendNotifs: NotificationItem[] = [];
+        try {
+          const response = await apiClient.get('/notification', {
+            params: { userId: toApiUserId(resolvedUserId) },
+          });
+          backendNotifs = normalizeNotifications(response.data);
+        } catch {}
+
+        const synthesized: NotificationItem[] = [];
+
+        // 1. Fetch sent connections for accepted proposals
+        try {
+          const sentRes = await apiClient.get('/connections/sent', {
+            params: { userId: resolvedUserId, senderId: resolvedUserId },
+          });
+          const sentItems = normalizeConnections(sentRes.data);
+          for (const item of sentItems) {
+            const isAccepted = item.status === 'ACCEPTED' || item.status === 'APPROVED';
+            if (isAccepted) {
+              const name = item.receiver?.displayName || item.receiver?.name || 'Your match';
+              synthesized.push({
+                id: `match_${item.id}`,
+                type: 'MATCH',
+                title: t('profile.notificationsscreen.proposal_accepted', { defaultValue: 'Proposal Accepted!' }),
+                body: t('profile.notificationsscreen.proposal_accepted_body', {
+                  name,
+                  defaultValue: `${name} accepted your date proposal! You can now chat on WhatsApp or Telegram.`,
+                }),
+                message: `${name} accepted your date proposal! You can now chat on WhatsApp or Telegram.`,
+                read: false,
+                createdAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+                raw: { ...item, type: 'MATCH' },
+              });
+            }
+          }
+        } catch {}
+
+        // 2. Fetch /connections/list for mutual connections
+        try {
+          const listRes = await apiClient.get('/connections/list', {
+            params: { userId: resolvedUserId, targetUserId: resolvedUserId },
+          });
+          const listItems = normalizeConnections(listRes.data);
+          for (const item of listItems) {
+            const idKey = `match_${item.id}`;
+            if (!synthesized.some((s) => s.id === idKey)) {
+              const partner = String(item.sender?.userId) === String(resolvedUserId) ? item.receiver : item.sender;
+              const name = partner?.displayName || partner?.name || 'Your match';
+              synthesized.push({
+                id: idKey,
+                type: 'MATCH',
+                title: 'Connected!',
+                body: `You are connected with ${name}! You can now chat on WhatsApp or Telegram.`,
+                message: `You are connected with ${name}! You can now chat on WhatsApp or Telegram.`,
+                read: false,
+                createdAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+                raw: { ...item, type: 'MATCH' },
+              });
+            }
+          }
+        } catch {}
+
+        // 3. Fetch received connections for incoming proposals
+        try {
+          const receivedRes = await apiClient.get('/connections/received', {
+            params: { userId: resolvedUserId, receiverId: resolvedUserId },
+          });
+          const receivedItems = normalizeConnections(receivedRes.data);
+          for (const item of receivedItems) {
+            const isPending = item.status === 'PENDING';
+            if (isPending) {
+              const name = item.sender?.displayName || item.sender?.name || 'Someone';
+              synthesized.push({
+                id: `invite_${item.id}`,
+                type: 'INVITATION',
+                title: 'New Date Proposal!',
+                body: `${name} sent you a date proposal. Tap to view and respond.`,
+                message: `${name} sent you a date proposal. Tap to view and respond.`,
+                read: false,
+                createdAt: item.createdAt || new Date().toISOString(),
+                raw: { ...item, type: 'INVITATION' },
+              });
+            }
+          }
+        } catch {}
+
+        // 4. Load persisted read status from AsyncStorage
+        let readIds = new Set<string>();
+        try {
+          const raw = await AsyncStorage.getItem(`@amara_read_notifs_${resolvedUserId}`);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) readIds = new Set(arr.map(String));
+          }
+        } catch {}
+
+        // 5. Combine and deduplicate
+        const all = [...backendNotifs, ...synthesized];
+        const seen = new Set<string>();
+        const result: NotificationItem[] = [];
+        for (const notif of all) {
+          const sId = String(notif.id);
+          if (!seen.has(sId)) {
+            seen.add(sId);
+            result.push({
+              ...notif,
+              read: readIds.has(sId) || notif.read,
+            });
+          }
+        }
+
+        // Sort latest first
+        result.sort((a, b) => {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta;
         });
 
-        return normalizeNotifications(response.data);
+        return result;
       },
+      refetchInterval: 6000,
     });
 
   const markReadMutation = useMutation({
@@ -116,17 +234,34 @@ export const useNotification = (userId?: string | number) => {
         resolvedUserId = await resolveBackendUserId();
       } catch (_) {}
 
-      const response = await apiClient.put(
-        `/notification/read/${notificationId}`,
-        null,
-        {
-          params: {
-            notificationId,
-            ...(resolvedUserId ? { userId: toApiUserId(resolvedUserId) } : {}),
-          },
-        },
-      );
-      return response.data;
+      const sId = String(notificationId);
+      if (resolvedUserId) {
+        try {
+          const storageKey = `@amara_read_notifs_${resolvedUserId}`;
+          const raw = await AsyncStorage.getItem(storageKey);
+          const current: string[] = raw ? JSON.parse(raw) : [];
+          if (!current.includes(sId)) {
+            current.push(sId);
+            await AsyncStorage.setItem(storageKey, JSON.stringify(current));
+          }
+        } catch {}
+      }
+
+      if (!sId.startsWith('match_') && !sId.startsWith('invite_')) {
+        try {
+          await apiClient.put(
+            `/notification/read/${notificationId}`,
+            null,
+            {
+              params: {
+                notificationId,
+                ...(resolvedUserId ? { userId: toApiUserId(resolvedUserId) } : {}),
+              },
+            },
+          );
+        } catch {}
+      }
+      return { success: true };
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });

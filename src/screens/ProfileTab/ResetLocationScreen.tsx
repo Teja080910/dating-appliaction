@@ -248,11 +248,6 @@ const ResetLocationScreen: React.FC = () => {
           longitude: coords.longitude,
         })
         .catch(() => {});
-
-      alert(
-        t('profile.resetlocationscreen.location_updated'),
-        t('profile.resetlocationscreen.your_location_has_been_updated_to_newcity_newcou', { newCity, newCountry })
-      );
     } catch (err: any) {
       alert(
         t('search.location.location_error'),

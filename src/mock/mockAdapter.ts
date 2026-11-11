@@ -607,8 +607,11 @@ export const handleMockRequest = async (
   // DELETE /users/images/{imageId} or /users/{userId}/images/{imageId}
   if (method === 'DELETE' && url.includes('/images/')) {
     const match = url.match(/\/images\/([^/?]+)/);
+    const userMatch = url.match(/\/users\/([^/]+)\/images/);
+    const targetUserId = queryParams.userId || body?.userId || (userMatch ? userMatch[1] : undefined);
+    const targetImageUrl = queryParams.imageUrl || body?.imageUrl || undefined;
     if (match) {
-      await mockStore.deleteUserImage(Number(match[1]));
+      await mockStore.deleteUserImage(match[1], targetUserId, targetImageUrl);
     }
     return createMockResponse(config, 200, {
       status: 'success',
@@ -886,7 +889,7 @@ export const handleMockRequest = async (
   // GET /connections/sent
   if (method === 'GET' && (url.includes('/connections/sent') || url.includes('/auth/user/sendList'))) {
     const currentStoreUserId = await mockStore.getCurrentUserId();
-    const targetUserId = queryParams.userId || currentStoreUserId || 'usr_man_101';
+    const targetUserId = queryParams.userId || queryParams.senderId || currentStoreUserId || 'usr_man_101';
     const sent = await mockStore.getSentRequests(String(targetUserId));
     return createMockResponse(config, 200, sent);
   }
@@ -894,7 +897,7 @@ export const handleMockRequest = async (
   // GET /connections/received
   if (method === 'GET' && url.includes('/connections/received')) {
     const currentStoreUserId = await mockStore.getCurrentUserId();
-    const targetUserId = queryParams.userId || currentStoreUserId || 'usr_woman_201';
+    const targetUserId = queryParams.userId || queryParams.receiverId || currentStoreUserId || 'usr_woman_201';
     const received = await mockStore.getReceivedRequests(String(targetUserId));
     return createMockResponse(config, 200, received);
   }
@@ -967,7 +970,7 @@ export const handleMockRequest = async (
   // GET /connections/list
   if (method === 'GET' && url.includes('/connections/list')) {
     const currentStoreUserId = await mockStore.getCurrentUserId();
-    const targetUserId = queryParams.userId || currentStoreUserId || 'usr_woman_201';
+    const targetUserId = queryParams.userId || queryParams.targetUserId || currentStoreUserId || 'usr_woman_201';
     const approved = await mockStore.getApprovedConnections(String(targetUserId));
     return createMockResponse(config, 200, approved);
   }

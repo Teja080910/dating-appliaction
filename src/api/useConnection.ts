@@ -1,10 +1,13 @@
+import React, { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient, { toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 import { mockStore } from '../mock/mockStore';
 import { isInvalidPhoneNumber } from '../utils/whatsappHelper';
+import { dispatchTelegramMatchNotification } from '../utils/telegramHelper';
 
 export interface ConnectionRequest {
   id: number | string;
@@ -125,7 +128,7 @@ const extractTelegramFromSources = (...sources: any[]): string => {
   return '';
 };
 
-const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
+export const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
   resolveConnectionArray(payload).map((item) => {
     const rawSender = item?.sender && typeof item.sender === 'object' ? item.sender : {};
     const rawReceiver = item?.receiver && typeof item.receiver === 'object' ? item.receiver : {};
@@ -133,10 +136,15 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
     const rawReceiverProfile = item?.receiverProfile && typeof item.receiverProfile === 'object' ? item.receiverProfile : {};
 
     const senderPhotos =
-      item?.senderPhoto ? [item.senderPhoto]
-      : Array.isArray(rawSenderProfile?.photos) && rawSenderProfile.photos.length > 0 ? rawSenderProfile.photos
-      : Array.isArray(rawSender?.photos) && rawSender.photos.length > 0 ? rawSender.photos
-      : item?.senderPhotos || [];
+      Array.isArray(rawSenderProfile?.photos) && rawSenderProfile.photos.length > 0
+        ? rawSenderProfile.photos
+        : Array.isArray(rawSender?.photos) && rawSender.photos.length > 0
+        ? rawSender.photos
+        : Array.isArray(item?.senderPhotos) && item.senderPhotos.length > 0
+        ? item.senderPhotos
+        : item?.senderPhoto
+        ? [item.senderPhoto]
+        : [];
 
     const senderPhone = extractPhoneFromSources(
       item?.senderPhone,
@@ -182,10 +190,15 @@ const normalizeConnections = (payload: unknown): ConnectionRequest[] =>
     };
 
     const receiverPhotos =
-      item?.receiverPhoto ? [item.receiverPhoto]
-      : Array.isArray(rawReceiverProfile?.photos) && rawReceiverProfile.photos.length > 0 ? rawReceiverProfile.photos
-      : Array.isArray(rawReceiver?.photos) && rawReceiver.photos.length > 0 ? rawReceiver.photos
-      : item?.receiverPhotos || [];
+      Array.isArray(rawReceiverProfile?.photos) && rawReceiverProfile.photos.length > 0
+        ? rawReceiverProfile.photos
+        : Array.isArray(rawReceiver?.photos) && rawReceiver.photos.length > 0
+        ? rawReceiver.photos
+        : Array.isArray(item?.receiverPhotos) && item.receiverPhotos.length > 0
+        ? item.receiverPhotos
+        : item?.receiverPhoto
+        ? [item.receiverPhoto]
+        : [];
 
     const receiverPhone = extractPhoneFromSources(
       item?.receiverPhone,
@@ -290,12 +303,19 @@ export const useConnection = (userId?: string | number) => {
   const receivedListKey = ['connections-received', userId ? String(userId) : 'current'];
 
   const refreshQueries = async () => {
-    await queryClient.invalidateQueries({ queryKey: connectionListKey });
-    await queryClient.invalidateQueries({ queryKey: sentListKey });
-    await queryClient.invalidateQueries({ queryKey: receivedListKey });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['connections'] }),
+      queryClient.invalidateQueries({ queryKey: ['connections-sent'] }),
+      queryClient.invalidateQueries({ queryKey: ['connections-received'] }),
+      queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    ]);
+    DeviceEventEmitter.emit('AMARA_CONNECTION_UPDATED');
   };
 
   const send = useMutation({
+    onMutate: async () => {
+      DeviceEventEmitter.emit('AMARA_CONNECTION_UPDATED');
+    },
     mutationFn: async (
       input:
         | number
@@ -352,6 +372,30 @@ export const useConnection = (userId?: string | number) => {
   });
 
   const accept = useMutation({
+    onMutate: async (requestId: number | string) => {
+      const targetId = String(requestId);
+      try {
+        await AsyncStorage.setItem(`accepted_conn_${targetId}`, 'true');
+        await AsyncStorage.removeItem(`declined_conn_${targetId}`);
+      } catch {}
+
+      const updateToAccepted = (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((item: any) => {
+          const isTarget =
+            String(item?.id) === targetId ||
+            String(item?.senderId) === targetId ||
+            String(item?.sender?.userId) === targetId ||
+            String(item?.sender?.id) === targetId;
+          return isTarget ? { ...item, status: 'ACCEPTED' } : item;
+        });
+      };
+
+      queryClient.setQueriesData({ queryKey: ['connections-received'] }, updateToAccepted);
+      queryClient.setQueriesData({ queryKey: ['connections-sent'] }, updateToAccepted);
+      queryClient.setQueriesData({ queryKey: ['connections'] }, updateToAccepted);
+      DeviceEventEmitter.emit('AMARA_CONNECTION_UPDATED');
+    },
     mutationFn: async (requestId: number | string) => {
       const resolvedUserId = await resolveBackendUserId();
       const reqIdStr = String(requestId);
@@ -359,6 +403,33 @@ export const useConnection = (userId?: string | number) => {
       try {
         await AsyncStorage.setItem(`accepted_conn_${reqIdStr}`, 'true');
         await AsyncStorage.removeItem(`declined_conn_${reqIdStr}`);
+
+        const currentReceived = (queryClient.getQueryData(receivedListKey) as any[]) || [];
+        const match = currentReceived.find(
+          (x: any) =>
+            String(x?.id) === reqIdStr ||
+            String(x?.senderId) === reqIdStr ||
+            String(x?.sender?.userId) === reqIdStr ||
+            String(x?.sender?.id) === reqIdStr
+        );
+        if (match) {
+          if (match.id) await AsyncStorage.setItem(`accepted_conn_${match.id}`, 'true');
+          if (match.senderId) await AsyncStorage.setItem(`accepted_conn_${match.senderId}`, 'true');
+          if (match.sender?.userId) await AsyncStorage.setItem(`accepted_conn_${match.sender.userId}`, 'true');
+          if (match.sender?.id) await AsyncStorage.setItem(`accepted_conn_${match.sender.id}`, 'true');
+
+          const cacheKey = `@amara_accepted_connections_${resolvedUserId}`;
+          const rawCached = await AsyncStorage.getItem(cacheKey).catch(() => null);
+          const cachedList: any[] = rawCached ? JSON.parse(rawCached) : [];
+          const existsIdx = cachedList.findIndex((item) => String(item?.id) === String(match.id));
+          const acceptedObj = { ...match, status: 'ACCEPTED' };
+          if (existsIdx >= 0) {
+            cachedList[existsIdx] = acceptedObj;
+          } else {
+            cachedList.unshift(acceptedObj);
+          }
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(cachedList));
+        }
       } catch {}
 
       if (reqIdStr.startsWith('notif_')) {
@@ -420,18 +491,95 @@ export const useConnection = (userId?: string | number) => {
     },
     onSuccess: async (_data, requestId) => {
       const targetId = String(requestId);
-      queryClient.setQueryData(receivedListKey, (old: any) => {
+      const updateToAccepted = (old: any) => {
         if (!Array.isArray(old)) return old;
-        return old.map((item: any) =>
-          String(item?.id) === targetId ? { ...item, status: 'ACCEPTED' } : item
-        );
-      });
-      queryClient.setQueryData(sentListKey, (old: any) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((item: any) =>
-          String(item?.id) === targetId ? { ...item, status: 'ACCEPTED' } : item
-        );
-      });
+        return old.map((item: any) => {
+          const isTarget =
+            String(item?.id) === targetId ||
+            String(item?.senderId) === targetId ||
+            String(item?.sender?.userId) === targetId ||
+            String(item?.sender?.id) === targetId;
+          return isTarget ? { ...item, status: 'ACCEPTED' } : item;
+        });
+      };
+      queryClient.setQueriesData({ queryKey: ['connections-received'] }, updateToAccepted);
+      queryClient.setQueriesData({ queryKey: ['connections-sent'] }, updateToAccepted);
+      queryClient.setQueriesData({ queryKey: ['connections'] }, updateToAccepted);
+      try {
+        let match: any = null;
+        const allReceivedQueries = queryClient.getQueriesData({ queryKey: ['connections-received'] });
+        for (const [, qData] of allReceivedQueries) {
+          if (Array.isArray(qData)) {
+            match = qData.find(
+              (x: any) =>
+                String(x?.id) === targetId ||
+                String(x?.senderId) === targetId ||
+                String(x?.sender?.userId) === targetId ||
+                String(x?.sender?.id) === targetId
+            );
+            if (match) break;
+          }
+        }
+        if (match) {
+          const maleTg = match.sender?.telegramUsername || match.senderTelegram;
+          const maleUid = match.sender?.userId || match.sender?.id || match.senderId;
+
+          const [myPhoto, myName, myAge, myCity, myPhone, myTg, myBio, myEdu, myProf] = await Promise.all([
+            AsyncStorage.getItem('userPhoto'),
+            AsyncStorage.getItem('userName'),
+            AsyncStorage.getItem('userAge'),
+            AsyncStorage.getItem('userCity'),
+            AsyncStorage.getItem('phoneNumber'),
+            AsyncStorage.getItem('telegramUsername'),
+            AsyncStorage.getItem('userBio'),
+            AsyncStorage.getItem('userEducation'),
+            AsyncStorage.getItem('userProfession'),
+          ]);
+
+          const femaleName =
+            myName ||
+            match.receiver?.displayName ||
+            match.receiver?.name ||
+            'A member';
+          const femaleAge = myAge || match.receiver?.age || null;
+          const femaleLoc =
+            myCity ||
+            match.receiver?.city ||
+            match.receiver?.location ||
+            match.receiver?.country ||
+            null;
+          const femaleTg =
+            myTg ||
+            match.receiver?.telegramUsername ||
+            match.receiverTelegram ||
+            null;
+          const femalePhone =
+            myPhone ||
+            match.receiver?.phoneNumber ||
+            match.receiver?.mobile ||
+            match.receiverWhatsapp ||
+            null;
+          const femalePhoto =
+            myPhoto ||
+            match.receiver?.photo ||
+            (Array.isArray(match.receiver?.photos) ? match.receiver.photos[0] : null) ||
+            null;
+
+          void dispatchTelegramMatchNotification({
+            maleTelegram: maleTg,
+            maleUserId: maleUid,
+            femaleName,
+            femaleAge,
+            femaleLocation: femaleLoc,
+            femaleTelegram: femaleTg,
+            femaleWhatsApp: femalePhone,
+            femalePhoto,
+            femaleBio: myBio || match.receiver?.bio || null,
+            femaleEducation: myEdu || (match.receiver as any)?.education || null,
+            femaleProfession: myProf || (match.receiver as any)?.profession || null,
+          });
+        }
+      } catch {}
       try {
         const currentUid = await getUserId().catch(() => null);
         const storedEmail = await AsyncStorage.getItem('userEmail');
@@ -450,6 +598,30 @@ export const useConnection = (userId?: string | number) => {
   });
 
   const reject = useMutation({
+    onMutate: async (requestId: number | string) => {
+      const targetId = String(requestId);
+      try {
+        await AsyncStorage.setItem(`declined_conn_${targetId}`, 'true');
+        await AsyncStorage.removeItem(`accepted_conn_${targetId}`);
+      } catch {}
+
+      const updateToDeclined = (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((item: any) => {
+          const isTarget =
+            String(item?.id) === targetId ||
+            String(item?.senderId) === targetId ||
+            String(item?.sender?.userId) === targetId ||
+            String(item?.sender?.id) === targetId;
+          return isTarget ? { ...item, status: 'DECLINED' } : item;
+        });
+      };
+
+      queryClient.setQueriesData({ queryKey: ['connections-received'] }, updateToDeclined);
+      queryClient.setQueriesData({ queryKey: ['connections-sent'] }, updateToDeclined);
+      queryClient.setQueriesData({ queryKey: ['connections'] }, updateToDeclined);
+      DeviceEventEmitter.emit('AMARA_CONNECTION_UPDATED');
+    },
     mutationFn: async (requestId: number | string) => {
       const resolvedUserId = await resolveBackendUserId();
       const reqIdStr = String(requestId);
@@ -497,17 +669,37 @@ export const useConnection = (userId?: string | number) => {
     },
     onSuccess: async (_data, requestId) => {
       const targetId = String(requestId);
-      queryClient.setQueryData(receivedListKey, (old: any) => {
+      const updateToDeclined = (old: any) => {
         if (!Array.isArray(old)) return old;
-        return old.map((item: any) =>
-          String(item?.id) === targetId ? { ...item, status: 'DECLINED' } : item
-        );
-      });
+        return old.map((item: any) => {
+          const isTarget =
+            String(item?.id) === targetId ||
+            String(item?.senderId) === targetId ||
+            String(item?.sender?.userId) === targetId ||
+            String(item?.sender?.id) === targetId;
+          return isTarget ? { ...item, status: 'DECLINED' } : item;
+        });
+      };
+      queryClient.setQueriesData({ queryKey: ['connections-received'] }, updateToDeclined);
+      queryClient.setQueriesData({ queryKey: ['connections-sent'] }, updateToDeclined);
+      queryClient.setQueriesData({ queryKey: ['connections'] }, updateToDeclined);
       await refreshQueries();
     },
   });
 
   const cancel = useMutation({
+    onMutate: async (requestId: number | string) => {
+      const targetId = String(requestId);
+      const updateToCancelled = (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((item: any) =>
+          String(item?.id) === targetId ? { ...item, status: 'CANCELLED' } : item
+        );
+      };
+      queryClient.setQueriesData({ queryKey: ['connections-sent'] }, updateToCancelled);
+      queryClient.setQueriesData({ queryKey: ['connections'] }, updateToCancelled);
+      DeviceEventEmitter.emit('AMARA_CONNECTION_UPDATED');
+    },
     mutationFn: async (requestId: number | string) => {
       const resolvedUserId = await resolveBackendUserId();
       const reqIdStr = String(requestId);
@@ -532,12 +724,14 @@ export const useConnection = (userId?: string | number) => {
     },
     onSuccess: async (_data, requestId) => {
       const targetId = String(requestId);
-      queryClient.setQueryData(sentListKey, (old: any) => {
+      const updateToCancelled = (old: any) => {
         if (!Array.isArray(old)) return old;
         return old.map((item: any) =>
           String(item?.id) === targetId ? { ...item, status: 'CANCELLED' } : item
         );
-      });
+      };
+      queryClient.setQueriesData({ queryKey: ['connections-sent'] }, updateToCancelled);
+      queryClient.setQueriesData({ queryKey: ['connections'] }, updateToCancelled);
       await refreshQueries();
     },
   });
@@ -551,6 +745,11 @@ export const useConnection = (userId?: string | number) => {
       });
       return normalizeConnections(res.data);
     },
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    staleTime: 1000,
     retry: false,
   });
 
@@ -561,8 +760,88 @@ export const useConnection = (userId?: string | number) => {
       const res = await apiClient.get('/connections/sent', {
         params: { userId: resolvedUserId, senderId: resolvedUserId },
       });
-      return normalizeConnections(res.data);
+      const backendSent = normalizeConnections(res.data);
+
+      let listConnections: ConnectionRequest[] = [];
+      try {
+        const listRes = await apiClient.get('/connections/list', {
+          params: { userId: resolvedUserId, targetUserId: resolvedUserId },
+        });
+        listConnections = normalizeConnections(listRes.data).map((c) => ({
+          ...c,
+          status: 'ACCEPTED',
+        }));
+      } catch {}
+
+      const allSent = [...listConnections, ...backendSent];
+      const seenIds = new Set<string>();
+      const merged: ConnectionRequest[] = [];
+      for (const item of allSent) {
+        const idKey = String(item.id);
+        const receiverKey = String(item.receiver?.userId || (item as any).receiverId || '');
+        const dedupeKey = idKey !== '0' && idKey !== 'undefined' ? idKey : receiverKey;
+        if (!seenIds.has(dedupeKey)) {
+          seenIds.add(dedupeKey);
+          merged.push(item);
+        } else {
+          const exIdx = merged.findIndex((x) => String(x.id) === idKey || (Boolean(receiverKey) && String(x.receiver?.userId || (x as any).receiverId) === receiverKey));
+          if (exIdx >= 0 && (item.status === 'ACCEPTED' || item.status === 'APPROVED')) {
+            merged[exIdx] = { ...merged[exIdx], ...item, status: 'ACCEPTED' };
+          }
+        }
+      }
+
+      const finalized = await Promise.all(
+        merged.map(async (c: any) => {
+          const cId = String(c.id);
+          const receiverId = String(c.receiver?.userId || c.receiverId || '');
+          const isAccepted =
+            c.status === 'ACCEPTED' ||
+            c.status === 'APPROVED' ||
+            (await AsyncStorage.getItem(`accepted_conn_${cId}`).catch(() => null)) === 'true' ||
+            (Boolean(receiverId) && (await AsyncStorage.getItem(`accepted_conn_${receiverId}`).catch(() => null)) === 'true');
+          if (isAccepted) {
+            return { ...c, status: 'ACCEPTED' };
+          }
+          return c;
+        })
+      );
+
+      // Auto-dispatch Telegram match notification if a match was accepted but not yet notified
+      for (const item of finalized) {
+        if (item.status === 'ACCEPTED' && item.id && item.id !== '0') {
+          const notifKey = `@amara_tg_match_notified_${item.id}`;
+          const alreadyNotified = await AsyncStorage.getItem(notifKey).catch(() => null);
+          if (!alreadyNotified) {
+            await AsyncStorage.setItem(notifKey, 'true').catch(() => {});
+            const femaleName = item.receiver?.displayName || item.receiver?.name || 'Female Match';
+            const femaleAge = item.receiver?.age;
+            const femaleLoc = item.receiver?.city || item.receiver?.country;
+            const femaleTg = item.receiver?.telegramUsername;
+            const femalePhone = item.receiver?.phoneNumber || item.receiver?.mobile || item.receiver?.phone;
+            const maleTg = item.sender?.telegramUsername;
+            const maleUid = item.sender?.userId || item.sender?.id;
+
+            void dispatchTelegramMatchNotification({
+              maleTelegram: maleTg,
+              maleUserId: maleUid,
+              femaleName,
+              femaleAge,
+              femaleLocation: femaleLoc,
+              femaleTelegram: femaleTg,
+              femaleWhatsApp: femalePhone,
+            });
+          }
+        }
+      }
+
+      return finalized;
     },
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    staleTime: 1000,
     retry: false,
   });
 
@@ -574,6 +853,30 @@ export const useConnection = (userId?: string | number) => {
         params: { userId: resolvedUserId, receiverId: resolvedUserId },
       });
       const backendConnections = normalizeConnections(res.data);
+
+      // Also fetch /connections/list so accepted/approved invitations are never dropped on refresh
+      let listConnections: ConnectionRequest[] = [];
+      try {
+        const listRes = await apiClient.get('/connections/list', {
+          params: { userId: resolvedUserId, targetUserId: resolvedUserId },
+        });
+        listConnections = normalizeConnections(listRes.data).map((c) => ({
+          ...c,
+          status: 'ACCEPTED',
+        }));
+      } catch {}
+
+      // Also merge persistent accepted connections cache
+      let cachedAccepted: ConnectionRequest[] = [];
+      try {
+        const rawCached = await AsyncStorage.getItem(`@amara_accepted_connections_${resolvedUserId}`).catch(() => null);
+        if (rawCached) {
+          const parsed = JSON.parse(rawCached);
+          if (Array.isArray(parsed)) {
+            cachedAccepted = parsed.map((item) => ({ ...item, status: 'ACCEPTED' }));
+          }
+        }
+      } catch {}
 
       // Merge invitation notifications so any incoming invitation notification is interactive as a real card
       try {
@@ -657,11 +960,45 @@ export const useConnection = (userId?: string | number) => {
           }
         }
 
+        const allConnections = [...backendConnections, ...listConnections, ...cachedAccepted];
+        const seenIds = new Set<string>();
+        const mergedBase: ConnectionRequest[] = [];
+        for (const c of allConnections) {
+          const idKey = String(c.id);
+          const senderKey = String(c.sender?.userId || (c as any).senderId || '');
+          const dedupeKey = idKey !== '0' && idKey !== 'undefined' ? idKey : senderKey;
+          if (!seenIds.has(dedupeKey)) {
+            seenIds.add(dedupeKey);
+            mergedBase.push(c);
+          } else {
+            const existingIdx = mergedBase.findIndex(
+              (x) => String(x.id) === idKey || (Boolean(senderKey) && String(x.sender?.userId || (x as any).senderId) === senderKey)
+            );
+            if (existingIdx >= 0 && (c.status === 'ACCEPTED' || c.status === 'APPROVED')) {
+              mergedBase[existingIdx] = { ...mergedBase[existingIdx], ...c, status: 'ACCEPTED' };
+            }
+          }
+        }
+
         const updatedBackendConnections = await Promise.all(
-          backendConnections.map(async (c: any) => {
+          mergedBase.map(async (c: any) => {
             const cId = String(c.id);
-            const isAccepted = (await AsyncStorage.getItem(`accepted_conn_${cId}`).catch(() => null)) === 'true';
-            const isDeclined = (await AsyncStorage.getItem(`declined_conn_${cId}`).catch(() => null)) === 'true';
+            const senderId = String(c.sender?.userId || c.senderId || '');
+            const senderNum = String(c.sender?.id || '');
+
+            const isAccepted =
+              c.status === 'ACCEPTED' ||
+              c.status === 'APPROVED' ||
+              (await AsyncStorage.getItem(`accepted_conn_${cId}`).catch(() => null)) === 'true' ||
+              (Boolean(senderId) && (await AsyncStorage.getItem(`accepted_conn_${senderId}`).catch(() => null)) === 'true') ||
+              (Boolean(senderNum) && (await AsyncStorage.getItem(`accepted_conn_${senderNum}`).catch(() => null)) === 'true');
+
+            const isDeclined =
+              c.status === 'DECLINED' ||
+              c.status === 'REJECTED' ||
+              (await AsyncStorage.getItem(`declined_conn_${cId}`).catch(() => null)) === 'true' ||
+              (Boolean(senderId) && (await AsyncStorage.getItem(`declined_conn_${senderId}`).catch(() => null)) === 'true');
+
             if (isAccepted) {
               return { ...c, status: 'ACCEPTED' };
             }
@@ -672,11 +1009,24 @@ export const useConnection = (userId?: string | number) => {
           })
         );
 
+        const finalAccepted = updatedBackendConnections.filter((c) => c.status === 'ACCEPTED');
+        if (finalAccepted.length > 0) {
+          AsyncStorage.setItem(
+            `@amara_accepted_connections_${resolvedUserId}`,
+            JSON.stringify(finalAccepted)
+          ).catch(() => {});
+        }
+
         return [...syntheticConnections, ...updatedBackendConnections];
       } catch {
         return backendConnections;
       }
     },
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    staleTime: 1000,
     retry: false,
   });
 
@@ -696,11 +1046,11 @@ export const useConnection = (userId?: string | number) => {
     },
   });
 
-  const refreshAll = () => {
+  const refreshAll = useCallback(() => {
     connectionList.refetch();
     sentList.refetch();
     receivedList.refetch();
-  };
+  }, [connectionList, sentList, receivedList]);
 
   return {
     send,

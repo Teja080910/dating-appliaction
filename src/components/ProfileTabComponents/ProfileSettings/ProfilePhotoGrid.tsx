@@ -14,7 +14,7 @@ import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAbsoluteUrl, isApiHostedUrl } from '../../../api/apiClient';
+import apiClient, { getAbsoluteUrl, isApiHostedUrl } from '../../../api/apiClient';
 import { mapImagesToSlots, useUserImages, NormalizedUserImage } from '../../../api/useImages';
 import { useProfile } from '../../../api/useProfile';
 import AppContext from '../../../context/CreateGlobalStateContext';
@@ -277,6 +277,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
         if (asset.uri) {
           hasUserEdited.current = true;
           setUploadingSlot(index);
+          const oldImageId = imageMap[index];
           const current = [...(images || [])];
           while (current.length <= index) current.push(null);
           current[index] = asset.uri;
@@ -301,18 +302,30 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
             },
             {
               onSuccess: () => {
+                if (oldImageId) {
+                  deleteImage.mutate({ imageId: oldImageId, userId: localUserId || undefined });
+                }
                 if (localUserId) {
                   getAllImagesRef.current(localUserId, {
-                    onSuccess: (data: any) => {
+                    onSuccess: async (data: any) => {
+                      const deletedList = await getDeletedUris(localUserId);
                       const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
                       setImageMap(mapped.imageIdByIndex);
                       setServerImages(mapped.normalized);
-                      setImages(mapped.slots);
-                      if (mapped.profileImageUrl) {
-                        setProfileImage(mapped.profileImageUrl);
-                        setProfileImageUrl(mapped.profileImageUrl);
+                      const activeSlots = mapped.slots.filter((u) => u && !isDeletedUri(u, deletedList));
+                      while (activeSlots.length < TOTAL_SLOTS) {
+                        activeSlots.push(null);
                       }
-                      AsyncStorage.setItem('onboardingImages', JSON.stringify(mapped.slots)).catch(() => {});
+                      setImages(activeSlots);
+                      const primary = activeSlots[0] || mapped.profileImageUrl || null;
+                      if (primary) {
+                        setProfileImage(primary);
+                        setProfileImageUrl(primary);
+                        AsyncStorage.setItem('profileImage', primary).catch(() => {});
+                      }
+                      AsyncStorage.setItem(`user_photos_${localUserId}`, JSON.stringify(activeSlots)).catch(() => {});
+                      AsyncStorage.setItem('onboardingImages', JSON.stringify(activeSlots)).catch(() => {});
+                      DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: localUserId });
                     },
                   });
                 }
@@ -397,6 +410,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     } else {
       AsyncStorage.removeItem('profileImage').catch(() => {});
     }
+    DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid });
 
     // 4. Update imageMap slot indices
     setImageMap((prev) => {
@@ -416,10 +430,26 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       setServerImages((prev) => prev.filter((img) => img.id !== imageId));
     }
 
-    // 6. Delete on server if image ID is present
-    if (imageId) {
+    // Sync remaining photos to profile endpoint
+    if (uid) {
+      apiClient.put('/profile/update', {
+        userId: uid,
+        photos: remainingPhotos,
+        images: remainingPhotos,
+        profileImageUrl: newPrimary || '',
+        photo: newPrimary || '',
+      }).catch(() => {});
+    }
+
+    // 6. Delete on server (pass imageId or targetUri, plus userId & imageUrl)
+    const effectiveDeleteId = imageId ?? targetUri;
+    if (effectiveDeleteId) {
       deleteImage.mutate(
-        { imageId, userId: uid || undefined },
+        {
+          imageId: effectiveDeleteId,
+          userId: uid || undefined,
+          imageUrl: targetUri || matched?.imageUrl || undefined,
+        } as any,
         {
           onSuccess: () => {
             // If the deleted photo was slot 0 (primary) and we have remaining photos, promote slot 0 on backend
@@ -438,8 +468,26 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
               }
             }
           },
-          onError: (err) => {
+          onError: (err: any) => {
             console.warn('[ProfilePhotoGrid] Delete image server error:', err);
+            const serverMessage =
+              err?.response?.data?.message ||
+              err?.response?.data?.error ||
+              t('profile.uploadimage.failed_to_delete_image_from_server', {
+                defaultValue: 'Could not delete photo from server.',
+              });
+            alert(t('common.error', { defaultValue: 'Error' }), serverMessage);
+            // Restore images if server rejected the deletion
+            if (uid) {
+              getAllImagesRef.current(uid, {
+                onSuccess: (data: any) => {
+                  const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
+                  setImageMap(mapped.imageIdByIndex);
+                  setServerImages(mapped.normalized);
+                  setImages(mapped.slots);
+                },
+              });
+            }
           },
         }
       );
@@ -450,29 +498,28 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     const currentList = [...(images || [])];
     const nonNullCount = currentList.filter(Boolean).length;
 
-    // Requirement: A profile must have at least 1 photo. Prevent deleting the only remaining photo.
+    // Glambu behavior: A user can delete any photo down to 1.
+    // Only the last remaining photo cannot be deleted (minimum 1 profile photo).
     if (nonNullCount <= 1) {
-      setShowFacePhotoModal(true);
+      alert(
+        t('common.notice', { defaultValue: 'At Least 1 Photo Required' }),
+        t('profile.uploadimage.last_photo_cannot_be_deleted', {
+          defaultValue:
+            'You must keep at least one profile photo. To change your only photo, please replace it with a new one.',
+        }),
+        [
+          { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+          {
+            text: t('profile.uploadimage.replace_photo', { defaultValue: 'Replace Photo' }),
+            onPress: () => handlePickImage(index),
+          },
+        ]
+      );
       return;
     }
 
-    alert(
-      t('profile.additionaluploadsection.remove_photo', { defaultValue: 'Remove Photo' }),
-      t('profile.uploadimage.are_you_sure_you_want_to_delete_this_photo', {
-        defaultValue: 'Are you sure you want to remove this photo from your profile?',
-      }),
-      [
-        {
-          text: t('profile.additionaluploadsection.cancel', { defaultValue: 'Cancel' }),
-          style: 'cancel',
-        },
-        {
-          text: t('profile.uploadimage.delete', { defaultValue: 'Remove' }),
-          style: 'destructive',
-          onPress: () => performDeleteImage(index),
-        },
-      ]
-    );
+    // Immediately remove the photo
+    performDeleteImage(index);
   };
 
     // Note: Dedicated image endpoints (/users/images/{id}) manage photos.
@@ -503,18 +550,24 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                   },
                 ]}
               >
-                <Image
-                  source={{
-                    uri,
-                    headers: {
-                      'ngrok-skip-browser-warning': '69420',
-                      'User-Agent': 'AMARA-App',
-                      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-                    },
-                  }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => handlePickImage(index)}
+                  style={{ width: '100%', height: '100%' }}
+                >
+                  <Image
+                    source={{
+                      uri,
+                      headers: {
+                        'ngrok-skip-browser-warning': '69420',
+                        'User-Agent': 'AMARA-App',
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                      },
+                    }}
+                    style={styles.image}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDeleteImage(index)}

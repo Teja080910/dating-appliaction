@@ -182,7 +182,13 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
 
   const isAcceptedStatus = (s?: string) => {
     const status = String(s || '').trim().toUpperCase();
-    return status === 'ACCEPTED' || status === 'APPROVED';
+    return (
+      status === 'ACCEPTED' ||
+      status === 'APPROVED' ||
+      status === 'MATCHED' ||
+      status === 'CONNECTED' ||
+      status === 'MUTUAL'
+    );
   };
 
   const pendingReceivedCount = (receivedList?.data || []).filter(

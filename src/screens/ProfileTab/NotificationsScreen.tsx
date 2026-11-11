@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -38,7 +38,17 @@ const NotificationsScreen = () => {
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
 
   const { useNotificationList, markRead } = useNotification();
-  const { data: notifications, isLoading, isRefetching, refetch } = useNotificationList();
+  const { data: notifications, isLoading, refetch } = useNotificationList();
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+
+  const handleManualRefresh = useCallback(async () => {
+    setManualRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setManualRefreshing(false);
+    }
+  }, [refetch]);
 
   const list = Array.isArray(notifications) ? notifications : [];
 
@@ -231,8 +241,8 @@ const NotificationsScreen = () => {
           renderItem={renderNotificationItem}
           contentContainerStyle={[styles.listContainer, { paddingBottom: 40 }]}
           showsVerticalScrollIndicator={false}
-          refreshing={isRefetching}
-          onRefresh={() => refetch()}
+          refreshing={manualRefreshing}
+          onRefresh={handleManualRefresh}
         />
       ) : (
         <View style={styles.emptyView}>

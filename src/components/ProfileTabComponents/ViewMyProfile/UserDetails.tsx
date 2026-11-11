@@ -236,7 +236,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     connection.accept.mutate(requestId, {
       onSuccess: () => {
         connection.refreshAll();
-        alert(t('profile.userdetails.request_approved'), t('profile.userdetails.this_connection_is_approved_telegram_contact_is'), [
+        const alertMsg = isViewerWoman
+          ? t('profile.userdetails.glambu_woman_approved_msg', {
+              defaultValue: 'You have accepted this invitation. Your contact details have been shared with him, and he will reach out to you on WhatsApp or Telegram.',
+            })
+          : t('profile.userdetails.this_connection_is_approved_telegram_contact_is');
+        alert(t('profile.userdetails.request_approved'), alertMsg, [
           { text: t('profile.userdetails.done'), onPress: () => navigation.goBack() },
         ]);
       },
@@ -481,6 +486,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         myTgStatus?.telegramUsername
       );
     } else {
+      if (isViewerWoman) return '';
       const isProfileMine =
         isSameId(resolvedProfile?.id, currentUserId) ||
         isSameId(resolvedProfile?.userId, currentUserId);
@@ -508,6 +514,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         storedPhone
       );
     }
+    if (isViewerWoman) return '';
     const isProfileMine =
       isSameId(resolvedProfile?.id, currentUserId) ||
       isSameId(resolvedProfile?.userId, currentUserId);
@@ -1147,7 +1154,25 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 </Text>
               </View>
             ) : isApprovedInvitation ? (
-              (!effectiveIsSubscribed && !isViewerWoman) ? (
+              isViewerWoman ? (
+                <View style={styles.glambuFemaleAcceptedBox}>
+                  <View style={styles.glambuFemaleAcceptedHeader}>
+                    <View style={styles.glambuFemaleAcceptedIconBox}>
+                      <Feather name="check-circle" size={20} color={themeColors.primary} />
+                    </View>
+                    <View style={styles.glambuFemaleAcceptedTextBox}>
+                      <Text style={styles.glambuFemaleAcceptedTitle}>
+                        {t('profile.userdetails.glambu_invitation_accepted_title', { defaultValue: 'Invitation Accepted' })}
+                      </Text>
+                      <Text style={styles.glambuFemaleAcceptedSubtitle}>
+                        {t('profile.userdetails.glambu_female_wait_notice', {
+                          defaultValue: 'Your contact details have been shared with him. He will contact you on WhatsApp or Telegram to arrange your date.',
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (!effectiveIsSubscribed && !isViewerWoman) ? (
                 <View style={styles.lockedTelegramContainer}>
                   <View style={styles.lockedTelegramHeader}>
                     <View style={styles.lockedTelegramIconBox}>
@@ -1660,6 +1685,42 @@ const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.creat
     fontSize: 13,
     lineHeight: 18,
     textAlign: 'center',
+  },
+  glambuFemaleAcceptedBox: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.35)',
+    marginBottom: 8,
+  },
+  glambuFemaleAcceptedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  glambuFemaleAcceptedIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  glambuFemaleAcceptedTextBox: {
+    flex: 1,
+  },
+  glambuFemaleAcceptedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  glambuFemaleAcceptedSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textMuted || '#94A3B8',
   },
   lockedTelegramContainer: {
     width: '100%',

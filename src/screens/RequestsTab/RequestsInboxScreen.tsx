@@ -1,8 +1,9 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   Dimensions,
   FlatList,
   Image,
@@ -93,7 +94,20 @@ const RequestsInboxScreen: React.FC = () => {
     phoneNumber?: string;
   } | null>(null);
 
-  const { data: requests = [], isLoading, isRefetching } = receivedList;
+  const { data: requests = [], isLoading } = receivedList;
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+
+  const refreshAllRef = useRef(refreshAll);
+  refreshAllRef.current = refreshAll;
+
+  const handleManualRefresh = useCallback(async () => {
+    setManualRefreshing(true);
+    try {
+      await refreshAllRef.current();
+    } finally {
+      setManualRefreshing(false);
+    }
+  }, []);
 
   // Auto-refetch when user focuses this screen
   useFocusEffect(
@@ -101,13 +115,27 @@ const RequestsInboxScreen: React.FC = () => {
       if (route?.params?.initialTab) {
         setActiveTab(route.params.initialTab);
       }
-      refreshAll();
+      refreshAllRef.current();
     }, [route?.params?.initialTab])
   );
 
+  // Real-time synchronization when connections update across the app
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('AMARA_CONNECTION_UPDATED', () => {
+      refreshAllRef.current();
+    });
+    return () => sub.remove();
+  }, []);
+
   const isAcceptedStatus = (status?: string) => {
     const s = String(status || '').trim().toUpperCase();
-    return s === 'ACCEPTED' || s === 'APPROVED';
+    return (
+      s === 'ACCEPTED' ||
+      s === 'APPROVED' ||
+      s === 'MATCHED' ||
+      s === 'CONNECTED' ||
+      s === 'MUTUAL'
+    );
   };
 
   // Split into accepted vs pending (excluding deleted items)
@@ -228,41 +256,24 @@ const RequestsInboxScreen: React.FC = () => {
   };
 
   const handleApprove = async (request: ConnectionRequest) => {
+    const sender = request.sender || {};
+    const photoUrl =
+      sender.photo ||
+      (sender.photos && sender.photos[0]) ||
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
+
+    // 1. Immediately show match modal celebration (0ms)
+    setApprovedMatch({
+      name: cleanDisplayName(sender.displayName || sender.name || t('requests.requestsinboxscreen.dating_match')),
+      photo: photoUrl,
+    });
+
+    // 2. Fire mutation (optimistic cache update happens in 0ms on onMutate)
     try {
-      const approvalResponse = await accept.mutateAsync(request.id);
+      await accept.mutateAsync(request.id);
       refreshAll();
-      const approvedRequest = approvalResponse?.data || approvalResponse;
-      const sender = request.sender || {};
-      const photoUrl =
-        sender.photo ||
-        (sender.photos && sender.photos[0]) ||
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
-
-      const approvedPhone =
-        approvedRequest?.sender?.phoneNumber ||
-        approvedRequest?.sender?.mobile ||
-        approvedRequest?.sender?.phone ||
-        sender.phoneNumber ||
-        sender.mobile ||
-        sender.phone ||
-        '';
-
-      const approvedTg =
-        approvedRequest?.sender?.telegramUsername ||
-        sender.telegramUsername ||
-        '';
-
-      setApprovedMatch({
-        name: sender.displayName || sender.name || t('requests.requestsinboxscreen.dating_match'),
-        photo: photoUrl,
-        username: approvedTg,
-        phoneNumber: approvedPhone,
-      });
     } catch (err: any) {
-      Alert.alert(
-        'Could not approve invitation',
-        getUserFriendlyMessage(err, t('profile.userdetails.please_try_again_in_a_moment'))
-      );
+      console.log('[RequestsInboxScreen] handleApprove background sync:', err?.message);
     }
   };
 
@@ -271,10 +282,7 @@ const RequestsInboxScreen: React.FC = () => {
       await reject.mutateAsync(request.id);
       refreshAll();
     } catch (err: any) {
-      Alert.alert(
-        'Could not decline invitation',
-        getUserFriendlyMessage(err, t('profile.userdetails.please_try_again_in_a_moment'))
-      );
+      console.log('[RequestsInboxScreen] handleDecline background sync:', err?.message);
     }
   };
 
@@ -299,10 +307,10 @@ const RequestsInboxScreen: React.FC = () => {
         id: targetUserId,
         displayName: cleanDisplayName(sender.displayName || sender.name),
         photos: sender.photos || [photoUrl],
-        mobile: sender.mobile || sender.phoneNumber || sender.phone || '',
-        phone: sender.phone || sender.mobile || sender.phoneNumber || '',
-        phoneNumber: sender.phoneNumber || sender.mobile || sender.phone || '',
-        telegramUsername: sender.telegramUsername || '',
+        mobile: '',
+        phone: '',
+        phoneNumber: '',
+        telegramUsername: '',
       },
       image: photoUrl,
       requestId: item.id,
@@ -374,9 +382,9 @@ const RequestsInboxScreen: React.FC = () => {
           </Text>
           <Text style={styles.statusSubtext} numberOfLines={1}>
             {isApproved
-              ? hasWhatsApp || hasTelegram
-                ? t('requests.requestsinboxscreen.request_accepted', { defaultValue: 'Invitation Accepted' })
-                : t('profile.contactdetails.awaiting_contact', { defaultValue: 'Awaiting contact info' })
+              ? t('requests.requestsinboxscreen.he_will_contact_you', {
+                  defaultValue: 'Invitation Accepted · He will contact you',
+                })
               : statusText}
           </Text>
         </View>
@@ -409,74 +417,23 @@ const RequestsInboxScreen: React.FC = () => {
         )}
 
         {!isSelectMode && isApproved && (
-          hasWhatsApp && hasTelegram ? (
-            <View style={styles.multiChatRow}>
-              <TouchableOpacity
-                style={styles.whatsAppIconBtn}
-                activeOpacity={0.8}
-                onPress={() => {
-                  if (!isSubscribed && !isUserWoman) {
-                    setPaywallVisible?.(true);
-                    return;
-                  }
-                  openWhatsAppChat(senderPhone);
-                }}
-              >
-                <Icon name="whatsapp" size={17} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.telegramIconBtn}
-                activeOpacity={0.8}
-                onPress={() => {
-                  if (!isSubscribed && !isUserWoman) {
-                    setPaywallVisible?.(true);
-                    return;
-                  }
-                  handleOpenTelegram(senderTg);
-                }}
-              >
-                <Icon name="send" size={14} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          ) : hasWhatsApp ? (
-            <TouchableOpacity
-              style={styles.whatsAppIconBtn}
-              activeOpacity={0.8}
-              onPress={() => {
-                if (!isSubscribed && !isUserWoman) {
-                  setPaywallVisible?.(true);
-                  return;
-                }
-                openWhatsAppChat(senderPhone);
-              }}
+          <TouchableOpacity
+            style={styles.acceptedBtnWrapper}
+            onPress={() => handleOpenProfile(item)}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[themeColors.primary, themeColors.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.acceptedBtn}
             >
-              <Icon name="whatsapp" size={17} color="#FFFFFF" />
-            </TouchableOpacity>
-          ) : hasTelegram ? (
-            <TouchableOpacity
-              style={styles.telegramIconBtn}
-              activeOpacity={0.8}
-              onPress={() => {
-                if (!isSubscribed && !isUserWoman) {
-                  setPaywallVisible?.(true);
-                  return;
-                }
-                handleOpenTelegram(senderTg);
-              }}
-            >
-              <Icon name="send" size={14} color="#FFFFFF" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.profileIconBtn}
-              onPress={() => {
-                handleOpenProfile(item);
-              }}
-              activeOpacity={0.8}
-            >
-              <Icon name="account-outline" size={18} color={themeColors.textSecondary} />
-            </TouchableOpacity>
-          )
+              <Icon name="check-circle" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+              <Text style={styles.acceptedBtnText}>
+                {t('requests.requestsinboxscreen.accepted', { defaultValue: 'Accepted' })}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         )}
       </TouchableOpacity>
     );
@@ -517,7 +474,7 @@ const RequestsInboxScreen: React.FC = () => {
               <TouchableOpacity
                 activeOpacity={0.7}
                 style={styles.refreshBtn}
-                onPress={refreshAll}
+                onPress={handleManualRefresh}
               >
                 <Icon name="sync" size={20} color={themeColors.primary} />
               </TouchableOpacity>
@@ -603,17 +560,27 @@ const RequestsInboxScreen: React.FC = () => {
             <TouchableOpacity
               style={{
                 marginTop: 16,
-                paddingVertical: 10,
-                paddingHorizontal: 20,
-                backgroundColor: themeColors.primary,
                 borderRadius: 24,
+                overflow: 'hidden',
               }}
               onPress={() => setActiveTab('accepted')}
               activeOpacity={0.8}
             >
-              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
-                View Accepted Invitations ({acceptedRequests.length})
-              </Text>
+              <LinearGradient
+                colors={[themeColors.primary, themeColors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 14 }}>
+                  View Accepted Invitations ({acceptedRequests.length})
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
@@ -632,9 +599,10 @@ const RequestsInboxScreen: React.FC = () => {
           keyboardDismissMode="on-drag"
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refreshAll}
+              refreshing={manualRefreshing}
+              onRefresh={handleManualRefresh}
               tintColor={themeColors.primary}
+              colors={[themeColors.primary]}
             />
           }
           ListFooterComponent={
@@ -655,57 +623,23 @@ const RequestsInboxScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Image source={{ uri: approvedMatch?.photo }} style={styles.modalAvatar} />
-            <Text style={styles.modalTitle}>{t('requests.requestsinboxscreen.request_accepted')}</Text>
-            <Text style={styles.modalSubtitle}>{t('requests.requestsinboxscreen.you_are_now_connected_with')}{' '}
-              <Text style={{ fontWeight: '700', color: themeColors.text }}>{approvedMatch?.name}</Text>.
+            <Text style={styles.modalTitle}>{t('requests.requestsinboxscreen.request_accepted', { defaultValue: 'Invitation Accepted!' })}</Text>
+            <Text style={styles.modalSubtitle}>
+              {t('requests.requestsinboxscreen.glambu_accepted_female_desc', {
+                defaultValue: `You accepted ${approvedMatch?.name}'s invitation. Your contact details have been shared with him.`,
+                name: approvedMatch?.name,
+              })}
             </Text>
-            {approvedMatch?.phoneNumber ? (
-              <TouchableOpacity
-                style={[styles.modalTelegramBtnWrapper, { marginBottom: 10 }]}
-                onPress={() => {
-                  const phone = approvedMatch?.phoneNumber;
-                  setApprovedMatch(null);
-                  if (phone) openWhatsAppChat(phone);
-                }}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={['#25D366', '#128C7E']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.modalTelegramBtn}
-                >
-                  <Icon name="whatsapp" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.modalTelegramBtnText}>
-                    {t('profile.contactdetails.open_whatsapp', { defaultValue: 'Open WhatsApp' })}: {approvedMatch.phoneNumber}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            ) : null}
 
-            {approvedMatch?.username ? (
-              <TouchableOpacity
-                style={styles.modalTelegramBtnWrapper}
-                onPress={() => {
-                  const u = approvedMatch?.username;
-                  setApprovedMatch(null);
-                  handleOpenTelegram(u);
-                }}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={[themeColors.primary, themeColors.secondary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.modalTelegramBtn}
-                >
-                  <Icon name="send" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.modalTelegramBtnText}>
-                    {t('profile.userdetails.open_telegram', { defaultValue: 'Open Telegram' })}: @{approvedMatch.username.replace(/^@+/, '')}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            ) : null}
+            <View style={styles.glambuNoticeBox}>
+              <Icon name="message-text-outline" size={20} color={themeColors.primary} style={{ marginRight: 8 }} />
+              <Text style={styles.glambuNoticeText}>
+                {t('requests.requestsinboxscreen.he_will_contact_notice', {
+                  defaultValue: 'He will contact you on WhatsApp or Telegram to arrange your date!',
+                })}
+              </Text>
+            </View>
+
             <TouchableOpacity
               style={styles.modalDoneBtn}
               onPress={() => {
@@ -713,7 +647,7 @@ const RequestsInboxScreen: React.FC = () => {
                 setActiveTab('accepted');
               }}
             >
-              <Text style={styles.modalDoneBtnText}>{t('profile.userdetails.done')}</Text>
+              <Text style={styles.modalDoneBtnText}>{t('profile.userdetails.done', { defaultValue: 'Got it' })}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -860,10 +794,16 @@ const createStyles = (colors: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.surface,
-      borderRadius: 18,
+      borderRadius: 20,
       borderWidth: 1,
-      borderColor: colors.border,
-      padding: 14,
+      borderColor: colors.borderLight || 'rgba(255, 255, 255, 0.08)',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 3,
     },
     cardSelected: {
       backgroundColor: colors.surfaceLight || 'rgba(255, 255, 255, 0.05)',
@@ -921,26 +861,31 @@ const createStyles = (colors: any) =>
       fontWeight: '700',
     },
     avatar: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: colors.surfaceLight,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.surfaceLight || '#242140',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.12)',
     },
     cardInfo: {
       flex: 1,
-      marginLeft: 16,
+      marginLeft: 14,
+      marginRight: 8,
       justifyContent: 'center',
     },
     nameText: {
       color: colors.text,
-      fontSize: 18,
+      fontSize: 16.5,
       fontWeight: '700',
-      marginBottom: 4,
+      marginBottom: 3,
+      letterSpacing: 0.2,
     },
     statusSubtext: {
-      color: colors.textSecondary,
-      fontSize: 14,
+      color: colors.textSecondary || '#A5A3B5',
+      fontSize: 13,
       fontWeight: '500',
+      lineHeight: 18,
     },
     cardActionsRow: {
       flexDirection: 'row',
@@ -1026,6 +971,60 @@ const createStyles = (colors: any) =>
       color: '#FFFFFF',
       fontSize: 13,
       fontWeight: '700',
+    },
+    acceptedBtnWrapper: {
+      borderRadius: 18,
+      overflow: 'hidden',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    acceptedBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 18,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+    },
+    acceptedBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      letterSpacing: 0.2,
+    },
+    acceptedBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 18,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+    },
+    acceptedBadgeText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      letterSpacing: 0.2,
+    },
+    glambuNoticeBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 77, 109, 0.1)',
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 12,
+      marginVertical: 14,
+      width: '100%',
+    },
+    glambuNoticeText: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      lineHeight: 18,
     },
     emptyAcceptedBox: {
       flex: 1,

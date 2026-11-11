@@ -154,7 +154,6 @@ const AdditionalUploadSection = () => {
                 {
                   onSuccess: () => {
                     syncImagesFromServer(localUserId);
-                    alert(t('profile.additionaluploadsection.primary_photo'), t('profile.additionaluploadsection.primary_profile_photo_updated'));
                   },
                   onError: () => alert(t('profile.additionaluploadsection.error'), t('profile.additionaluploadsection.failed_to_update_primary_photo')),
                 }
@@ -169,22 +168,82 @@ const AdditionalUploadSection = () => {
                 setProfileImage(newImages[0]);
                 setProfileImageUrl(newImages[0]);
               }
-              alert(t('profile.additionaluploadsection.primary_photo'), t('profile.additionaluploadsection.primary_profile_photo_updated'));
             }
           },
         });
       }
 
       options.push({
+        text: t('profile.uploadimage.replace_photo', { defaultValue: 'Replace Photo' }),
+        style: 'default',
+        onPress: async () => {
+          setUploadingSlot(index);
+          try {
+            const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+            if (result.assets && result.assets.length > 0) {
+              const asset = result.assets[0];
+              if (asset.uri) {
+                const newImages = [...images];
+                newImages[index] = asset.uri;
+                setImages(newImages);
+                if (index === 0) {
+                  setProfileImage(asset.uri);
+                  setProfileImageUrl(asset.uri);
+                }
+                uploadImage.mutate(
+                  {
+                    uid: localUserId || undefined,
+                    photo: {
+                      uri: asset.uri,
+                      fileName: asset.fileName || 'profile_image.jpg',
+                      type: asset.type || 'image/jpeg',
+                    },
+                  },
+                  {
+                    onSuccess: () => {
+                      if (imageId) {
+                        deleteImage.mutate(imageId);
+                      }
+                      syncImagesFromServer(localUserId);
+                    },
+                    onError: (err: any) => {
+                      console.warn('[AdditionalUploadSection] Replace upload error:', err);
+                      syncImagesFromServer(localUserId);
+                    },
+                  }
+                );
+              }
+            }
+          } finally {
+            setUploadingSlot(null);
+          }
+        },
+      });
+
+      options.push({
         text: t('profile.additionaluploadsection.remove_photo'),
         style: 'destructive',
         onPress: () => {
+          const nonNullCount = (images || []).filter(Boolean).length;
+          if (nonNullCount <= 1) {
+            alert(
+              t('common.notice', { defaultValue: 'At Least 1 Photo Required' }),
+              t('profile.uploadimage.last_photo_cannot_be_deleted', {
+                defaultValue:
+                  'You must keep at least one profile photo. To change your only photo, please replace it with a new one.',
+              })
+            );
+            return;
+          }
           if (imageId) {
             deleteImage.mutate(imageId, {
               onSuccess: () => {
                 syncImagesFromServer(localUserId);
               },
-              onError: () => alert(t('profile.additionaluploadsection.error'), t('profile.uploadimage.failed_to_delete_image_from_server')),
+              onError: (err: any) => {
+                const msg = err?.response?.data?.message || t('profile.uploadimage.failed_to_delete_image_from_server');
+                alert(t('profile.additionaluploadsection.error'), msg);
+              },
             });
           } else {
             const newImages = [...images];

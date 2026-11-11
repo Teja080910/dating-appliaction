@@ -369,8 +369,8 @@ All primary application flows are fully implemented, verified, and active in the
 
 ### 5.2 Approach-First Dating Invitations & Telegram Handoff
 * **Business Rule 01 (BR-01)**: Men send invitations; women receive and review invitations. Women never browse cold profile decks.
-* **Business Rule 02 (BR-02)**: No in-app text chat. When an invitation is accepted (`APPROVED`), both users receive unlocked Telegram handles.
-* **Deep Linking**: Direct tap on the unlocked handle opens Telegram directly via `tg://resolve?domain=<username>` or `https://t.me/<username>`.
+* **Business Rule 02 (BR-02 - Glambu One-Way Contact Unlock)**: No in-app text chat. When an invitation is accepted (`APPROVED`), the female user's WhatsApp and Telegram contacts are unlocked exclusively for the male user so he can reach out and schedule the date. To protect male privacy and enforce the approach-first model, the female user only sees the Accepted status with a notice that he will contact her; she cannot see or message the male user's Telegram or WhatsApp.
+* **Deep Linking**: Direct tap on the unlocked handle by the male user opens Telegram directly via `tg://resolve?domain=<username>` or `https://t.me/<username>`, or WhatsApp via `https://wa.me/<phone>`.
 * **Access Expiry & Recovery**: Invitations carry a 7-day active communication window. If expired, male users can trigger `"Restore Access"` via subscription check.
 
 ### 5.3 Biometric Selfie Verification & Photo Quality
