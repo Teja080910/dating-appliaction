@@ -9,8 +9,11 @@
     "start": "react-native start",
     "test": "jest",
     "postinstall": "patch-package",
-    "build:apk": "cd android && ./gradlew clean assembleRelease && cd ..",
-    "upload:apk": "./upload_apk.sh"
+    "build:apk": "cd android && ./gradlew assembleRelease --no-daemon && cp app/build/outputs/apk/release/app-release.apk ../Amara-Release.apk && cd ..",
+    "build:apk:clean": "cd android && ./gradlew clean assembleRelease --no-daemon && cp app/build/outputs/apk/release/app-release.apk ../Amara-Release.apk && cd ..",
+    "upload": "./upload_apk.sh",
+    "upload:apk": "./upload_apk.sh",
+    "upload:only": "./upload_apk.sh --skip-build"
   },
   "dependencies": {
     "@ptomasroos/react-native-multi-slider": "^2.2.2",

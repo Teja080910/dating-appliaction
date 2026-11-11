@@ -2,8 +2,35 @@
 set -e
 
 # ========================================================
-# 🚀 ARKASODHARA TRACKER APK UPLOAD SCRIPT
+# 🚀 FAST AMARA APK BUILD & UPLOAD SCRIPT
 # ========================================================
+
+SKIP_BUILD=false
+DO_CLEAN=false
+
+for arg in "$@"; do
+  case $arg in
+    --skip-build|-s|--no-build)
+      SKIP_BUILD=true
+      ;;
+    --clean|-c)
+      DO_CLEAN=true
+      ;;
+    --help|-h)
+      echo "Usage: ./upload_apk.sh [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  (no flags)     Fast incremental build (~30-45s) and upload to Tracker"
+      echo "  --skip-build   Skip building, upload existing APK immediately (~5s)"
+      echo "  --clean        Clean build (gradlew clean assembleRelease) and upload"
+      echo "  --help         Show this help message"
+      exit 0
+      ;;
+  esac
+done
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
 
 ENV_FILE=".env"
 if [ -f "$ENV_FILE" ]; then
@@ -20,28 +47,42 @@ if [ -z "$ACCESS_TOKEN" ]; then
     exit 1
 fi
 
-if [[ "$ACCESS_TOKEN" == eyJ* ]]; then
-    echo "❌ ACCESS_TOKEN is a JWT, not an Arkasodhara personal access token."
-    echo "   Create a personal access token in Arkasodhara Tracker and replace ACCESS_TOKEN in .env."
-    exit 1
-fi
-
 PROJECT_ID="096775b3-0069-44a8-819e-c71bb2ae3762"
 UPLOAD_URL="https://tracker.arkasodhara.tech/api/apk/upload"
 PROJECT_PAGE="https://tracker.arkasodhara.tech/app/projects/dating-application"
-
 APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
 
-# If APK not present, build it
-if [ ! -f "$APK_PATH" ]; then
-    echo "🔨 Building Release APK..."
+# 1. Build APK if not skipped
+if [ "$SKIP_BUILD" = false ]; then
+    echo "======================================================="
+    if [ "$DO_CLEAN" = true ]; then
+        echo "🧹 Performing Full Clean Release Build..."
+        GRADLE_CMD="./gradlew clean assembleRelease --no-daemon"
+    else
+        echo "⚡ Performing Fast Incremental Build (~30-45s)..."
+        GRADLE_CMD="./gradlew assembleRelease --no-daemon"
+    fi
+    echo "======================================================="
+
+    # Clear stale Gradle journal locks if present
+    rm -f ~/.gradle/caches/journal-1/journal-1.lock 2>/dev/null || true
+
     cd android
-    ./gradlew clean assembleRelease
-    cd ..
+    $GRADLE_CMD
+    cd "$ROOT_DIR"
+
+    # Copy to root Amara-Release.apk
+    if [ -f "$APK_PATH" ]; then
+        cp "$APK_PATH" "Amara-Release.apk"
+        echo "✅ Copied fresh APK to Amara-Release.apk"
+    fi
+else
+    echo "⚡ Skipping build, uploading current APK..."
 fi
 
 if [ ! -f "$APK_PATH" ]; then
     echo "❌ Error: APK not found at $APK_PATH"
+    echo "Run without --skip-build to build the APK first."
     exit 1
 fi
 
@@ -68,7 +109,7 @@ echo "======================================================="
 if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
     echo "🎉 SUCCESS: APK uploaded successfully to Tracker!"
     echo "Response: $BODY"
-    echo "👉 View build at: $PROJECT_PAGE"
+    echo "👉 View / download build at: $PROJECT_PAGE"
 else
     echo "❌ Upload failed with HTTP Status: $HTTP_STATUS"
     echo "Server Response: $BODY"
