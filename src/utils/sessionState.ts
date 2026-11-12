@@ -178,6 +178,8 @@ export const clearAuthSession = async () => {
     STORAGE_KEYS.selectedGender,
     'isSubscribed',
     '@subscription_plan',
+    '@subscription_endDate',
+    '@subscription_remainingDays',
     USER_VERIFIED_KEY,
     'userToken',
     'userMobile',
@@ -201,7 +203,11 @@ export const clearAuthSession = async () => {
       `user_phone_${currentUid}`,
       `user_telegram_${currentUid}`,
       `@telegram_username_${currentUid}`,
-      `@amara_telegram_disconnected_${currentUid}`
+      `@amara_telegram_disconnected_${currentUid}`,
+      `isSubscribed_${currentUid}`,
+      `@subscription_plan_${currentUid}`,
+      `@subscription_endDate_${currentUid}`,
+      `@subscription_remainingDays_${currentUid}`
     );
   }
 
@@ -221,6 +227,9 @@ export const clearOnboardingState = async () => {
     STORAGE_KEYS.selectedGender,
     STORAGE_KEYS.firstImageUploaded,
     STORAGE_KEYS.isSubscribed,
+    '@subscription_plan',
+    '@subscription_endDate',
+    '@subscription_remainingDays',
     'GenderOrientation',
     'selectedGender',
     'userGender',

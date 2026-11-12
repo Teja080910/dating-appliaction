@@ -303,12 +303,11 @@ const SearchScreen = ({ navigation }: any) => {
 
       let filteredResults = profiles;
       if (!filters.worldwide && Number.isFinite(Number(filters.maxDistanceKm)) && Number(filters.maxDistanceKm) > 0) {
-        const radiusMatches = filterByRadius(profiles, filters, userLocation, location);
-        filteredResults = radiusMatches.length > 0 ? radiusMatches : profiles;
+        filteredResults = filterByRadius(profiles, filters, userLocation, location);
       }
       setDistanceRange(Number(filters.maxDistanceKm) || 50);
       setIsChecked(Boolean(filters.worldwide));
-      setFilteredProfiles(filteredResults.length > 0 ? filteredResults : profiles);
+      setFilteredProfiles(filteredResults);
       setFilter(filters.onlyOnline ? 'online' : 'newest');
       navigation.goBack();
     } catch (err: any) {

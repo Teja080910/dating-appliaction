@@ -544,9 +544,22 @@ class MockStore {
     this.users.push(newUser);
     await AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users));
 
-    // Ensure new user starts with no stale images
+    // Ensure new user starts with no stale images or subscriptions
     this.images = this.images.filter((img) => String(img.userId) !== String(userId));
     await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
+    delete this.userSubscriptions[userId];
+    delete this.userSubscriptions[userId.toLowerCase()];
+    delete this.userSubscriptions[String(id)];
+    await AsyncStorage.setItem(SUBSCRIPTIONS_KEY, JSON.stringify(this.userSubscriptions));
+    await AsyncStorage.multiRemove([
+      'isSubscribed',
+      '@subscription_plan',
+      '@subscription_endDate',
+      '@subscription_remainingDays',
+      `isSubscribed_${userId}`,
+      `@subscription_plan_${userId}`,
+      `@subscription_endDate_${userId}`,
+    ]).catch(() => {});
 
     await this.setCurrentUserId(userId);
 
@@ -680,7 +693,21 @@ class MockStore {
     const userId = String(profileData.userId);
     const existingIndex = this.profiles.findIndex((p) => String(p.userId) === userId);
 
-    const effectivePhone = profileData.mobile || (profileData as any).phoneNumber || profileData.phone || (profileData as any).mobileNumber;
+    const hasPhoneKey =
+      'mobile' in profileData ||
+      'phoneNumber' in (profileData as any) ||
+      'phone' in profileData ||
+      'mobileNumber' in (profileData as any);
+
+    const rawEffectivePhone = (
+      profileData.mobile !== undefined ? profileData.mobile :
+      (profileData as any).phoneNumber !== undefined ? (profileData as any).phoneNumber :
+      profileData.phone !== undefined ? profileData.phone :
+      (profileData as any).mobileNumber !== undefined ? (profileData as any).mobileNumber :
+      undefined
+    );
+    const effectivePhone = rawEffectivePhone ? String(rawEffectivePhone).trim() : '';
+
     if (effectivePhone) {
       const cleanTarget = String(effectivePhone).replace(/[^\d]/g, '');
       if (cleanTarget.length >= 7) {
@@ -702,8 +729,14 @@ class MockStore {
         ...this.profiles[existingIndex],
         ...profileData,
         userId,
-        ...(effectivePhone ? { mobile: effectivePhone, phone: effectivePhone, phoneNumber: effectivePhone, mobileNumber: effectivePhone } : {}),
+        ...(profileData.displayName ? { displayName: profileData.displayName, name: profileData.name || profileData.displayName } : {}),
       };
+      if (hasPhoneKey) {
+        updated.mobile = effectivePhone;
+        updated.phone = effectivePhone;
+        (updated as any).phoneNumber = effectivePhone;
+        (updated as any).mobileNumber = effectivePhone;
+      }
       this.profiles[existingIndex] = updated;
     } else {
       updated = {
@@ -717,7 +750,10 @@ class MockStore {
         photos: profileData.photos || [],
         telegramUsername: profileData.telegramUsername || '',
         ...profileData,
-        ...(effectivePhone ? { mobile: effectivePhone, phone: effectivePhone, phoneNumber: effectivePhone, mobileNumber: effectivePhone } : {}),
+        mobile: effectivePhone,
+        phone: effectivePhone,
+        phoneNumber: effectivePhone,
+        mobileNumber: effectivePhone,
       };
       this.profiles.push(updated);
     }
@@ -726,11 +762,23 @@ class MockStore {
 
     const userIndex = this.users.findIndex((u) => String(u.userId) === userId || String(u.id) === userId);
     if (userIndex >= 0) {
+      if (profileData.name || profileData.displayName) {
+        this.users[userIndex].name = profileData.displayName || profileData.name || this.users[userIndex].name;
+        (this.users[userIndex] as any).displayName = profileData.displayName || profileData.name || (this.users[userIndex] as any).displayName;
+      }
       if (profileData.gender) {
         this.users[userIndex].gender = profileData.gender;
       }
-      const effectivePhone = profileData.mobile || (profileData as any).phoneNumber || profileData.phone || (profileData as any).mobileNumber;
-      if (effectivePhone) {
+      if (profileData.dob) {
+        (this.users[userIndex] as any).dob = profileData.dob;
+      }
+      if (profileData.age !== undefined && profileData.age !== null) {
+        (this.users[userIndex] as any).age = Number(profileData.age);
+      }
+      if (profileData.bio) {
+        (this.users[userIndex] as any).bio = profileData.bio;
+      }
+      if (hasPhoneKey) {
         this.users[userIndex].mobile = effectivePhone;
         (this.users[userIndex] as any).phone = effectivePhone;
         (this.users[userIndex] as any).phoneNumber = effectivePhone;
@@ -1559,13 +1607,13 @@ class MockStore {
       }
     }
 
-    // 4. Fallback: check persisted AsyncStorage subscription
+    // 4. Check user-scoped persisted subscription only if this specific user purchased one
     if (!subscription) {
       try {
         const [storedSub, storedPlan, storedEnd] = await Promise.all([
-          AsyncStorage.getItem('isSubscribed'),
-          AsyncStorage.getItem('@subscription_plan'),
-          AsyncStorage.getItem('@subscription_endDate'),
+          AsyncStorage.getItem(`isSubscribed_${cleanId}`),
+          AsyncStorage.getItem(`@subscription_plan_${cleanId}`),
+          AsyncStorage.getItem(`@subscription_endDate_${cleanId}`),
         ]);
         if (storedSub === 'true' && (!storedEnd || new Date(storedEnd).getTime() > Date.now())) {
           const planNorm = (storedPlan || 'STANDARD').toUpperCase();

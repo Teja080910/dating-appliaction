@@ -36,6 +36,7 @@ import { Colors, useTheme } from "../../theme";
 import { useAlert } from "../../components/AlertModal";
 import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/session";
 import { mockStore } from "../../mock/mockStore";
+import { USE_MOCK } from "../../environment/ApiConfig";
 import { openWhatsAppChat, extractPhone, extractTelegram } from "../../utils/whatsappHelper";
 
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
@@ -316,8 +317,8 @@ const ViewMyProfileScreen = () => {
             }
           } catch {}
 
-          // 3. Fallback to mock store
-          if (!apiActive) {
+          // 3. Fallback to mock store (mock mode only)
+          if (!apiActive && USE_MOCK) {
             const sub = await mockStore.getSubscriptionStatus(String(currentUserId));
             if (sub && sub.status === 'ACTIVE') {
               apiActive = true;
@@ -332,7 +333,9 @@ const ViewMyProfileScreen = () => {
             await AsyncStorage.setItem('@subscription_plan', planName.toUpperCase());
             if (endDate) await AsyncStorage.setItem('@subscription_endDate', endDate);
             if (remainingDays !== null) await AsyncStorage.setItem('@subscription_remainingDays', String(remainingDays));
-            await mockStore.activateSubscription(String(currentUserId), planName);
+            if (USE_MOCK) {
+              await mockStore.activateSubscription(String(currentUserId), planName);
+            }
           } else {
             // Check if local storage is valid and not expired before clearing
             const [storedSub, storedEnd] = await Promise.all([
@@ -488,9 +491,18 @@ const ViewMyProfileScreen = () => {
   );
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', () => {
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', async () => {
       void loadDeletedUris();
       void refetchProfileRef.current?.();
+      try {
+        const [p1, p2, tg] = await Promise.all([
+          AsyncStorage.getItem('phoneNumber'),
+          AsyncStorage.getItem('userMobile'),
+          AsyncStorage.getItem('telegramUsername'),
+        ]);
+        setStoredPhone(p1 || p2 || '');
+        setStoredTelegram(tg ? tg.replace(/^@+/, '') : '');
+      } catch {}
       if (isViewingSelf && myId) {
         getAllImagesRef.current(String(myId), {
           onSuccess: (data: any) => {
@@ -637,7 +649,7 @@ const ViewMyProfileScreen = () => {
             }
           } catch {}
           if (!activeSubscribed) {
-            const sub = await mockStore.getSubscriptionStatus(String(myId));
+            const sub = USE_MOCK ? await mockStore.getSubscriptionStatus(String(myId)) : null;
             if (sub && sub.status === 'ACTIVE') {
               activeSubscribed = true;
               await AsyncStorage.setItem('isSubscribed', 'true');
@@ -860,22 +872,17 @@ const ViewMyProfileScreen = () => {
 
     const filterOutDeleted = (list: (string | null | undefined)[]) => {
       if (!deletedUris || deletedUris.length === 0) return dedupeImageUris(list);
-      const getFn = (u?: string | null) => {
-        if (!u) return '';
-        const c = u.split('?')[0].split('#')[0];
-        return c.substring(c.lastIndexOf('/') + 1);
-      };
       return dedupeImageUris(list).filter((uri) => {
         if (!uri) return false;
         const clean = uri.trim();
         const abs = getAbsoluteUrl(clean) || clean;
-        const fn = getFn(clean);
         return !deletedUris.some((d) => {
           if (!d) return false;
-          if (d === clean || d === abs) return true;
-          const dfn = getFn(d);
-          if (fn && dfn && fn === dfn) return true;
-          return false;
+          const cleanD = String(d).trim();
+          if (!cleanD) return false;
+          if (cleanD === clean || cleanD === abs) return true;
+          const dAbs = getAbsoluteUrl(cleanD) || cleanD;
+          return dAbs === abs || dAbs === clean;
         });
       });
     };
@@ -921,16 +928,16 @@ const ViewMyProfileScreen = () => {
       id: (isViewingSelf ? (fetched?.id || myId) : (numericTargetId || (isTargetUserFetched ? fetched?.id : null) || routed?.id)) || null,
       targetUserId: isViewingSelf ? null : (numericTargetId || routed?.targetUserId || routed?.userId || null),
       name: isViewingSelf
-        ? (normalizeTextValue(fetched?.name) || normalizeTextValue(name) || normalizeTextValue(displayName) || t('home.usercard.user'))
-        : (normalizeTextValue(routed?.name) || (isTargetUserFetched ? normalizeTextValue(fetched?.name) : '') || normalizeTextValue(routed?.displayName) || (isTargetUserFetched ? normalizeTextValue(fetched?.displayName) : '') || t('home.usercard.user')),
+        ? (normalizeTextValue(displayName) || normalizeTextValue(name) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name) || t('home.usercard.user'))
+        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(routed?.name) || (isTargetUserFetched ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name)) : '') || t('home.usercard.user')),
       displayName: isViewingSelf
-        ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(displayName) || normalizeTextValue(name) || t('home.usercard.user'))
-        : (normalizeTextValue(routed?.displayName) || (isTargetUserFetched ? normalizeTextValue(fetched?.displayName) : '') || normalizeTextValue(routed?.name) || (isTargetUserFetched ? normalizeTextValue(fetched?.name) : '') || t('home.usercard.user')),
+        ? (normalizeTextValue(displayName) || normalizeTextValue(name) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name) || t('home.usercard.user'))
+        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(routed?.name) || (isTargetUserFetched ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name)) : '') || t('home.usercard.user')),
       age: isViewingSelf
-        ? (fetched?.age || ownAge || null)
+        ? (ownAge || fetched?.age || null)
         : (routed?.age || (isTargetUserFetched ? fetched?.age : null) || null),
       bio: isViewingSelf
-        ? (normalizeTextValue(fetched?.bio) || normalizeTextValue(profileText) || '')
+        ? (normalizeTextValue(profileText) || normalizeTextValue(fetched?.bio) || '')
         : (normalizeTextValue(routed?.bio) || (isTargetUserFetched ? normalizeTextValue(fetched?.bio) : '') || ''),
       height: isViewingSelf
         ? (fetched?.height || height || null)
@@ -994,16 +1001,24 @@ const ViewMyProfileScreen = () => {
         ? (normalizeTextValue(fetched?.telegramUsername) || normalizeTextValue(storedTelegram) || normalizeTextValue(myTgStatus?.telegramUsername) || '')
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : ''))),
       phoneNumber: isViewingSelf
-        ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        ? (fetched
+            ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || '')
+            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobile: isViewingSelf
-        ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        ? (fetched
+            ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || '')
+            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       phone: isViewingSelf
-        ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        ? (fetched
+            ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber) || '')
+            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobileNumber: isViewingSelf
-        ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || '')
+        ? (fetched
+            ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || '')
+            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : ''))),
       profileImageUrl: isViewingSelf
         ? (contextPrimaryImage || (ownImages[0] || null) || normalizeTextValue(fetched?.profileImageUrl))

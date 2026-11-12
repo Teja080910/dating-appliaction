@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
@@ -47,9 +48,7 @@ const hasActiveSearchFilters = (saved: any): boolean => {
       saved.location !== 'Mumbai, India') ||
     saved.worldwide === true ||
     saved.onlyOnline === true ||
-    (saved.maxDistanceKm !== undefined && saved.maxDistanceKm < 50) ||
-    (saved.searchRadius !== undefined && saved.searchRadius < 50) ||
-    (saved.radius !== undefined && saved.radius < 50)
+    (saved.worldwide !== true && (saved.maxDistanceKm !== undefined || saved.searchRadius !== undefined || saved.radius !== undefined))
   );
 };
 
@@ -297,11 +296,11 @@ const UserList = ({
               gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
               onlyOnline: mode === 'online' ? (savedFilters?.onlyOnline === true) : undefined,
               sortBy: mode === 'online' ? 'active' : 'createdAt',
-              maxDistanceKm: mode === 'online' ? (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius) : undefined,
-              searchRadius: mode === 'online' ? (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius) : undefined,
-              radius: mode === 'online' ? (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius) : undefined,
-              latitude: mode === 'online' ? userLocation?.latitude : undefined,
-              longitude: mode === 'online' ? userLocation?.longitude : undefined,
+              maxDistanceKm: (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius),
+              searchRadius: (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius),
+              radius: (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius),
+              latitude: userLocation?.latitude,
+              longitude: userLocation?.longitude,
               page: 0,
               size: 20,
             };
@@ -337,14 +336,14 @@ const UserList = ({
                 }
               } catch {}
             }
-          } else if (filteredProfiles !== null && filteredProfiles.length > 0) {
+          } else if (filteredProfiles !== null) {
             items = filteredProfiles;
           } else if (mode === 'online') {
             try {
               const res = await apiClient.get('/dashboard/online', {
                 params: {
                   page: 0,
-                  size: 20,
+                  size: 50,
                   userId: resolvedUserId || undefined,
                   gender: selectedGender === 'straight_man' ? 'man' : 'woman',
                 },
@@ -360,7 +359,7 @@ const UserList = ({
               const recentRes = await apiClient.get('/dashboard/recent', {
                 params: {
                   page: 0,
-                  size: 20,
+                  size: 50,
                   userId: resolvedUserId || undefined,
                   gender: selectedGender === 'straight_man' ? 'man' : 'woman',
                 },
@@ -394,7 +393,7 @@ const UserList = ({
               const res = await apiClient.get('/dashboard/recent', {
                 params: {
                   page: 0,
-                  size: 20,
+                  size: 50,
                   userId: resolvedUserId || undefined,
                   gender: selectedGender === 'straight_man' ? 'man' : 'woman',
                 },
@@ -499,6 +498,34 @@ const UserList = ({
           } catch {}
         }
 
+        // Merge any locally registered profiles on this device so newly created accounts appear immediately
+        try {
+          const rawReg = await AsyncStorage.getItem('@amara_registered_profiles');
+          if (rawReg) {
+            const regList = JSON.parse(rawReg);
+            if (Array.isArray(regList) && regList.length > 0) {
+              const existingIds = new Set(
+                items.map((i: any) => String(resolveProfileUserId(i) || i?.id || ''))
+              );
+              const newlyCreated: any[] = [];
+              for (const rItem of regList) {
+                const rId = String(resolveProfileUserId(rItem) || rItem?.id || '');
+                if (rId && !existingIds.has(rId)) {
+                  existingIds.add(rId);
+                  newlyCreated.push({
+                    ...rItem,
+                    online: true,
+                  });
+                }
+              }
+              // Prepend newly created profiles at the very top of Discover!
+              if (newlyCreated.length > 0) {
+                items = [...newlyCreated, ...items];
+              }
+            }
+          }
+        } catch {}
+
         const activeGenders =
           savedFilters?.gender ||
           (savedFilters?.showMe ? [savedFilters.showMe] : (showMe ? [showMe] : null));
@@ -510,17 +537,14 @@ const UserList = ({
         );
         const invitable = keepInvitableProfiles(genderMatched);
         const shouldApplyRadiusFilter = Boolean(
-          mode === 'online' &&
-          hasFilters &&
           savedFilters &&
           savedFilters.isFilterActive !== false &&
           !savedFilters.worldwide &&
-          (savedFilters.maxDistanceKm || savedFilters.searchRadius || savedFilters.radius)
+          (savedFilters.maxDistanceKm !== undefined || savedFilters.searchRadius !== undefined || savedFilters.radius !== undefined)
         );
         let radiusFiltered = invitable;
         if (shouldApplyRadiusFilter) {
-          const matchedByRadius = filterByRadius(invitable, savedFilters, userLocation, location);
-          radiusFiltered = matchedByRadius.length > 0 ? matchedByRadius : invitable;
+          radiusFiltered = filterByRadius(invitable, savedFilters, userLocation, location);
         }
         const finalItems = resolvedBackendUserId
           ? radiusFiltered.filter((item) => {
@@ -603,17 +627,14 @@ const UserList = ({
         );
         const invitable = keepInvitableProfiles(genderMatched);
         const shouldApplyRadiusFilter = Boolean(
-          mode === 'online' &&
-          hasFilters &&
           savedFilters &&
           savedFilters.isFilterActive !== false &&
           !savedFilters.worldwide &&
-          (savedFilters.maxDistanceKm || savedFilters.searchRadius || savedFilters.radius)
+          (savedFilters.maxDistanceKm !== undefined || savedFilters.searchRadius !== undefined || savedFilters.radius !== undefined)
         );
         let radiusFiltered = invitable;
         if (shouldApplyRadiusFilter) {
-          const matchedByRadius = filterByRadius(invitable, savedFilters, userLocation, location);
-          radiusFiltered = matchedByRadius.length > 0 ? matchedByRadius : invitable;
+          radiusFiltered = filterByRadius(invitable, savedFilters, userLocation, location);
         }
         const finalItems = resolvedBackendUserId
           ? radiusFiltered.filter((item: any) => {

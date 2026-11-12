@@ -89,7 +89,16 @@ const UploadPhotosScreen = ({ navigation }: any) => {
   };
 
   const handleNext = async () => {
-    if (!isNextEnabled || isCheckingPhotos) return;
+    if (uploadedCount < 3) {
+      Alert.alert(
+        t('common.notice', { defaultValue: '3 Photos Required' }),
+        t('onboarding.uploadimagescreen.please_upload_at_least_3_photos', {
+          defaultValue: `Please upload at least 3 photos to proceed with your profile creation (currently uploaded: ${uploadedCount}/3).`,
+        })
+      );
+      return;
+    }
+    if (isCheckingPhotos) return;
     const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
     await AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots));
 
@@ -209,7 +218,11 @@ const UploadPhotosScreen = ({ navigation }: any) => {
           <Text style={styles.headline}>
             {t('onboarding.uploadimagescreen.nice_to_meet_you', { name: name ? name.trim() : 'Xyz' })}
           </Text>
-          <Text style={styles.subheadline}>{t('onboarding.uploadimagescreen.please_upload_at_least_3_photos_one_must_clearly_show_your_face')}</Text>
+          <Text style={styles.subheadline}>
+            {uploadedCount < 3
+              ? `Please upload at least 3 photos to proceed (${uploadedCount}/3 added).`
+              : t('onboarding.uploadimagescreen.please_upload_at_least_3_photos_one_must_clearly_show_your_face')}
+          </Text>
 
           {/* 6-Slot Photo Grid (2 rows x 3 columns) */}
           <View style={styles.photoGrid}>
@@ -263,7 +276,6 @@ const UploadPhotosScreen = ({ navigation }: any) => {
                 : styles.nextBtnDisabled,
             ]}
             onPress={handleNext}
-            disabled={!isNextEnabled || isCheckingPhotos}
             activeOpacity={0.85}
           >
             {isCheckingPhotos ? (
@@ -274,7 +286,11 @@ const UploadPhotosScreen = ({ navigation }: any) => {
                   styles.nextBtnText,
                   !isNextEnabled && styles.nextBtnTextDisabled,
                 ]}
-              >{t('onboarding.aboutprofilescreen.next')}</Text>
+              >
+                {uploadedCount < 3
+                  ? `${t('onboarding.aboutprofilescreen.next', { defaultValue: 'Next' })} (${uploadedCount}/3)`
+                  : t('onboarding.aboutprofilescreen.next', { defaultValue: 'Next' })}
+              </Text>
             )}
           </TouchableOpacity>
         </ScrollView>

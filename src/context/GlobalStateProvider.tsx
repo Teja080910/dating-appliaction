@@ -8,6 +8,7 @@ import { MAX_PROFILE_IMAGES } from '../api/useImages';
 import { getSavedSearchFilters, clearSavedSearchFilters, getActiveFilterCount } from '../utils/types/AsyncStorage';
 import { getThemeColors, Colors } from '../theme/colors';
 import { mockStore } from '../mock/mockStore';
+import { USE_MOCK } from '../environment/ApiConfig';
 import apiClient from '../api/apiClient';
 
 const GlobalStateProvider = ({ children }: any) => {
@@ -338,7 +339,7 @@ const GlobalStateProvider = ({ children }: any) => {
               }
             } catch {}
 
-            if (!isActive) {
+            if (!isActive && USE_MOCK) {
               const sub = await mockStore.getSubscriptionStatus(String(id)).catch(() => null);
               if (sub && sub.status === 'ACTIVE') {
                 isActive = true;
@@ -350,29 +351,49 @@ const GlobalStateProvider = ({ children }: any) => {
             if (isActive) {
               activeSub = true;
               await AsyncStorage.setItem('isSubscribed', 'true');
+              await AsyncStorage.setItem(`isSubscribed_${id}`, 'true');
               await AsyncStorage.setItem('@subscription_plan', planName);
+              await AsyncStorage.setItem(`@subscription_plan_${id}`, planName);
               if (endDateStr) {
                 await AsyncStorage.setItem('@subscription_endDate', endDateStr);
+                await AsyncStorage.setItem(`@subscription_endDate_${id}`, endDateStr);
               }
             } else {
-              // Check local storage with expiration check
-              const localSub = await AsyncStorage.getItem('isSubscribed');
-              const localEnd = await AsyncStorage.getItem('@subscription_endDate');
-              if (localSub === 'true' && (!localEnd || new Date(localEnd).getTime() > Date.now())) {
+              // Check user-scoped local storage only if this specific user has a paid plan
+              const userScopedSub = await AsyncStorage.getItem(`isSubscribed_${id}`);
+              const userScopedEnd = await AsyncStorage.getItem(`@subscription_endDate_${id}`);
+              if (userScopedSub === 'true' && (!userScopedEnd || new Date(userScopedEnd).getTime() > Date.now())) {
                 activeSub = true;
               } else {
-                await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan', '@subscription_endDate']);
+                activeSub = false;
+                await AsyncStorage.multiRemove([
+                  'isSubscribed',
+                  '@subscription_plan',
+                  '@subscription_endDate',
+                  '@subscription_remainingDays',
+                  `isSubscribed_${id}`,
+                  `@subscription_plan_${id}`,
+                  `@subscription_endDate_${id}`,
+                  `@subscription_remainingDays_${id}`,
+                ]);
               }
             }
           } catch {
-            const localSub = await AsyncStorage.getItem('isSubscribed');
-            const localEnd = await AsyncStorage.getItem('@subscription_endDate');
-            if (localSub === 'true' && (!localEnd || new Date(localEnd).getTime() > Date.now())) {
+            const userScopedSub = await AsyncStorage.getItem(`isSubscribed_${id}`);
+            const userScopedEnd = await AsyncStorage.getItem(`@subscription_endDate_${id}`);
+            if (userScopedSub === 'true' && (!userScopedEnd || new Date(userScopedEnd).getTime() > Date.now())) {
               activeSub = true;
+            } else {
+              activeSub = false;
             }
           }
         } else {
-          await AsyncStorage.multiRemove(['isSubscribed', '@subscription_plan', '@subscription_endDate']);
+          await AsyncStorage.multiRemove([
+            'isSubscribed',
+            '@subscription_plan',
+            '@subscription_endDate',
+            '@subscription_remainingDays',
+          ]);
         }
         setIsSubscribed(activeSub);
 
@@ -388,23 +409,72 @@ const GlobalStateProvider = ({ children }: any) => {
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', async (event?: any) => {
       const activeId = event?.uid || (await getUserId().catch(() => null));
-      if (activeId) {
-        try {
-          const res = await apiClient.get(`/users/${activeId}/images`).catch(() => null);
-          const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
-          if (list.length > 0) {
-            const liveUrls = list.map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null)).filter(Boolean);
-            if (liveUrls.length > 0) {
-              const slots = [...liveUrls];
+      try {
+        const [
+          storedName,
+          storedDisplayName,
+          storedBio,
+          storedDob,
+          storedPhone,
+          userScopedPhone,
+          userScopedPhotos,
+          userScopedProfilePhoto,
+        ] = await Promise.all([
+          AsyncStorage.getItem('name'),
+          AsyncStorage.getItem('displayName'),
+          AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
+          AsyncStorage.getItem('userDob'),
+          AsyncStorage.getItem('phoneNumber'),
+          activeId ? AsyncStorage.getItem(`user_phone_${activeId}`).catch(() => null) : Promise.resolve(null),
+          activeId ? AsyncStorage.getItem(`user_photos_${activeId}`).catch(() => null) : Promise.resolve(null),
+          activeId ? AsyncStorage.getItem(`user_profile_photo_${activeId}`).catch(() => null) : Promise.resolve(null),
+        ]);
+
+        if (storedDisplayName) setDisplayName(storedDisplayName);
+        if (storedName || storedDisplayName) setName(storedDisplayName || storedName || '');
+        if (storedBio) setProfileText(storedBio);
+        if (storedDob) {
+          try {
+            setDate(new Date(storedDob));
+          } catch {}
+        }
+        const effectivePhone = userScopedPhone || storedPhone;
+        if (effectivePhone) setPhoneNumber(effectivePhone);
+
+        // Synchronize photos from local scoped storage first
+        if (userScopedPhotos) {
+          try {
+            const parsed = JSON.parse(userScopedPhotos);
+            if (Array.isArray(parsed) && parsed.some(Boolean)) {
+              const slots = [...parsed];
               while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
               setImages(slots);
-              setProfileImage(slots[0]);
-              setProfileImageUrl(slots[0]);
-              AsyncStorage.setItem(`user_photos_${activeId}`, JSON.stringify(slots)).catch(() => {});
+              const pImg = slots[0] || userScopedProfilePhoto || null;
+              setProfileImage(pImg);
+              setProfileImageUrl(pImg);
             }
-          }
-        } catch {}
-      }
+          } catch {}
+        }
+
+        // Live server synchronization for profile photos
+        if (activeId) {
+          try {
+            const res = await apiClient.get(`/users/${activeId}/images`).catch(() => null);
+            const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
+            if (list.length > 0) {
+              const liveUrls = list.map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null)).filter(Boolean);
+              if (liveUrls.length > 0) {
+                const slots = [...liveUrls];
+                while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+                setImages(slots);
+                setProfileImage(slots[0]);
+                setProfileImageUrl(slots[0]);
+                AsyncStorage.setItem(`user_photos_${activeId}`, JSON.stringify(slots)).catch(() => {});
+              }
+            }
+          } catch {}
+        }
+      } catch {}
     });
     return () => sub.remove();
   }, []);

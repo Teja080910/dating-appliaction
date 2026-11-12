@@ -441,10 +441,48 @@ export const useConnection = (userId?: string | number) => {
         };
       }
 
-      const payload = {
+      const [myPhoto, myName, myPhone, myTg, myBio, myCity] = await Promise.all([
+        AsyncStorage.getItem('userPhoto'),
+        AsyncStorage.getItem('displayName'),
+        AsyncStorage.getItem('phoneNumber'),
+        AsyncStorage.getItem('telegramUsername'),
+        AsyncStorage.getItem('bio'),
+        AsyncStorage.getItem('userCity'),
+      ]);
+
+      const payload: Record<string, any> = {
         requestId: reqIdStr,
         userId: String(resolvedUserId),
       };
+
+      if (myName) {
+        payload.name = myName;
+        payload.femaleName = myName;
+      }
+      if (myPhone) {
+        payload.mobile = myPhone;
+        payload.phoneNumber = myPhone;
+        payload.femaleWhatsApp = myPhone;
+        payload.receiverMobile = myPhone;
+      }
+      if (myTg) {
+        payload.telegramUsername = myTg;
+        payload.telegram = myTg;
+        payload.femaleTelegram = myTg;
+        payload.receiverTelegram = myTg;
+      }
+      if (myPhoto) {
+        payload.photo = myPhoto;
+        payload.femalePhoto = myPhoto;
+      }
+      if (myBio) {
+        payload.bio = myBio;
+        payload.femaleBio = myBio;
+      }
+      if (myCity) {
+        payload.city = myCity;
+        payload.femaleLocation = myCity;
+      }
 
       try {
         const res = await apiClient.put('/connections/accept', payload);

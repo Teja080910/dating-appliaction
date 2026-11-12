@@ -72,6 +72,8 @@
   "profile.profilephotogrid.upload_from_gallery": "Upload from Gallery",
   "profile.profilephotogrid.use_camera": "Use Camera",
   "profile.profilephotogrid.face_photo_required": "Face photo required",
+  "profile.profilephotogrid.more_photos_required": "More photos required",
+  "profile.profilephotogrid.min_three_photos_required": "Your profile needs at least 3 photos. To delete this photo, please first upload another one. Afterward, you can delete this photo.",
   "profile.profilephotogrid.every_user_needs_to_have_at_least_one_face_picture_in_their_profile_to": "Every user needs to have at least one face picture in their profile. To delete this picture, please first upload another face picture. Afterward, you can delete this picture.",
   "profile.profilephotogrid.okay": "Okay",
   "profile.profilesetting.account_settings": "ACCOUNT SETTINGS",

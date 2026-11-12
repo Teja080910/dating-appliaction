@@ -833,20 +833,17 @@ export const handleMockRequest = async (
         if (dist === null) {
           dist = resolveProfileDistanceKm(p, body.userLocation || null, body.city || body.location || null);
         }
-        return dist !== null ? dist <= maxRadiusKm : true;
+        return dist !== null ? dist <= maxRadiusKm : false;
       });
     }
 
     // Filter by City / Location (when not worldwide)
     const targetCity = String(body.city || body.location || '').trim().toLowerCase();
     if (targetCity && !body.worldwide && targetCity !== 'my current location' && !targetCity.includes('current location')) {
-      const cityMatches = filtered.filter(p => {
+      filtered = filtered.filter(p => {
         const pCity = String(p.currentCity || (p as any).city || '').toLowerCase();
         return pCity && (pCity.includes(targetCity) || targetCity.includes(pCity));
       });
-      if (cityMatches.length > 0) {
-        filtered = cityMatches;
-      }
     }
 
     const finalResult = filtered.map(hideTelegramFromPublicProfile);

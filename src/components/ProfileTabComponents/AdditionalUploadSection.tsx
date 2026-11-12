@@ -224,17 +224,6 @@ const AdditionalUploadSection = () => {
         text: t('profile.additionaluploadsection.remove_photo'),
         style: 'destructive',
         onPress: () => {
-          const nonNullCount = (images || []).filter(Boolean).length;
-          if (nonNullCount <= 1) {
-            alert(
-              t('common.notice', { defaultValue: 'At Least 1 Photo Required' }),
-              t('profile.uploadimage.last_photo_cannot_be_deleted', {
-                defaultValue:
-                  'You must keep at least one profile photo. To change your only photo, please replace it with a new one.',
-              })
-            );
-            return;
-          }
           if (imageId) {
             deleteImage.mutate(imageId, {
               onSuccess: () => {

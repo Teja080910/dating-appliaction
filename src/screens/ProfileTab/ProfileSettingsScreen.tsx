@@ -176,6 +176,8 @@ const ProfileSettingsScreen = () => {
       if (parsed?.number) {
         setLocalPhoneNumber(parsed.number);
       }
+    } else {
+      setLocalPhoneNumber('');
     }
 
     const rawTg = profile.telegramUsername ? String(profile.telegramUsername).replace(/^@+/, '').trim() : '';
@@ -209,10 +211,8 @@ const ProfileSettingsScreen = () => {
   }, [localDob]);
 
   const handleSave = () => {
-    if (!localDisplayName.trim()) {
-      alert(t('profile.profilesettingsscreen.missing_name'), t('profile.profilesettingsscreen.nickname_first_name_is_required'));
-      return;
-    }
+    const cleanName = (localDisplayName.trim() || displayName || t('home.usercard.user')).trim();
+    const cleanBio = localDescription.trim();
 
     const parsedInput = parsePhoneNumberAndCountry(localPhoneNumber);
     const effectiveCountryCode = parsedInput?.code || countryCode;
@@ -225,21 +225,7 @@ const ProfileSettingsScreen = () => {
     }
     const fullPhone = cleanPhoneDigits.length >= 7 ? `${effectiveCountryCode} ${cleanPhoneDigits}` : '';
 
-    // Enforce at least one contact method (WhatsApp/Phone OR Telegram)
-    const hasValidPhone = Boolean(cleanPhoneDigits && cleanPhoneDigits.length >= 7);
-    const hasValidTelegram = Boolean(localTelegramUsername.trim().replace(/^@+/, ''));
-    if (!hasValidPhone && !hasValidTelegram) {
-      alert(
-        'Contact Method Required',
-        'Please provide either your WhatsApp number or your Telegram username so your matches can connect with you.'
-      );
-      return;
-    }
-
     const persistLocalState = async () => {
-      const cleanName = localDisplayName.trim();
-      const cleanBio = localDescription.trim();
-
       setDisplayName(cleanName);
       setName(cleanName);
       setProfileText(cleanBio);
@@ -247,10 +233,16 @@ const ProfileSettingsScreen = () => {
 
       await AsyncStorage.setItem('displayName', cleanName);
       await AsyncStorage.setItem('name', cleanName);
+      await AsyncStorage.setItem('userName', cleanName);
       await AsyncStorage.setItem('bio', cleanBio);
+      await AsyncStorage.setItem('userBio', cleanBio);
       await AsyncStorage.setItem('@onboarding_bio', cleanBio);
       await AsyncStorage.setItem('userDob', localDob);
       const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
+      if (currentUid) {
+        await AsyncStorage.setItem(`user_name_${currentUid}`, cleanName);
+        await AsyncStorage.setItem(`user_dob_${currentUid}`, localDob);
+      }
       const validPhotos = (images || []).filter(Boolean) as string[];
       await AsyncStorage.setItem('onboardingImages', JSON.stringify(images || []));
       if (currentUid) {
@@ -287,15 +279,22 @@ const ProfileSettingsScreen = () => {
       }
       if (localTelegramUsername.trim()) {
         const cleanTg = localTelegramUsername.trim().replace(/^@+/, '');
+        await AsyncStorage.setItem('telegramUsername', cleanTg);
+        await AsyncStorage.setItem('@telegram_username', cleanTg);
         if (currentUid) {
           await AsyncStorage.setItem(`user_telegram_${currentUid}`, cleanTg);
+          await AsyncStorage.setItem(`@telegram_username_${currentUid}`, cleanTg);
+          await AsyncStorage.removeItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => {});
         }
       } else {
+        await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
         if (currentUid) {
-          await AsyncStorage.removeItem(`user_telegram_${currentUid}`);
+          await AsyncStorage.multiRemove([
+            `user_telegram_${currentUid}`,
+            `@telegram_username_${currentUid}`,
+          ]).catch(() => {});
         }
       }
-      await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
     };
 
     const handlePersist = async () => {
@@ -317,19 +316,20 @@ const ProfileSettingsScreen = () => {
       updateProfile.mutate(
         {
           userId: currentUid,
-          displayName: localDisplayName.trim(),
-          name: localDisplayName.trim(),
-          bio: localDescription.trim(),
+          displayName: cleanName,
+          name: cleanName,
+          bio: cleanBio,
           dob: localDob,
           age: computedAge,
           telegramUsername: localTelegramUsername.trim() || undefined,
-          mobile: fullPhone || undefined,
+          mobile: fullPhone || '',
+          phoneNumber: fullPhone || '',
         } as any,
         {
           onSuccess: async () => {
             await persistLocalState();
             await profileQuery.refetch();
-            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
+            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
             navigation.goBack();
           },
           onError: async (error: any) => {
@@ -368,7 +368,7 @@ const ProfileSettingsScreen = () => {
             // Always save locally and return smoothly without disruptive popups
             await persistLocalState();
             await profileQuery.refetch();
-            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
+            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
             navigation.goBack();
           },
           onSettled: () => setLoading(false),

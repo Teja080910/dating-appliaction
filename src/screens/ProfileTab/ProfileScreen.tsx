@@ -61,7 +61,7 @@ const ProfileScreen = () => {
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender, isSubscribed } =
+  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender, isSubscribed, authUserId } =
     useContext(AppContext);
   const { logout, deleteAccount } = useAuth();
   const { alert, AlertComponent } = useAlert();
@@ -76,24 +76,37 @@ const ProfileScreen = () => {
   const [subRemainingDays, setSubRemainingDays] = useState<number | null>(null);
   const { subscriptionStatus } = useSubscription();
 
-  const effectiveIsSubscribed = Boolean(
-    isSubscribed ||
-    subscriptionStatus?.active ||
-    (subRemainingDays !== null && subRemainingDays > 0)
-  );
+  // Only a verified subscription state should count. A cached remaining-days
+  // value alone can be stale from a previous account on the same device.
+  const effectiveIsSubscribed = Boolean(isSubscribed || subscriptionStatus?.active);
 
   useFocusEffect(
     React.useCallback(() => {
       let isMounted = true;
       const loadSubInfo = async () => {
         try {
-          const [plan, daysStr] = await Promise.all([
-            AsyncStorage.getItem('@subscription_plan'),
-            AsyncStorage.getItem('@subscription_remainingDays'),
+          if (!effectiveIsSubscribed) {
+            if (isMounted) {
+              setSubRemainingDays(null);
+            }
+            return;
+          }
+          const uid = (await getUserId().catch(() => null)) || authUserId;
+          const [plan, endDateStr] = await Promise.all([
+            uid ? AsyncStorage.getItem(`@subscription_plan_${uid}`) : AsyncStorage.getItem('@subscription_plan'),
+            uid ? AsyncStorage.getItem(`@subscription_endDate_${uid}`) : AsyncStorage.getItem('@subscription_endDate'),
           ]);
-          if (isMounted) {
-            if (plan) setSubPlan(plan.toUpperCase());
-            if (daysStr) setSubRemainingDays(parseInt(daysStr, 10));
+          if (!isMounted) return;
+
+          if (plan) setSubPlan(plan.toUpperCase());
+
+          const endTime = endDateStr ? new Date(endDateStr).getTime() : NaN;
+          if (Number.isFinite(endTime) && endTime > Date.now()) {
+            setSubRemainingDays(
+              Math.max(0, Math.ceil((endTime - Date.now()) / (1000 * 60 * 60 * 24)))
+            );
+          } else {
+            setSubRemainingDays(null);
           }
         } catch {}
       };
@@ -101,7 +114,7 @@ const ProfileScreen = () => {
       return () => {
         isMounted = false;
       };
-    }, [isSubscribed])
+    }, [effectiveIsSubscribed, authUserId])
   );
 
   useEffect(() => {
@@ -112,6 +125,12 @@ const ProfileScreen = () => {
       }
     }
   }, [subscriptionStatus]);
+
+  useEffect(() => {
+    if (!effectiveIsSubscribed) {
+      setSubRemainingDays(null);
+    }
+  }, [effectiveIsSubscribed]);
 
   const SUPPORT_EMAIL = 'khushboo.sharma@berrybloomer.com';
 
@@ -284,7 +303,7 @@ const ProfileScreen = () => {
                       : subPlan === 'PREMIUM'
                       ? 'Premium'
                       : 'Standard';
-                  return subRemainingDays !== null
+                  return subRemainingDays !== null && subRemainingDays > 0
                     ? `${planDisplay} Membership (${subRemainingDays}d left)`
                     : `${planDisplay} Membership`;
                 })()}

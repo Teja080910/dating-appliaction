@@ -177,19 +177,41 @@ const normalizeProfile = (payload: any) => {
   ].find((v) => v !== undefined && v !== null && (Array.isArray(v) ? v.length > 0 : String(v).trim() !== ''));
   const resolvedLanguage = Array.isArray(rawLanguage) ? rawLanguage.join(', ') : (rawLanguage ? String(rawLanguage) : '');
 
+  const rawDisplayName = source?.displayName ? String(source.displayName).trim() : '';
+  const rawName = source?.name ? String(source.name).trim() : '';
+  const resolvedDisplayName = rawDisplayName || rawName || '';
+  const resolvedName = (rawName && rawName.toLowerCase() !== 'user') ? rawName : (rawDisplayName || rawName || '');
+
+  let computedAgeFromDob: number | null = null;
+  if (source?.dob) {
+    try {
+      const dobDate = new Date(source.dob);
+      if (!isNaN(dobDate.getTime())) {
+        const today = new Date();
+        let calcAge = today.getFullYear() - dobDate.getFullYear();
+        const m = today.getMonth() - dobDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+          calcAge -= 1;
+        }
+        if (calcAge > 0) computedAgeFromDob = calcAge;
+      }
+    } catch {}
+  }
+  const resolvedAge = source?.age !== undefined && source?.age !== null && source?.age !== '' && Number(source.age) > 0
+    ? numberOrZero(source.age)
+    : (computedAgeFromDob || null);
+
   return {
     id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
     userId: source?.userId !== undefined && source?.userId !== null
       ? String(source.userId)
       : (nestedUser?.id !== undefined && nestedUser?.id !== null ? String(nestedUser.id) : ''),
-    name: source?.name ? String(source.name) : '',
-    displayName: source?.displayName ? String(source.displayName) : '',
+    name: resolvedName,
+    displayName: resolvedDisplayName,
     email: source?.email ? String(source.email) : '',
     bio: source?.bio ? String(source.bio) : (source?.description ? String(source.description) : ''),
     dob: source?.dob ? String(source.dob) : null,
-    age: source?.age !== undefined && source?.age !== null && source?.age !== ''
-      ? numberOrZero(source.age)
-      : null,
+    age: resolvedAge,
     gender: source?.gender ? String(source.gender) : null,
     orientation: source?.orientation ? String(source.orientation) : null,
     language: resolvedLanguage,
@@ -634,13 +656,20 @@ export const useProfile = () => {
     mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
-      const effectivePhone = (
-        data.mobile ||
-        data.phoneNumber ||
-        data.phone ||
-        data.mobileNumber ||
+      const hasPhoneField =
+        'mobile' in data ||
+        'phoneNumber' in data ||
+        'phone' in data ||
+        'mobileNumber' in data;
+
+      const rawPhone = (
+        data.mobile !== undefined ? data.mobile :
+        data.phoneNumber !== undefined ? data.phoneNumber :
+        data.phone !== undefined ? data.phone :
+        data.mobileNumber !== undefined ? data.mobileNumber :
         ''
-      ).trim();
+      );
+      const effectivePhone = String(rawPhone || '').trim();
 
       const cleanTelegram = data.telegramUsername
         ? String(data.telegramUsername).trim().replace(/^@+/, '')
@@ -670,7 +699,7 @@ export const useProfile = () => {
       if (data.age !== undefined && data.age !== null) {
         cleanPayload.age = Number(data.age);
       }
-      if (effectivePhone) {
+      if (hasPhoneField) {
         cleanPayload.mobile = effectivePhone;
       }
       if (cleanTelegram) {
@@ -740,16 +769,21 @@ export const useProfile = () => {
       };
 
       let basicResponseData: any = null;
+
+      // 1. Call comprehensive PUT /profile/update so all fields (name, displayName, bio, dob, age, mobile, telegramUsername) persist
+      try {
+        const updateRes = await apiClient.put('/profile/update', cleanPayload);
+        basicResponseData = updateRes.data;
+      } catch (updateErr: any) {
+        console.warn('[updateProfile] /profile/update failed:', updateErr?.message);
+      }
+
+      // 2. Also call PUT /profile/update-basic to maintain compatibility with backend services
       try {
         const basicRes = await apiClient.put('/profile/update-basic', basicPayload);
-        basicResponseData = basicRes.data;
+        if (!basicResponseData) basicResponseData = basicRes.data;
       } catch (basicErr: any) {
         console.warn('[updateProfile] /profile/update-basic failed:', basicErr?.message);
-        // Fallback attempt to general /profile/update if available
-        try {
-          const fallbackRes = await apiClient.put('/profile/update', cleanPayload);
-          basicResponseData = fallbackRes.data;
-        } catch {}
       }
 
       // Concurrently update secondary profile endpoints if relevant fields are present
@@ -817,8 +851,36 @@ export const useProfile = () => {
       await Promise.allSettled(secondaryPromises);
       return basicResponseData || { status: 'success' };
     },
-    onSuccess: async () => {
-      await invalidateProfile();
+    onSuccess: async (_, variables) => {
+      const uid = variables?.userId || (variables as any)?.uid;
+      const cleanPhone = (
+        variables.mobile !== undefined ? variables.mobile :
+        variables.phoneNumber !== undefined ? variables.phoneNumber :
+        undefined
+      );
+      if (cleanPhone !== undefined) {
+        queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            mobile: cleanPhone,
+            phone: cleanPhone,
+            phoneNumber: cleanPhone,
+            mobileNumber: cleanPhone,
+          };
+        });
+        queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            mobile: cleanPhone,
+            phone: cleanPhone,
+            phoneNumber: cleanPhone,
+            mobileNumber: cleanPhone,
+          };
+        });
+      }
+      await invalidateProfile(uid);
     },
   });
 

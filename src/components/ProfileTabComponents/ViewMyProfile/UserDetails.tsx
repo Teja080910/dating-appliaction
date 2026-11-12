@@ -1,7 +1,8 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
+  DeviceEventEmitter,
   Image,
   Linking,
   Share,
@@ -138,26 +139,32 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     };
   }, []);
 
+  const loadStoredContacts = useCallback(async () => {
+    try {
+      const activeUid = currentUserId || (await getUserId().catch(() => null));
+      const [tgGlobal, tgScoped, p1, p2, p3] = await Promise.all([
+        AsyncStorage.getItem('telegramUsername'),
+        activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
+        AsyncStorage.getItem('phoneNumber'),
+        AsyncStorage.getItem('userMobile'),
+        activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
+      ]);
+      const effectiveTg = tgScoped || tgGlobal;
+      const effectiveP = p3 || p1 || p2;
+      setOwnTelegram(effectiveTg ? effectiveTg.trim().replace(/^@+/, '').toLowerCase() : '');
+      setStoredPhone(effectiveP || '');
+    } catch {}
+  }, [currentUserId]);
+
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const [tg, p1, p2, p3] = await Promise.all([
-          AsyncStorage.getItem('telegramUsername'),
-          AsyncStorage.getItem('phoneNumber'),
-          AsyncStorage.getItem('userMobile'),
-          currentUserId ? AsyncStorage.getItem(`user_phone_${currentUserId}`) : null,
-        ]);
-        if (isMounted) {
-          if (tg) setOwnTelegram(tg.trim().replace(/^@+/, '').toLowerCase());
-          if (p1 || p2 || p3) setStoredPhone(p3 || p1 || p2 || '');
-        }
-      } catch {}
-    })();
+    void loadStoredContacts();
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', () => {
+      void loadStoredContacts();
+    });
     return () => {
-      isMounted = false;
+      sub.remove();
     };
-  }, []);
+  }, [loadStoredContacts]);
 
   useEffect(() => {
     let isMounted = true;
@@ -337,8 +344,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     return fallback;
   };
 
-  const currentYear = new Date().getFullYear();
-  const myAge = date ? (currentYear - date.getFullYear()) : 25;
+  const myAge = useMemo(() => {
+    const safeDate = date ? new Date(date) : null;
+    if (!safeDate || Number.isNaN(safeDate.getTime())) return 25;
+    const today = new Date();
+    let age = today.getFullYear() - safeDate.getFullYear();
+    const m = today.getMonth() - safeDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < safeDate.getDate())) {
+      age -= 1;
+    }
+    return Math.max(age, 18);
+  }, [date]);
   const resolveNumericIdentifier = (...values: unknown[]) => {
     for (const value of values) {
       const normalized = String(value ?? '').trim();
@@ -404,26 +420,26 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const finalDisplayName = (
     isOwnProfile
       ? normalizeTextValue(
-          resolvedProfile?.name ||
+          displayName ||
             resolvedProfile?.displayName ||
-            profile.name ||
             profile.displayName ||
             name ||
-            displayName,
+            resolvedProfile?.name ||
+            profile.name,
           t('home.usercard.user')
         )
       : normalizeTextValue(
-          resolvedProfile?.name ||
-            resolvedProfile?.displayName ||
-            profile.name ||
+          resolvedProfile?.displayName ||
             profile.displayName ||
+            resolvedProfile?.name ||
+            profile.name ||
             cardUserName,
           t('home.usercard.user')
         )
   ).replace(/,\s*\d+$/, '').trim() || t('home.usercard.user');
 
   const displayAge = isOwnProfile
-    ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge || 25))
+    ? normalizeTextValue(String(myAge || resolvedProfile?.age || profile.age || 25), '25')
     : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, '24');
 
   const isSameId = (a: any, b: any) => {
@@ -506,6 +522,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const targetPhoneNumber = (() => {
     if (isOwnProfile) {
+      const activeObj = resolvedProfile || profile || propProfile;
+      if (activeObj && ('mobile' in activeObj || 'phoneNumber' in activeObj || 'phone' in activeObj || 'mobileNumber' in activeObj)) {
+        return extractPhone(activeObj);
+      }
       return extractPhone(
         resolvedProfile,
         profile,

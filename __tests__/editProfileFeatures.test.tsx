@@ -120,4 +120,51 @@ describe('Edit Profile New Features', () => {
       renderer!.unmount();
     });
   });
+
+  it('triggers More photos required modal when trying to delete from 3 or fewer photos in Edit Profile', async () => {
+    const mockContext = {
+      images: [
+        'https://example.com/p1.jpg',
+        'https://example.com/p2.jpg',
+        'https://example.com/p3.jpg',
+        null,
+        null,
+        null,
+      ],
+      setImages: jest.fn(),
+      setProfileImage: jest.fn(),
+      setProfileImageUrl: jest.fn(),
+      authUserId: 'usr_test_1',
+      setAuthUserId: jest.fn(),
+    };
+
+    let renderer: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <QueryClientProvider client={queryClient}>
+          <AppContext.Provider value={mockContext as any}>
+            <ProfilePhotoGrid initialPhotos={mockContext.images} />
+          </AppContext.Provider>
+        </QueryClientProvider>
+      );
+    });
+
+    const root = renderer!.root;
+    // Find touchable delete badges
+    const deleteButtons = root.findAll((node) => node.props?.hitSlop?.top === 12);
+    expect(deleteButtons.length).toBeGreaterThan(0);
+
+    // Tapping delete when 3 photos exist must trigger the modal
+    await act(async () => {
+      deleteButtons[0].props.onPress();
+    });
+
+    const json = JSON.stringify(renderer!.toJSON());
+    expect(json).toContain('More photos required');
+    expect(json).toContain('Your profile needs at least 3 photos');
+
+    act(() => {
+      renderer!.unmount();
+    });
+  });
 });

@@ -60,6 +60,7 @@ const RegisterScreen = ({ navigation }: any) => {
     setEnglishSkillLevel,
     setProfileText,
     setImages,
+    setIsSubscribed,
   } = useContext(AppContext);
 
   const [name, setName] = useState('');
@@ -127,6 +128,7 @@ const RegisterScreen = ({ navigation }: any) => {
       setEnglishSkillLevel(0);
       setProfileText('');
       setImages(Array(6).fill(null));
+      setIsSubscribed?.(false);
       AsyncStorage.multiRemove([
         'name',
         'displayName',
@@ -142,6 +144,10 @@ const RegisterScreen = ({ navigation }: any) => {
         '@amara_kid_count',
         '@amara_net_worth',
         '@selfie_verified',
+        'isSubscribed',
+        '@subscription_plan',
+        '@subscription_endDate',
+        '@subscription_remainingDays',
       ]);
     }, [
       setDate,

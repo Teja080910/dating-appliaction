@@ -18,6 +18,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../context/CreateGlobalStateContext';
 import { useSubscription, toBackendPlanName } from '../api/useSubscription';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserId } from '../utils/sessionHelper';
 import RazorpayCheckout from 'react-native-razorpay';
 import RazorpayMock from './RazorpayMock';
 import { useAlert } from './AlertModal';
@@ -386,7 +387,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { alert, AlertComponent } = useAlert();
-  const { setIsSubscribed, isSubscribed, displayName, name, email, phoneNumber, gender } =
+  const { setIsSubscribed, isSubscribed, displayName, name, email, phoneNumber, gender, authUserId } =
     useContext(AppContext);
   const { createOrder, verifyPayment, activateSubscription, subscriptionStatus, refetchStatus } = useSubscription();
   const [loading, setLoading] = useState(false);
@@ -465,15 +466,16 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     refetchStatus?.();
     const loadActiveSub = async () => {
       try {
-        const [storedSub, storedPlan, storedDays, storedEnd] = await Promise.all([
-          AsyncStorage.getItem('isSubscribed'),
-          AsyncStorage.getItem('@subscription_plan'),
-          AsyncStorage.getItem('@subscription_remainingDays'),
-          AsyncStorage.getItem('@subscription_endDate'),
+        const uid = (await getUserId().catch(() => null)) || authUserId;
+        const [userScopedSub, userScopedPlan, userScopedDays, userScopedEnd] = await Promise.all([
+          uid ? AsyncStorage.getItem(`isSubscribed_${uid}`) : null,
+          uid ? AsyncStorage.getItem(`@subscription_plan_${uid}`) : null,
+          uid ? AsyncStorage.getItem(`@subscription_remainingDays_${uid}`) : null,
+          uid ? AsyncStorage.getItem(`@subscription_endDate_${uid}`) : null,
         ]);
 
-        const rawPlan = subscriptionStatus?.plan || storedPlan;
-        const isActive = Boolean(subscriptionStatus?.active || storedSub === 'true' || isSubscribed);
+        const rawPlan = subscriptionStatus?.plan || userScopedPlan;
+        const isActive = Boolean(subscriptionStatus?.active || userScopedSub === 'true');
         if (isActive && rawPlan) {
           const normPlan = toBackendPlanName(rawPlan);
           setActivePlan(normPlan);
@@ -481,11 +483,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           const days =
             subscriptionStatus?.remainingDays !== undefined && subscriptionStatus?.remainingDays !== null
               ? subscriptionStatus.remainingDays
-              : storedDays
-              ? parseInt(storedDays, 10)
+              : userScopedDays
+              ? parseInt(userScopedDays, 10)
               : null;
           setActiveDaysLeft(days);
-          setActiveEndDate(subscriptionStatus?.endDate || storedEnd || null);
+          setActiveEndDate(subscriptionStatus?.endDate || userScopedEnd || null);
         } else {
           setActivePlan(null);
           setActiveDaysLeft(null);

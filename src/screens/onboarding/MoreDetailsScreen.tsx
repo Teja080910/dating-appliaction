@@ -328,6 +328,31 @@ const MoreDetailsScreen = ({ navigation }: any) => {
             ...prefsPayload,
             photos: availableImages,
           });
+
+          // Also save in persistent registered profiles cache so it immediately reflects in Discover
+          try {
+            const rawReg = await AsyncStorage.getItem('@amara_registered_profiles');
+            const regList: any[] = rawReg ? JSON.parse(rawReg) : [];
+            const exists = regList.findIndex((p) => String(p.userId) === String(uid));
+            const newEntry = {
+              ...profileData,
+              ...detailsPayload,
+              ...prefsPayload,
+              userId: uid,
+              id: uid,
+              photos: availableImages,
+              photo: availableImages[0] || '',
+              profileImageUrl: availableImages[0] || '',
+              createdAt: new Date().toISOString(),
+              online: true,
+            };
+            if (exists >= 0) {
+              regList[exists] = { ...regList[exists], ...newEntry };
+            } else {
+              regList.unshift(newEntry);
+            }
+            await AsyncStorage.setItem('@amara_registered_profiles', JSON.stringify(regList));
+          } catch {}
         }
       } catch (err) {
         console.warn('[MoreDetails] mockStore profile save error:', err);

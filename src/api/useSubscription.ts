@@ -261,10 +261,57 @@ export const useSubscription = (userId?: string | null) => {
       const resolvedUserId = await resolveBackendUserId().catch(() => null);
       try {
         if (!resolvedUserId) {
-          const localSub = await AsyncStorage.getItem('isSubscribed');
-          const localPlan = await AsyncStorage.getItem('@subscription_plan');
-          const localEndDate = await AsyncStorage.getItem('@subscription_endDate');
+          return normalizeSubscriptionStatus(null);
+        }
+        const response = await apiClient
+          .get('/subscriber/status', {
+            params: { userId: resolvedUserId },
+          })
+          .catch(() =>
+            apiClient.get('/subscription/status', {
+              params: { userId: resolvedUserId },
+            })
+          );
+
+        const normalized = normalizeSubscriptionStatus(response?.data);
+        if (normalized?.active) {
+          await AsyncStorage.setItem('isSubscribed', 'true');
+          await AsyncStorage.setItem(`isSubscribed_${resolvedUserId}`, 'true');
+          if (normalized.plan) {
+            await AsyncStorage.setItem('@subscription_plan', normalized.plan);
+            await AsyncStorage.setItem(`@subscription_plan_${resolvedUserId}`, normalized.plan);
+          }
+          if (normalized.endDate) {
+            await AsyncStorage.setItem('@subscription_endDate', normalized.endDate);
+            await AsyncStorage.setItem(`@subscription_endDate_${resolvedUserId}`, normalized.endDate);
+          }
+          if (normalized.remainingDays != null) {
+            await AsyncStorage.setItem('@subscription_remainingDays', String(normalized.remainingDays));
+            await AsyncStorage.setItem(`@subscription_remainingDays_${resolvedUserId}`, String(normalized.remainingDays));
+          }
+          return normalized;
+        }
+
+        // The server explicitly reports no active subscription. Never revive a
+        // stale local cache from a previous account/session.
+        await AsyncStorage.multiRemove([
+          'isSubscribed',
+          '@subscription_plan',
+          '@subscription_endDate',
+          '@subscription_remainingDays',
+          `isSubscribed_${resolvedUserId}`,
+          `@subscription_plan_${resolvedUserId}`,
+          `@subscription_endDate_${resolvedUserId}`,
+          `@subscription_remainingDays_${resolvedUserId}`,
+        ]);
+        return normalized;
+      } catch (err: any) {
+        if (resolvedUserId) {
+          const localSub = await AsyncStorage.getItem(`isSubscribed_${resolvedUserId}`);
+          const localPlan = await AsyncStorage.getItem(`@subscription_plan_${resolvedUserId}`);
+          const localEndDate = await AsyncStorage.getItem(`@subscription_endDate_${resolvedUserId}`);
           const isLocallyExpired = localEndDate ? new Date(localEndDate).getTime() <= Date.now() : false;
+
           if (localSub === 'true' && !isLocallyExpired) {
             const targetPlan = localPlan ? toBackendPlanName(localPlan) : 'STANDARD';
             const durationDays = targetPlan === 'STANDARD' ? 120 : targetPlan === 'PREMIUM' ? 180 : 365;
@@ -284,76 +331,6 @@ export const useSubscription = (userId?: string | null) => {
               raw: { isSubscribed: true },
             };
           }
-          return normalizeSubscriptionStatus(null);
-        }
-        const response = await apiClient
-          .get('/subscriber/status', {
-            params: { userId: resolvedUserId },
-          })
-          .catch(() =>
-            apiClient.get('/subscription/status', {
-              params: { userId: resolvedUserId },
-            })
-          );
-
-        const normalized = normalizeSubscriptionStatus(response.data);
-        if (normalized?.active) {
-          await AsyncStorage.setItem('isSubscribed', 'true');
-          if (normalized.plan) await AsyncStorage.setItem('@subscription_plan', normalized.plan);
-          if (normalized.endDate) await AsyncStorage.setItem('@subscription_endDate', normalized.endDate);
-          return normalized;
-        }
-
-        const localSub = await AsyncStorage.getItem('isSubscribed');
-        const localPlan = await AsyncStorage.getItem('@subscription_plan');
-        const localEndDate = await AsyncStorage.getItem('@subscription_endDate');
-        const isLocallyExpired = localEndDate ? new Date(localEndDate).getTime() <= Date.now() : false;
-
-        if (localSub === 'true' && !isLocallyExpired) {
-          const targetPlan = localPlan ? toBackendPlanName(localPlan) : 'STANDARD';
-          const durationDays = targetPlan === 'STANDARD' ? 120 : targetPlan === 'PREMIUM' ? 180 : 365;
-          const remainingDays = localEndDate
-            ? Math.max(0, Math.ceil((new Date(localEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-            : durationDays;
-          return {
-            active: true,
-            plan: targetPlan,
-            startDate: null,
-            endDate: localEndDate,
-            priorityHandoff: targetPlan === 'PREMIUM' || targetPlan === 'ELITE',
-            eliteBadge: targetPlan === 'ELITE',
-            dailyRequestLimit: targetPlan === 'STANDARD' ? 10 : targetPlan === 'PREMIUM' ? 20 : null,
-            remainingDays,
-            durationDays,
-            raw: { isSubscribed: true },
-          };
-        }
-
-        return normalized;
-      } catch (err: any) {
-        const localSub = await AsyncStorage.getItem('isSubscribed');
-        const localPlan = await AsyncStorage.getItem('@subscription_plan');
-        const localEndDate = await AsyncStorage.getItem('@subscription_endDate');
-        const isLocallyExpired = localEndDate ? new Date(localEndDate).getTime() <= Date.now() : false;
-
-        if (localSub === 'true' && !isLocallyExpired) {
-          const targetPlan = localPlan ? toBackendPlanName(localPlan) : 'STANDARD';
-          const durationDays = targetPlan === 'STANDARD' ? 120 : targetPlan === 'PREMIUM' ? 180 : 365;
-          const remainingDays = localEndDate
-            ? Math.max(0, Math.ceil((new Date(localEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-            : durationDays;
-          return {
-            active: true,
-            plan: targetPlan,
-            startDate: null,
-            endDate: localEndDate,
-            priorityHandoff: targetPlan === 'PREMIUM' || targetPlan === 'ELITE',
-            eliteBadge: targetPlan === 'ELITE',
-            dailyRequestLimit: targetPlan === 'STANDARD' ? 10 : targetPlan === 'PREMIUM' ? 20 : null,
-            remainingDays,
-            durationDays,
-            raw: { isSubscribed: true },
-          };
         }
         return normalizeSubscriptionStatus(null);
       }

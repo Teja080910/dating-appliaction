@@ -262,16 +262,14 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   useTranslation();
   const { themeColors, isDark } = useTheme();
   const { alert, AlertComponent } = useAlert();
-  const { connectTelegram, disconnectTelegram } = useTelegram();
+  const { disconnectTelegram } = useTelegram();
   const { data: dynamicBotName } = useTelegramBotName();
   const { data: myTgStatus, refetch: refetchTgStatus } = useMyTelegramStatus();
 
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
-  const [telegramModalVisible, setTelegramModalVisible] = useState(false);
   const isDisconnectedRef = useRef(false);
   const cleanConnected = extractTelegram(telegramUsername, myTgStatus?.telegramUsername);
-  const [inputTelegram, setInputTelegram] = useState(cleanConnected);
   const [tgLoading, setTgLoading] = useState(false);
 
   useEffect(() => {
@@ -307,6 +305,7 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
 
   const handleConnectTelegramPress = async () => {
     isDisconnectedRef.current = false;
+    setTgLoading(true);
     // 1. Fetch bot link with 1-click user connect parameter (?start=USER_{userId})
     try {
       const botLink = await fetchAmaraBotLink();
@@ -314,60 +313,8 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     } catch {
       const activeBot = await fetchAmaraBotName().catch(() => dynamicBotName || DEFAULT_AMARA_BOT_USERNAME);
       await openAmaraBot(activeBot);
-    }
-
-    setInputTelegram(cleanConnected);
-    setTelegramModalVisible(true);
-  };
-
-  const handleSaveTelegram = async () => {
-    const username = inputTelegram.trim().replace(/^@+/, '');
-    if (!username) {
-      alert(t('profile.contactdetails.username_required'), t('profile.contactdetails.please_enter_your_telegram_username'));
-      return;
-    }
-
-    const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/;
-    if (!TELEGRAM_USERNAME_REGEX.test(username)) {
-      alert(
-        t('profile.contactdetails.invalid_username'),
-        t('profile.contactdetails.username_must_start_with_a_letter_and_contain_4')
-      );
-      return;
-    }
-
-    isDisconnectedRef.current = false;
-    setTgLoading(true);
-    try {
-      await connectTelegram.mutateAsync({ userId: '', username });
-      setTelegramUsername(username);
-      await refetchTgStatus?.();
+    } finally {
       setTgLoading(false);
-      setTelegramModalVisible(false);
-    } catch (error: any) {
-      setTgLoading(false);
-      const serverMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        '';
-      const isAlreadyLinked =
-        error?.response?.status === 400 ||
-        error?.response?.status === 409 ||
-        serverMessage.toLowerCase().includes('already') ||
-        serverMessage.toLowerCase().includes('taken') ||
-        serverMessage.toLowerCase().includes('exists');
-
-      if (isAlreadyLinked) {
-        alert(
-          'Username Already Linked',
-          serverMessage || `The Telegram username @${username} is already linked to another Amara account. Each profile must have a unique Telegram handle.`
-        );
-        return;
-      }
-
-      setTelegramUsername(username);
-      setTelegramModalVisible(false);
     }
   };
 
@@ -375,17 +322,14 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     isDisconnectedRef.current = true;
     setTgLoading(true);
     setTelegramUsername('');
-    setInputTelegram('');
     try {
       await disconnectTelegram.mutateAsync({ userId: '' });
       await refetchTgStatus?.();
-      setTgLoading(false);
-      setTelegramModalVisible(false);
     } catch (error: any) {
-      setTgLoading(false);
+      console.warn('Telegram Disconnect Error:', error);
       setTelegramUsername('');
-      setInputTelegram('');
-      setTelegramModalVisible(false);
+    } finally {
+      setTgLoading(false);
     }
   };
 
@@ -502,46 +446,43 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
           },
         ]}
       >
-        {/* Top button: Connect Telegram */}
+        {/* Top button: Connect / Disconnect Telegram */}
         <TouchableOpacity
           style={styles.telegramConnectBtn}
           activeOpacity={0.85}
-          onPress={handleConnectTelegramPress}
+          onPress={cleanConnected ? handleDisconnectTelegram : handleConnectTelegramPress}
+          disabled={tgLoading}
         >
-          <Icon name="send" size={19} color="#FFFFFF" style={styles.sendIcon} />
-          <Text style={styles.telegramConnectBtnText}>{t('profile.contactdetails.connect_telegram')}</Text>
+          {tgLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+          ) : (
+            <Icon name="send" size={19} color="#FFFFFF" style={styles.sendIcon} />
+          )}
+          <Text style={styles.telegramConnectBtnText}>
+            {cleanConnected ? 'Disconnect Telegram' : t('profile.contactdetails.connect_telegram')}
+          </Text>
         </TouchableOpacity>
 
         {/* Bottom status area */}
-        <TouchableOpacity
+        <View
           style={[
             styles.telegramStatusArea,
             {
               backgroundColor: isDark ? 'rgba(46, 165, 232, 0.12)' : '#E5F3FD',
             },
           ]}
-          activeOpacity={cleanConnected ? 0.7 : 1}
-          onPress={() => {
-            setInputTelegram(cleanConnected);
-            setTelegramModalVisible(true);
-          }}
         >
           <Text
             style={[
               styles.telegramStatusText,
               { color: isDark ? '#BAE6FD' : '#0A3960' },
             ]}
-          >{t('profile.contactdetails.status')}{' '}
-            <Text
-              style={[
-                styles.telegramStatusValue,
-                cleanConnected ? styles.telegramStatusConnected : null,
-              ]}
-            >
-              {cleanConnected ? t('profile.contactdetails.connected', { cleanConnected }) : 'Not connected'}
-            </Text>
+          >
+            {cleanConnected
+              ? `Connected to: @${cleanConnected}`
+              : `${t('profile.contactdetails.status')} Not connected`}
           </Text>
-        </TouchableOpacity>
+        </View>
       </View>
 
       {/* Country Selection Modal */}
@@ -638,102 +579,6 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
           </TouchableOpacity>
         </Modal>
       )}
-
-      {/* Telegram Username Link/Manage Modal */}
-      <Modal
-        visible={telegramModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTelegramModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setTelegramModalVisible(false)}
-        >
-          <View
-            style={[
-              styles.tgModalCard,
-              { backgroundColor: isDark ? '#1F1B2E' : '#FFFFFF' },
-            ]}
-            onStartShouldSetResponder={() => true}
-          >
-            <Text
-              style={[
-                styles.tgModalTitle,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
-              ]}
-            >
-              {cleanConnected ? t('profile.contactdetails.manage_telegram') : t('profile.contactdetails.link_telegram_account')}
-            </Text>
-
-            <Text
-              style={[
-                styles.tgModalSubtitle,
-                { color: isDark ? '#94A3B8' : '#64748B' },
-              ]}
-            >{t('profile.contactdetails.enter_your_telegram_username_to_connect_with_the_amara_telegram_bot')}</Text>
-
-            <View
-              style={[
-                styles.tgInputWrapper,
-                {
-                  backgroundColor: isDark ? '#2D2845' : '#F8FAFC',
-                  borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E2E8F0',
-                },
-              ]}
-            >
-              <Text style={styles.atPrefix}>@</Text>
-              <TextInput
-                style={[
-                  styles.tgModalInput,
-                  { color: isDark ? '#FFFFFF' : '#0F172A' },
-                ]}
-                placeholder="username"
-                placeholderTextColor="#94A3B8"
-                value={inputTelegram}
-                onChangeText={(val) =>
-                  setInputTelegram(val.replace(/^@+/, '').replace(/\s+/g, ''))
-                }
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            <View style={styles.tgBtnRow}>
-              {cleanConnected ? (
-                <TouchableOpacity
-                  style={styles.disconnectBtn}
-                  onPress={handleDisconnectTelegram}
-                  disabled={tgLoading}
-                >
-                  <Text style={styles.disconnectBtnText}>{t('profile.contactdetails.disconnect')}</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.cancelModalBtn}
-                  onPress={() => setTelegramModalVisible(false)}
-                  disabled={tgLoading}
-                >
-                  <Text style={styles.cancelModalBtnText}>{t('profile.additionaluploadsection.cancel')}</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.saveModalBtn}
-                onPress={handleSaveTelegram}
-                disabled={tgLoading}
-              >
-                {tgLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveModalBtnText}>{t('more_info.savebutton.save')}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
       {AlertComponent}
     </View>
@@ -911,88 +756,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#6B7280',
-  },
-  tgModalCard: {
-    width: '100%',
-    borderRadius: 20,
-    padding: 24,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  tgModalTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  tgModalSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 18,
-  },
-  tgInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    height: 50,
-    marginBottom: 22,
-  },
-  atPrefix: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#2EA5E8',
-    marginRight: 4,
-  },
-  tgModalInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    paddingVertical: 0,
-  },
-  tgBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  cancelModalBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelModalBtnText: {
-    color: '#64748B',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  disconnectBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-  },
-  disconnectBtnText: {
-    color: '#EF4444',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  saveModalBtn: {
-    backgroundColor: '#2EA5E8',
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveModalBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

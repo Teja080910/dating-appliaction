@@ -106,16 +106,17 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
   };
 
   const isDeletedUri = useCallback((uri: string | null | undefined, deletedList: string[]) => {
-    if (!uri) return false;
+    if (!uri || !Array.isArray(deletedList) || deletedList.length === 0) return false;
     const clean = uri.trim();
+    if (!clean) return false;
     const abs = getAbsoluteUrl(clean) || clean;
-    const fn = getFilenameFromUrl(clean);
     return deletedList.some((d) => {
       if (!d) return false;
-      if (d === clean || d === abs) return true;
-      const dfn = getFilenameFromUrl(d);
-      if (fn && dfn && fn === dfn) return true;
-      return false;
+      const cleanD = String(d).trim();
+      if (!cleanD) return false;
+      if (cleanD === clean || cleanD === abs) return true;
+      const dAbs = getAbsoluteUrl(cleanD) || cleanD;
+      return dAbs === abs || dAbs === clean;
     });
   }, []);
 
@@ -386,7 +387,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
 
     // Record as deleted in AsyncStorage so this URI is never re-hydrated by cached queries
     if (targetUri) void recordDeletedUri(targetUri, uid);
-    if (matched?.imageUrl) void recordDeletedUri(matched.imageUrl, uid);
+    if (matched?.imageUrl && matched.imageUrl !== targetUri) void recordDeletedUri(matched.imageUrl, uid);
 
     // 1. Instant optimistic update: filter out deleted image and shift remaining forward
     const remainingPhotos = currentList.filter((item, i) => i !== index && Boolean(item)) as string[];
@@ -395,6 +396,18 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       nextSlots.push(null);
     }
     setImages(nextSlots);
+
+    // Ensure remaining active photos are NEVER in deleted tombstones
+    if (uid && nextSlots.some(Boolean)) {
+      try {
+        const key = `deleted_photos_${uid}`;
+        const raw = await AsyncStorage.getItem(key);
+        const list: string[] = raw ? JSON.parse(raw) : [];
+        const activeSet = new Set(nextSlots.filter(Boolean));
+        const filtered = list.filter((item) => !activeSet.has(item) && !activeSet.has(getAbsoluteUrl(item) || ''));
+        await AsyncStorage.setItem(key, JSON.stringify(filtered));
+      } catch {}
+    }
 
     // 2. Update primary profile photo in context
     const newPrimary = nextSlots[0] || null;
@@ -497,30 +510,17 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
 
   const handleDeleteImage = (index: number) => {
     const currentList = [...(images || [])];
-    const nonNullCount = currentList.filter(Boolean).length;
+    const targetUri = currentList[index];
+    if (!targetUri) return;
 
-    // Glambu behavior: A user can delete any photo down to 1.
-    // Only the last remaining photo cannot be deleted (minimum 1 profile photo).
-    if (nonNullCount <= 1) {
-      alert(
-        t('common.notice', { defaultValue: 'At Least 1 Photo Required' }),
-        t('profile.uploadimage.last_photo_cannot_be_deleted', {
-          defaultValue:
-            'You must keep at least one profile photo. To change your only photo, please replace it with a new one.',
-        }),
-        [
-          { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
-          {
-            text: t('profile.uploadimage.replace_photo', { defaultValue: 'Replace Photo' }),
-            onPress: () => handlePickImage(index),
-          },
-        ]
-      );
+    const nonNullCount = currentList.filter(Boolean).length;
+    if (nonNullCount <= 3) {
+      setShowFacePhotoModal(true);
       return;
     }
 
-    // Immediately remove the photo
-    performDeleteImage(index);
+    // Direct deletion without confirmation popup when more than 3 photos exist
+    void performDeleteImage(index);
   };
 
     // Note: Dedicated image endpoints (/users/images/{id}) manage photos.
@@ -702,7 +702,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                   styles.faceModalTitle,
                   { color: isDark ? '#FFFFFF' : '#111827' },
                 ]}
-              >{t('profile.profilephotogrid.face_photo_required')}</Text>
+              >{t('profile.profilephotogrid.more_photos_required', { defaultValue: 'More photos required' })}</Text>
               <TouchableOpacity
                 onPress={() => setShowFacePhotoModal(false)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -720,14 +720,17 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 styles.faceModalBody,
                 { color: isDark ? '#D1D5DB' : '#374151' },
               ]}
-            >{t('profile.profilephotogrid.every_user_needs_to_have_at_least_one_face_picture_in_their_profile_to')}</Text>
+            >{t('profile.profilephotogrid.min_three_photos_required', {
+                defaultValue:
+                  'Your profile needs at least 3 photos. To delete this photo, please first upload another one. Afterward, you can delete this photo.',
+              })}</Text>
 
             <TouchableOpacity
               style={styles.faceModalOkayBtn}
               onPress={() => setShowFacePhotoModal(false)}
               activeOpacity={0.85}
             >
-              <Text style={styles.faceModalOkayBtnText}>{t('profile.profilephotogrid.okay')}</Text>
+              <Text style={styles.faceModalOkayBtnText}>{t('profile.profilephotogrid.okay', { defaultValue: 'Okay' })}</Text>
             </TouchableOpacity>
           </View>
         </View>

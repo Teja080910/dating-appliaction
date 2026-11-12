@@ -8,8 +8,6 @@ import {
   StatusBar,
   BackHandler,
   ActivityIndicator,
-  TextInput,
-  Modal,
   Platform,
   Linking,
   AppState,
@@ -34,7 +32,7 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
   const fromProfile = Boolean(route?.params?.fromProfile);
   const isOnboarding = !isTab && !fromProfile;
 
-  const { connectTelegram, disconnectTelegram } = useTelegram();
+  const { disconnectTelegram } = useTelegram();
   const { data: dynamicBotName } = useTelegramBotName();
   const { data: myTgStatus, refetch: refetchTgStatus } = useMyTelegramStatus();
   const { useMyProfile } = useProfile();
@@ -43,19 +41,11 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
   const { themeColors, isDark } = useTheme();
 
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
   const isDisconnectedRef = useRef(false);
 
   const cleanConnected = isDisconnectedRef.current
     ? ''
     : extractTelegram(myTgStatus?.telegramUsername, profile?.telegramUsername);
-  const [telegramUsername, setTelegramUsername] = useState(cleanConnected);
-
-  useEffect(() => {
-    if (!isDisconnectedRef.current && cleanConnected) {
-      setTelegramUsername(cleanConnected);
-    }
-  }, [cleanConnected]);
 
   // When returning to the app from Telegram, auto-refresh status
   useEffect(() => {
@@ -106,65 +96,28 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
 
   const handleConnectTelegramPress = async () => {
     isDisconnectedRef.current = false;
-    // 1. Fetch bot link with 1-click user connect parameter (?start=USER_{userId})
+    setLoading(true);
     try {
       const botLink = await fetchAmaraBotLink();
       await openAmaraBot(botLink);
     } catch {
       const activeBot = await fetchAmaraBotName().catch(() => dynamicBotName || DEFAULT_AMARA_BOT_USERNAME);
       await openAmaraBot(activeBot);
-    }
-
-    // Open username linking modal
-    setModalVisible(true);
-  };
-
-  const handleSaveUsername = async () => {
-    const username = telegramUsername.trim().replace(/^@+/, '');
-    if (!username) {
-      alert(t('profile.contactdetails.username_required'), t('profile.contactdetails.please_enter_your_telegram_username'));
-      return;
-    }
-
-    // Telegram username format: 5 to 32 characters, letters, numbers, underscores
-    const TELEGRAM_USERNAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,31}$/;
-    if (!TELEGRAM_USERNAME_REGEX.test(username)) {
-      alert(
-        t('profile.contactdetails.invalid_username'),
-        t('profile.contactdetails.username_must_start_with_a_letter_and_contain_4')
-      );
-      return;
-    }
-
-    isDisconnectedRef.current = false;
-    setLoading(true);
-    try {
-      await connectTelegram.mutateAsync({ userId: '', username });
-      await Promise.allSettled([refetchProfile(), refetchTgStatus?.()]);
+    } finally {
       setLoading(false);
-      setModalVisible(false);
-      alert(t('profile.contactdetails.connected_2'), t('profile.contactdetails.your_telegram_account_is_now_connected', { username }));
-    } catch (error: any) {
-      setLoading(false);
-      alert(t('profile.additionaluploadsection.error'), error?.message || t('onboarding.connecttelegramscreen.could_not_save_telegram_username'));
     }
   };
 
   const handleDisconnect = async () => {
     isDisconnectedRef.current = true;
-    setTelegramUsername('');
     setLoading(true);
     try {
       await disconnectTelegram.mutateAsync({ userId: '' });
       await Promise.allSettled([refetchProfile(), refetchTgStatus?.()]);
-      setLoading(false);
-      setModalVisible(false);
-      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     } catch (error: any) {
+      console.warn('Telegram Disconnect Error:', error);
+    } finally {
       setLoading(false);
-      setTelegramUsername('');
-      setModalVisible(false);
-      alert(t('profile.contactdetails.disconnected'), t('profile.contactdetails.your_telegram_account_has_been_disconnected'));
     }
   };
 
@@ -261,50 +214,48 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
             },
           ]}
         >
-          {/* Top Half: Connect Telegram Button */}
+          {/* Top Half: Connect / Disconnect Telegram Button */}
           <TouchableOpacity
             style={styles.connectButton}
             activeOpacity={0.85}
-            onPress={handleConnectTelegramPress}
+            onPress={cleanConnected ? handleDisconnect : handleConnectTelegramPress}
+            disabled={loading}
           >
-            <Icon
-              name="send"
-              size={20}
-              color="#FFFFFF"
-              style={styles.sendIcon}
-            />
-            <Text style={styles.connectButtonText}>{t('profile.contactdetails.connect_telegram')}</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+            ) : (
+              <Icon
+                name="send"
+                size={20}
+                color="#FFFFFF"
+                style={styles.sendIcon}
+              />
+            )}
+            <Text style={styles.connectButtonText}>
+              {cleanConnected ? 'Disconnect Telegram' : t('profile.contactdetails.connect_telegram')}
+            </Text>
           </TouchableOpacity>
 
           {/* Bottom Half: Status Display */}
-          <TouchableOpacity
+          <View
             style={[
               styles.statusArea,
               {
                 backgroundColor: isDark ? 'rgba(46, 165, 232, 0.12)' : '#E5F3FD',
               },
             ]}
-            activeOpacity={cleanConnected ? 0.7 : 1}
-            onPress={() => {
-              if (cleanConnected) setModalVisible(true);
-            }}
           >
             <Text
               style={[
                 styles.statusText,
                 { color: isDark ? '#BAE6FD' : '#0A3960' },
               ]}
-            >{t('profile.contactdetails.status')}{' '}
-              <Text
-                style={[
-                  styles.statusValue,
-                  cleanConnected ? styles.statusConnected : null,
-                ]}
-              >
-                {cleanConnected ? t('profile.contactdetails.connected', { cleanConnected }) : 'Not connected'}
-              </Text>
+            >
+              {cleanConnected
+                ? `Connected to: @${cleanConnected}`
+                : `${t('profile.contactdetails.status')} Not connected`}
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* Bottom Actions for onboarding only */}
@@ -327,97 +278,6 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
           </View>
         )}
       </View>
-
-      {/* Modal for entering/editing Telegram username or disconnecting */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalCard,
-              { backgroundColor: isDark ? '#1A1730' : '#FFFFFF' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.modalTitle,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
-              ]}
-            >
-              {cleanConnected ? t('profile.contactdetails.manage_telegram') : t('profile.contactdetails.link_telegram_account')}
-            </Text>
-
-            <Text
-              style={[
-                styles.modalSubtitle,
-                { color: isDark ? '#94A3B8' : '#64748B' },
-              ]}
-            >{t('profile.contactdetails.enter_your_telegram_username_to_connect_with_the_amara_telegram_bot')}</Text>
-
-            <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: isDark ? '#262244' : '#F8FAFC',
-                  borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#E2E8F0',
-                },
-              ]}
-            >
-              <Text style={styles.atPrefix}>@</Text>
-              <TextInput
-                style={[
-                  styles.modalInput,
-                  { color: isDark ? '#FFFFFF' : '#0F172A' },
-                ]}
-                placeholder="username"
-                placeholderTextColor="#94A3B8"
-                value={telegramUsername}
-                onChangeText={(val) =>
-                  setTelegramUsername(val.replace(/^@+/, '').replace(/\s+/g, ''))
-                }
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            <View style={styles.modalBtnRow}>
-              {cleanConnected ? (
-                <TouchableOpacity
-                  style={styles.disconnectBtn}
-                  onPress={handleDisconnect}
-                  disabled={loading}
-                >
-                  <Text style={styles.disconnectBtnText}>{t('profile.contactdetails.disconnect')}</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.cancelModalBtn}
-                  onPress={() => setModalVisible(false)}
-                  disabled={loading}
-                >
-                  <Text style={styles.cancelModalBtnText}>{t('profile.additionaluploadsection.cancel')}</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.saveModalBtn}
-                onPress={handleSaveUsername}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.saveModalBtnText}>{t('more_info.savebutton.save')}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {AlertComponent}
     </SafeAreaView>
@@ -523,6 +383,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statusText: {
     fontSize: 15,
     fontWeight: '500',
@@ -543,95 +408,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  modalCard: {
-    width: '100%',
-    borderRadius: 20,
-    padding: 24,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  modalTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 18,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    height: 50,
-    marginBottom: 22,
-  },
-  atPrefix: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#2EA5E8',
-    marginRight: 4,
-  },
-  modalInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    paddingVertical: 0,
-  },
-  modalBtnRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  cancelModalBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelModalBtnText: {
-    color: '#64748B',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  disconnectBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-  },
-  disconnectBtnText: {
-    color: '#EF4444',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  saveModalBtn: {
-    backgroundColor: '#2EA5E8',
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveModalBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

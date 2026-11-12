@@ -35,6 +35,7 @@ import {
 } from '../../utils/authPayload';
 import { t, useTranslation } from '../../i18n';
 import { mockStore } from '../../mock/mockStore';
+import { USE_MOCK } from '../../environment/ApiConfig';
 
 const LoginScreen = ({ navigation, route }: any) => {
   useTranslation();
@@ -265,7 +266,7 @@ const LoginScreen = ({ navigation, route }: any) => {
             } catch {}
           }
 
-          const sub = resolvedUid ? await mockStore.getSubscriptionStatus(resolvedUid).catch(() => null) : null;
+          const sub = USE_MOCK && resolvedUid ? await mockStore.getSubscriptionStatus(resolvedUid).catch(() => null) : null;
           const hasActiveSub = Boolean(
             user.isSubscribed ||
             user.subscription?.isActive ||
@@ -275,17 +276,31 @@ const LoginScreen = ({ navigation, route }: any) => {
           );
           if (hasActiveSub) {
             const planToSave = backendPlan || sub?.plan || 'STANDARD';
-            asyncStorageItems.push(['isSubscribed', 'true'], ['@subscription_plan', planToSave]);
+            asyncStorageItems.push(
+              ['isSubscribed', 'true'],
+              [`isSubscribed_${resolvedUid}`, 'true'],
+              ['@subscription_plan', planToSave],
+              [`@subscription_plan_${resolvedUid}`, planToSave]
+            );
             if (backendEndDate || sub?.endDate) {
-              asyncStorageItems.push(['@subscription_endDate', String(backendEndDate || sub?.endDate)]);
+              const endVal = String(backendEndDate || sub?.endDate);
+              asyncStorageItems.push(
+                ['@subscription_endDate', endVal],
+                [`@subscription_endDate_${resolvedUid}`, endVal]
+              );
             }
             setIsSubscribed?.(true);
           } else {
-            const existingSub = await AsyncStorage.getItem('isSubscribed');
-            const existingEnd = await AsyncStorage.getItem('@subscription_endDate');
-            if (existingSub === 'true' && (!existingEnd || new Date(existingEnd).getTime() > Date.now())) {
-              setIsSubscribed?.(true);
-            }
+            setIsSubscribed?.(false);
+            await AsyncStorage.multiRemove([
+              'isSubscribed',
+              '@subscription_plan',
+              '@subscription_endDate',
+              '@subscription_remainingDays',
+              `isSubscribed_${resolvedUid}`,
+              `@subscription_plan_${resolvedUid}`,
+              `@subscription_endDate_${resolvedUid}`,
+            ]).catch(() => {});
           }
         } catch {}
 
