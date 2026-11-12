@@ -1,4 +1,5 @@
 import { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mockStore } from './mockStore';
 import { validateStrongPassword } from '../utils/passwordValidation';
 import { resolveProfileDistanceKm } from '../utils/distanceHelper';
@@ -255,6 +256,20 @@ export const handleMockRequest = async (
 
     await mockStore.setCurrentUserId(user.userId);
     const profile = await mockStore.getProfileByUserId(user.userId);
+    const finalGender =
+      profile?.gender && profile.gender !== ''
+        ? profile.gender
+        : user.gender || 'man';
+    if (user.gender !== finalGender) {
+      user.gender = finalGender;
+      const uIdx = (mockStore as any).users?.findIndex(
+        (u: any) => String(u.userId) === String(user.userId) || String(u.id) === String(user.id),
+      ) ?? -1;
+      if (uIdx >= 0) {
+        (mockStore as any).users[uIdx].gender = finalGender;
+        await AsyncStorage.setItem('users', JSON.stringify((mockStore as any).users));
+      }
+    }
     return createMockResponse(config, 200, {
       token: `mock-jwt-token-${user.userId}`,
       userId: user.userId,
@@ -265,7 +280,7 @@ export const handleMockRequest = async (
         displayName: user.name,
         email: user.email,
         mobile: user.mobile && !user.mobile.includes('@') ? user.mobile : '',
-        gender: user.gender,
+        gender: finalGender,
         telegramUsername: user.telegramUsername || '',
         profile,
       },
@@ -658,6 +673,13 @@ export const handleMockRequest = async (
     if (profile) {
       if (body.gender) profile.gender = body.gender;
       await mockStore.saveProfile(profile);
+    }
+    const uIdx = (mockStore as any).users?.findIndex(
+      (u: any) => String(u.userId) === String(targetUserId) || String(u.id) === String(targetUserId),
+    ) ?? -1;
+    if (uIdx >= 0 && body.gender) {
+      (mockStore as any).users[uIdx].gender = body.gender;
+      await AsyncStorage.setItem('users', JSON.stringify((mockStore as any).users));
     }
     return createMockResponse(config, 200, {
       status: 'success',

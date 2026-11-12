@@ -27,6 +27,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Shadows, useTheme, type ThemeColors } from '../../theme';
 import { useProfile } from '../../api/useProfile';
 import { useUserImages, mapImagesToSlots } from '../../api/useImages';
+import apiClient from '../../api/apiClient';
 import { getAuthSession, completeOnboarding } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { mockStore } from '../../mock/mockStore';
@@ -66,7 +67,7 @@ const MoreDetailsScreen = ({ navigation }: any) => {
 
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
-  const { updateUser, updateBasic, updateDetails, updatePreferences, useMyProfile } = useProfile();
+  const { updateUser, updateBasic, updateDetails, updatePreferences, useMyProfile, genderOrientation } = useProfile();
   const { getAllImages, uploadImage } = useUserImages();
   const profileQuery = useMyProfile(undefined);
 
@@ -107,17 +108,21 @@ const MoreDetailsScreen = ({ navigation }: any) => {
         candidate = scoped || g1 || g2;
       } catch {}
     }
-    const clean = String(candidate || '').toLowerCase();
-    if (clean.includes('man') || clean.includes('male') || clean === 'straight_man') {
-      return { gender: 'man', orientation: 'straight' };
-    }
+    const clean = String(candidate || '').toLowerCase().trim();
     if (clean.includes('woman') || clean.includes('female') || clean === 'straight_woman') {
       return { gender: 'woman', orientation: 'straight' };
+    }
+    if (
+      (clean.includes('man') && !clean.includes('woman')) ||
+      (clean.includes('male') && !clean.includes('female')) ||
+      clean === 'straight_man'
+    ) {
+      return { gender: 'man', orientation: 'straight' };
     }
     if (clean.includes('lgbtq')) {
       return { gender: 'lgbtqia', orientation: 'lgbtqia' };
     }
-    return { gender: 'man', orientation: 'straight' };
+    return { gender: 'woman', orientation: 'straight' };
   };
 
   const normalizeTextValue = (value: unknown, fallback: string) => {
@@ -353,6 +358,16 @@ const MoreDetailsScreen = ({ navigation }: any) => {
               uid: uid ? String(uid) : undefined,
               dto: profileData,
               photo: profilePhoto,
+            }),
+            genderOrientation.mutateAsync({
+              userId: uid ? String(uid) : undefined,
+              gender: profileData.gender,
+              orientation: profileData.orientation,
+            }),
+            apiClient.put('/profile/update', {
+              userId: uid ? String(uid) : undefined,
+              gender: profileData.gender,
+              orientation: profileData.orientation,
             }),
             updateBasic.mutateAsync({
               userId: uid ? String(uid) : undefined,

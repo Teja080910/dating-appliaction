@@ -135,7 +135,7 @@ const parseUserCollection = (data: any) =>
   (Array.isArray(data?.profiles) ? data.profiles : null) ||
   (Array.isArray(data) ? data : []);
 
-const isFemaleGenderValue = (val: string) => {
+export const isFemaleGenderValue = (val: string) => {
   const s = String(val || '').toLowerCase().trim();
   return (
     s === 'f' ||
@@ -148,7 +148,7 @@ const isFemaleGenderValue = (val: string) => {
   );
 };
 
-const isMaleGenderValue = (val: string) => {
+export const isMaleGenderValue = (val: string) => {
   const s = String(val || '').toLowerCase().trim();
   return (
     s === 'm' ||
@@ -170,6 +170,8 @@ const matchesGenderSelection = (
     item?.profile?.gender ||
     item?.gender ||
     item?.user?.gender ||
+    item?.genderOrientation?.gender ||
+    item?.profile?.genderOrientation?.gender ||
     item?.sex ||
     item?.userGender ||
     '';
@@ -288,18 +290,18 @@ const UserList = ({
 
         try {
           if (hasFilters) {
-            // Apply saved filters across both tabs:
+            // Apply saved filters across tabs:
             const searchPayload: Record<string, any> = {
               ...savedFilters,
               userId: resolvedUserId || undefined,
               gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
-              onlyOnline: savedFilters?.onlyOnline === true,
+              onlyOnline: mode === 'online' ? (savedFilters?.onlyOnline === true) : undefined,
               sortBy: mode === 'online' ? 'active' : 'createdAt',
-              maxDistanceKm: savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius,
-              searchRadius: savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius,
-              radius: savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius,
-              latitude: userLocation?.latitude,
-              longitude: userLocation?.longitude,
+              maxDistanceKm: mode === 'online' ? (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius) : undefined,
+              searchRadius: mode === 'online' ? (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius) : undefined,
+              radius: mode === 'online' ? (savedFilters?.maxDistanceKm ?? savedFilters?.searchRadius ?? savedFilters?.radius) : undefined,
+              latitude: mode === 'online' ? userLocation?.latitude : undefined,
+              longitude: mode === 'online' ? userLocation?.longitude : undefined,
               page: 0,
               size: 20,
             };
@@ -387,6 +389,7 @@ const UserList = ({
               }
             }
           } else {
+            // Newest Tab: Fetch recent profiles and live database users
             try {
               const res = await apiClient.get('/dashboard/recent', {
                 params: {
@@ -398,12 +401,46 @@ const UserList = ({
               });
               items = parseUserCollection(res.data);
             } catch (recentError) {
-              console.log('[UserList] recent failed → using search');
+              console.log('[UserList] /dashboard/recent error:', recentError);
+            }
+
+            // Also search newly registered database users by createdAt to guarantee newly created accounts appear!
+            try {
               const searchRes = await searchUsersMutationRef.current({
-                sortBy: 'recent',
+                sortBy: 'createdAt',
                 gender: selectedGender === 'straight_man' ? 'man' : 'woman',
               });
-              items = parseUserCollection(searchRes);
+              const searchItems = parseUserCollection(searchRes);
+              if (searchItems && searchItems.length > 0) {
+                const existingIds = new Set(
+                  items.map((i: any) => String(resolveProfileUserId(i) || i?.id || ''))
+                );
+                // Prepend newly registered database users at the top of the Newest tab!
+                const newItemsToAdd: any[] = [];
+                for (const sItem of searchItems) {
+                  const sId = String(resolveProfileUserId(sItem) || sItem?.id || '');
+                  if (sId && !existingIds.has(sId)) {
+                    existingIds.add(sId);
+                    newItemsToAdd.push(sItem);
+                  }
+                }
+                items = [...newItemsToAdd, ...items];
+              }
+            } catch (searchError) {
+              console.log('[UserList] searchUsers fallback error:', searchError);
+            }
+
+            // Fallback: If still empty, try /dashboard/recent without gender filter in case backend filters differently
+            if (!items || items.length === 0) {
+              try {
+                const rawRecent = await apiClient.get('/dashboard/recent', {
+                  params: { page: 0, size: 20, userId: resolvedUserId || undefined },
+                });
+                const rawItems = parseUserCollection(rawRecent.data);
+                if (rawItems && rawItems.length > 0) {
+                  items = rawItems;
+                }
+              } catch {}
             }
           }
         } catch (err) {
@@ -469,10 +506,11 @@ const UserList = ({
         const unblockedItems = items.filter((item) => !isBlockedProfile(item, blockedUserIds));
         const genderMatched = unblockedItems.filter((item) =>
           matchesGenderSelection(item, selectedGender, activeGenders) &&
-          (!savedFilters?.onlyOnline || item?.online === true || item?.profile?.online === true)
+          (mode === 'online' && savedFilters?.onlyOnline ? (item?.online === true || item?.profile?.online === true) : true)
         );
         const invitable = keepInvitableProfiles(genderMatched);
         const shouldApplyRadiusFilter = Boolean(
+          mode === 'online' &&
           hasFilters &&
           savedFilters &&
           savedFilters.isFilterActive !== false &&
@@ -532,7 +570,7 @@ const UserList = ({
           ...savedFilters,
           userId: resolvedUserId || undefined,
           gender: savedFilters?.gender || (selectedGender === 'straight_man' ? ['Male'] : ['Female']),
-          onlyOnline: savedFilters?.onlyOnline === true,
+          onlyOnline: mode === 'online' ? (savedFilters?.onlyOnline === true) : undefined,
           sortBy: mode === 'online' ? 'active' : 'createdAt',
           page: nextPage,
           size: 10,
@@ -565,6 +603,7 @@ const UserList = ({
         );
         const invitable = keepInvitableProfiles(genderMatched);
         const shouldApplyRadiusFilter = Boolean(
+          mode === 'online' &&
           hasFilters &&
           savedFilters &&
           savedFilters.isFilterActive !== false &&

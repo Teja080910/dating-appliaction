@@ -479,6 +479,20 @@ export const useProfile = () => {
           drink: normalizedDto.drink,
           ethnicity: normalizedDto.ethnicity || '',
         }),
+        ...(normalizedDto.gender
+          ? [
+              apiClient.post('/profile/gender-orientation', {
+                userId: resolvedUserId,
+                gender: String(normalizedDto.gender),
+                orientation: String(normalizedDto.orientation || 'straight'),
+              }).catch(() => {}),
+              apiClient.put('/profile/update', {
+                userId: resolvedUserId,
+                gender: String(normalizedDto.gender),
+                orientation: String(normalizedDto.orientation || 'straight'),
+              }).catch(() => {}),
+            ]
+          : []),
       ]);
 
       return setupRes?.data ?? { status: 'success', message: 'Profile setup completed' };

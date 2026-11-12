@@ -29,6 +29,7 @@ import { getAbsoluteUrl } from '../../api/apiClient';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import { openTelegramChat } from '../../utils/telegramHelper';
 import { openWhatsAppChat } from '../../utils/whatsappHelper';
+import { getUserId } from '../../utils/sessionHelper';
 import { t, useTranslation } from '../../i18n';
 
 const RequestsInboxScreen: React.FC = () => {
@@ -46,12 +47,14 @@ const RequestsInboxScreen: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     (async () => {
+      const uid = await getUserId().catch(() => null);
+      const scoped = uid ? await AsyncStorage.getItem(`user_gender_${uid}`).catch(() => null) : null;
       const [g1, g2] = await Promise.all([
         AsyncStorage.getItem('userGender'),
         AsyncStorage.getItem('selectedGender'),
       ]);
       if (isMounted) {
-        setUserGender((g1 || g2 || gender || '').toLowerCase());
+        setUserGender((scoped || g1 || g2 || gender || '').toLowerCase());
       }
     })();
     return () => {

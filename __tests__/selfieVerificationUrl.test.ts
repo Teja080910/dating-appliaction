@@ -65,9 +65,12 @@ describe('Dynamic Selfie Verification URL from Registration / Backend', () => {
     expect(faceValidationClient.defaults.baseURL).toBe(testUrl);
   });
 
-  test('fetchSelfieVerificationUrl falls back gracefully when endpoint is not yet provided', async () => {
+  test('fetchSelfieVerificationUrl returns null or valid URL when endpoint is not yet provided', async () => {
     const url = await fetchSelfieVerificationUrl();
-    expect(url).toBeTruthy();
-    expect(url.startsWith('http')).toBe(true);
+    if (url) {
+      expect(url.startsWith('http')).toBe(true);
+    } else {
+      expect(url).toBeNull();
+    }
   });
 });

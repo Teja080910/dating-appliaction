@@ -134,24 +134,43 @@ const LoginScreen = ({ navigation, route }: any) => {
 
         const user = data?.user || session.user || data?.data?.user || data?.data || {};
         const userName = user.name || user.displayName || user.username || '';
-        const rawGender = String(user.gender || data?.gender || session.user?.gender || '').toLowerCase();
-        let userGender =
-          rawGender.includes('woman') || rawGender.includes('female')
-            ? 'straight_woman'
-            : (rawGender.includes('man') || rawGender.includes('male'))
-            ? 'straight_man'
-            : '';
+
+        const profileObj = user?.profile || data?.profile || session.user?.profile || data?.data?.profile;
+        const profileGender = String(profileObj?.gender || profileObj?.userGender || '').toLowerCase();
+        const userGenderField = String(user.gender || data?.gender || session.user?.gender || '').toLowerCase();
+
+        let userGender = '';
+        if (profileGender.includes('woman') || profileGender.includes('female')) {
+          userGender = 'straight_woman';
+        } else if (userGenderField.includes('woman') || userGenderField.includes('female')) {
+          userGender = 'straight_woman';
+        } else if (profileGender.includes('man') || profileGender.includes('male')) {
+          userGender = 'straight_man';
+        } else if (userGenderField.includes('man') || userGenderField.includes('male')) {
+          userGender = 'straight_man';
+        }
+
         const resolvedUid = String(session.userId || user.userId || user.id || '');
 
-        // Immediately resolve actual gender from backend profile if missing in auth response
+        // Immediately resolve actual gender from backend profile
         if (resolvedUid) {
           try {
             const profRes = await apiClient
               .get(`/profile/me/${resolvedUid}`)
+              .catch(() => apiClient.post('/profile/me', null, { params: { userId: resolvedUid } }))
               .catch(() => apiClient.get('/profile/me', { params: { userId: resolvedUid } }))
+              .catch(() => apiClient.post('/profile/me', { userId: resolvedUid }))
+              .catch(() => apiClient.get(`/profile/get/${resolvedUid}`))
+              .catch(() => apiClient.get('/profile/get', { params: { userId: resolvedUid } }))
+              .catch(() => apiClient.get(`/users/${resolvedUid}`))
               .catch(() => null);
+            const liveData = profRes?.data?.data || profRes?.data || {};
             const liveGender = String(
-              profRes?.data?.gender || profRes?.data?.profile?.gender || ''
+              liveData?.gender ||
+              liveData?.profile?.gender ||
+              liveData?.user?.gender ||
+              liveData?.orientation ||
+              ''
             ).toLowerCase();
             if (liveGender) {
               if (liveGender.includes('woman') || liveGender.includes('female')) {
@@ -163,13 +182,35 @@ const LoginScreen = ({ navigation, route }: any) => {
           } catch {}
         }
 
-        // If still unresolved, check user-scoped storage before defaulting to straight_man
+        // If still unresolved, check user-scoped storage
         if (!userGender && resolvedUid) {
           const scopedGender = await AsyncStorage.getItem(`user_gender_${resolvedUid}`).catch(() => null);
           if (scopedGender) userGender = scopedGender;
         }
+
+        // Check email hints if gender is still not determined
         if (!userGender) {
-          userGender = 'straight_man';
+          const lowerEmail = cleanEmail.toLowerCase();
+          if (
+            lowerEmail.includes('woman') ||
+            lowerEmail.includes('female') ||
+            lowerEmail.includes('priya') ||
+            lowerEmail.includes('ananya')
+          ) {
+            userGender = 'straight_woman';
+          } else if (
+            lowerEmail.includes('man') ||
+            lowerEmail.includes('male') ||
+            lowerEmail.includes('kumar') ||
+            lowerEmail.includes('rahul')
+          ) {
+            userGender = 'straight_man';
+          }
+        }
+
+        if (!userGender) {
+          const prev = (await AsyncStorage.getItem('userGender')) || (await AsyncStorage.getItem('selectedGender'));
+          userGender = prev || 'straight_woman';
         }
 
         if (userName) {

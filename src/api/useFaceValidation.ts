@@ -7,7 +7,7 @@ import { getAuthSession } from '../utils/session';
 import apiClient from './apiClient';
 
 export const SELFIE_VERIFICATION_URL_STORAGE_KEY = '@amara_selfie_verification_url';
-export const DEFAULT_SELFIE_VERIFICATION_URL = (FACE_VALIDATION_URL || 'https://clutch-unashamed-lunacy.ngrok-free.dev')
+export const DEFAULT_SELFIE_VERIFICATION_URL = (FACE_VALIDATION_URL || '')
   .trim()
   .replace(/\/+$/, '');
 
@@ -111,7 +111,7 @@ export const getStoredSelfieVerificationUrl = async (): Promise<string | null> =
  * Fetch dynamic selfie verification URL from backend endpoint or cached storage,
  * matching how fetchAmaraBotName works.
  */
-export const fetchSelfieVerificationUrl = async (): Promise<string> => {
+export const fetchSelfieVerificationUrl = async (): Promise<string | null> => {
   // 1. Try dedicated endpoints if the backend exposes one (e.g. /selfie/verification-url)
   const candidateEndpoints = [
     '/selfie/verification-url',
@@ -124,19 +124,29 @@ export const fetchSelfieVerificationUrl = async (): Promise<string> => {
     try {
       const res = await apiClient.get(ep);
       const url = extractSelfieVerificationUrl(res?.data);
-      if (url) {
+      if (url && !url.includes('ngrok-free.dev')) {
         await saveSelfieVerificationUrl(url);
         return url;
       }
     } catch {}
   }
 
-  // 2. Return cached from AsyncStorage
+  // 2. Return cached from AsyncStorage (filtering out dead ngrok URLs)
   const cached = await getStoredSelfieVerificationUrl();
-  if (cached) return cached;
+  if (cached) {
+    if (cached.includes('ngrok-free.dev')) {
+      await AsyncStorage.removeItem(SELFIE_VERIFICATION_URL_STORAGE_KEY).catch(() => {});
+    } else {
+      return cached;
+    }
+  }
 
-  // 3. Fallback to default
-  return DEFAULT_SELFIE_VERIFICATION_URL;
+  // 3. Fallback to default if set and not ngrok
+  if (DEFAULT_SELFIE_VERIFICATION_URL && !DEFAULT_SELFIE_VERIFICATION_URL.includes('ngrok-free.dev')) {
+    return DEFAULT_SELFIE_VERIFICATION_URL;
+  }
+
+  return null;
 };
 
 /**
@@ -149,6 +159,50 @@ export const useSelfieVerificationUrl = () => {
     staleTime: 1000 * 60 * 60, // 1 hour
     gcTime: 1000 * 60 * 60 * 24, // 24 hours
   });
+};
+
+/**
+ * Checks whether an error from the face verification service represents
+ * an offline service, dead ngrok tunnel, network timeout, or gateway failure,
+ * rather than a genuine "face rejection" by an active AI model.
+ */
+export const isFaceServiceUnavailable = (err: any): boolean => {
+  if (!err) return false;
+  if (!err.response) return true;
+  const status = Number(err.response?.status);
+  // 404 (endpoint or dead ngrok tunnel), 502/503/504 (server gateway errors)
+  if (status === 404 || status === 502 || status === 503 || status === 504) return true;
+  // Ngrok specific headers
+  const ngrokCode = err.response?.headers?.['ngrok-error-code'];
+  if (ngrokCode) return true;
+  const dataStr = typeof err.response?.data === 'string'
+    ? err.response.data
+    : JSON.stringify(err.response?.data || '');
+  if (
+    dataStr.includes('ERR_NGROK') ||
+    dataStr.includes('ngrok-error-code') ||
+    dataStr.includes('ngrok') ||
+    dataStr.includes('Tunnel') ||
+    dataStr.includes('502 Bad Gateway') ||
+    dataStr.includes('<!DOCTYPE html>')
+  ) {
+    return true;
+  }
+  const msg = String(
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    ''
+  ).toLowerCase();
+  return (
+    msg === 'network error' ||
+    msg.includes('network') ||
+    msg.includes('timeout') ||
+    msg.includes('econnrefused') ||
+    msg.includes('enotfound') ||
+    msg.includes('failed to connect') ||
+    msg.includes('connection refused')
+  );
 };
 
 export interface FaceValidationHealthResponse {

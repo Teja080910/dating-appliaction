@@ -75,8 +75,17 @@ const HomeScreen = () => {
             const res = await apiClient
               .get(`/profile/me/${uid}`)
               .catch(() => apiClient.post('/profile/me', null, { params: { userId: uid } }))
+              .catch(() => apiClient.get('/profile/me', { params: { userId: uid } }))
+              .catch(() => apiClient.post('/profile/me', { userId: uid }))
+              .catch(() => apiClient.get(`/profile/get/${uid}`))
+              .catch(() => apiClient.get('/profile/get', { params: { userId: uid } }))
+              .catch(() => apiClient.get(`/users/${uid}`))
               .catch(() => null);
-            const apiGender = res?.data?.gender || res?.data?.profile?.gender;
+            const apiGender =
+              res?.data?.gender ||
+              res?.data?.profile?.gender ||
+              res?.data?.user?.gender ||
+              res?.data?.data?.gender;
             if (apiGender) {
               raw = String(apiGender);
             }
@@ -87,6 +96,7 @@ const HomeScreen = () => {
 
         const clean = String(raw).toLowerCase();
         const isWomanUser = clean.includes('woman') || clean.includes('female');
+        const isManUser = clean.includes('man') || clean.includes('male');
 
         if (isMounted) {
           if (isWomanUser) {
@@ -98,7 +108,7 @@ const HomeScreen = () => {
             if (uid) {
               await AsyncStorage.setItem(`user_gender_${uid}`, 'straight_woman');
             }
-          } else {
+          } else if (isManUser) {
             setCurrentUserGender('man');
             setOppositeGender('straight_woman');
             setShowMe('straight_woman');
@@ -107,14 +117,38 @@ const HomeScreen = () => {
             if (uid) {
               await AsyncStorage.setItem(`user_gender_${uid}`, 'straight_man');
             }
+          } else {
+            const fallback =
+              (await AsyncStorage.getItem('userGender')) ||
+              (await AsyncStorage.getItem('selectedGender')) ||
+              'straight_woman';
+            if (fallback.includes('woman') || fallback.includes('female')) {
+              setCurrentUserGender('woman');
+              setOppositeGender('straight_man');
+              setShowMe('straight_man');
+            } else {
+              setCurrentUserGender('man');
+              setOppositeGender('straight_woman');
+              setShowMe('straight_woman');
+            }
           }
         }
       } catch (err) {
         console.warn('Error resolving user gender:', err);
         if (isMounted) {
-          setCurrentUserGender('man');
-          setOppositeGender('straight_woman');
-          setShowMe('straight_woman');
+          const fallback =
+            (await AsyncStorage.getItem('userGender')) ||
+            (await AsyncStorage.getItem('selectedGender')) ||
+            'straight_woman';
+          if (fallback.includes('woman') || fallback.includes('female')) {
+            setCurrentUserGender('woman');
+            setOppositeGender('straight_man');
+            setShowMe('straight_man');
+          } else {
+            setCurrentUserGender('man');
+            setOppositeGender('straight_woman');
+            setShowMe('straight_woman');
+          }
         }
       }
     };

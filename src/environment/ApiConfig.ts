@@ -1,5 +1,5 @@
 export const APIURL: string = 'http://168.144.95.58:9395';
-export const FACE_VALIDATION_URL: string = 'https://clutch-unashamed-lunacy.ngrok-free.dev';
+export const FACE_VALIDATION_URL: string = '';
 export const USE_MOCK: boolean = false;
 
 // Warn if using plain HTTP in production environments

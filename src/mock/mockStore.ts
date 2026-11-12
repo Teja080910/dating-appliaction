@@ -502,7 +502,6 @@ class MockStore {
   public async createUser(userData: Partial<MockUser>): Promise<MockUser> {
     await this.init();
     const id = this.users.length ? Math.max(...this.users.map((u) => u.id)) + 1 : 1;
-    const userId = userData.userId || `usr_${userData.gender === 'woman' ? 'woman' : 'man'}_${100 + id}`;
     const rawEmail = userData.email ? String(userData.email).trim() : '';
     const rawMobile = userData.mobile ? String(userData.mobile).trim() : '';
     const isEmail = rawEmail.includes('@') || rawMobile.includes('@');
@@ -513,7 +512,21 @@ class MockStore {
       : undefined;
     const cleanMobile = rawMobile && !rawMobile.includes('@') ? rawMobile : '';
 
-    const fallbackName = userData.gender === 'woman' ? 'Ananya' : 'Rahul';
+    const isWoman =
+      userData.gender === 'woman' ||
+      userData.gender === 'female' ||
+      String(cleanEmail || '').toLowerCase().includes('woman') ||
+      String(cleanEmail || '').toLowerCase().includes('female') ||
+      String(cleanEmail || '').toLowerCase().includes('priya') ||
+      String(cleanEmail || '').toLowerCase().includes('ananya') ||
+      String(userData.name || '').toLowerCase().includes('woman') ||
+      String(userData.name || '').toLowerCase().includes('priya') ||
+      String(userData.name || '').toLowerCase().includes('ananya');
+
+    const determinedGender = userData.gender || (isWoman ? 'woman' : 'man');
+    const userId = userData.userId || `usr_${determinedGender === 'woman' ? 'woman' : 'man'}_${100 + id}`;
+
+    const fallbackName = determinedGender === 'woman' ? 'Ananya' : 'Rahul';
     const cleanName = userData.name && userData.name.trim() ? userData.name.trim() : fallbackName;
 
     const newUser: MockUser = {
@@ -523,7 +536,7 @@ class MockStore {
       mobile: cleanMobile,
       email: cleanEmail,
       password: userData.password || 'Password@123',
-      gender: userData.gender || 'man',
+      gender: determinedGender,
       telegramUsername: userData.telegramUsername || '',
       createdAt: new Date().toISOString(),
     };
@@ -713,6 +726,9 @@ class MockStore {
 
     const userIndex = this.users.findIndex((u) => String(u.userId) === userId || String(u.id) === userId);
     if (userIndex >= 0) {
+      if (profileData.gender) {
+        this.users[userIndex].gender = profileData.gender;
+      }
       const effectivePhone = profileData.mobile || (profileData as any).phoneNumber || profileData.phone || (profileData as any).mobileNumber;
       if (effectivePhone) {
         this.users[userIndex].mobile = effectivePhone;

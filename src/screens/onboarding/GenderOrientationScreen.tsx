@@ -24,8 +24,8 @@ import { t, useTranslation } from '../../i18n';
 
 const GenderOrientationScreen = ({ navigation }: any) => {
   useTranslation();
-  const { setSelected } = useContext(AppContext);
-  const [selection, setSelection] = useState<string>('straight_man');
+  const { setSelected, setGender } = useContext(AppContext);
+  const [selection, setSelection] = useState<string>('');
   const { genderOrientation } = useProfile();
   const { alert, AlertComponent } = useAlert();
   const { isDark } = useTheme();
@@ -50,8 +50,17 @@ const GenderOrientationScreen = ({ navigation }: any) => {
     if (selection) {
       try {
         setSelected(selection);
+        if (setGender) setGender(selection);
         await saveGender(selection);
-        const resolvedUserId = await getUserId();
+        await AsyncStorage.setItem('selectedGender', selection);
+        await AsyncStorage.setItem('userGender', selection);
+
+        let resolvedUserId = await getUserId();
+        if (!resolvedUserId) {
+          resolvedUserId =
+            (await AsyncStorage.getItem('userId')) ||
+            (await AsyncStorage.getItem('@amara_current_user_id'));
+        }
         if (resolvedUserId) {
           await AsyncStorage.setItem(`user_gender_${resolvedUserId}`, selection);
         }
@@ -70,13 +79,16 @@ const GenderOrientationScreen = ({ navigation }: any) => {
         };
 
         // Dual-write: POST /profile/gender-orientation and PUT /profile/update
-        await genderOrientation.mutateAsync(genderPayload);
-        if (resolvedUserId) {
-          await apiClient.put('/profile/update', {
-            userId: resolvedUserId,
-            gender: normalizedGender,
-          }).catch(() => {});
-        }
+        await Promise.allSettled([
+          genderOrientation.mutateAsync(genderPayload),
+          resolvedUserId
+            ? apiClient.put('/profile/update', {
+                userId: resolvedUserId,
+                gender: normalizedGender,
+                orientation: genderPayload.orientation,
+              })
+            : Promise.resolve(),
+        ]);
 
         await AsyncStorage.setItem('GenderOrientation', 'true');
         navigation.navigate('DisplayName');

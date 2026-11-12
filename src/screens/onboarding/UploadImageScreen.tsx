@@ -21,7 +21,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme, type ThemeColors } from '../../theme';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import { t, useTranslation } from '../../i18n';
-import { useFaceValidation, useSelfieVerificationUrl } from '../../api/useFaceValidation';
+import { useFaceValidation, useSelfieVerificationUrl, isFaceServiceUnavailable } from '../../api/useFaceValidation';
 import { getUserId } from '../../utils/sessionHelper';
 import { getAuthSession } from '../../utils/session';
 
@@ -43,8 +43,14 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     verifiedSelfie,
   } = useContext(AppContext);
   const { uploadVerificationPhotos } = useFaceValidation();
-  useSelfieVerificationUrl();
+  const { data: dynamicSelfieUrl } = useSelfieVerificationUrl();
   const [isCheckingPhotos, setIsCheckingPhotos] = useState(false);
+
+  const hasActiveAiUrl = Boolean(
+    dynamicSelfieUrl &&
+    !dynamicSelfieUrl.includes('ngrok-free.dev') &&
+    dynamicSelfieUrl.startsWith('http')
+  );
 
   // We enforce 6 slots
   const slots = [0, 1, 2, 3, 4, 5];
@@ -111,7 +117,7 @@ const UploadPhotosScreen = ({ navigation }: any) => {
         }
       } catch {}
 
-      if (photoUrisToSync.length > 0) {
+      if (hasActiveAiUrl && photoUrisToSync.length > 0) {
         try {
           const syncRes = await uploadVerificationPhotos.mutateAsync({
             userId: uid ? String(uid) : undefined,
@@ -139,15 +145,9 @@ const UploadPhotosScreen = ({ navigation }: any) => {
         } catch (err: any) {
           const serverError = err?.response?.data?.error || err?.response?.data?.message;
           const rawMessage = String(serverError || err?.message || '');
-          const isNetworkErr =
-            !err?.response ||
-            rawMessage === 'Network Error' ||
-            rawMessage.toLowerCase().includes('network') ||
-            rawMessage.toLowerCase().includes('timeout') ||
-            rawMessage.toLowerCase().includes('econnrefused');
 
-          if (!isNetworkErr) {
-            // Face verification is active and rejected the photos: do NOT use fallback, block progression
+          if (!isFaceServiceUnavailable(err)) {
+            // Face verification is active and explicitly rejected the photos: do NOT use fallback, block progression
             setIsCheckingPhotos(false);
             Alert.alert(
               'Face Verification Required',
@@ -156,7 +156,7 @@ const UploadPhotosScreen = ({ navigation }: any) => {
             return;
           }
 
-          // If AI service is not running/unreachable, only then allow fallback progression
+          // If AI service is not running/unreachable, allow fallback progression
           console.warn('[FaceValidation] AI service offline, allowing fallback progression:', rawMessage);
         }
       }

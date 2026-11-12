@@ -153,6 +153,7 @@ const GlobalStateProvider = ({ children }: any) => {
           userScopedImages,
           userScopedProfileImage,
           deletedRaw,
+          userScopedGender,
         ] = await Promise.all([
           AsyncStorage.getItem('name'),
           AsyncStorage.getItem('displayName'),
@@ -167,6 +168,7 @@ const GlobalStateProvider = ({ children }: any) => {
           id ? AsyncStorage.getItem(`user_photos_${id}`).catch(() => null) : Promise.resolve(null),
           id ? AsyncStorage.getItem(`user_profile_photo_${id}`).catch(() => null) : Promise.resolve(null),
           id ? AsyncStorage.getItem(`deleted_photos_${id}`).catch(() => null) : Promise.resolve(null),
+          id ? AsyncStorage.getItem(`user_gender_${id}`).catch(() => null) : Promise.resolve(null),
         ]);
         if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
           setThemeMode(storedTheme);
@@ -185,7 +187,7 @@ const GlobalStateProvider = ({ children }: any) => {
               setDate(new Date(storedDob));
             } catch {}
           }
-          const resolvedGender = storedGender || storedUserGender;
+          const resolvedGender = userScopedGender || storedGender || storedUserGender;
           if (resolvedGender) {
             setGender(resolvedGender);
             setSelected(resolvedGender);
@@ -534,6 +536,7 @@ const GlobalStateProvider = ({ children }: any) => {
       setPhoneNumber('');
       setDate(new Date());
       setProfileText('');
+      setGender(null);
       setSelected(null);
       setSelectedAppearance(null);
       setSelectedBodyType(null);
@@ -546,8 +549,8 @@ const GlobalStateProvider = ({ children }: any) => {
       setSelectedNetWorth(null);
       setEnglishSkillLevel(0);
       setVerifiedSelfie(false);
-      setOppositeGender('straight_woman');
-      setShowMe('straight_woman');
+      setOppositeGender(null);
+      setShowMe(null);
       // Preserved across logout/login per user requirement
       setImages(emptyImageSlots());
       setProfileImage(null);

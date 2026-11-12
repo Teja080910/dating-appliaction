@@ -28,7 +28,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useProfile } from '../../api/useProfile';
-import { useFaceValidation, useSelfieVerificationUrl } from '../../api/useFaceValidation';
+import { useFaceValidation, useSelfieVerificationUrl, isFaceServiceUnavailable } from '../../api/useFaceValidation';
 import { useTheme, Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
@@ -109,6 +109,12 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   const { verifySelfie, uploadSelfie } = useProfile();
   const { uploadLivePhoto } = useFaceValidation();
   const { data: dynamicSelfieUrl } = useSelfieVerificationUrl();
+
+  const hasActiveAiUrl = Boolean(
+    dynamicSelfieUrl &&
+    !dynamicSelfieUrl.includes('ngrok-free.dev') &&
+    dynamicSelfieUrl.startsWith('http')
+  );
 
   // 1. Proactively check camera permission on mount and focus
   const checkCameraPermission = useCallback(async () => {
@@ -247,6 +253,18 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   // 5. Biometric Verification & Face Recognition Process
   const startFaceVerification = async (photoUri: string) => {
     setScreenMode('review');
+
+    // If no active AI verification URL came from the backend API, keep direct fallback "Use this selfie"
+    if (!hasActiveAiUrl) {
+      console.log('[SelfieVerification] No active AI verification URL from API, keeping direct "Use this selfie" flow.');
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+      setScanProgress(100);
+      setVerificationStageText('Selfie captured! ✓');
+      setIsVerifying(false);
+      setScanComplete(true);
+      return;
+    }
+
     setIsVerifying(true);
     setScanComplete(false);
     setScanProgress(15);
@@ -294,14 +312,8 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
       const serverError = err?.response?.data?.error || err?.response?.data?.message;
       const rawMessage = String(serverError || err?.message || '');
-      const isNetworkErr =
-        !err?.response ||
-        rawMessage === 'Network Error' ||
-        rawMessage.toLowerCase().includes('network') ||
-        rawMessage.toLowerCase().includes('timeout') ||
-        rawMessage.toLowerCase().includes('econnrefused');
 
-      if (isNetworkErr) {
+      if (isFaceServiceUnavailable(err)) {
         console.warn('[SelfieVerification] AI service unreachable over ngrok:', rawMessage);
         alert(
           'Verification Connection',
@@ -316,6 +328,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               onPress: () => {
                 setScanProgress(100);
                 setVerificationStageText('Selfie captured! ✓');
+                setIsVerifying(false);
                 setScanComplete(true);
               },
             },
@@ -559,14 +572,16 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
             <Text style={[styles.cardInstructionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
               {screenMode === 'review'
                 ? scanComplete
-                  ? 'Face Verified! ✓'
+                  ? (hasActiveAiUrl ? 'Face Verified! ✓' : 'Selfie Captured! ✓')
                   : 'Verifying Face...'
                 : t('onboarding.selfieverificationscreen.center_your_face_and_click_start')}
             </Text>
             <Text style={[styles.cardSubinstructionText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               {screenMode === 'review'
                 ? scanComplete
-                  ? 'Biometric face scan completed. Confirm below to proceed.'
+                  ? (hasActiveAiUrl
+                      ? 'Biometric face scan completed. Confirm below to proceed.'
+                      : 'Look good? Tap "Use This Selfie" below to proceed.')
                   : verificationStageText || 'Analyzing facial landmarks...'
                 : 'Make sure your face is clearly visible inside the oval frame.'}
             </Text>
@@ -710,7 +725,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (
                     <>
-                      <Text style={styles.confirmBtnText}>Confirm</Text>
+                      <Text style={styles.confirmBtnText}>Use This Selfie</Text>
                       <Feather name="arrow-right" size={17} color="#FFFFFF" style={{ marginLeft: 6 }} />
                     </>
                   )}
