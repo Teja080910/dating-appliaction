@@ -1,5 +1,6 @@
 import { Platform, PermissionsAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 import apiClient from '../api/apiClient';
 import { navigationRef, navigate } from './navigationHelper';
 
@@ -83,17 +84,23 @@ export const registerDeviceToken = async (userId: string | number): Promise<bool
 
     const token = await getDeviceToken();
 
-    const payload = {
+    const payload: Record<string, string> = {
       userId: String(userId),
       token,
       deviceToken: token,
       fcmToken: token,
+      pushToken: token,
       platform: Platform.OS,
     };
 
     console.log('📱 [Push] Sending device token to backend POST /notification/push:', payload);
 
-    const res = await apiClient.post('/notification/push', payload);
+    const res = await apiClient.post('/notification/push', payload, {
+      params: {
+        userId: String(userId),
+        token,
+      },
+    });
     console.log('✅ [Push] Device token registered with backend (Status ' + res?.status + '):', res?.data);
 
     // If we only had a fallback token, retry obtaining a real token shortly
@@ -107,7 +114,13 @@ export const registerDeviceToken = async (userId: string | number): Promise<bool
               token: freshToken,
               deviceToken: freshToken,
               fcmToken: freshToken,
+              pushToken: freshToken,
               platform: Platform.OS,
+            }, {
+              params: {
+                userId: String(userId),
+                token: freshToken,
+              },
             });
             console.log('🔄 [Push] Successfully upgraded to real FCM token for user', userId);
           }
@@ -263,6 +276,57 @@ export const handleNotificationNavigation = async (dataOrMessage: any) => {
 };
 
 /**
+ * Display an interactive in-app toast/banner when an FCM notification arrives in foreground
+ */
+export const showForegroundNotificationToast = (remoteMessage: any) => {
+  if (!remoteMessage) return;
+
+  try {
+    const rawData = remoteMessage?.data || {};
+    const rawNotif = remoteMessage?.notification || {};
+
+    const title =
+      rawNotif.title ||
+      rawData.title ||
+      rawData.heading ||
+      'Amara Notification';
+
+    const body =
+      rawNotif.body ||
+      rawData.body ||
+      rawData.message ||
+      rawData.text ||
+      '';
+
+    const combinedText = `${title} ${body}`.toLowerCase();
+    const isSuccess =
+      combinedText.includes('approved') ||
+      combinedText.includes('accepted') ||
+      combinedText.includes('match') ||
+      combinedText.includes('telegram');
+
+    Toast.show({
+      type: isSuccess ? 'success' : 'info',
+      text1: String(title),
+      text2: body ? String(body) : undefined,
+      visibilityTime: 4500,
+      onPress: () => {
+        try {
+          Toast.hide();
+        } catch {
+          // ignore
+        }
+        handleNotificationNavigation(remoteMessage);
+      },
+    });
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('⚠️ [Push] Error presenting foreground toast:', err);
+    }
+  }
+};
+
+/**
  * Initialize Push Notification listeners for Foreground, Background, and Quit states
  */
 export const setupPushNotificationListeners = (
@@ -286,6 +350,8 @@ export const setupPushNotificationListeners = (
           }
           if (onForegroundNotification) {
             onForegroundNotification(remoteMessage);
+          } else {
+            showForegroundNotificationToast(remoteMessage);
           }
         });
       }

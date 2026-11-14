@@ -203,17 +203,37 @@ class MockStore {
         }
       }
 
-      // Re-apply any accepted/declined connections from persistent AsyncStorage
+      // Re-apply any accepted/declined connections from persistent AsyncStorage.
+      // Strict rule: acceptance is scoped to the specific request ID or user pair (senderId + receiverId).
+      // NEVER scope by senderId alone, as a male user sends requests to multiple different women.
       for (const r of validRequests) {
         const reqAccepted = (await AsyncStorage.getItem(`accepted_conn_${r.id}`).catch(() => null)) === 'true';
-        const senderAccepted = r.senderId ? (await AsyncStorage.getItem(`accepted_conn_${r.senderId}`).catch(() => null)) === 'true' : false;
-        if (reqAccepted || senderAccepted) {
+        const pairAccepted = (r.senderId && r.receiverId)
+          ? (await AsyncStorage.getItem(`accepted_conn_pair_${r.senderId}_${r.receiverId}`).catch(() => null)) === 'true'
+          : false;
+        if (reqAccepted || pairAccepted) {
           r.status = 'APPROVED';
         }
         const reqDeclined = (await AsyncStorage.getItem(`declined_conn_${r.id}`).catch(() => null)) === 'true';
-        const senderDeclined = r.senderId ? (await AsyncStorage.getItem(`declined_conn_${r.senderId}`).catch(() => null)) === 'true' : false;
-        if (reqDeclined || senderDeclined) {
+        const pairDeclined = (r.senderId && r.receiverId)
+          ? (await AsyncStorage.getItem(`declined_conn_pair_${r.senderId}_${r.receiverId}`).catch(() => null)) === 'true'
+          : false;
+        if (reqDeclined || pairDeclined) {
           r.status = 'DECLINED';
+        }
+      }
+
+      // Revert any default requests that were corrupted to APPROVED by legacy senderId bugs
+      for (const defaultReq of mockData.requests) {
+        const r = validRequests.find((req) => req.id === defaultReq.id);
+        if (r && defaultReq.status === 'PENDING' && r.status === 'APPROVED') {
+          const reqAccepted = (await AsyncStorage.getItem(`accepted_conn_${r.id}`).catch(() => null)) === 'true';
+          const pairAccepted = (r.senderId && r.receiverId)
+            ? (await AsyncStorage.getItem(`accepted_conn_pair_${r.senderId}_${r.receiverId}`).catch(() => null)) === 'true'
+            : false;
+          if (!reqAccepted && !pairAccepted) {
+            r.status = 'PENDING';
+          }
         }
       }
       validRequests.forEach((r) => {
@@ -1461,11 +1481,12 @@ class MockStore {
     this.requests[reqIndex] = updated;
     await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests));
     await AsyncStorage.setItem(`accepted_conn_${updated.id}`, 'true').catch(() => {});
-    if (updated.senderId) {
-      await AsyncStorage.setItem(`accepted_conn_${updated.senderId}`, 'true').catch(() => {});
-    }
-    if (updated.sender?.id) {
-      await AsyncStorage.setItem(`accepted_conn_${updated.sender.id}`, 'true').catch(() => {});
+    await AsyncStorage.removeItem(`declined_conn_${updated.id}`).catch(() => {});
+    const sId = String(updated.senderId || updated.sender?.userId || updated.sender?.id || '').trim();
+    const rId = String(updated.receiverId || updated.receiver?.userId || updated.receiver?.id || receiverId || '').trim();
+    if (sId && rId) {
+      await AsyncStorage.setItem(`accepted_conn_pair_${sId}_${rId}`, 'true').catch(() => {});
+      await AsyncStorage.removeItem(`declined_conn_pair_${sId}_${rId}`).catch(() => {});
     }
 
     // Dispatch notification to sender if permitted
@@ -1504,13 +1525,17 @@ class MockStore {
     const target = String(requestId || '').trim().toLowerCase();
     const index = this.requests.findIndex((r) => {
       const rId = String(r.id || '').trim().toLowerCase();
-      const rReceiverId = String(r.receiverId || '').trim().toLowerCase();
-      const rReceiverUserId = String(r.receiver?.userId || '').trim().toLowerCase();
-      return rId === target || rReceiverId === target || rReceiverUserId === target;
+      return rId === target;
     });
     if (index >= 0) {
+      const removed = this.requests[index];
       this.requests.splice(index, 1);
       await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests));
+      await AsyncStorage.setItem(`declined_conn_${removed.id}`, 'true').catch(() => {});
+      await AsyncStorage.removeItem(`accepted_conn_${removed.id}`).catch(() => {});
+      if (removed.senderId && removed.receiverId) {
+        await AsyncStorage.removeItem(`accepted_conn_pair_${removed.senderId}_${removed.receiverId}`).catch(() => {});
+      }
       return true;
     }
     return false;

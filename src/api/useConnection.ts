@@ -382,11 +382,7 @@ export const useConnection = (userId?: string | number) => {
       const updateToAccepted = (old: any) => {
         if (!Array.isArray(old)) return old;
         return old.map((item: any) => {
-          const isTarget =
-            String(item?.id) === targetId ||
-            String(item?.senderId) === targetId ||
-            String(item?.sender?.userId) === targetId ||
-            String(item?.sender?.id) === targetId;
+          const isTarget = String(item?.id) === targetId;
           return isTarget ? { ...item, status: 'ACCEPTED' } : item;
         });
       };
@@ -406,17 +402,16 @@ export const useConnection = (userId?: string | number) => {
 
         const currentReceived = (queryClient.getQueryData(receivedListKey) as any[]) || [];
         const match = currentReceived.find(
-          (x: any) =>
-            String(x?.id) === reqIdStr ||
-            String(x?.senderId) === reqIdStr ||
-            String(x?.sender?.userId) === reqIdStr ||
-            String(x?.sender?.id) === reqIdStr
+          (x: any) => String(x?.id) === reqIdStr
         );
         if (match) {
           if (match.id) await AsyncStorage.setItem(`accepted_conn_${match.id}`, 'true');
-          if (match.senderId) await AsyncStorage.setItem(`accepted_conn_${match.senderId}`, 'true');
-          if (match.sender?.userId) await AsyncStorage.setItem(`accepted_conn_${match.sender.userId}`, 'true');
-          if (match.sender?.id) await AsyncStorage.setItem(`accepted_conn_${match.sender.id}`, 'true');
+          const sId = String(match.sender?.userId || match.senderId || match.sender?.id || '');
+          const rId = String(match.receiver?.userId || match.receiverId || match.receiver?.id || resolvedUserId || '');
+          if (sId && rId) {
+            await AsyncStorage.setItem(`accepted_conn_pair_${sId}_${rId}`, 'true');
+            await AsyncStorage.removeItem(`declined_conn_pair_${sId}_${rId}`);
+          }
 
           const cacheKey = `@amara_accepted_connections_${resolvedUserId}`;
           const rawCached = await AsyncStorage.getItem(cacheKey).catch(() => null);
@@ -646,11 +641,7 @@ export const useConnection = (userId?: string | number) => {
       const updateToDeclined = (old: any) => {
         if (!Array.isArray(old)) return old;
         return old.map((item: any) => {
-          const isTarget =
-            String(item?.id) === targetId ||
-            String(item?.senderId) === targetId ||
-            String(item?.sender?.userId) === targetId ||
-            String(item?.sender?.id) === targetId;
+          const isTarget = String(item?.id) === targetId;
           return isTarget ? { ...item, status: 'DECLINED' } : item;
         });
       };
@@ -667,6 +658,20 @@ export const useConnection = (userId?: string | number) => {
       try {
         await AsyncStorage.setItem(`declined_conn_${reqIdStr}`, 'true');
         await AsyncStorage.removeItem(`accepted_conn_${reqIdStr}`);
+
+        const currentReceived = (queryClient.getQueryData(receivedListKey) as any[]) || [];
+        const match = currentReceived.find(
+          (x: any) => String(x?.id) === reqIdStr
+        );
+        if (match) {
+          if (match.id) await AsyncStorage.setItem(`declined_conn_${match.id}`, 'true');
+          const sId = String(match.sender?.userId || match.senderId || match.sender?.id || '');
+          const rId = String(match.receiver?.userId || match.receiverId || match.receiver?.id || resolvedUserId || '');
+          if (sId && rId) {
+            await AsyncStorage.setItem(`declined_conn_pair_${sId}_${rId}`, 'true');
+            await AsyncStorage.removeItem(`accepted_conn_pair_${sId}_${rId}`);
+          }
+        }
       } catch {}
 
       if (reqIdStr.startsWith('notif_')) {
@@ -832,12 +837,14 @@ export const useConnection = (userId?: string | number) => {
       const finalized = await Promise.all(
         merged.map(async (c: any) => {
           const cId = String(c.id);
-          const receiverId = String(c.receiver?.userId || c.receiverId || '');
+          const receiverId = String(c.receiver?.userId || c.receiverId || c.receiver?.id || '');
+          const senderId = String(c.sender?.userId || c.senderId || c.sender?.id || resolvedUserId || '');
           const isAccepted =
             c.status === 'ACCEPTED' ||
             c.status === 'APPROVED' ||
             (await AsyncStorage.getItem(`accepted_conn_${cId}`).catch(() => null)) === 'true' ||
-            (Boolean(receiverId) && (await AsyncStorage.getItem(`accepted_conn_${receiverId}`).catch(() => null)) === 'true');
+            (Boolean(senderId && receiverId) &&
+              (await AsyncStorage.getItem(`accepted_conn_pair_${senderId}_${receiverId}`).catch(() => null)) === 'true');
           if (isAccepted) {
             return { ...c, status: 'ACCEPTED' };
           }
@@ -1021,21 +1028,22 @@ export const useConnection = (userId?: string | number) => {
         const updatedBackendConnections = await Promise.all(
           mergedBase.map(async (c: any) => {
             const cId = String(c.id);
-            const senderId = String(c.sender?.userId || c.senderId || '');
-            const senderNum = String(c.sender?.id || '');
+            const senderId = String(c.sender?.userId || c.senderId || c.sender?.id || '');
+            const receiverId = String(c.receiver?.userId || c.receiverId || c.receiver?.id || resolvedUserId || '');
 
             const isAccepted =
               c.status === 'ACCEPTED' ||
               c.status === 'APPROVED' ||
               (await AsyncStorage.getItem(`accepted_conn_${cId}`).catch(() => null)) === 'true' ||
-              (Boolean(senderId) && (await AsyncStorage.getItem(`accepted_conn_${senderId}`).catch(() => null)) === 'true') ||
-              (Boolean(senderNum) && (await AsyncStorage.getItem(`accepted_conn_${senderNum}`).catch(() => null)) === 'true');
+              (Boolean(senderId && receiverId) &&
+                (await AsyncStorage.getItem(`accepted_conn_pair_${senderId}_${receiverId}`).catch(() => null)) === 'true');
 
             const isDeclined =
               c.status === 'DECLINED' ||
               c.status === 'REJECTED' ||
               (await AsyncStorage.getItem(`declined_conn_${cId}`).catch(() => null)) === 'true' ||
-              (Boolean(senderId) && (await AsyncStorage.getItem(`declined_conn_${senderId}`).catch(() => null)) === 'true');
+              (Boolean(senderId && receiverId) &&
+                (await AsyncStorage.getItem(`declined_conn_pair_${senderId}_${receiverId}`).catch(() => null)) === 'true');
 
             if (isAccepted) {
               return { ...c, status: 'ACCEPTED' };

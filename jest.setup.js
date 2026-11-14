@@ -24,6 +24,16 @@ jest.mock('react-native-vector-icons/Feather', () => 'Feather');
 jest.mock('react-native-vector-icons/MaterialIcons', () => 'MaterialIcons');
 jest.mock('react-native-linear-gradient', () => 'LinearGradient');
 
+jest.mock('react-native-toast-message', () => ({
+  __esModule: true,
+  default: {
+    show: jest.fn(),
+    hide: jest.fn(),
+  },
+  show: jest.fn(),
+  hide: jest.fn(),
+}));
+
 jest.mock('@react-navigation/native', () => ({
   createNavigationContainerRef: () => ({
     isReady: () => false,

@@ -110,13 +110,19 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     const clean = uri.trim();
     if (!clean) return false;
     const abs = getAbsoluteUrl(clean) || clean;
+    const filename = getFilenameFromUrl(clean);
+    const isGeneric = ['photo.jpg', 'image.jpg', 'default.jpg'].includes((filename || '').toLowerCase());
+
     return deletedList.some((d) => {
       if (!d) return false;
       const cleanD = String(d).trim();
       if (!cleanD) return false;
       if (cleanD === clean || cleanD === abs) return true;
       const dAbs = getAbsoluteUrl(cleanD) || cleanD;
-      return dAbs === abs || dAbs === clean;
+      if (dAbs === abs || dAbs === clean) return true;
+      const dFile = getFilenameFromUrl(cleanD);
+      if (filename && dFile && !isGeneric && filename === dFile) return true;
+      return false;
     });
   }, []);
 
@@ -137,12 +143,14 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       const key = activeUid ? `deleted_photos_${activeUid}` : 'deleted_image_uris';
       const raw = await AsyncStorage.getItem(key);
       const list: string[] = raw ? JSON.parse(raw) : [];
-      if (!list.includes(uri)) {
-        list.push(uri);
-        const abs = getAbsoluteUrl(uri);
-        if (abs && !list.includes(abs)) list.push(abs);
-        await AsyncStorage.setItem(key, JSON.stringify(list));
-      }
+      const abs = getAbsoluteUrl(uri);
+      const filename = getFilenameFromUrl(uri);
+      const isGeneric = ['photo.jpg', 'image.jpg', 'default.jpg'].includes((filename || '').toLowerCase());
+
+      if (!list.includes(uri)) list.push(uri);
+      if (abs && !list.includes(abs)) list.push(abs);
+      if (filename && !isGeneric && !list.includes(filename)) list.push(filename);
+      await AsyncStorage.setItem(key, JSON.stringify(list));
     } catch {}
   }, []);
 
@@ -294,6 +302,27 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
             AsyncStorage.setItem('profileImage', asset.uri).catch(() => {});
           }
           AsyncStorage.setItem('onboardingImages', JSON.stringify(current)).catch(() => {});
+          if (localUserId) {
+            AsyncStorage.setItem(`user_photos_${localUserId}`, JSON.stringify(current)).catch(() => {});
+          }
+
+          // Clear any tombstones matching this new photo
+          if (localUserId) {
+            const keysToClean = [`deleted_photos_${localUserId}`, 'deleted_image_uris'];
+            const assetFilename = getFilenameFromUrl(asset.uri);
+            for (const key of keysToClean) {
+              try {
+                const raw = await AsyncStorage.getItem(key);
+                const list: string[] = raw ? JSON.parse(raw) : [];
+                const filtered = list.filter((item) => {
+                  if (item === asset.uri || item === getAbsoluteUrl(asset.uri)) return false;
+                  if (assetFilename && item === assetFilename) return false;
+                  return true;
+                });
+                await AsyncStorage.setItem(key, JSON.stringify(filtered));
+              } catch {}
+            }
+          }
 
           uploadImage.mutate(
             {
@@ -305,33 +334,53 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
               },
             },
             {
-              onSuccess: () => {
+              onSuccess: async (uploadRes: any) => {
                 if (oldImageId) {
-                  deleteImage.mutate({ imageId: oldImageId, userId: localUserId || undefined });
+                  await deleteImage.mutateAsync({ imageId: oldImageId, userId: localUserId || undefined }).catch(() => {});
                 }
+
+                const newId = uploadRes?.id || uploadRes?.data?.id || (uploadRes?.imageId ? Number(uploadRes.imageId) : undefined);
+                const newUrl = uploadRes?.imageUrl || uploadRes?.data?.imageUrl || (typeof uploadRes === 'string' ? uploadRes : undefined);
+
+                if (newId) {
+                  setImageMap((prev) => ({ ...prev, [index]: Number(newId) }));
+                }
+
                 if (localUserId) {
-                  getAllImagesRef.current(localUserId, {
-                    onSuccess: async (data: any) => {
-                      const deletedList = await getDeletedUris(localUserId);
-                      const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
-                      setImageMap(mapped.imageIdByIndex);
-                      setServerImages(mapped.normalized);
-                      const activeSlots = mapped.slots.filter((u) => u && !isDeletedUri(u, deletedList));
-                      while (activeSlots.length < TOTAL_SLOTS) {
-                        activeSlots.push(null);
-                      }
-                      setImages(activeSlots);
-                      const primary = activeSlots[0] || mapped.profileImageUrl || null;
-                      if (primary) {
-                        setProfileImage(primary);
-                        setProfileImageUrl(primary);
-                        AsyncStorage.setItem('profileImage', primary).catch(() => {});
-                      }
-                      AsyncStorage.setItem(`user_photos_${localUserId}`, JSON.stringify(activeSlots)).catch(() => {});
-                      AsyncStorage.setItem('onboardingImages', JSON.stringify(activeSlots)).catch(() => {});
-                      DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: localUserId });
-                    },
-                  });
+                  try {
+                    const data = await getAllImages.mutateAsync(localUserId);
+                    const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
+                    setServerImages(mapped.normalized);
+
+                    // Map true server image ID to this slot so future deletes target the exact ID
+                    const found = mapped.normalized.find((img) => {
+                      if (!img.imageUrl) return false;
+                      if (newUrl && (img.imageUrl === newUrl || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(newUrl))) return true;
+                      const f1 = getFilenameFromUrl(img.imageUrl);
+                      const f2 = getFilenameFromUrl(asset.uri);
+                      if (f1 && f2 && f1 === f2) return true;
+                      return false;
+                    });
+                    if (found?.id) {
+                      setImageMap((prev) => ({ ...prev, [index]: Number(found.id) }));
+                    }
+                  } catch (e) {
+                    console.warn('[ProfilePhotoGrid] Could not refresh server image IDs after upload:', e);
+                  }
+
+                  const validCurrent = current.filter(Boolean) as string[];
+                  apiClient.put('/profile/update', {
+                    userId: localUserId,
+                    photos: validCurrent,
+                    images: validCurrent,
+                    profileImageUrl: validCurrent[0] || '',
+                    photo: validCurrent[0] || '',
+                  }).catch(() => {});
+                }
+
+                AsyncStorage.setItem('onboardingImages', JSON.stringify(current)).catch(() => {});
+                if (localUserId) {
+                  AsyncStorage.setItem(`user_photos_${localUserId}`, JSON.stringify(current)).catch(() => {});
                 }
               },
               onError: (err) => {
@@ -354,51 +403,51 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     const currentList = [...(images || [])];
     hasUserEdited.current = true;
     const targetUri = currentList[index];
+    if (!targetUri) return;
 
-    let currentServerImages = serverImages;
-    let currentImageMap = imageMap;
-    const uid = localUserId || (await resolveActiveUserId());
-    if (uid && !localUserId) setLocalUserId(uid);
-
-    // If serverImages hasn't loaded yet or imageId isn't found, fetch from server to obtain true IDs
-    if ((currentServerImages.length === 0 || !currentImageMap[index]) && uid) {
-      try {
-        const fetched = await getAllImages.mutateAsync(uid);
-        const mapped = mapImagesToSlots(fetched, TOTAL_SLOTS);
-        currentServerImages = mapped.normalized;
-        currentImageMap = mapped.imageIdByIndex;
-        setServerImages(mapped.normalized);
-        setImageMap(mapped.imageIdByIndex);
-      } catch (e) {
-        console.warn('[ProfilePhotoGrid] Could not refresh server images before delete:', e);
-      }
-    }
-
-    const targetFilename = getFilenameFromUrl(targetUri);
-    const isGenericFilename = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(targetFilename.toLowerCase());
-    const matched = currentServerImages.find((img) => {
-      if (img.id === null || img.id === undefined) return false;
-      if (!img.imageUrl || !targetUri) return false;
-      if (img.imageUrl === targetUri) return true;
-      if (getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri)) return true;
-      const imgFilename = getFilenameFromUrl(img.imageUrl);
-      if (targetFilename && imgFilename && !isGenericFilename && targetFilename === imgFilename) return true;
-      return false;
-    });
-
-    const imageId = currentImageMap[index] ?? matched?.id ?? (currentServerImages[index]?.id ? Number(currentServerImages[index].id) : undefined);
-
-    // Record as deleted in AsyncStorage so this URI is never re-hydrated by cached queries
-    if (targetUri) void recordDeletedUri(targetUri, uid);
-    if (matched?.imageUrl && matched.imageUrl !== targetUri) void recordDeletedUri(matched.imageUrl, uid);
-
-    // 1. Instant optimistic update: filter out deleted image and shift remaining forward
+    // 1. Instant optimistic update: remove immediately so UI changes with 0ms lag
     const remainingPhotos = currentList.filter((item, i) => i !== index && Boolean(item)) as string[];
     const nextSlots: (string | null)[] = [...remainingPhotos];
     while (nextSlots.length < TOTAL_SLOTS) {
       nextSlots.push(null);
     }
     setImages(nextSlots);
+
+    // 2. Update primary profile photo in context
+    const newPrimary = nextSlots[0] || null;
+    setProfileImage(newPrimary);
+    setProfileImageUrl(newPrimary);
+
+    // 3. Update imageMap slot indices immediately
+    const deletedImageId = imageMap[index];
+    setImageMap((prev) => {
+      const updated: Record<number, number> = {};
+      let nextIdx = 0;
+      for (let i = 0; i < currentList.length; i++) {
+        if (i !== index && currentList[i] && prev[i]) {
+          updated[nextIdx] = prev[i];
+          nextIdx++;
+        }
+      }
+      return updated;
+    });
+
+    const uid = localUserId || (await resolveActiveUserId());
+    if (uid && !localUserId) setLocalUserId(uid);
+
+    // 4. Record as deleted in AsyncStorage so background queries NEVER resurrect it
+    if (targetUri) void recordDeletedUri(targetUri, uid);
+
+    // 5. Persist to AsyncStorage immediately (both global and user-scoped)
+    AsyncStorage.setItem('onboardingImages', JSON.stringify(nextSlots)).catch(() => {});
+    if (uid) {
+      AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(nextSlots)).catch(() => {});
+    }
+    if (newPrimary) {
+      AsyncStorage.setItem('profileImage', newPrimary).catch(() => {});
+    } else {
+      AsyncStorage.removeItem('profileImage').catch(() => {});
+    }
 
     // Ensure remaining active photos are NEVER in deleted tombstones
     const allRemaining = nextSlots.filter(Boolean) as string[];
@@ -417,37 +466,44 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       } catch {}
     }
 
-    // 2. Update primary profile photo in context
-    const newPrimary = nextSlots[0] || null;
-    setProfileImage(newPrimary);
-    setProfileImageUrl(newPrimary);
+    // 6. In background: resolve server imageId and delete on server
+    let currentServerImages = serverImages;
+    let imageId: number | undefined = deletedImageId;
 
-    // 3. Persist to AsyncStorage immediately (both global and user-scoped)
-    AsyncStorage.setItem('onboardingImages', JSON.stringify(nextSlots)).catch(() => {});
-    if (uid) {
-      AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(nextSlots)).catch(() => {});
+    if (!imageId) {
+      const targetFilename = getFilenameFromUrl(targetUri);
+      const isGenericFilename = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(targetFilename.toLowerCase());
+      const matched = currentServerImages.find((img) => {
+        if (img.id === null || img.id === undefined) return false;
+        if (!img.imageUrl || !targetUri) return false;
+        if (img.imageUrl === targetUri) return true;
+        if (getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri)) return true;
+        const imgFilename = getFilenameFromUrl(img.imageUrl);
+        if (targetFilename && imgFilename && !isGenericFilename && targetFilename === imgFilename) return true;
+        return false;
+      });
+      imageId = matched?.id ?? (currentServerImages[index]?.id ? Number(currentServerImages[index].id) : undefined);
+      if (matched?.imageUrl && matched.imageUrl !== targetUri) void recordDeletedUri(matched.imageUrl, uid);
     }
-    if (newPrimary) {
-      AsyncStorage.setItem('profileImage', newPrimary).catch(() => {});
-    } else {
-      AsyncStorage.removeItem('profileImage').catch(() => {});
-    }
-    DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid });
 
-    // 4. Update imageMap slot indices
-    setImageMap((prev) => {
-      const updated: Record<number, number> = {};
-      let nextIdx = 0;
-      for (let i = 0; i < currentList.length; i++) {
-        if (i !== index && currentList[i] && prev[i]) {
-          updated[nextIdx] = prev[i];
-          nextIdx++;
-        }
+    if (!imageId && uid) {
+      try {
+        const fetched = await getAllImages.mutateAsync(uid);
+        const mapped = mapImagesToSlots(fetched, TOTAL_SLOTS);
+        currentServerImages = mapped.normalized;
+        setServerImages(mapped.normalized);
+        const matched = mapped.normalized.find((img) => {
+          if (!img.imageUrl || !targetUri) return false;
+          if (img.imageUrl === targetUri || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri)) return true;
+          return false;
+        });
+        if (matched?.id) imageId = matched.id;
+      } catch (e) {
+        console.warn('[ProfilePhotoGrid] Could not refresh server images before delete:', e);
       }
-      return updated;
-    });
+    }
 
-    // 5. Update serverImages list
+    // Update serverImages list
     if (imageId) {
       setServerImages((prev) => prev.filter((img) => img.id !== imageId));
     }
@@ -463,14 +519,15 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       }).catch(() => {});
     }
 
-    // 6. Delete on server (pass imageId or targetUri, plus userId & imageUrl)
+    // 7. Delete on server (pass imageId or targetUri, plus userId & imageUrl)
+    // Note: Do NOT emit AMARA_PROFILE_UPDATED here; deleteImage.mutate onSuccess will emit once server delete succeeds
     const effectiveDeleteId = imageId ?? targetUri;
     if (effectiveDeleteId) {
       deleteImage.mutate(
         {
           imageId: effectiveDeleteId,
           userId: uid || undefined,
-          imageUrl: targetUri || matched?.imageUrl || undefined,
+          imageUrl: targetUri || undefined,
         } as any,
         {
           onSuccess: () => {
@@ -549,7 +606,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
           if (uri) {
             return (
               <View
-                key={index}
+                key={uri}
                 style={[
                   styles.slot,
                   {
@@ -591,7 +648,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
 
           return (
             <TouchableOpacity
-              key={index}
+              key={`empty-${index}`}
               style={[
                 styles.emptySlot,
                 {

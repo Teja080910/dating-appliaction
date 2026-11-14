@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, Dispatch, SetStateAction } from "react";
 import { useColorScheme, DeviceEventEmitter } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import AppContext from "./CreateGlobalStateContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
@@ -9,10 +10,11 @@ import { getSavedSearchFilters, clearSavedSearchFilters, getActiveFilterCount } 
 import { getThemeColors, Colors } from '../theme/colors';
 import { mockStore } from '../mock/mockStore';
 import { USE_MOCK } from '../environment/ApiConfig';
-import apiClient from '../api/apiClient';
+import apiClient, { getAbsoluteUrl } from '../api/apiClient';
 import { parseDobToLocalDate } from '../utils/dateUtils';
 
 const GlobalStateProvider = ({ children }: any) => {
+  const queryClient = useQueryClient();
   const systemColorScheme = useColorScheme();
   const [themeMode, setThemeMode] = useState<'light' | 'system' | 'dark'>('dark');
   const themeColors = useMemo(() => getThemeColors(themeMode, systemColorScheme), [themeMode, systemColorScheme]);
@@ -459,10 +461,12 @@ const GlobalStateProvider = ({ children }: any) => {
         if (effectivePhone) setPhoneNumber(effectivePhone);
 
         // Synchronize photos from local scoped storage first
+        let hasScopedPhotos = false;
         if (userScopedPhotos) {
           try {
             const parsed = JSON.parse(userScopedPhotos);
             if (Array.isArray(parsed) && parsed.some(Boolean)) {
+              hasScopedPhotos = true;
               const slots = [...parsed];
               while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
               setImages(slots);
@@ -473,14 +477,32 @@ const GlobalStateProvider = ({ children }: any) => {
           } catch {}
         }
 
-        // Live server synchronization for profile photos
+        // Live server synchronization for profile photos (avoid overwriting local scoped updates or resurrecting deleted photos)
         if (activeId) {
           try {
+            const [rawDelUser, rawDelGlobal] = await Promise.all([
+              AsyncStorage.getItem(`deleted_photos_${activeId}`).catch(() => null),
+              AsyncStorage.getItem('deleted_image_uris').catch(() => null),
+            ]);
+            const deletedList = [
+              ...(rawDelUser ? JSON.parse(rawDelUser) : []),
+              ...(rawDelGlobal ? JSON.parse(rawDelGlobal) : []),
+            ].map(String);
+
+            const isDeleted = (url: string) => {
+              if (!url || deletedList.length === 0) return false;
+              const abs = getAbsoluteUrl(url) || url;
+              return deletedList.some((d) => d === url || d === abs);
+            };
+
             const res = await apiClient.get(`/users/${activeId}/images`).catch(() => null);
             const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
             if (list.length > 0) {
-              const liveUrls = list.map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null)).filter(Boolean);
-              if (liveUrls.length > 0) {
+              const liveUrls = list
+                .map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null))
+                .filter(Boolean)
+                .filter((u: string) => !isDeleted(u));
+              if (liveUrls.length > 0 && !hasScopedPhotos) {
                 const slots = [...liveUrls];
                 while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
                 setImages(slots);
@@ -614,6 +636,7 @@ const GlobalStateProvider = ({ children }: any) => {
   const resetApp = async () => {
     try {
       await clearFullSession();
+      queryClient.clear();
 
       setName('');
       setDisplayName('');

@@ -1,6 +1,16 @@
-import { handleNotificationNavigation } from '../src/utils/pushNotificationHelper';
+import {
+  handleNotificationNavigation,
+  showForegroundNotificationToast,
+  registerDeviceToken,
+} from '../src/utils/pushNotificationHelper';
 import { navigate } from '../src/utils/navigationHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
+
+jest.mock('react-native-toast-message', () => ({
+  show: jest.fn(),
+  hide: jest.fn(),
+}));
 
 jest.mock('../src/utils/navigationHelper', () => ({
   navigate: jest.fn(),
@@ -96,5 +106,38 @@ describe('Push Notification Routing & Action Dispatcher', () => {
       userId: '105',
       targetUserId: '105',
     });
+  });
+
+  test('displays foreground notification toast banner when push message arrives', () => {
+    const remoteMessage = {
+      notification: {
+        title: 'New Date Proposal',
+        body: 'You received a new proposal from Sophia!',
+      },
+      data: {
+        type: 'INVITE',
+      },
+    };
+
+    showForegroundNotificationToast(remoteMessage);
+
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'info',
+        text1: 'New Date Proposal',
+        text2: 'You received a new proposal from Sophia!',
+      })
+    );
+
+    // Verify pressing toast navigates to target
+    const toastArgs = (Toast.show as jest.Mock).mock.calls[0][0];
+    toastArgs.onPress();
+
+    expect(Toast.hide).toHaveBeenCalled();
+  });
+
+  test('registers device token with backend', async () => {
+    const success = await registerDeviceToken('101');
+    expect(success).toBe(true);
   });
 });

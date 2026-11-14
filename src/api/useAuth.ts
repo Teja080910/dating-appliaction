@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './apiClient';
 import { clearFullSession, hasSessionToken, saveAuthSession } from '../utils/session';
@@ -116,6 +116,7 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
 };
 
 export const useAuth = () => {
+  const queryClient = useQueryClient();
   const persistSessionIfAvailable = async (data: any) => {
     if (__DEV__) {
       console.log('[AUTH] Server response received.');
@@ -441,6 +442,7 @@ export const useAuth = () => {
     },
     onSuccess: async () => {
       await clearFullSession();
+      queryClient.clear();
     },
   });
 
@@ -470,12 +472,14 @@ export const useAuth = () => {
     },
     onSuccess: async () => {
       await clearFullSession();
+      queryClient.clear();
     },
   });
 
   // 🔹 LOGOUT (ONLY LOCAL)
   const logout = async () => {
     await clearFullSession();
+    queryClient.clear();
   };
 
   return {

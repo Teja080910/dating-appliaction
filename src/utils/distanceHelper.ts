@@ -232,7 +232,7 @@ export const filterByRadius = (
     }
     const profile = item?.profile || item;
     const pCity = profile?.currentCity || profile?.city;
-    const myCity =
+      const myCity =
       userCity &&
       userCity !== 'Search near me' &&
       userCity !== 'My current location' &&

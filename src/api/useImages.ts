@@ -241,28 +241,50 @@ export const useUserImages = (userId?: string) => {
       const normalizedUserId = await resolveUserId(candidateUid);
       const parsedNum = Number(rawId);
       const isNumeric = Number.isFinite(parsedNum) && parsedNum > 0;
-      const validId = isNumeric ? parsedNum : rawId;
+
+      let numericImageId = isNumeric ? parsedNum : null;
+
+      // If ID is not numeric but we have the imageUrl, look up true ID from /users/{userId}/images
+      if (!numericImageId && normalizedUserId && candidateImageUrl) {
+        try {
+          const res = await apiClient.get(`/users/${normalizedUserId}/images`);
+          const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
+          const candFilename = candidateImageUrl.substring(candidateImageUrl.lastIndexOf('/') + 1);
+          const isGeneric = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(candFilename.toLowerCase());
+          const found = list.find((img: any) => {
+            const u = String(img?.imageUrl || img?.url || '');
+            if (u === candidateImageUrl || getAbsoluteUrl(u) === getAbsoluteUrl(candidateImageUrl)) return true;
+            const uFile = u.substring(u.lastIndexOf('/') + 1);
+            if (!isGeneric && candFilename && uFile && candFilename === uFile) return true;
+            return false;
+          });
+          if (found?.id && !isNaN(Number(found.id))) {
+            numericImageId = Number(found.id);
+          }
+        } catch {}
+      }
+
+      const validId = numericImageId ?? (isNumeric ? parsedNum : rawId);
 
       const deleteParams: Record<string, any> = {};
       if (normalizedUserId) deleteParams.userId = normalizedUserId;
       if (candidateImageUrl) deleteParams.imageUrl = candidateImageUrl;
 
       const attempts: Array<() => Promise<any>> = [];
-      if (isNumeric) {
-        // Primary backend endpoint per specification: DELETE /images/{id}
-        attempts.push(() => apiClient.delete(`/images/${validId}`, { params: deleteParams, data: deleteParams }));
+      if (numericImageId) {
+        // Primary backend endpoint per OpenAPI / Swagger: DELETE /users/images/{imageId}
+        attempts.push(() => apiClient.delete(`/users/images/${numericImageId}`));
+        if (normalizedUserId) {
+          attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${numericImageId}`));
+        }
+        attempts.push(() => apiClient.delete(`/images/${numericImageId}`, { params: deleteParams, data: deleteParams }));
+      } else {
+        attempts.push(() => apiClient.delete(`/users/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
+        if (normalizedUserId) {
+          attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
+        }
+        attempts.push(() => apiClient.delete(`/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
       }
-      if (normalizedUserId && isNumeric) {
-        attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${validId}`, { params: deleteParams, data: deleteParams }));
-      }
-      if (isNumeric) {
-        attempts.push(() => apiClient.delete(`/users/images/${validId}`, { params: deleteParams, data: deleteParams }));
-      }
-      attempts.push(() => apiClient.delete(`/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
-      if (normalizedUserId) {
-        attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
-      }
-      attempts.push(() => apiClient.delete(`/users/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
 
       let lastError: any = null;
       for (const attempt of attempts) {

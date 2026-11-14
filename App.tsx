@@ -17,7 +17,10 @@ import {
   registerDeviceToken,
   setupPushNotificationListeners,
   handleNotificationNavigation,
+  showForegroundNotificationToast,
 } from './src/utils/pushNotificationHelper';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/components/AmaraToast';
 
 const ServerSync = () => {
   const { setIsSubscribed } = useContext(AppContext);
@@ -118,12 +121,12 @@ const ServerSync = () => {
 
   // Push notification listeners: Live FCM messages update data and display heads-up banner in foreground
   useEffect(() => {
-    const unsubscribePush = setupPushNotificationListeners(async (remoteMessage: any) => {
+    const unsubscribePush = setupPushNotificationListeners((remoteMessage: any) => {
       // Instantly refresh requests and notifications
       refreshAll();
 
       if (remoteMessage) {
-        handleNotificationNavigation(remoteMessage);
+        showForegroundNotificationToast(remoteMessage);
       }
     });
 
@@ -154,6 +157,7 @@ const App = () => {
         <GlobalStateProvider>
           <ServerSync />
           <Routes />
+          <Toast config={toastConfig} />
         </GlobalStateProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
