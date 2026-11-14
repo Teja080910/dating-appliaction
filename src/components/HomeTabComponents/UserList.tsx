@@ -48,8 +48,144 @@ const hasActiveSearchFilters = (saved: any): boolean => {
       saved.location !== 'Mumbai, India') ||
     saved.worldwide === true ||
     saved.onlyOnline === true ||
-    (saved.worldwide !== true && (saved.maxDistanceKm !== undefined || saved.searchRadius !== undefined || saved.radius !== undefined))
+    (saved.worldwide !== true && (
+      (saved.maxDistanceKm !== undefined && saved.maxDistanceKm !== 50) ||
+      (saved.searchRadius !== undefined && saved.searchRadius !== 50) ||
+      (saved.radius !== undefined && saved.radius !== 50) ||
+      Boolean(saved.hasExplicitDistance)
+    ))
   );
+};
+
+export const matchesSearchFilters = (
+  item: any,
+  savedFilters: any
+): boolean => {
+  if (!item || !savedFilters || savedFilters.isFilterActive === false) return true;
+  const p = item?.profile || item;
+
+  // 1. Age
+  const pAge = Number(p.age ?? item.age ?? 24);
+  if (Number.isFinite(Number(savedFilters.minAge)) && pAge < Number(savedFilters.minAge)) return false;
+  if (Number.isFinite(Number(savedFilters.maxAge)) && pAge > Number(savedFilters.maxAge)) return false;
+
+  // 2. Height
+  const pHeight = Number(p.height ?? item.height);
+  if (Number.isFinite(pHeight) && pHeight > 0) {
+    if (Number.isFinite(Number(savedFilters.minHeight)) && pHeight < Number(savedFilters.minHeight)) return false;
+    if (Number.isFinite(Number(savedFilters.maxHeight)) && pHeight > Number(savedFilters.maxHeight)) return false;
+  }
+
+  // 3. Body Type
+  if (Array.isArray(savedFilters.bodyType) && savedFilters.bodyType.length > 0) {
+    const rawBt = String(p.bodyType ?? item.bodyType ?? '').toLowerCase().trim();
+    if (rawBt) {
+      const match = savedFilters.bodyType.some((bt: string) => {
+        const target = String(bt).toLowerCase().trim();
+        return rawBt.includes(target) || target.includes(rawBt);
+      });
+      if (!match) return false;
+    }
+  }
+
+  // 4. Appearance
+  if (Array.isArray(savedFilters.appearance) && savedFilters.appearance.length > 0) {
+    const rawApp = String(p.appearance ?? item.appearance ?? '').toLowerCase().trim();
+    if (rawApp) {
+      const match = savedFilters.appearance.some((app: string) => {
+        const target = String(app).toLowerCase().trim();
+        return rawApp.includes(target) || target.includes(rawApp);
+      });
+      if (!match) return false;
+    }
+  }
+
+  // 5. Language
+  if (Array.isArray(savedFilters.language) && savedFilters.language.length > 0) {
+    const pLang = String(p.language ?? item.language ?? '').toLowerCase();
+    const pLangs = Array.isArray(p.languages ?? item.languages)
+      ? (p.languages ?? item.languages).map((l: any) => String(l).toLowerCase())
+      : [];
+    const match = savedFilters.language.some((lang: string) => {
+      const target = String(lang).toLowerCase().trim();
+      return pLang.includes(target) || pLangs.some((l: string) => l.includes(target));
+    });
+    if (!match && (pLang || pLangs.length > 0)) return false;
+  }
+
+  // 6. English Level
+  if (Array.isArray(savedFilters.englishLevel) && savedFilters.englishLevel.length > 0) {
+    const rawLvl = String(p.englishLevel ?? item.englishLevel ?? '').toLowerCase().trim();
+    if (rawLvl) {
+      const match = savedFilters.englishLevel.some((lvl: string) => {
+        const target = String(lvl).toLowerCase().trim();
+        return rawLvl.includes(target) || target.includes(rawLvl);
+      });
+      if (!match) return false;
+    }
+  }
+
+  // 7. Ethnicity
+  if (Array.isArray(savedFilters.ethnicity) && savedFilters.ethnicity.length > 0) {
+    const rawEth = String(p.ethnicity ?? item.ethnicity ?? '').toLowerCase().trim();
+    if (rawEth) {
+      const match = savedFilters.ethnicity.some((eth: string) => {
+        const target = String(eth).toLowerCase().trim();
+        return rawEth.includes(target) || target.includes(rawEth);
+      });
+      if (!match) return false;
+    }
+  }
+
+  // 8. Looking For
+  if (Array.isArray(savedFilters.lookingFor) && savedFilters.lookingFor.length > 0) {
+    const rawLf = String(p.lookingFor ?? item.lookingFor ?? '').toLowerCase().trim();
+    if (rawLf) {
+      const match = savedFilters.lookingFor.some((lf: string) => {
+        const target = String(lf).toLowerCase().trim();
+        return rawLf.includes(target) || target.includes(rawLf);
+      });
+      if (!match) return false;
+    }
+  }
+
+  // 9. Smoke
+  if (savedFilters.smoke !== undefined && savedFilters.smoke !== null && savedFilters.smoke !== '') {
+    const rawSmoke = String(p.smoke ?? item.smoke ?? '').toLowerCase().trim();
+    const filterSmoke = String(savedFilters.smoke).toLowerCase().trim();
+    if (rawSmoke) {
+      if (filterSmoke === 'no') {
+        if (!['no', 'false', '0', 'never', 'non-smoker', 'non smoker'].includes(rawSmoke)) return false;
+      } else if (filterSmoke === 'yes') {
+        if (!['yes', 'true', '1', 'smoker'].includes(rawSmoke)) return false;
+      } else if (filterSmoke === 'sometimes') {
+        if (!['sometimes', 'occasionally'].includes(rawSmoke)) return false;
+      }
+    }
+  }
+
+  // 10. Drink
+  if (savedFilters.drink !== undefined && savedFilters.drink !== null && savedFilters.drink !== '') {
+    const rawDrink = String(p.drink ?? item.drink ?? '').toLowerCase().trim();
+    const filterDrink = String(savedFilters.drink).toLowerCase().trim();
+    if (rawDrink) {
+      if (filterDrink === 'no') {
+        if (!['no', 'false', '0', 'never', 'non-drinker', 'non drinker'].includes(rawDrink)) return false;
+      } else if (filterDrink === 'yes') {
+        if (!['yes', 'true', '1', 'regularly', 'socially', 'sometimes'].includes(rawDrink)) return false;
+      } else if (filterDrink === 'sometimes') {
+        if (!['sometimes', 'socially', 'occasionally', 'yes'].includes(rawDrink)) return false;
+      }
+    }
+  }
+
+  // 11. Online only
+  if (savedFilters.onlyOnline) {
+    const isOnline = Boolean(p.online ?? item.online);
+    if (!isOnline) return false;
+  }
+
+  return true;
 };
 
 const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -196,7 +332,28 @@ const matchesGenderSelection = (
 };
 
 const keepInvitableProfiles = (items: any[]) =>
-  items.filter((item) => resolveProfileUserId(item));
+  items.filter((item) => {
+    const uid = resolveProfileUserId(item);
+    if (!uid) return false;
+    const rawAge = item?.age ?? item?.profile?.age ?? item?.user?.age;
+    const dob = item?.dob ?? item?.profile?.dob ?? item?.user?.dob;
+    if (dob) {
+      const d = new Date(dob);
+      if (!isNaN(d.getTime())) {
+        const today = new Date();
+        let calcAge = today.getFullYear() - d.getFullYear();
+        const m = today.getMonth() - d.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+          calcAge -= 1;
+        }
+        if (calcAge < 18) return false;
+      }
+    }
+    if (rawAge !== undefined && rawAge !== null && Number(rawAge) < 18) {
+      return false;
+    }
+    return true;
+  });
 
 const isBlockedProfile = (item: any, blockedIds: string[]): boolean => {
   if (!blockedIds || blockedIds.length === 0) return false;
@@ -288,7 +445,9 @@ const UserList = ({
         const hasFilters = hasActiveSearchFilters(savedFilters);
 
         try {
-          if (hasFilters) {
+          if (filteredProfiles !== null) {
+            items = filteredProfiles;
+          } else if (hasFilters) {
             // Apply saved filters across tabs:
             const searchPayload: Record<string, any> = {
               ...savedFilters,
@@ -307,37 +466,18 @@ const UserList = ({
             const searchRes = await filterUsersMutationRef.current(searchPayload);
             items = parseUserCollection(searchRes);
 
-            // If backend search returned empty, fallback to dashboard recent/online
-            // so live database accounts (like newly registered users) are never hidden
+            // If backend search returned empty, fallback to local mock search with payload
             if (!items || items.length === 0) {
               try {
-                const endpoint = mode === 'online' ? '/dashboard/online' : '/dashboard/recent';
-                const dashRes = await apiClient.get(endpoint, {
-                  params: {
-                    page: 0,
-                    size: 20,
-                    userId: resolvedUserId || undefined,
-                    gender: selectedGender === 'straight_man' ? 'man' : 'woman',
-                  },
+                const { handleMockRequest } = require('../../mock/mockAdapter');
+                const mockRes = await handleMockRequest({
+                  method: 'POST',
+                  url: '/search',
+                  data: searchPayload,
                 });
-                const dashItems = parseUserCollection(dashRes.data);
-                if (dashItems && dashItems.length > 0) {
-                  items = dashItems;
-                } else if (endpoint === '/dashboard/online') {
-                  const recentRes = await apiClient.get('/dashboard/recent', {
-                    params: {
-                      page: 0,
-                      size: 20,
-                      userId: resolvedUserId || undefined,
-                      gender: selectedGender === 'straight_man' ? 'man' : 'woman',
-                    },
-                  });
-                  items = parseUserCollection(recentRes.data);
-                }
+                items = mockRes?.data?.content || [];
               } catch {}
             }
-          } else if (filteredProfiles !== null) {
-            items = filteredProfiles;
           } else if (mode === 'online') {
             try {
               const res = await apiClient.get('/dashboard/online', {
@@ -529,8 +669,11 @@ const UserList = ({
         const activeGenders =
           savedFilters?.gender ||
           (savedFilters?.showMe ? [savedFilters.showMe] : (showMe ? [showMe] : null));
+        const filteredByAttributes = hasFilters && savedFilters
+          ? items.filter((item) => matchesSearchFilters(item, savedFilters))
+          : items;
         const blockedUserIds = await getLocalBlockedUsers(resolvedUserId);
-        const unblockedItems = items.filter((item) => !isBlockedProfile(item, blockedUserIds));
+        const unblockedItems = filteredByAttributes.filter((item) => !isBlockedProfile(item, blockedUserIds));
         const genderMatched = unblockedItems.filter((item) =>
           matchesGenderSelection(item, selectedGender, activeGenders) &&
           (mode === 'online' && savedFilters?.onlyOnline ? (item?.online === true || item?.profile?.online === true) : true)
@@ -540,7 +683,10 @@ const UserList = ({
           savedFilters &&
           savedFilters.isFilterActive !== false &&
           !savedFilters.worldwide &&
-          (savedFilters.maxDistanceKm !== undefined || savedFilters.searchRadius !== undefined || savedFilters.radius !== undefined)
+          ((savedFilters.maxDistanceKm !== undefined && savedFilters.maxDistanceKm !== 50) ||
+           (savedFilters.searchRadius !== undefined && savedFilters.searchRadius !== 50) ||
+           (savedFilters.radius !== undefined && savedFilters.radius !== 50) ||
+           Boolean(savedFilters.hasExplicitDistance))
         );
         let radiusFiltered = invitable;
         if (shouldApplyRadiusFilter) {
@@ -621,7 +767,10 @@ const UserList = ({
           savedFilters?.gender ||
           (savedFilters?.showMe ? [savedFilters.showMe] : (showMe ? [showMe] : null));
         const blockedUserIds = await getLocalBlockedUsers(resolvedUserId);
-        const unblockedItems = newItems.filter((item: any) => !isBlockedProfile(item, blockedUserIds));
+        const filteredByAttributes = hasFilters && savedFilters
+          ? newItems.filter((item: any) => matchesSearchFilters(item, savedFilters))
+          : newItems;
+        const unblockedItems = filteredByAttributes.filter((item: any) => !isBlockedProfile(item, blockedUserIds));
         const genderMatched = unblockedItems.filter((item: any) =>
           matchesGenderSelection(item, selectedGender, activeGenders)
         );
@@ -630,7 +779,10 @@ const UserList = ({
           savedFilters &&
           savedFilters.isFilterActive !== false &&
           !savedFilters.worldwide &&
-          (savedFilters.maxDistanceKm !== undefined || savedFilters.searchRadius !== undefined || savedFilters.radius !== undefined)
+          ((savedFilters.maxDistanceKm !== undefined && savedFilters.maxDistanceKm !== 50) ||
+           (savedFilters.searchRadius !== undefined && savedFilters.searchRadius !== 50) ||
+           (savedFilters.radius !== undefined && savedFilters.radius !== 50) ||
+           Boolean(savedFilters.hasExplicitDistance))
         );
         let radiusFiltered = invitable;
         if (shouldApplyRadiusFilter) {

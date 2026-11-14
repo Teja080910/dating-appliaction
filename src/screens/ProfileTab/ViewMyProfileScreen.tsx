@@ -171,6 +171,7 @@ const ViewMyProfileScreen = () => {
   } = useContext(AppContext);
 
   const [localPaywallVisible, setLocalPaywallVisible] = useState(false);
+  const [myId, setMyId] = useState<string | null>(null);
   const [storedPhone, setStoredPhone] = useState<string>('');
   const [storedTelegram, setStoredTelegram] = useState<string>('');
   const { data: myTgStatus } = useMyTelegramStatus();
@@ -179,13 +180,16 @@ const ViewMyProfileScreen = () => {
     let isMounted = true;
     (async () => {
       try {
-        const [p1, p2, tg] = await Promise.all([
+        const activeUid = myId || (await getUserId().catch(() => null)) || (await AsyncStorage.getItem('userId'));
+        const [p1, p2, p3, tg] = await Promise.all([
           AsyncStorage.getItem('phoneNumber'),
           AsyncStorage.getItem('userMobile'),
+          activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
           AsyncStorage.getItem('telegramUsername'),
         ]);
         if (isMounted) {
-          if (p1 || p2) setStoredPhone(p1 || p2 || '');
+          const effPhone = p3 || p1 || p2 || '';
+          if (effPhone) setStoredPhone(effPhone);
           if (tg) setStoredTelegram(tg.replace(/^@+/, ''));
         }
       } catch {}
@@ -193,7 +197,7 @@ const ViewMyProfileScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [myId]);
 
   const openSubscriptionPlans = () => {
     console.log('[ViewMyProfileScreen] openSubscriptionPlans: Opening plans modal');
@@ -240,7 +244,6 @@ const ViewMyProfileScreen = () => {
 
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
-  const [myId, setMyId] = useState<string | null>(null);
   const [ownGalleryImages, setOwnGalleryImages] = useState<string[]>([]);
   const [targetGalleryImages, setTargetGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -491,17 +494,20 @@ const ViewMyProfileScreen = () => {
   );
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', async () => {
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', async (event?: any) => {
       void loadDeletedUris();
       void refetchProfileRef.current?.();
       try {
-        const [p1, p2, tg] = await Promise.all([
+        const activeUid = event?.uid || myId || (await getUserId().catch(() => null)) || (await AsyncStorage.getItem('userId'));
+        const [p1, p2, p3, tg] = await Promise.all([
           AsyncStorage.getItem('phoneNumber'),
           AsyncStorage.getItem('userMobile'),
+          activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
           AsyncStorage.getItem('telegramUsername'),
         ]);
-        setStoredPhone(p1 || p2 || '');
-        setStoredTelegram(tg ? tg.replace(/^@+/, '') : '');
+        const effPhone = p3 || p1 || p2 || '';
+        if (effPhone) setStoredPhone(effPhone);
+        if (tg) setStoredTelegram(tg.replace(/^@+/, ''));
       } catch {}
       if (isViewingSelf && myId) {
         getAllImagesRef.current(String(myId), {
@@ -923,6 +929,15 @@ const ViewMyProfileScreen = () => {
       ? { ...routed, ...fetched }
       : (isTargetUserFetched ? { ...routed, ...fetched } : { ...routed });
 
+    const selfPhone =
+      normalizeTextValue(fetched?.phoneNumber) ||
+      normalizeTextValue(fetched?.mobile) ||
+      normalizeTextValue(fetched?.phone) ||
+      normalizeTextValue(fetched?.mobileNumber) ||
+      normalizeTextValue(contextPhone) ||
+      normalizeTextValue(storedPhone) ||
+      '';
+
     return {
       ...baseData,
       id: (isViewingSelf ? (fetched?.id || myId) : (numericTargetId || (isTargetUserFetched ? fetched?.id : null) || routed?.id)) || null,
@@ -1001,24 +1016,16 @@ const ViewMyProfileScreen = () => {
         ? (normalizeTextValue(fetched?.telegramUsername) || normalizeTextValue(storedTelegram) || normalizeTextValue(myTgStatus?.telegramUsername) || '')
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : ''))),
       phoneNumber: isViewingSelf
-        ? (fetched
-            ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || '')
-            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
+        ? selfPhone
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobile: isViewingSelf
-        ? (fetched
-            ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber) || '')
-            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
+        ? selfPhone
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       phone: isViewingSelf
-        ? (fetched
-            ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber) || '')
-            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
+        ? selfPhone
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobileNumber: isViewingSelf
-        ? (fetched
-            ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || '')
-            : (normalizeTextValue(contextPhone) || normalizeTextValue(storedPhone) || ''))
+        ? selfPhone
         : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : ''))),
       profileImageUrl: isViewingSelf
         ? (contextPrimaryImage || (ownImages[0] || null) || normalizeTextValue(fetched?.profileImageUrl))
@@ -1056,6 +1063,10 @@ const ViewMyProfileScreen = () => {
     contextImages,
     isTargetUserFetched,
     deletedUris,
+    contextPhone,
+    storedPhone,
+    storedTelegram,
+    myTgStatus,
   ]);
 
   const targetPartyFromMatch = useMemo(() => {
@@ -1111,7 +1122,7 @@ const ViewMyProfileScreen = () => {
         t('profile.contactdetails.select_chat_app', { defaultValue: 'Would you like to chat via WhatsApp or Telegram?' }),
         [
           { text: 'WhatsApp', onPress: () => openWhatsAppUrl(phone) },
-          { text: 'Telegram', onPress: () => openTelegramUrl(tg) },
+          { text: t('nav.bottomtabs.telegram', { defaultValue: 'Telegram' }), onPress: () => openTelegramUrl(tg) },
           { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
         ]
       );

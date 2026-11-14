@@ -177,6 +177,16 @@ const MoreDetailsScreen = ({ navigation }: any) => {
         calculatedAge -= 1;
       }
 
+      if (isNaN(calculatedAge) || calculatedAge < 18) {
+        alert(
+          t('onboarding.dobscreen.age_restriction', { defaultValue: 'Age Restriction' }),
+          t('onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register', {
+            defaultValue: 'You must be at least 18 years old to register.',
+          })
+        );
+        return;
+      }
+
       const { gender, orientation } = await resolveGenderOrientation(selected);
 
       // 2. Resolve stored bio if context empty

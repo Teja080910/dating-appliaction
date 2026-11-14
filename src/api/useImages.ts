@@ -261,7 +261,6 @@ export const useUserImages = (userId?: string) => {
       attempts.push(() => apiClient.delete(`/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
       if (normalizedUserId) {
         attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
-        attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images`, { params: deleteParams, data: deleteParams }));
       }
       attempts.push(() => apiClient.delete(`/users/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
 

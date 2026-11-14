@@ -232,11 +232,18 @@ export const filterByRadius = (
     }
     const profile = item?.profile || item;
     const pCity = profile?.currentCity || profile?.city;
-    const myCity = userCity && userCity !== 'Search near me' && userCity !== 'My current location' ? userCity : null;
+    const myCity =
+      userCity &&
+      userCity !== 'Search near me' &&
+      userCity !== 'My current location' &&
+      userCity !== 'Mumbai, India'
+        ? userCity
+        : null;
     if (myCity && pCity && myCity.toLowerCase().trim() === pCity.toLowerCase().trim()) {
       return 1 <= maxRadius;
     }
-    return false;
+    // If distance cannot be determined, do not drop the profile
+    return true;
   });
 };
 

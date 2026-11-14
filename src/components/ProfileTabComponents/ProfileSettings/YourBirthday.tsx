@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import { Colors, useTheme } from '../../../theme';
 import { t, useTranslation } from '../../../i18n';
@@ -14,8 +14,20 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
   const { themeColors, isDark } = useTheme();
   const [open, setOpen] = useState(false);
 
-  const dateObj = value ? new Date(value) : new Date(2000, 0, 1);
-  const safeDate = isNaN(dateObj.getTime()) ? new Date(2000, 0, 1) : dateObj;
+  const maxSelectableDate = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d;
+  }, []);
+
+  const minSelectableDate = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 100);
+    return d;
+  }, []);
+
+  const dateObj = value ? new Date(value) : maxSelectableDate;
+  const safeDate = isNaN(dateObj.getTime()) || dateObj > maxSelectableDate ? maxSelectableDate : dateObj;
 
   const day = String(safeDate.getDate());
   const month = String(safeDate.getMonth() + 1);
@@ -23,6 +35,23 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
 
   const handleConfirm = (date: Date) => {
     setOpen(false);
+    const today = new Date();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthGap = today.getMonth() - date.getMonth();
+    if (monthGap < 0 || (monthGap === 0 && today.getDate() < date.getDate())) {
+      age -= 1;
+    }
+
+    if (isNaN(age) || age < 18) {
+      Alert.alert(
+        t('onboarding.dobscreen.age_restriction', { defaultValue: 'Age Restriction' }),
+        t('onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register', {
+          defaultValue: 'You must be at least 18 years old.',
+        })
+      );
+      return;
+    }
+
     const yr = date.getFullYear();
     const mo = ('0' + (date.getMonth() + 1)).slice(-2);
     const dy = ('0' + date.getDate()).slice(-2);
@@ -69,7 +98,8 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
         date={safeDate}
         mode="date"
         theme={isDark ? 'dark' : 'light'}
-        maximumDate={new Date()}
+        maximumDate={maxSelectableDate}
+        minimumDate={minSelectableDate}
         onConfirm={handleConfirm}
         onCancel={() => setOpen(false)}
       />

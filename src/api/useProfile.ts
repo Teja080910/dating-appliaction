@@ -201,6 +201,28 @@ const normalizeProfile = (payload: any) => {
     ? numberOrZero(source.age)
     : (computedAgeFromDob || null);
 
+  const resolvedTelegram = [
+    source?.telegramUsername,
+    source?.telegram,
+    source?.tgUsername,
+    source?.tg,
+    source?.telegramHandle,
+    nestedProfile?.telegramUsername,
+    nestedProfile?.telegram,
+    nestedProfile?.tgUsername,
+    nestedUser?.telegramUsername,
+    nestedUser?.telegram,
+    nestedUser?.tgUsername,
+    payloadSource?.telegramUsername,
+    payloadSource?.telegram,
+    payloadSource?.tgUsername,
+  ].find((v) => {
+    if (!v) return false;
+    const s = String(v).trim().replace(/^@+/, '');
+    const n = s.toUpperCase();
+    return s && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+  }) || '';
+
   return {
     id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
     userId: source?.userId !== undefined && source?.userId !== null
@@ -227,7 +249,7 @@ const normalizeProfile = (payload: any) => {
     kids: rawKidCount !== undefined ? String(rawKidCount).replace(/^kids:\s*/i, '').trim() : '',
     netWorth: rawNetWorth !== undefined ? String(rawNetWorth).replace(/^\$\s*/, '').trim() : '',
     currentCity: source?.currentCity ? String(source.currentCity) : '',
-    telegramUsername: source?.telegramUsername ? String(source.telegramUsername) : '',
+    telegramUsername: resolvedTelegram ? String(resolvedTelegram).trim().replace(/^@+/, '') : '',
     mobile: cleanResolvedPhone,
     phone: cleanResolvedPhone,
     phoneNumber: cleanResolvedPhone,
@@ -336,7 +358,22 @@ export const useMyProfile = (uid?: any) => {
           .catch(() => apiClient.get(`/profile/get/${resolvedUserId}`))
           .catch(() => apiClient.get('/profile/get', { params: { userId: resolvedUserId } }));
         if (!cancelled) {
-          setData(normalizeProfile(res.data));
+          const norm = normalizeProfile(res.data);
+          if (!norm.mobile && !norm.phoneNumber) {
+            const [p1, p2, p3] = await Promise.all([
+              AsyncStorage.getItem('phoneNumber'),
+              AsyncStorage.getItem('userMobile'),
+              resolvedUserId ? AsyncStorage.getItem(`user_phone_${resolvedUserId}`).catch(() => null) : null,
+            ]);
+            const fallbackP = p3 || p1 || p2 || '';
+            if (fallbackP) {
+              norm.mobile = fallbackP;
+              norm.phone = fallbackP;
+              norm.phoneNumber = fallbackP;
+              norm.mobileNumber = fallbackP;
+            }
+          }
+          setData(norm);
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -694,10 +731,26 @@ export const useProfile = () => {
         cleanPayload.bio = data.bio;
       }
       if (data.dob) {
+        const d = new Date(data.dob);
+        if (!isNaN(d.getTime())) {
+          const today = new Date();
+          let age = today.getFullYear() - d.getFullYear();
+          const m = today.getMonth() - d.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+            age -= 1;
+          }
+          if (age < 18) {
+            throw new Error('You must be at least 18 years old.');
+          }
+        }
         cleanPayload.dob = data.dob;
       }
       if (data.age !== undefined && data.age !== null) {
-        cleanPayload.age = Number(data.age);
+        const numericAge = Number(data.age);
+        if (numericAge < 18) {
+          throw new Error('You must be at least 18 years old.');
+        }
+        cleanPayload.age = numericAge;
       }
       if (hasPhoneField) {
         cleanPayload.mobile = effectivePhone;
@@ -1017,6 +1070,9 @@ export const useProfile = () => {
     },
   });
 
+  const sendWhatsappOtp = useSendWhatsappOtp();
+  const verifyWhatsappOtp = useVerifyWhatsappOtp();
+
   return {
     useMyProfile,
     useProfileCompletion,
@@ -1034,5 +1090,200 @@ export const useProfile = () => {
     uploadImage,
     uploadSelfie,
     verifySelfie,
+    sendWhatsappOtp,
+    verifyWhatsappOtp,
+    useSendWhatsappOtp: sendWhatsappOtp,
+    useVerifyWhatsappOtp: verifyWhatsappOtp,
   };
+};
+
+export type SendWhatsappOtpInput = {
+  mobile: string;
+};
+
+export type VerifyWhatsappOtpInput = {
+  mobile: string;
+  otp: string;
+  sessionId?: string;
+};
+
+export const extractSessionIdFromResponse = (res: any): string => {
+  if (!res) return '';
+  if (typeof res === 'string') {
+    const trimmed = res.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        return extractSessionIdFromResponse(JSON.parse(trimmed));
+      } catch {}
+    }
+    return trimmed;
+  }
+  const cand =
+    res.sessionId ||
+    res.session_id ||
+    res.SessionId ||
+    res.otpSessionId ||
+    res.otp_session_id ||
+    res.id ||
+    res.token ||
+    res.data?.sessionId ||
+    res.data?.session_id ||
+    res.data?.SessionId ||
+    res.data?.otpSessionId ||
+    res.data?.otp_session_id ||
+    res.data?.id ||
+    res.data?.token ||
+    (typeof res.data === 'string' ? res.data : '') ||
+    '';
+  return typeof cand === 'string' ? cand.trim() : String(cand || '').trim();
+};
+
+export const useSendWhatsappOtp = () => {
+  return useMutation<any, Error, SendWhatsappOtpInput>({
+    mutationFn: async ({ mobile }) => {
+      const cleanMobile = mobile.trim();
+      const noSpace = cleanMobile.replace(/\s+/g, '');
+      const digitsOnly = cleanMobile.replace(/\D/g, '');
+      const withPlus = noSpace.startsWith('+') ? noSpace : `+${digitsOnly}`;
+
+      const payload = {
+        mobile: withPlus,
+        phoneNumber: withPlus,
+        phone: withPlus,
+      };
+
+      try {
+        const res = await apiClient.post('/profile/whatsapp/send-otp', payload);
+        const sid = extractSessionIdFromResponse(res?.data || res);
+        if (sid) {
+          await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
+        }
+        return res.data;
+      } catch (err: any) {
+        const status = Number(err?.response?.status || 0);
+        if (status === 404 || status === 405) {
+          try {
+            const fallback = await apiClient.post('/auth/send-otp', { mobile: withPlus });
+            const sid = extractSessionIdFromResponse(fallback?.data || fallback);
+            if (sid) {
+              await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
+            }
+            return fallback.data;
+          } catch {
+            const fallback2 = await apiClient.post('/profile/send-whatsapp-otp', payload);
+            const sid = extractSessionIdFromResponse(fallback2?.data || fallback2);
+            if (sid) {
+              await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
+            }
+            return fallback2.data;
+          }
+        }
+        throw err;
+      }
+    },
+  });
+};
+
+export const useVerifyWhatsappOtp = () => {
+  return useMutation<any, Error, VerifyWhatsappOtpInput>({
+    mutationFn: async ({ mobile, otp, sessionId }) => {
+      const cleanMobile = mobile.trim();
+      const noSpace = cleanMobile.replace(/\s+/g, '');
+      const digitsOnly = cleanMobile.replace(/\D/g, '');
+      const withPlus = noSpace.startsWith('+') ? noSpace : `+${digitsOnly}`;
+      const cleanOtp = String(otp).trim();
+
+      const effectiveSessionId =
+        sessionId?.trim() ||
+        (await AsyncStorage.getItem('whatsapp_otp_session_id').catch(() => null))?.trim() ||
+        '';
+
+      const payload: Record<string, any> = {
+        mobile: withPlus,
+        phoneNumber: withPlus,
+        phone: withPlus,
+        otp: cleanOtp,
+      };
+
+      if (effectiveSessionId) {
+        payload.sessionId = effectiveSessionId;
+        payload.session_id = effectiveSessionId;
+        payload.otpSessionId = effectiveSessionId;
+      }
+
+      // The OTP could be verified by /auth/verify-otp or /profile/whatsapp/verify
+      // with either +919014701586 or national digits 9014701586, with or without sessionId.
+      const national10 = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly;
+      const mobileVariants = Array.from(new Set([withPlus, national10, digitsOnly])).filter(Boolean);
+
+      const verificationAttempts: Array<() => Promise<any>> = [];
+
+      // 1. Try /auth/verify-otp (matches /auth/send-otp that dispatched the SMS)
+      for (const m of mobileVariants) {
+        if (effectiveSessionId) {
+          verificationAttempts.push(() =>
+            apiClient.post('/auth/verify-otp', {
+              mobile: m,
+              otp: cleanOtp,
+              sessionId: effectiveSessionId,
+              session_id: effectiveSessionId,
+            })
+          );
+        }
+        verificationAttempts.push(() =>
+          apiClient.post('/auth/verify-otp', {
+            mobile: m,
+            otp: cleanOtp,
+          })
+        );
+      }
+
+      // 2. Try /profile/whatsapp/verify
+      for (const m of mobileVariants) {
+        if (effectiveSessionId) {
+          verificationAttempts.push(() =>
+            apiClient.post('/profile/whatsapp/verify', {
+              mobile: m,
+              phoneNumber: m,
+              phone: m,
+              otp: cleanOtp,
+              sessionId: effectiveSessionId,
+              session_id: effectiveSessionId,
+            })
+          );
+        }
+        verificationAttempts.push(() =>
+          apiClient.post('/profile/whatsapp/verify', {
+            mobile: m,
+            phoneNumber: m,
+            phone: m,
+            otp: cleanOtp,
+          })
+        );
+      }
+
+      // 3. Fallback to /profile/verify-whatsapp-otp
+      verificationAttempts.push(() =>
+        apiClient.post('/profile/verify-whatsapp-otp', payload)
+      );
+
+      let lastError: any = null;
+      for (const attempt of verificationAttempts) {
+        try {
+          const res = await attempt();
+          if (res?.data || res?.status === 200 || res?.status === 201) {
+            await AsyncStorage.removeItem('whatsapp_otp_session_id').catch(() => null);
+            return res.data || res;
+          }
+        } catch (err: any) {
+          lastError = err;
+          const status = Number(err?.response?.status || 0);
+          // If 401 Unauthorized or other fatal errors, keep going through remaining variants
+          continue;
+        }
+      }
+
+      throw lastError || new Error('Invalid verification code');
+    },
+  });
 };

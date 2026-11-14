@@ -232,16 +232,23 @@ const RegisterScreen = ({ navigation }: any) => {
       const status = Number(error?.response?.status || error?.status);
       const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
       const rawMsg = String(error?.response?.data?.message || error?.response?.data?.error || error?.message || '').toLowerCase();
-      const isConflict =
-        status === 409 ||
-        code === 'CONFLICT' ||
-        code === 'DUPLICATE_ENTRY' ||
-        rawMsg.includes('duplicate') ||
-        rawMsg.includes('conflict') ||
-        rawMsg.includes('already exists') ||
-        rawMsg.includes('already registered');
+      
+      // Only treat as "Account Already Exists" if the server explicitly confirms the account/email exists,
+      // NOT when the server throws a generic internal database conflict like "Duplicate or conflicting data."
+      const isGenericDbConflict =
+        rawMsg.includes('duplicate or conflicting data') ||
+        rawMsg.includes('conflicting data');
 
-      if (isConflict) {
+      const isActuallyRegistered =
+        !isGenericDbConflict &&
+        (rawMsg.includes('already registered') ||
+          rawMsg.includes('already exists') ||
+          rawMsg.includes('already in use') ||
+          rawMsg.includes('already taken') ||
+          rawMsg.includes('account with this email') ||
+          (code === 'DUPLICATE_ENTRY' && rawMsg.includes('email')));
+
+      if (isActuallyRegistered) {
         alert(
           t('auth.otpscreen.account_ready', { defaultValue: 'Account Already Exists' }),
           t('auth.otpscreen.your_account_is_already_registered_please_procee', {
@@ -260,10 +267,12 @@ const RegisterScreen = ({ navigation }: any) => {
         );
       } else {
         const serverMsg =
-          error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          error?.message ||
-          t('auth.registerscreen.registration_failed');
+          isGenericDbConflict
+            ? 'Backend database conflict while creating registration session. Please contact the backend team to clear or fix the OTP table.'
+            : error?.response?.data?.message ||
+              error?.response?.data?.error ||
+              error?.message ||
+              t('auth.registerscreen.registration_failed');
         alert(t('auth.registerscreen.registration_failed'), String(serverMsg));
       }
     } finally {

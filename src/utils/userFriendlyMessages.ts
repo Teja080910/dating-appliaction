@@ -23,7 +23,8 @@ export const getUserFriendlyMessage = (value: unknown, fallback = 'Please try ag
   const lower = message.toLowerCase();
   if (
     (lower.includes('mobile') || lower.includes('phone') || lower.includes('number') || lower.includes('contact')) &&
-    (lower.includes('already') || lower.includes('duplicate') || lower.includes('exist') || lower.includes('in use') || lower.includes('taken'))
+    (lower.includes('already') || lower.includes('duplicate') || lower.includes('exist') || lower.includes('in use') || lower.includes('taken')) &&
+    !lower.includes('conflicting data')
   ) {
     return t('profile.profilesettingsscreen.phone_already_exists_desc', {
       defaultValue: 'This WhatsApp / phone number is already registered with another account. Please use a different number.',

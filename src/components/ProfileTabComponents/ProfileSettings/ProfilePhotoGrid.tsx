@@ -148,42 +148,44 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
 
   // Reset hydration and edits when switching users
   useEffect(() => {
-    const currentUid = propUserId ? String(propUserId) : null;
-    if (currentUid && activeUserKeyRef.current && activeUserKeyRef.current !== currentUid) {
+    const currentUid = propUserId ? String(propUserId).trim() : null;
+    const prevUid = activeUserKeyRef.current ? String(activeUserKeyRef.current).trim() : null;
+    if (currentUid && prevUid && prevUid !== currentUid) {
       hasHydratedFromInitial.current = false;
       hasUserEdited.current = false;
       isInitRef.current = false;
-      setImages([null, null, null, null, null, null]);
     }
     if (currentUid) {
       activeUserKeyRef.current = currentUid;
     }
-  }, [propUserId, setImages]);
+  }, [propUserId]);
 
   // Hydrate from initialPhotos (profileQuery / server data) if user hasn't edited
   useEffect(() => {
-    if (hasHydratedFromInitial.current || hasUserEdited.current) return;
+    if (hasUserEdited.current) return;
     if (initialPhotos && initialPhotos.some(Boolean)) {
-      hasHydratedFromInitial.current = true;
       void (async () => {
         const uid = localUserId || (await resolveActiveUserId());
         const deletedList = await getDeletedUris(uid);
         const validInitial = initialPhotos
           .filter(Boolean)
           .filter((u) => !isDeletedUri(u, deletedList)) as string[];
-        const resolvedSlots: (string | null)[] = [...validInitial];
-        while (resolvedSlots.length < TOTAL_SLOTS) {
-          resolvedSlots.push(null);
+        if (validInitial.length > 0) {
+          hasHydratedFromInitial.current = true;
+          const resolvedSlots: (string | null)[] = [...validInitial];
+          while (resolvedSlots.length < TOTAL_SLOTS) {
+            resolvedSlots.push(null);
+          }
+          setImages(resolvedSlots);
+          if (resolvedSlots[0]) {
+            setProfileImage(resolvedSlots[0]);
+            setProfileImageUrl(resolvedSlots[0]);
+          }
+          if (uid) {
+            AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(resolvedSlots)).catch(() => {});
+          }
+          AsyncStorage.setItem('onboardingImages', JSON.stringify(resolvedSlots)).catch(() => {});
         }
-        setImages(resolvedSlots);
-        if (resolvedSlots[0]) {
-          setProfileImage(resolvedSlots[0]);
-          setProfileImageUrl(resolvedSlots[0]);
-        }
-        if (uid) {
-          AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(resolvedSlots)).catch(() => {});
-        }
-        AsyncStorage.setItem('onboardingImages', JSON.stringify(resolvedSlots)).catch(() => {});
       })();
     }
   }, [initialPhotos, isDeletedUri, getDeletedUris, localUserId, resolveActiveUserId, setImages, setProfileImage, setProfileImageUrl, propUserId]);
@@ -373,13 +375,14 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     }
 
     const targetFilename = getFilenameFromUrl(targetUri);
+    const isGenericFilename = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(targetFilename.toLowerCase());
     const matched = currentServerImages.find((img) => {
       if (img.id === null || img.id === undefined) return false;
       if (!img.imageUrl || !targetUri) return false;
       if (img.imageUrl === targetUri) return true;
       if (getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri)) return true;
       const imgFilename = getFilenameFromUrl(img.imageUrl);
-      if (targetFilename && imgFilename && targetFilename === imgFilename) return true;
+      if (targetFilename && imgFilename && !isGenericFilename && targetFilename === imgFilename) return true;
       return false;
     });
 
@@ -398,12 +401,17 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     setImages(nextSlots);
 
     // Ensure remaining active photos are NEVER in deleted tombstones
-    if (uid && nextSlots.some(Boolean)) {
+    const allRemaining = nextSlots.filter(Boolean) as string[];
+    const activeSet = new Set([
+      ...allRemaining,
+      ...allRemaining.map((item) => getAbsoluteUrl(item) || ''),
+    ].filter(Boolean));
+
+    const keysToClean = uid ? [`deleted_photos_${uid}`, 'deleted_image_uris'] : ['deleted_image_uris'];
+    for (const key of keysToClean) {
       try {
-        const key = `deleted_photos_${uid}`;
         const raw = await AsyncStorage.getItem(key);
         const list: string[] = raw ? JSON.parse(raw) : [];
-        const activeSet = new Set(nextSlots.filter(Boolean));
         const filtered = list.filter((item) => !activeSet.has(item) && !activeSet.has(getAbsoluteUrl(item) || ''));
         await AsyncStorage.setItem(key, JSON.stringify(filtered));
       } catch {}

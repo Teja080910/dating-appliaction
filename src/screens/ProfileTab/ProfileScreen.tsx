@@ -16,6 +16,7 @@ import { useSubscription } from '../../api/useSubscription';
 import AttractiveLogo from '../../components/AttractiveLogo';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { SUPPORT_EMAIL } from '../../environment/ApiConfig';
 import { t, useTranslation } from '../../i18n';
 
 interface SettingsRowProps {
@@ -131,8 +132,6 @@ const ProfileScreen = () => {
       setSubRemainingDays(null);
     }
   }, [effectiveIsSubscribed]);
-
-  const SUPPORT_EMAIL = 'khushboo.sharma@berrybloomer.com';
 
   const handleChatWithUs = () => {
     setIsCopied(false);
@@ -297,15 +296,23 @@ const ProfileScreen = () => {
                   if (!effectiveIsSubscribed) {
                     return t('common.subscriptionmodal.get_premium', { defaultValue: 'Get Premium' });
                   }
-                  const planDisplay =
+                  const membershipTitle =
                     subPlan === 'ELITE'
-                      ? 'Elite'
+                      ? t('profile.profilescreen.elite_membership', { defaultValue: 'Elite Membership' })
                       : subPlan === 'PREMIUM'
-                      ? 'Premium'
-                      : 'Standard';
+                      ? t('profile.profilescreen.premium_membership', { defaultValue: 'Premium Membership' })
+                      : t('profile.profilescreen.standard_membership', { defaultValue: 'Standard Membership' });
+
                   return subRemainingDays !== null && subRemainingDays > 0
-                    ? `${planDisplay} Membership (${subRemainingDays}d left)`
-                    : `${planDisplay} Membership`;
+                    ? t('profile.profilescreen.membership_days_left', {
+                        membership: membershipTitle,
+                        days: subRemainingDays,
+                        defaultValue: `${membershipTitle} (${subRemainingDays}d left)`,
+                      })
+                    : t('profile.profilescreen.membership_plan', {
+                        membership: membershipTitle,
+                        defaultValue: membershipTitle,
+                      });
                 })()}
                 themeColors={themeColors}
                 styles={styles}

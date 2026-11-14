@@ -268,27 +268,6 @@ const SearchScreen = ({ navigation }: any) => {
 
       if (!profiles || profiles.length === 0) {
         try {
-          const dashRes = await apiClient.get('/dashboard/recent', {
-            params: {
-              page: 0,
-              size: 20,
-              userId: resolvedUserId || undefined,
-              gender: showMe === 'straight_man' ? 'man' : 'woman',
-            },
-          });
-          const rawItems = Array.isArray(dashRes?.data?.content)
-            ? dashRes.data.content
-            : Array.isArray(dashRes?.data)
-              ? dashRes.data
-              : [];
-          if (rawItems.length > 0) {
-            profiles = rawItems;
-          }
-        } catch {}
-      }
-
-      if (!profiles || profiles.length === 0) {
-        try {
           const { handleMockRequest } = require('../../mock/mockAdapter');
           const mockRes = await handleMockRequest({
             method: 'POST',
@@ -444,7 +423,7 @@ const SearchScreen = ({ navigation }: any) => {
           <DistanceSlider
             onChange={(val: number) => {
               setDistanceRange(val);
-              setFilters((prev: any) => ({ ...prev, maxDistanceKm: val }));
+              setFilters((prev: any) => ({ ...prev, maxDistanceKm: val, hasExplicitDistance: true }));
             }}
             onWorldwideToggle={(val: boolean) =>
               setFilters((prev: any) => ({ ...prev, worldwide: val }))
@@ -489,6 +468,12 @@ const SearchScreen = ({ navigation }: any) => {
           <Smoke
             value={filters.smoke}
             onChange={(value) => setFilters((prev: any) => ({ ...prev, smoke: value }))}
+          />
+
+          {/* 10b. Drinking */}
+          <Drinking
+            value={filters.drink}
+            onChange={(value) => setFilters((prev: any) => ({ ...prev, drink: value }))}
           />
 
           {/* 11. What are you looking for? */}

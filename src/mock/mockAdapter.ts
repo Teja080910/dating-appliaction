@@ -566,6 +566,46 @@ export const handleMockRequest = async (
     });
   }
 
+  // POST /profile/whatsapp/send-otp
+  if (method === 'POST' && (url.includes('/profile/whatsapp/send-otp') || url.includes('/profile/send-whatsapp-otp'))) {
+    const mobile = body.mobile || body.phoneNumber || body.phone || body.whatsapp;
+    if (!mobile) {
+      throw createMockError(config, 400, 'Mobile number is required.');
+    }
+    const { otp, sessionId } = mockStore.createOtp(mobile);
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: `OTP sent successfully to ${mobile}`,
+      otp,
+      sessionId,
+      data: {
+        sessionId,
+        mobile,
+      },
+    });
+  }
+
+  // POST /profile/whatsapp/verify
+  if (method === 'POST' && (url.includes('/profile/whatsapp/verify') || url.includes('/profile/verify-whatsapp-otp'))) {
+    const mobile = body.mobile || body.phoneNumber || body.phone || body.whatsapp;
+    const otp = body.otp;
+    const sessionId = body.sessionId;
+
+    const isValid = mockStore.verifyOtp(mobile, otp, sessionId);
+    if (!isValid) {
+      throw createMockError(config, 400, 'Invalid OTP. Please check and try again.');
+    }
+
+    return createMockResponse(config, 200, {
+      status: 'success',
+      message: 'WhatsApp number verified successfully',
+      data: {
+        mobile,
+        verified: true,
+      },
+    });
+  }
+
   // POST /profile/upload-image
   if (method === 'POST' && url.includes('/upload-image')) {
     const targetUserId = queryParams.userId || body.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
@@ -778,22 +818,47 @@ export const handleMockRequest = async (
 
     // Filter by Smoke / Drink
     if (body.smoke) {
-      filtered = filtered.filter(p => !p.smoke || String(p.smoke).toLowerCase() === String(body.smoke).toLowerCase());
+      const bSmoke = String(body.smoke).toLowerCase().trim();
+      filtered = filtered.filter(p => {
+        if (!p.smoke) return true;
+        const pSmoke = String(p.smoke).toLowerCase().trim();
+        if (bSmoke === 'no') return ['no', 'false', 'never', 'non-smoker', 'non smoker'].includes(pSmoke);
+        if (bSmoke === 'yes') return ['yes', 'true', 'smoker'].includes(pSmoke);
+        if (bSmoke === 'sometimes') return ['sometimes', 'occasionally'].includes(pSmoke);
+        return pSmoke === bSmoke;
+      });
     }
     if (body.drink) {
-      filtered = filtered.filter(p => !p.drink || String(p.drink).toLowerCase() === String(body.drink).toLowerCase());
+      const bDrink = String(body.drink).toLowerCase().trim();
+      filtered = filtered.filter(p => {
+        if (!p.drink) return true;
+        const pDrink = String(p.drink).toLowerCase().trim();
+        if (bDrink === 'no') return ['no', 'false', 'never', 'non-drinker', 'non drinker'].includes(pDrink);
+        if (bDrink === 'yes') return ['yes', 'true', 'regularly', 'socially', 'sometimes'].includes(pDrink);
+        if (bDrink === 'sometimes') return ['sometimes', 'socially', 'occasionally', 'yes'].includes(pDrink);
+        return pDrink === bDrink;
+      });
     }
 
     // Filter by Appearance
     if (body.appearance && (Array.isArray(body.appearance) ? body.appearance.length > 0 : Boolean(body.appearance))) {
       const appList: any[] = Array.isArray(body.appearance) ? body.appearance : [body.appearance];
-      filtered = filtered.filter(p => !p.appearance || appList.some((a: any) => String(p.appearance).toLowerCase().includes(String(a).toLowerCase())));
+      filtered = filtered.filter(p => !p.appearance || appList.some((a: any) => {
+        const target = String(a).toLowerCase();
+        const pApp = String(p.appearance).toLowerCase();
+        return pApp.includes(target) || target.includes(pApp);
+      }));
     }
 
     // Filter by Language
     if (body.language && (Array.isArray(body.language) ? body.language.length > 0 : Boolean(body.language))) {
       const langList: any[] = Array.isArray(body.language) ? body.language : [body.language];
-      filtered = filtered.filter(p => !p.language || langList.some((l: any) => String(p.language).toLowerCase().includes(String(l).toLowerCase())));
+      filtered = filtered.filter(p => !p.language || langList.some((l: any) => {
+        const s = String(l).toLowerCase().trim();
+        const pLang = String(p.language || '').toLowerCase();
+        const pLangs = Array.isArray(p.languages) ? p.languages.map((x: any) => String(x).toLowerCase()) : [];
+        return pLang.includes(s) || pLangs.some((x: string) => x.includes(s));
+      }));
     }
 
     // Filter by English Level
@@ -805,7 +870,11 @@ export const handleMockRequest = async (
     // Filter by Looking For
     if (body.lookingFor && (Array.isArray(body.lookingFor) ? body.lookingFor.length > 0 : Boolean(body.lookingFor))) {
       const lfList: any[] = Array.isArray(body.lookingFor) ? body.lookingFor : [body.lookingFor];
-      filtered = filtered.filter(p => !p.lookingFor || lfList.some((lf: any) => String(p.lookingFor).toLowerCase().includes(String(lf).toLowerCase())));
+      filtered = filtered.filter(p => !p.lookingFor || lfList.some((lf: any) => {
+        const target = String(lf).toLowerCase();
+        const pLf = String(p.lookingFor).toLowerCase();
+        return pLf.includes(target) || target.includes(pLf);
+      }));
     }
 
     // Filter by Online Only
@@ -813,11 +882,12 @@ export const handleMockRequest = async (
       filtered = filtered.filter(p => Boolean(p.online));
     }
 
-    // Filter by Search Radius / Distance (when not worldwide)
+    // Filter by Search Radius / Distance (when not worldwide and explicitly adjusted)
     const isWorldwide = Boolean(body.worldwide || queryParams?.worldwide);
     const rawRadius = body.searchRadius ?? body.maxDistanceKm ?? body.radius ?? queryParams?.searchRadius ?? queryParams?.maxDistanceKm ?? queryParams?.radius;
     const maxRadiusKm = Number(rawRadius);
-    if (!isWorldwide && Number.isFinite(maxRadiusKm) && maxRadiusKm > 0) {
+    const hasExplicitDistance = Boolean(body.hasExplicitDistance || (Number.isFinite(maxRadiusKm) && maxRadiusKm > 0 && maxRadiusKm !== 50));
+    if (!isWorldwide && Number.isFinite(maxRadiusKm) && maxRadiusKm > 0 && hasExplicitDistance) {
       filtered = filtered.filter((p) => {
         let dist: number | null = null;
         if (typeof p.distanceKm === 'number' && Number.isFinite(p.distanceKm)) {
@@ -833,13 +903,20 @@ export const handleMockRequest = async (
         if (dist === null) {
           dist = resolveProfileDistanceKm(p, body.userLocation || null, body.city || body.location || null);
         }
-        return dist !== null ? dist <= maxRadiusKm : false;
+        return dist !== null ? dist <= maxRadiusKm : true;
       });
     }
 
-    // Filter by City / Location (when not worldwide)
+    // Filter by City / Location (when not worldwide and non-default)
     const targetCity = String(body.city || body.location || '').trim().toLowerCase();
-    if (targetCity && !body.worldwide && targetCity !== 'my current location' && !targetCity.includes('current location')) {
+    if (
+      targetCity &&
+      !body.worldwide &&
+      targetCity !== 'my current location' &&
+      !targetCity.includes('current location') &&
+      targetCity !== 'mumbai, india' &&
+      targetCity !== 'search near me'
+    ) {
       filtered = filtered.filter(p => {
         const pCity = String(p.currentCity || (p as any).city || '').toLowerCase();
         return pCity && (pCity.includes(targetCity) || targetCity.includes(pCity));

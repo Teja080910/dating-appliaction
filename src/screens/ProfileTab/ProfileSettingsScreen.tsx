@@ -18,6 +18,7 @@ import ProfileSettingsHeader from '../../components/ProfileTabComponents/Profile
 import ProfilePhotoGrid from '../../components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid';
 import YourBirthday from '../../components/ProfileTabComponents/ProfileSettings/YourBirthday';
 import ContactDetails, { COUNTRIES_LIST, getDefaultCountryForLanguage, parsePhoneNumberAndCountry } from '../../components/ProfileTabComponents/ProfileSettings/ContactDetails';
+import PhoneOtpModal from '../../components/ProfileTabComponents/ProfileSettings/PhoneOtpModal';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../theme';
 import { getAuthSession } from '../../utils/session';
@@ -68,9 +69,22 @@ const ProfileSettingsScreen = () => {
     return /\d/.test(str);
   };
 
-  const { updateBasic, updateProfile, useMyProfile } = useProfile();
+  const { updateBasic, updateProfile, useMyProfile, sendWhatsappOtp, verifyWhatsappOtp } = useProfile();
   const profileQuery = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
+
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [pendingPhone, setPendingPhone] = useState<string>('');
+  const [pendingSessionId, setPendingSessionId] = useState<string>('');
+  const [isPhoneVerified, setIsPhoneVerified] = useState<boolean>(true);
+  const pendingSaveDataRef = useRef<{
+    cleanName: string;
+    cleanBio: string;
+    fullPhone: string;
+    computedAge: number;
+  } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -120,11 +134,20 @@ const ProfileSettingsScreen = () => {
           }
         }
 
-        const userScopedTg = uid ? await AsyncStorage.getItem(`user_telegram_${uid}`) : null;
-        if (userScopedTg) {
-          setLocalTelegramUsername(userScopedTg.replace(/^@+/, ''));
-        } else {
-          setLocalTelegramUsername('');
+        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+          uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
+          uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
+          AsyncStorage.getItem('telegramUsername').catch(() => null),
+          AsyncStorage.getItem('@telegram_username').catch(() => null),
+        ]);
+        const candTg = [uTg, atTg, legTg, legAtTg].find((val) => {
+          if (!val) return false;
+          const c = String(val).trim().replace(/^@+/, '');
+          const n = c.toUpperCase();
+          return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+        });
+        if (candTg) {
+          setLocalTelegramUsername(String(candTg).trim().replace(/^@+/, ''));
         }
       } catch (e) {}
     };
@@ -180,20 +203,30 @@ const ProfileSettingsScreen = () => {
       setLocalPhoneNumber('');
     }
 
-    const rawTg = profile.telegramUsername ? String(profile.telegramUsername).replace(/^@+/, '').trim() : '';
+    const rawTg = (profile.telegramUsername || (profile as any).telegram || (profile as any).tgUsername)
+      ? String(profile.telegramUsername || (profile as any).telegram || (profile as any).tgUsername).replace(/^@+/, '').trim()
+      : '';
     const normTg = rawTg.toUpperCase();
     if (rawTg && normTg !== 'NONE' && normTg !== 'NULL' && normTg !== 'UNDEFINED' && normTg !== '-' && normTg !== 'N/A') {
       setLocalTelegramUsername(rawTg);
     } else {
-      AsyncStorage.getItem('userId').then((uid) => {
-        if (uid) {
-          AsyncStorage.getItem(`user_telegram_${uid}`).then((st) => {
-            setLocalTelegramUsername(st ? st.replace(/^@+/, '') : '');
-          }).catch(() => setLocalTelegramUsername(''));
-        } else {
-          setLocalTelegramUsername('');
+      AsyncStorage.getItem('userId').then(async (uid) => {
+        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+          uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
+          uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
+          AsyncStorage.getItem('telegramUsername').catch(() => null),
+          AsyncStorage.getItem('@telegram_username').catch(() => null),
+        ]);
+        const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+          if (!val) return false;
+          const c = String(val).trim().replace(/^@+/, '');
+          const n = c.toUpperCase();
+          return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+        });
+        if (cand) {
+          setLocalTelegramUsername(String(cand).trim().replace(/^@+/, ''));
         }
-      }).catch(() => setLocalTelegramUsername(''));
+      }).catch(() => {});
     }
   }, [profileQuery.data, setDate, setDisplayName, setName, setProfileText]);
 
@@ -207,25 +240,31 @@ const ProfileSettingsScreen = () => {
       age -= 1;
     }
 
-    return Math.max(age, 18);
+    return age;
   }, [localDob]);
 
-  const handleSave = () => {
-    const cleanName = (localDisplayName.trim() || displayName || t('home.usercard.user')).trim();
-    const cleanBio = localDescription.trim();
-
-    const parsedInput = parsePhoneNumberAndCountry(localPhoneNumber);
-    const effectiveCountryCode = parsedInput?.code || countryCode;
-    let cleanPhoneDigits = (parsedInput?.number || localPhoneNumber).replace(/[^\d]/g, '').trim();
-
-    // Prevent duplicate country code prefix: if cleanPhoneDigits starts with country code digits (e.g. 91), strip it
-    const codeDigits = effectiveCountryCode.replace(/\D/g, '');
-    while (codeDigits && cleanPhoneDigits.startsWith(codeDigits) && cleanPhoneDigits.length >= codeDigits.length + 7) {
-      cleanPhoneDigits = cleanPhoneDigits.slice(codeDigits.length);
+  const executePersist = async (
+    cleanName: string,
+    cleanBio: string,
+    fullPhone: string,
+    ageToSave: number
+  ) => {
+    setLoading(true);
+    const authSession = await getAuthSession();
+    if (!authSession?.token) {
+      alert(t('more_info.moreinfoscreen.session_error'), t('profile.profilesettingsscreen.please_log_in_again'), [
+        {
+          text: t('profile.profilesettingsscreen.ok'),
+          onPress: () => navigation.replace('Login'),
+        },
+      ]);
+      setLoading(false);
+      return;
     }
-    const fullPhone = cleanPhoneDigits.length >= 7 ? `${effectiveCountryCode} ${cleanPhoneDigits}` : '';
 
-    const persistLocalState = async () => {
+    const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
+
+    const persistLocalState = async (savePhone = true) => {
       setDisplayName(cleanName);
       setName(cleanName);
       setProfileText(cleanBio);
@@ -238,7 +277,6 @@ const ProfileSettingsScreen = () => {
       await AsyncStorage.setItem('userBio', cleanBio);
       await AsyncStorage.setItem('@onboarding_bio', cleanBio);
       await AsyncStorage.setItem('userDob', localDob);
-      const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
       if (currentUid) {
         await AsyncStorage.setItem(`user_name_${currentUid}`, cleanName);
         await AsyncStorage.setItem(`user_dob_${currentUid}`, localDob);
@@ -262,13 +300,15 @@ const ProfileSettingsScreen = () => {
         }
       }
 
-      if (fullPhone) {
+      if (savePhone && fullPhone) {
         setContextPhone(fullPhone);
         await AsyncStorage.setItem('phoneNumber', fullPhone);
         await AsyncStorage.setItem('userMobile', fullPhone);
         if (currentUid) {
           await AsyncStorage.setItem(`user_phone_${currentUid}`, fullPhone);
         }
+      } else if (!savePhone) {
+        // preserve existing phone without overwriting with conflicting value
       } else {
         setContextPhone('');
         await AsyncStorage.removeItem('phoneNumber');
@@ -287,96 +327,243 @@ const ProfileSettingsScreen = () => {
           await AsyncStorage.removeItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => {});
         }
       } else {
-        await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
-        if (currentUid) {
-          await AsyncStorage.multiRemove([
-            `user_telegram_${currentUid}`,
-            `@telegram_username_${currentUid}`,
-          ]).catch(() => {});
+        const isExplicitlyDisconnected = currentUid
+          ? (await AsyncStorage.getItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => null)) === 'true'
+          : false;
+        if (isExplicitlyDisconnected) {
+          await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
+          if (currentUid) {
+            await AsyncStorage.multiRemove([
+              `user_telegram_${currentUid}`,
+              `@telegram_username_${currentUid}`,
+            ]).catch(() => {});
+          }
         }
       }
     };
 
-    const handlePersist = async () => {
-      setLoading(true);
-      const authSession = await getAuthSession();
-      if (!authSession?.token) {
-        alert(t('more_info.moreinfoscreen.session_error'), t('profile.profilesettingsscreen.please_log_in_again'), [
-          {
-            text: t('profile.profilesettingsscreen.ok'),
-            onPress: () => navigation.replace('Login'),
-          },
-        ]);
-        setLoading(false);
-        return;
-      }
+    updateProfile.mutate(
+      {
+        userId: currentUid,
+        displayName: cleanName,
+        name: cleanName,
+        bio: cleanBio,
+        dob: localDob,
+        age: ageToSave,
+        telegramUsername: localTelegramUsername.trim() || undefined,
+        mobile: fullPhone || '',
+        phoneNumber: fullPhone || '',
+      } as any,
+      {
+        onSuccess: async () => {
+          await persistLocalState();
+          await profileQuery.refetch();
+          DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
+          navigation.goBack();
+        },
+        onError: async (error: any) => {
+          const status = Number(error?.response?.status || error?.status);
+          const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
+          const rawMsg = String(
+            error?.response?.data?.message ||
+            error?.response?.data?.error ||
+            (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+            error?.message ||
+            ''
+          ).toLowerCase();
 
-      const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
+          const isDuplicatePhone =
+            status === 409 ||
+            code === 'CONFLICT' ||
+            code === 'DUPLICATE_ENTRY' ||
+            rawMsg.includes('already exists') ||
+            rawMsg.includes('already registered') ||
+            rawMsg.includes('already in use') ||
+            rawMsg.includes('duplicate');
 
-      updateProfile.mutate(
-        {
-          userId: currentUid,
-          displayName: cleanName,
-          name: cleanName,
-          bio: cleanBio,
-          dob: localDob,
-          age: computedAge,
-          telegramUsername: localTelegramUsername.trim() || undefined,
-          mobile: fullPhone || '',
-          phoneNumber: fullPhone || '',
-        } as any,
-        {
-          onSuccess: async () => {
-            await persistLocalState();
-            await profileQuery.refetch();
-            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
-            navigation.goBack();
-          },
-          onError: async (error: any) => {
-            const status = Number(error?.response?.status || error?.status);
-            const code = String(error?.response?.data?.code || error?.code || '').toUpperCase();
-            const rawMsg = String(
-              error?.response?.data?.message ||
-              error?.response?.data?.error ||
-              (typeof error?.response?.data === 'string' ? error.response.data : '') ||
-              error?.message ||
-              ''
-            ).toLowerCase();
-
-            const isDuplicatePhone =
-              status === 409 ||
-              code === 'CONFLICT' ||
-              code === 'DUPLICATE_ENTRY' ||
-              rawMsg.includes('already exists') ||
-              rawMsg.includes('already registered') ||
-              rawMsg.includes('already in use') ||
-              rawMsg.includes('duplicate');
-
-            if (isDuplicatePhone) {
+          if (isDuplicatePhone) {
+            try {
+              // Retry saving profile without conflicting mobile so name, bio, dob, photos still save!
+              await updateProfile.mutateAsync({
+                userId: currentUid,
+                displayName: cleanName,
+                name: cleanName,
+                bio: cleanBio,
+                dob: localDob,
+                age: ageToSave,
+                telegramUsername: localTelegramUsername.trim() || undefined,
+              } as any);
+              await persistLocalState(false);
+              await profileQuery.refetch();
+              DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
               alert(
                 t('profile.profilesettingsscreen.phone_already_exists_title', {
                   defaultValue: 'Number Already in Use',
                 }),
                 t('profile.profilesettingsscreen.phone_already_exists_desc', {
                   defaultValue:
-                    'This WhatsApp/phone number is already registered with another account. Please use a different number.',
+                    'Your profile details were saved, but this WhatsApp number is already linked to another account in the database. Please use a different number.',
+                }),
+                [{ text: 'OK', onPress: () => navigation.goBack() }]
+              );
+              return;
+            } catch {
+              alert(
+                t('profile.profilesettingsscreen.phone_already_exists_title', {
+                  defaultValue: 'Number Already in Use',
+                }),
+                t('profile.profilesettingsscreen.phone_already_exists_desc', {
+                  defaultValue:
+                    'This WhatsApp / phone number is already registered with another account. Please use a different number.',
                 })
               );
               return;
             }
+          }
 
-            // Always save locally and return smoothly without disruptive popups
-            await persistLocalState();
-            await profileQuery.refetch();
-            DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
-            navigation.goBack();
-          },
-          onSettled: () => setLoading(false),
-        }
+          // Always save locally and return smoothly without disruptive popups
+          await persistLocalState();
+          await profileQuery.refetch();
+          DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
+          navigation.goBack();
+        },
+        onSettled: () => setLoading(false),
+      }
+    );
+  };
+
+  const handleVerifyOtp = async (enteredOtp: string) => {
+    if (!pendingPhone) return;
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      await verifyWhatsappOtp.mutateAsync({
+        mobile: pendingPhone,
+        otp: enteredOtp,
+        sessionId: pendingSessionId,
+      });
+      setIsPhoneVerified(true);
+      setOtpLoading(false);
+      setOtpModalVisible(false);
+      if (pendingSaveDataRef.current) {
+        const { cleanName, cleanBio, fullPhone, computedAge: ageVal } = pendingSaveDataRef.current;
+        void executePersist(cleanName, cleanBio, fullPhone, ageVal);
+      }
+    } catch (err: any) {
+      setOtpLoading(false);
+      const rawMsg = String(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        ''
       );
+      setOtpError(
+        rawMsg && !rawMsg.includes('400') && !rawMsg.includes('Network')
+          ? rawMsg
+          : t('profile.phone_otp.invalid_code', {
+              defaultValue: 'Invalid or expired verification code. Please check and try again.',
+            })
+      );
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!pendingPhone) return;
+    setOtpError(null);
+    try {
+      const data = await sendWhatsappOtp.mutateAsync({ mobile: pendingPhone });
+      const sessId =
+        data?.sessionId ||
+        data?.data?.sessionId ||
+        data?.session_id ||
+        data?.data?.session_id ||
+        data?.otpSessionId ||
+        data?.data?.otpSessionId ||
+        data?.id ||
+        data?.data?.id ||
+        '';
+      if (sessId) setPendingSessionId(sessId);
+    } catch (err: any) {
+      const rawMsg = String(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        ''
+      );
+      setOtpError(
+        rawMsg ||
+          t('profile.phone_otp.send_failed_desc', {
+            defaultValue: 'Could not send verification code to this WhatsApp number. Please check the number and try again.',
+          })
+      );
+    }
+  };
+
+  const handleSave = () => {
+    if (isNaN(computedAge) || computedAge < 18) {
+      alert(
+        t('onboarding.dobscreen.age_restriction', { defaultValue: 'Age Restriction' }),
+        t('onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register', {
+          defaultValue: 'You must be at least 18 years old.',
+        })
+      );
+      return;
+    }
+
+    const cleanName = (localDisplayName.trim() || displayName || t('home.usercard.user')).trim();
+    const cleanBio = localDescription.trim();
+
+    const parsedInput = parsePhoneNumberAndCountry(localPhoneNumber);
+    const effectiveCountryCode = parsedInput?.code || countryCode;
+    let cleanPhoneDigits = (parsedInput?.number || localPhoneNumber).replace(/[^\d]/g, '').trim();
+
+    // Prevent duplicate country code prefix: if cleanPhoneDigits starts with country code digits (e.g. 91), strip it
+    const codeDigits = effectiveCountryCode.replace(/\D/g, '');
+    while (codeDigits && cleanPhoneDigits.startsWith(codeDigits) && cleanPhoneDigits.length >= codeDigits.length + 7) {
+      cleanPhoneDigits = cleanPhoneDigits.slice(codeDigits.length);
+    }
+    const fullPhone = cleanPhoneDigits.length >= 7 ? `${effectiveCountryCode} ${cleanPhoneDigits}` : '';
+
+    if (localPhoneNumber.trim() && cleanPhoneDigits.length < 7) {
+      alert(
+        t('profile.profilesettingsscreen.invalid_phone_title', { defaultValue: 'Invalid Phone Number' }),
+        t('profile.profilesettingsscreen.invalid_phone_desc', { defaultValue: 'Please enter a valid mobile number.' })
+      );
+      return;
+    }
+
+    const normalizeForCompare = (phoneStr?: string | null) => {
+      if (!phoneStr) return '';
+      const parsed = parsePhoneNumberAndCountry(phoneStr);
+      const code = (parsed?.code || '').replace(/\D/g, '');
+      let num = (parsed?.number || phoneStr).replace(/\D/g, '');
+      if (code && num.startsWith(code) && num.length >= code.length + 7) {
+        num = num.slice(code.length);
+      }
+      return `${code}${num}`;
     };
 
-    void handlePersist();
+    const existingCandidate =
+      profileQuery.data?.phoneNumber ||
+      profileQuery.data?.mobile ||
+      profileQuery.data?.phone ||
+      (profileQuery.data as any)?.mobileNumber ||
+      contextPhone ||
+      '';
+
+    const isPhoneChanged =
+      Boolean(fullPhone) &&
+      normalizeForCompare(fullPhone) !== normalizeForCompare(existingCandidate);
+
+    pendingSaveDataRef.current = {
+      cleanName,
+      cleanBio,
+      fullPhone,
+      computedAge,
+    };
+
+    // Persist profile changes directly to the database via PUT /profile/update
+    void executePersist(cleanName, cleanBio, fullPhone, computedAge);
   };
 
   return (
@@ -417,6 +604,8 @@ const ProfileSettingsScreen = () => {
           setPhoneNumber={setLocalPhoneNumber}
           telegramUsername={localTelegramUsername}
           setTelegramUsername={setLocalTelegramUsername}
+          isVerified={isPhoneVerified}
+          setIsVerified={setIsPhoneVerified}
         />
 
         {/* Screenshot 1: Save Pill Button */}
@@ -433,6 +622,19 @@ const ProfileSettingsScreen = () => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      <PhoneOtpModal
+        visible={otpModalVisible}
+        phoneNumber={pendingPhone}
+        loading={otpLoading}
+        errorMessage={otpError}
+        onVerify={handleVerifyOtp}
+        onResend={handleResendOtp}
+        onClose={() => {
+          setOtpModalVisible(false);
+          setOtpError(null);
+        }}
+      />
 
       {AlertComponent}
     </SafeAreaView>

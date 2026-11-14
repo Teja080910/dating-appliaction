@@ -22,7 +22,13 @@ const isOptionSelected = (currentVal: string | boolean | undefined, optionVal: s
     if (optionVal === 'No') return currentVal === false;
     return false;
   }
-  return String(currentVal).toLowerCase() === optionVal.toLowerCase();
+  const clean = String(currentVal).toLowerCase().trim();
+  const opt = optionVal.toLowerCase().trim();
+  if (clean === opt) return true;
+  if (opt === 'sometimes' && (clean === 'socially' || clean === 'occasionally')) return true;
+  if (opt === 'no' && (clean === 'never' || clean === 'non-drinker' || clean === 'non drinker')) return true;
+  if (opt === 'yes' && (clean === 'regularly')) return true;
+  return false;
 };
 
 const Drinking: React.FC<DrinkingProps> = ({ value, onChange }) => {

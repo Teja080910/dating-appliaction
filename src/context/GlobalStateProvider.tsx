@@ -194,6 +194,14 @@ const GlobalStateProvider = ({ children }: any) => {
             setSelected(resolvedGender);
           }
 
+          const [storedPhone, userMobile, userScopedPhone] = await Promise.all([
+            AsyncStorage.getItem('phoneNumber'),
+            AsyncStorage.getItem('userMobile'),
+            id ? AsyncStorage.getItem(`user_phone_${id}`).catch(() => null) : Promise.resolve(null),
+          ]);
+          const effectivePhone = userScopedPhone || storedPhone || userMobile;
+          if (effectivePhone) setPhoneNumber(effectivePhone);
+
           // Photos MUST be strictly scoped to the active account identity.
           // Never fall back to un-scoped 'onboardingImages' when logged in under a specific userId.
           const effectiveImages = userScopedImages || (id ? null : storedImages);
@@ -416,6 +424,7 @@ const GlobalStateProvider = ({ children }: any) => {
           storedBio,
           storedDob,
           storedPhone,
+          userMobile,
           userScopedPhone,
           userScopedPhotos,
           userScopedProfilePhoto,
@@ -425,6 +434,7 @@ const GlobalStateProvider = ({ children }: any) => {
           AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
           AsyncStorage.getItem('userDob'),
           AsyncStorage.getItem('phoneNumber'),
+          AsyncStorage.getItem('userMobile'),
           activeId ? AsyncStorage.getItem(`user_phone_${activeId}`).catch(() => null) : Promise.resolve(null),
           activeId ? AsyncStorage.getItem(`user_photos_${activeId}`).catch(() => null) : Promise.resolve(null),
           activeId ? AsyncStorage.getItem(`user_profile_photo_${activeId}`).catch(() => null) : Promise.resolve(null),
@@ -438,7 +448,7 @@ const GlobalStateProvider = ({ children }: any) => {
             setDate(new Date(storedDob));
           } catch {}
         }
-        const effectivePhone = userScopedPhone || storedPhone;
+        const effectivePhone = userScopedPhone || storedPhone || userMobile;
         if (effectivePhone) setPhoneNumber(effectivePhone);
 
         // Synchronize photos from local scoped storage first

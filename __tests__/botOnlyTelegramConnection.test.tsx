@@ -39,7 +39,11 @@ jest.mock('../src/api/useTelegram', () => {
 jest.mock('../src/api/useProfile', () => ({
   useProfile: () => ({
     useMyProfile: () => ({ data: { telegramUsername: '' }, refetch: jest.fn() }),
+    useSendWhatsappOtp: { mutate: jest.fn(), mutateAsync: jest.fn().mockResolvedValue({}) },
+    useVerifyWhatsappOtp: { mutate: jest.fn(), mutateAsync: jest.fn().mockResolvedValue({}) },
   }),
+  useSendWhatsappOtp: () => ({ mutate: jest.fn(), mutateAsync: jest.fn().mockResolvedValue({}) }),
+  useVerifyWhatsappOtp: () => ({ mutate: jest.fn(), mutateAsync: jest.fn().mockResolvedValue({}) }),
 }));
 
 const queryClient = new QueryClient({

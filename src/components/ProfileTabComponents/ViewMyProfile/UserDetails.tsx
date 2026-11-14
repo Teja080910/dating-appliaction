@@ -522,16 +522,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const targetPhoneNumber = (() => {
     if (isOwnProfile) {
-      const activeObj = resolvedProfile || profile || propProfile;
-      if (activeObj && ('mobile' in activeObj || 'phoneNumber' in activeObj || 'phone' in activeObj || 'mobileNumber' in activeObj)) {
-        return extractPhone(activeObj);
-      }
-      return extractPhone(
-        resolvedProfile,
-        profile,
-        propProfile,
-        contextPhone,
-        storedPhone
+      return (
+        extractPhone(
+          resolvedProfile,
+          profile,
+          propProfile,
+          contextPhone,
+          storedPhone
+        ) || ''
       );
     }
     if (isViewerWoman) return '';
@@ -593,7 +591,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               onPress={() => handleOpenWhatsApp(targetPhoneNumber)}
             >
               <Icon name="whatsapp" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
-              <Text style={styles.cleanChatBtnText}>Chat</Text>
+              <Text style={styles.cleanChatBtnText}>{t('requests.requestsinboxscreen.chat', { defaultValue: 'Chat' })}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -617,7 +615,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               <Icon name="send" size={15} color={Colors.primary} />
             </View>
             <View style={styles.cleanContactInfo}>
-              <Text style={styles.cleanContactLabel}>Telegram</Text>
+              <Text style={styles.cleanContactLabel}>{t('nav.bottomtabs.telegram', { defaultValue: 'Telegram' })}</Text>
               <Text selectable={true} style={styles.cleanContactValue}>
                 {`@${targetTelegramUsername.replace(/^@+/, '')}`}
               </Text>
@@ -628,7 +626,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
               onPress={() => handleOpenTelegram(targetTelegramUsername)}
             >
               <Icon name="send" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
-              <Text style={styles.cleanChatBtnText}>Chat</Text>
+              <Text style={styles.cleanChatBtnText}>{t('requests.requestsinboxscreen.chat', { defaultValue: 'Chat' })}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.7}

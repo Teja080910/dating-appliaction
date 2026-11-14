@@ -109,6 +109,7 @@ export interface SavedSearchFilters {
   drink?: string | boolean;
   onlyOnline?: boolean;
   sortBy?: string;
+  hasExplicitDistance?: boolean;
 }
 
 export const getActiveFilterCount = (filters?: SavedSearchFilters | null): number => {

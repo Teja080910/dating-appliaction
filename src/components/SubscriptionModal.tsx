@@ -22,7 +22,7 @@ import { getUserId } from '../utils/sessionHelper';
 import RazorpayCheckout from 'react-native-razorpay';
 import RazorpayMock from './RazorpayMock';
 import { useAlert } from './AlertModal';
-import { USE_MOCK } from '../environment/ApiConfig';
+import { USE_MOCK, SUPPORT_EMAIL } from '../environment/ApiConfig';
 import { Colors, useTheme } from '../theme';
 import { t, useTranslation } from '../i18n';
 
@@ -937,12 +937,16 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           {/* Plan feature note / disclaimer */}
           <Text style={styles.disclaimerText}>
             {isSelectedActive
-              ? `You currently have the ${selectedPlan.name} Plan active (${activeDaysLeft !== null ? `${activeDaysLeft} days remaining` : 'Active'}).`
+              ? t('common.subscriptionmodal.plan_active_days_remaining', {
+                  plan: selectedPlan.name,
+                  days: activeDaysLeft ?? 0,
+                  defaultValue: `You currently have the ${selectedPlan.name} Plan active (${activeDaysLeft !== null ? `${activeDaysLeft} days remaining` : 'Active'}).`,
+                })
               : selectedPlanId === 'ELITE'
-              ? 'Elite Plan: Unlimited daily connection requests for 365 days.'
+              ? t('common.subscriptionmodal.elite_plan_desc', { defaultValue: 'Elite Plan: Unlimited daily connection requests for 365 days.' })
               : selectedPlanId === 'PREMIUM'
-              ? 'Premium Plan: 20 daily connection requests for 180 days.'
-              : 'Standard Plan: 10 daily connection requests for 120 days.'}
+              ? t('common.subscriptionmodal.premium_plan_desc', { defaultValue: 'Premium Plan: 20 daily connection requests for 180 days.' })
+              : t('common.subscriptionmodal.standard_plan_desc', { defaultValue: 'Standard Plan: 10 daily connection requests for 120 days.' })}
           </Text>
 
           {/* Subscribe CTA */}
@@ -971,9 +975,16 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   )}
                   <Text style={styles.subscribeButtonText}>
                     {isSelectedActive
-                      ? `Active Plan (${selectedPlan?.label})`
+                      ? t('common.subscriptionmodal.plan_active', {
+                          plan: selectedPlan?.label,
+                          defaultValue: `Active Plan (${selectedPlan?.label})`,
+                        })
                       : activePlan
-                      ? `Upgrade to ${selectedPlan?.label} (${selectedPlan?.price})`
+                      ? t('common.subscriptionmodal.upgrade_to_plan', {
+                          plan: selectedPlan?.label,
+                          price: selectedPlan?.price,
+                          defaultValue: `Upgrade to ${selectedPlan?.label} (${selectedPlan?.price})`,
+                        })
                       : `${t('common.subscriptionmodal.subscribe')} (${selectedPlan?.price})`}
                   </Text>
                 </View>
@@ -984,12 +995,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           {/* Support Footer */}
           <TouchableOpacity
             style={styles.supportFooter}
-            onPress={() => Linking.openURL('mailto:hi@amara.dating')}
+            onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
             activeOpacity={0.7}
           >
             <Text style={styles.supportFooterText}>{t('common.subscriptionmodal.need_help')}{' '}
               <Text style={styles.supportFooterLink}>
-                {t('profile.supportscreen.chat_with_us_email')}
+                Chat with us {SUPPORT_EMAIL}
               </Text>
             </Text>
           </TouchableOpacity>

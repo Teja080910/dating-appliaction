@@ -232,7 +232,9 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
               />
             )}
             <Text style={styles.connectButtonText}>
-              {cleanConnected ? 'Disconnect Telegram' : t('profile.contactdetails.connect_telegram')}
+              {cleanConnected
+                ? t('profile.contactdetails.disconnect_telegram', { defaultValue: 'Disconnect Telegram' })
+                : t('profile.contactdetails.connect_telegram')}
             </Text>
           </TouchableOpacity>
 
@@ -252,8 +254,8 @@ const ConnectTelegramScreen = ({ navigation, route }: any) => {
               ]}
             >
               {cleanConnected
-                ? `Connected to: @${cleanConnected}`
-                : `${t('profile.contactdetails.status')} Not connected`}
+                ? t('profile.contactdetails.connected_to', { username: cleanConnected, defaultValue: `Connected to: @${cleanConnected}` })
+                : `${t('profile.contactdetails.status')} ${t('profile.contactdetails.not_connected', { defaultValue: 'Not connected' })}`}
             </Text>
           </View>
         </View>

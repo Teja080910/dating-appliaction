@@ -120,6 +120,7 @@ export const useTelegram = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ['my-telegram-status'] });
+      queryClient.invalidateQueries({ queryKey: ['myTelegramStatus'] });
       queryClient.invalidateQueries({ queryKey: ['telegram-link'] });
       queryClient.invalidateQueries({ queryKey: ['myProfile'] });
       queryClient.invalidateQueries({ queryKey: ['profile-me'] });
@@ -192,6 +193,7 @@ export const useTelegram = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ['my-telegram-status'] });
+      queryClient.invalidateQueries({ queryKey: ['myTelegramStatus'] });
       queryClient.invalidateQueries({ queryKey: ['telegram-link'] });
       queryClient.invalidateQueries({ queryKey: ['myProfile'] });
       queryClient.invalidateQueries({ queryKey: ['profile-me'] });
@@ -487,27 +489,44 @@ export const useMyTelegramStatus = (userIdCandidate?: string | number | null) =>
           cleanUsername = '';
         }
 
+        // If /telegram/link only returned the bot link without the user's handle, check stored keys & profile
+        if (!cleanUsername && resolvedUserId) {
+          const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+            AsyncStorage.getItem(`user_telegram_${resolvedUserId}`).catch(() => null),
+            AsyncStorage.getItem(`@telegram_username_${resolvedUserId}`).catch(() => null),
+            AsyncStorage.getItem('telegramUsername').catch(() => null),
+            AsyncStorage.getItem('@telegram_username').catch(() => null),
+          ]);
+          const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+            if (!val) return false;
+            const c = String(val).trim().replace(/^@+/, '');
+            const n = c.toUpperCase();
+            return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+          });
+          if (cand) {
+            cleanUsername = String(cand).trim().replace(/^@+/, '');
+          }
+        }
+
         return {
           telegramUsername: cleanUsername,
           telegramLink: cleanUsername ? (telegramLink || `https://t.me/${cleanUsername}`) : '',
           isConnected: Boolean(cleanUsername),
         };
       } catch {
-        const cached = resolvedUserId
-          ? await AsyncStorage.getItem(`user_telegram_${resolvedUserId}`).catch(() => null)
-          : null;
-        let cleanCached = String(cached || '').trim().replace(/^@+/, '');
-        const norm = cleanCached.toUpperCase();
-        if (
-          !cleanCached ||
-          cleanCached === '-' ||
-          norm === 'NONE' ||
-          norm === 'NULL' ||
-          norm === 'UNDEFINED' ||
-          norm === 'N/A'
-        ) {
-          cleanCached = '';
-        }
+        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+          resolvedUserId ? AsyncStorage.getItem(`user_telegram_${resolvedUserId}`).catch(() => null) : null,
+          resolvedUserId ? AsyncStorage.getItem(`@telegram_username_${resolvedUserId}`).catch(() => null) : null,
+          AsyncStorage.getItem('telegramUsername').catch(() => null),
+          AsyncStorage.getItem('@telegram_username').catch(() => null),
+        ]);
+        const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+          if (!val) return false;
+          const c = String(val).trim().replace(/^@+/, '');
+          const n = c.toUpperCase();
+          return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+        });
+        const cleanCached = cand ? String(cand).trim().replace(/^@+/, '') : '';
         return {
           telegramUsername: cleanCached,
           telegramLink: cleanCached ? `https://t.me/${cleanCached}` : '',

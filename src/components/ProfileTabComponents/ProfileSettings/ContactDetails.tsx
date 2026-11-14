@@ -13,8 +13,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserId } from '../../../utils/sessionHelper';
 import { useTheme } from '../../../theme';
 import { useTelegram, useTelegramBotName, useMyTelegramStatus, fetchAmaraBotName, fetchAmaraBotLink, DEFAULT_AMARA_BOT_USERNAME } from '../../../api/useTelegram';
+import { useSendWhatsappOtp, useVerifyWhatsappOtp, extractSessionIdFromResponse } from '../../../api/useProfile';
 import { useAlert } from '../../AlertModal';
 import { t, useTranslation } from '../../../i18n';
 import { openAmaraBot } from '../../../utils/telegramHelper';
@@ -244,6 +247,8 @@ interface ContactDetailsProps {
   setPhoneNumber?: (num: string) => void;
   telegramUsername: string;
   setTelegramUsername: (username: string) => void;
+  isVerified?: boolean;
+  setIsVerified?: (val: boolean) => void;
 }
 
 const ContactDetails: React.FC<ContactDetailsProps> = ({
@@ -258,6 +263,8 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   setPhoneNumber = () => {},
   telegramUsername,
   setTelegramUsername,
+  isVerified = true,
+  setIsVerified = () => {},
 }) => {
   useTranslation();
   const { themeColors, isDark } = useTheme();
@@ -265,20 +272,85 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   const { disconnectTelegram } = useTelegram();
   const { data: dynamicBotName } = useTelegramBotName();
   const { data: myTgStatus, refetch: refetchTgStatus } = useMyTelegramStatus();
+  const sendWhatsappOtp = useSendWhatsappOtp();
+  const verifyWhatsappOtp = useVerifyWhatsappOtp();
 
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const isDisconnectedRef = useRef(false);
-  const cleanConnected = extractTelegram(telegramUsername, myTgStatus?.telegramUsername);
+  const [storedTelegram, setStoredTelegram] = useState('');
+  const cleanConnected = isDisconnectedRef.current
+    ? ''
+    : extractTelegram(telegramUsername, myTgStatus?.telegramUsername, storedTelegram);
   const [tgLoading, setTgLoading] = useState(false);
+
+  // Inline OTP states
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [inlineOtp, setInlineOtp] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const sessionIdRef = useRef('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const storedSid = await AsyncStorage.getItem('whatsapp_otp_session_id').catch(() => null);
+      if (storedSid && !sessionIdRef.current) {
+        setSessionId(storedSid);
+        sessionIdRef.current = storedSid;
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const interval = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [countdown]);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const uid = await getUserId().catch(() => null);
+        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+          uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
+          uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
+          AsyncStorage.getItem('telegramUsername').catch(() => null),
+          AsyncStorage.getItem('@telegram_username').catch(() => null),
+        ]);
+        const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+          if (!val) return false;
+          const c = String(val).trim().replace(/^@+/, '');
+          const n = c.toUpperCase();
+          return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+        });
+        if (isMounted && cand) {
+          const clean = String(cand).trim().replace(/^@+/, '');
+          setStoredTelegram(clean);
+          if (!telegramUsername) {
+            setTelegramUsername(clean);
+          }
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [telegramUsername, setTelegramUsername]);
 
   useEffect(() => {
     if (isDisconnectedRef.current) return;
-    const resolved = extractTelegram(myTgStatus?.telegramUsername);
+    const resolved = extractTelegram(myTgStatus?.telegramUsername, storedTelegram);
     if (resolved && !telegramUsername) {
       setTelegramUsername(resolved);
     }
-  }, [myTgStatus?.telegramUsername, telegramUsername, setTelegramUsername]);
+  }, [myTgStatus?.telegramUsername, storedTelegram, telegramUsername, setTelegramUsername]);
 
   // When returning from Telegram app to Amara, automatically refresh status
   useEffect(() => {
@@ -322,18 +394,29 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     isDisconnectedRef.current = true;
     setTgLoading(true);
     setTelegramUsername('');
+    setStoredTelegram('');
     try {
       await disconnectTelegram.mutateAsync({ userId: '' });
       await refetchTgStatus?.();
     } catch (error: any) {
       console.warn('Telegram Disconnect Error:', error);
       setTelegramUsername('');
+      setStoredTelegram('');
     } finally {
       setTgLoading(false);
     }
   };
 
   const handlePhoneNumberChange = (val: string) => {
+    if (isVerified) {
+      setIsVerified(false);
+    }
+    if (!val.trim()) {
+      setShowOtpInput(false);
+    }
+    setOtpSent(false);
+    setInlineOtp('');
+    setOtpError('');
     const raw = val.trim();
     if (raw.startsWith('+')) {
       const parsed = parsePhoneNumberAndCountry(raw);
@@ -348,6 +431,125 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     const cleanNational = extractNationalNumber(val, countryCode);
     setPhoneNumber(cleanNational);
   };
+
+  const handleSendOtpInline = async () => {
+    const cleanDigits = extractNationalNumber(phoneNumber, countryCode);
+    if (!cleanDigits || cleanDigits.length < 7) {
+      alert(
+        t('profile.profilesettingsscreen.invalid_phone_title', { defaultValue: 'Invalid Phone Number' }),
+        t('profile.profilesettingsscreen.invalid_phone_desc', { defaultValue: 'Please enter a valid mobile number.' })
+      );
+      return;
+    }
+    const fullPhone = `${countryCode} ${cleanDigits}`;
+    setShowOtpInput(true);
+    setSendingOtp(true);
+    setOtpError('');
+    setInlineOtp('');
+    try {
+      const res = await sendWhatsappOtp.mutateAsync({ mobile: fullPhone });
+      const sid = extractSessionIdFromResponse(res);
+      if (sid) {
+        setSessionId(sid);
+        sessionIdRef.current = sid;
+        await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
+      }
+      setOtpSent(true);
+      setCountdown(30);
+      alert(
+        t('profile.phone_otp.code_sent_title', { defaultValue: 'Code Sent' }),
+        t('profile.phone_otp.new_code_sent_desc', {
+          defaultValue: 'A verification code has been sent to your WhatsApp number. Please enter the latest 6-digit code.',
+        })
+      );
+    } catch (err: any) {
+      const status = Number(err?.response?.status || err?.status || 0);
+      const rawMsg = String(err?.response?.data?.message || err?.message || '');
+      const lower = rawMsg.toLowerCase();
+      const isGenericDbConflict = lower.includes('duplicate or conflicting data') || lower.includes('conflicting data');
+      const isDuplicateNumber =
+        !isGenericDbConflict &&
+        (lower.includes('already exists') ||
+          lower.includes('already registered') ||
+          lower.includes('already in use') ||
+          lower.includes('already linked') ||
+          lower.includes('number already'));
+
+      if (isDuplicateNumber) {
+        setOtpError(
+          t('profile.profilesettingsscreen.phone_already_exists_desc', {
+            defaultValue: 'This number is already linked to an account in the database. If this is your number, tap "Save" below to update your profile.',
+          })
+        );
+      } else {
+        setOtpError(
+          isGenericDbConflict
+            ? 'Server error: Database conflict on OTP service. Please contact backend team.'
+            : rawMsg ||
+              t('profile.phone_otp.send_failed_desc', {
+                defaultValue: 'Could not send verification code to this WhatsApp number. Please check the number and try again.',
+              })
+        );
+      }
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtpInline = async () => {
+    const cleanDigits = extractNationalNumber(phoneNumber, countryCode);
+    const fullPhone = `${countryCode} ${cleanDigits}`;
+    if (!inlineOtp || inlineOtp.trim().length < 4) return;
+    setVerifyingOtp(true);
+    setOtpError('');
+
+    let effectiveSid = sessionId || sessionIdRef.current;
+    if (!effectiveSid) {
+      effectiveSid = (await AsyncStorage.getItem('whatsapp_otp_session_id').catch(() => null)) || '';
+    }
+
+    try {
+      await verifyWhatsappOtp.mutateAsync({
+        mobile: fullPhone,
+        otp: inlineOtp.trim(),
+        sessionId: effectiveSid || undefined,
+      });
+      setIsVerified(true);
+      setOtpSent(false);
+      setShowOtpInput(false);
+      setInlineOtp('');
+      await AsyncStorage.removeItem('whatsapp_otp_session_id').catch(() => null);
+      alert(
+        t('profile.phone_otp.verified_title', { defaultValue: 'WhatsApp Verified' }),
+        t('profile.phone_otp.verified_desc', { defaultValue: 'Your WhatsApp number has been verified successfully!' })
+      );
+    } catch (err: any) {
+      const rawMsg = String(err?.response?.data?.message || err?.response?.data?.error || err?.message || '');
+      const isExpiredOrInvalidSession =
+        rawMsg.toLowerCase().includes('session') ||
+        rawMsg.toLowerCase().includes('expired') ||
+        rawMsg.toLowerCase().includes('invalid');
+
+      if (isExpiredOrInvalidSession) {
+        setOtpError(
+          t('profile.phone_otp.session_expired_action', {
+            defaultValue: 'This verification session has expired. Please tap "Resend Code" above to receive a fresh code.',
+          })
+        );
+      } else {
+        setOtpError(
+          rawMsg ||
+            t('profile.phone_otp.invalid_code', {
+              defaultValue: 'Invalid verification code. Please check and try again.',
+            })
+        );
+      }
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const nationalDigits = extractNationalNumber(phoneNumber, countryCode);
 
   return (
     <View style={styles.container}>
@@ -409,10 +611,153 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
                 placeholder="1234567890"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
-                value={extractNationalNumber(phoneNumber, countryCode)}
+                value={nationalDigits}
                 onChangeText={handlePhoneNumberChange}
               />
+
+              {/* Verify Button or Verified Badge */}
+              {isVerified && nationalDigits.length >= 7 ? (
+                <View style={styles.verifiedBadge}>
+                  <Icon name="check-circle" size={15} color="#10B981" style={{ marginRight: 4 }} />
+                  <Text style={styles.verifiedText}>
+                    {t('profile.contactdetails.verified', { defaultValue: 'Verified' })}
+                  </Text>
+                </View>
+              ) : nationalDigits.length >= 7 ? (
+                <TouchableOpacity
+                  style={[styles.verifyInlineBtn, sendingOtp && { opacity: 0.7 }]}
+                  onPress={handleSendOtpInline}
+                  disabled={sendingOtp}
+                  activeOpacity={0.8}
+                >
+                  {sendingOtp ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.verifyInlineBtnText}>
+                      {showOtpInput || otpSent
+                        ? countdown > 0
+                          ? `${countdown}s`
+                          : t('profile.phone_otp.resend_code', { defaultValue: 'Resend' })
+                        : t('profile.contactdetails.verify', { defaultValue: 'Verify' })}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
+
+            {/* Helper link if user already received OTP before tapping verify */}
+            {!showOtpInput && !otpSent && !isVerified && nationalDigits.length >= 7 && (
+              <TouchableOpacity
+                onPress={() => setShowOtpInput(true)}
+                style={styles.alreadyHaveOtpRow}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.alreadyHaveOtpText}>
+                  {t('profile.phone_otp.already_have_otp', {
+                    defaultValue: 'Already have an OTP? Enter code',
+                  })}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Inline OTP Verification Section */}
+            {(showOtpInput || otpSent) && !isVerified && (
+              <View
+                style={[
+                  styles.inlineOtpCard,
+                  {
+                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.08)' : '#F5F3FF',
+                    borderTopColor: isDark ? themeColors.borderLight : '#E5E7EB',
+                  },
+                ]}
+              >
+                <View style={styles.inlineOtpHeader}>
+                  <Text
+                    style={[
+                      styles.inlineOtpSub,
+                      { color: isDark ? '#D1D5DB' : '#4B5563' },
+                    ]}
+                  >
+                    {t('profile.phone_otp.enter_otp_sent_to', {
+                      defaultValue: 'Enter 6-digit OTP sent to',
+                    })}{' '}
+                    <Text style={{ fontWeight: '700', color: '#25D366' }}>
+                      {countryCode} {nationalDigits}
+                    </Text>
+                  </Text>
+                </View>
+
+                <View style={styles.inlineOtpInputRow}>
+                  <TextInput
+                    style={[
+                      styles.inlineOtpField,
+                      {
+                        color: isDark ? '#FFFFFF' : '#111827',
+                        backgroundColor: isDark ? '#1F1B2E' : '#FFFFFF',
+                        borderColor: isDark ? 'rgba(255,255,255,0.18)' : '#D1D5DB',
+                      },
+                    ]}
+                    placeholder={t('profile.phone_otp.six_digit_placeholder', {
+                      defaultValue: 'Enter 6-digit OTP',
+                    })}
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={inlineOtp}
+                    autoFocus={true}
+                    onChangeText={(val) => {
+                      setInlineOtp(val.replace(/\D/g, '').slice(0, 6));
+                      setOtpError('');
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.inlineOtpSubmitBtn,
+                      (inlineOtp.trim().length < 4 || verifyingOtp) && styles.inlineOtpSubmitBtnDisabled,
+                    ]}
+                    onPress={handleVerifyOtpInline}
+                    disabled={inlineOtp.trim().length < 4 || verifyingOtp}
+                    activeOpacity={0.85}
+                  >
+                    {verifyingOtp ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.inlineOtpSubmitBtnText}>
+                        {t('profile.phone_otp.validate_btn', { defaultValue: 'Validate' })}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {Boolean(otpError) && (
+                  <View style={styles.inlineOtpErrorContainer}>
+                    <View style={styles.inlineOtpErrorRow}>
+                      <Icon name="alert-circle-outline" size={14} color="#EF4444" style={{ marginRight: 4, marginTop: 1 }} />
+                      <Text style={styles.inlineOtpErrorText}>{otpError}</Text>
+                    </View>
+                    {(otpError.toLowerCase().includes('expired') || otpError.toLowerCase().includes('session')) && (
+                      <TouchableOpacity
+                        style={[styles.resendActionBtn, sendingOtp && { opacity: 0.7 }]}
+                        onPress={handleSendOtpInline}
+                        disabled={sendingOtp}
+                        activeOpacity={0.8}
+                      >
+                        {sendingOtp ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <Icon name="refresh" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                            <Text style={styles.resendActionBtnText}>
+                              {t('profile.phone_otp.resend_code_now', { defaultValue: 'Resend Code Now' })}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Centered OR divider */}
@@ -459,7 +804,9 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
             <Icon name="send" size={19} color="#FFFFFF" style={styles.sendIcon} />
           )}
           <Text style={styles.telegramConnectBtnText}>
-            {cleanConnected ? 'Disconnect Telegram' : t('profile.contactdetails.connect_telegram')}
+            {cleanConnected
+              ? t('profile.contactdetails.disconnect_telegram', { defaultValue: 'Disconnect Telegram' })
+              : t('profile.contactdetails.connect_telegram')}
           </Text>
         </TouchableOpacity>
 
@@ -479,8 +826,8 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
             ]}
           >
             {cleanConnected
-              ? `Connected to: @${cleanConnected}`
-              : `${t('profile.contactdetails.status')} Not connected`}
+              ? t('profile.contactdetails.connected_to', { username: cleanConnected, defaultValue: `Connected to: @${cleanConnected}` })
+              : `${t('profile.contactdetails.status')} ${t('profile.contactdetails.not_connected', { defaultValue: 'Not connected' })}`}
           </Text>
         </View>
       </View>
@@ -648,6 +995,121 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     paddingVertical: 0,
+  },
+  verifyInlineBtn: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  verifyInlineBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    marginLeft: 8,
+  },
+  verifiedText: {
+    color: '#10B981',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  alreadyHaveOtpRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    paddingTop: 4,
+  },
+  alreadyHaveOtpText: {
+    fontSize: 12.5,
+    color: '#8B5CF6',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  inlineOtpCard: {
+    borderTopWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  inlineOtpHeader: {
+    marginBottom: 10,
+  },
+  inlineOtpSub: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  inlineOtpInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inlineOtpField: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 2,
+    marginRight: 10,
+  },
+  inlineOtpSubmitBtn: {
+    backgroundColor: '#8B5CF6',
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineOtpSubmitBtnDisabled: {
+    backgroundColor: '#6B7280',
+    opacity: 0.6,
+  },
+  inlineOtpSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  inlineOtpErrorContainer: {
+    marginTop: 8,
+  },
+  inlineOtpErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  inlineOtpErrorText: {
+    color: '#EF4444',
+    fontSize: 12.5,
+    fontWeight: '500',
+    flex: 1,
+    lineHeight: 17,
+  },
+  resendActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  resendActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   orRow: {
     flexDirection: 'row',

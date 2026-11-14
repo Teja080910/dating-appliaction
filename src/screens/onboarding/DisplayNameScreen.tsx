@@ -90,9 +90,23 @@ const DisplayNameScreen = ({ navigation }: any) => {
       return;
     }
 
+    const testDate = new Date(yNum, mNum - 1, dNum);
+    if (
+      testDate.getFullYear() !== yNum ||
+      testDate.getMonth() !== mNum - 1 ||
+      testDate.getDate() !== dNum
+    ) {
+      alert(t('onboarding.dobscreen.valid_birthday_required'), t('onboarding.dobscreen.please_enter_a_valid_birthday_in_dd_mm_yyyy_form'));
+      return;
+    }
+
     const age = calculateAge(dNum, mNum, yNum);
-    if (age < 18) {
+    if (isNaN(age) || age < 18) {
       alert(t('onboarding.dobscreen.age_restriction'), t('onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register'));
+      return;
+    }
+    if (age > 100) {
+      alert(t('onboarding.dobscreen.valid_birthday_required'), t('onboarding.dobscreen.please_enter_a_valid_birthday_in_dd_mm_yyyy_form'));
       return;
     }
 
