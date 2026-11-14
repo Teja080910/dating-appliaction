@@ -43,6 +43,7 @@ import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
 import { RootParamList } from "../../utils/types/navigation.types";
 import { t, useTranslation } from '../../i18n';
+import { calculateAgeFromDob } from '../../utils/dateUtils';
 
 const normalizeTextValue = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -836,21 +837,12 @@ const ViewMyProfileScreen = () => {
   };
 
   const ownAge = useMemo(() => {
-    const safeDate = date ? new Date(date) : null;
-    if (!safeDate || Number.isNaN(safeDate.getTime())) {
-      return null;
+    if (date) {
+      const calc = calculateAgeFromDob(date);
+      if (calc > 0) return calc;
     }
-
-    const today = new Date();
-    let calculatedAge = today.getFullYear() - safeDate.getFullYear();
-    const monthGap = today.getMonth() - safeDate.getMonth();
-
-    if (monthGap < 0 || (monthGap === 0 && today.getDate() < safeDate.getDate())) {
-      calculatedAge -= 1;
-    }
-
-    return calculatedAge > 0 ? calculatedAge : null;
-  }, [date]);
+    return fetchedProfile?.age || null;
+  }, [date, fetchedProfile?.age]);
 
   const isTargetUserFetched = useMemo(() => {
     if (isViewingSelf || !numericTargetId || !fetchedProfile) return false;
@@ -1014,19 +1006,19 @@ const ViewMyProfileScreen = () => {
         : Boolean((isTargetUserFetched ? (fetched?.verifiedSelfie ?? fetched?.selfieVerified) : null) ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
       telegramUsername: isViewingSelf
         ? (normalizeTextValue(fetched?.telegramUsername) || normalizeTextValue(storedTelegram) || normalizeTextValue(myTgStatus?.telegramUsername) || '')
-        : (isViewerWoman ? '' : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : ''))),
       phoneNumber: isViewingSelf
         ? selfPhone
-        : (isViewerWoman ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobile: isViewingSelf
         ? selfPhone
-        : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       phone: isViewingSelf
         ? selfPhone
-        : (isViewerWoman ? '' : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
       mobileNumber: isViewingSelf
         ? selfPhone
-        : (isViewerWoman ? '' : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : ''))),
       profileImageUrl: isViewingSelf
         ? (contextPrimaryImage || (ownImages[0] || null) || normalizeTextValue(fetched?.profileImageUrl))
         : (normalizeTextValue(routed?.profileImageUrl) || (isTargetUserFetched ? normalizeTextValue(fetched?.profileImageUrl) : '') || routeImage || (targetImages[0] || null)),
@@ -1067,6 +1059,7 @@ const ViewMyProfileScreen = () => {
     storedPhone,
     storedTelegram,
     myTgStatus,
+    isAcceptedMatch,
   ]);
 
   const targetPartyFromMatch = useMemo(() => {

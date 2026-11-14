@@ -39,6 +39,23 @@ describe('Phone Number OTP Verification in Edit Profile', () => {
       ).rejects.toThrow();
     });
 
+    it('verifies valid OTP via /profile/whatsapp/verify-otp', async () => {
+      const sendRes = await apiClient.post('/profile/whatsapp/send-otp', {
+        mobile: '+91 9876543210',
+      });
+      const sessionId = sendRes.data.sessionId;
+      const otp = sendRes.data.otp;
+
+      const verifyRes = await apiClient.post('/profile/whatsapp/verify-otp', {
+        mobile: '+91 9876543210',
+        otp: otp || '123456',
+        sessionId,
+      });
+
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.data.status).toBe('success');
+    });
+
     it('verifies valid OTP via /profile/whatsapp/verify', async () => {
       const sendRes = await apiClient.post('/profile/whatsapp/send-otp', {
         mobile: '+91 9876543210',

@@ -467,29 +467,20 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     return isSameId(senderId, resolvedTargetUserId);
   });
   const isAlreadyInvited = Boolean(matchingInvitation);
-  const hasDirectUnlockedContacts = Boolean(
-    !isOwnProfile &&
-    (
-      (resolvedProfile?.phoneNumber && !isInvalidPhoneNumber(resolvedProfile?.phoneNumber)) ||
-      (resolvedProfile?.mobile && !isInvalidPhoneNumber(resolvedProfile?.mobile)) ||
-      (resolvedProfile?.phone && !isInvalidPhoneNumber(resolvedProfile?.phone)) ||
-      (resolvedProfile?.mobileNumber && !isInvalidPhoneNumber(resolvedProfile?.mobileNumber)) ||
-      (resolvedProfile?.telegramUsername && !isInvalidTelegramHandle(resolvedProfile?.telegramUsername)) ||
-      (profile?.phoneNumber && !isInvalidPhoneNumber(profile?.phoneNumber)) ||
-      (profile?.mobile && !isInvalidPhoneNumber(profile?.mobile)) ||
-      (profile?.phone && !isInvalidPhoneNumber(profile?.phone)) ||
-      (profile?.mobileNumber && !isInvalidPhoneNumber(profile?.mobileNumber)) ||
-      (profile?.telegramUsername && !isInvalidTelegramHandle(profile?.telegramUsername))
-    )
-  );
+  const mutualConnections = Array.isArray(connection.connectionList?.data) ? connection.connectionList.data : [];
+  const matchingMatch = mutualConnections.find((conn: any) => {
+    const uId = conn?.receiver?.id ?? conn?.receiver?.userId ?? conn?.sender?.id ?? conn?.sender?.userId ?? conn?.id;
+    return isSameId(uId, resolvedTargetUserId);
+  });
 
-  const isApprovedInvitation =
+  const isApprovedInvitation = !isOwnProfile && Boolean(
+    matchingMatch ||
     isAcceptedStatus(matchingInvitation?.status) ||
     isAcceptedStatus(matchingReceived?.status) ||
     isAcceptedStatus(requestStatus) ||
     isAcceptedStatus((resolvedProfile as any)?.connectionStatus) ||
-    isAcceptedStatus((resolvedProfile as any)?.requestStatus) ||
-    hasDirectUnlockedContacts;
+    isAcceptedStatus((resolvedProfile as any)?.requestStatus)
+  );
 
   const targetTelegramUsername = (() => {
     let raw = '';
@@ -503,10 +494,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       );
     } else {
       if (isViewerWoman) return '';
+      if (!isApprovedInvitation) return '';
       const isProfileMine =
         isSameId(resolvedProfile?.id, currentUserId) ||
         isSameId(resolvedProfile?.userId, currentUserId);
       raw = extractTelegram(
+        matchingMatch?.receiver,
+        matchingMatch?.sender,
         matchingInvitation?.receiver,
         (matchingInvitation as any)?.receiverProfile,
         matchingReceived?.sender,
@@ -533,10 +527,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       );
     }
     if (isViewerWoman) return '';
+    if (!isApprovedInvitation) return '';
     const isProfileMine =
       isSameId(resolvedProfile?.id, currentUserId) ||
       isSameId(resolvedProfile?.userId, currentUserId);
     return extractPhone(
+      matchingMatch?.receiver,
+      matchingMatch?.sender,
       matchingInvitation?.receiver,
       (matchingInvitation as any)?.receiverProfile,
       matchingReceived?.sender,

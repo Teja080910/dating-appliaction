@@ -113,9 +113,13 @@ const DisplayNameScreen = ({ navigation }: any) => {
     const dobString = `${yNum}-${String(mNum).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`;
     const dobDate = new Date(yNum, mNum - 1, dNum);
 
+    const uid = await AsyncStorage.getItem('userId');
     await AsyncStorage.setItem('name', trimmed);
     await AsyncStorage.setItem('displayName', trimmed);
     await AsyncStorage.setItem('userDob', dobString);
+    if (uid) {
+      await AsyncStorage.setItem(`user_dob_${uid}`, dobString);
+    }
 
     if (setName) setName(trimmed);
     if (setDisplayName) setDisplayName(trimmed);

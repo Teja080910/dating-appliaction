@@ -13,6 +13,7 @@ import { getSavedSearchFilters, getLocalBlockedUsers } from '../../utils/types/A
 import { Colors, Spacing, useTheme } from '../../theme';
 import { useResponsive } from '../../utils/responsive';
 import { resolveProfileDistance, filterByRadius } from '../../utils/distanceHelper';
+import { calculateAgeFromDob } from '../../utils/dateUtils';
 import { t, useTranslation } from '../../i18n';
 
 
@@ -870,7 +871,16 @@ const UserList = ({
           t('home.usercard.user')
         );
         const cleanName = rawName.replace(/,\s*\d+$/, '').trim();
-        const safeAge = profile?.age || item?.age || '24';
+        const dobCandidate = profile?.dob || item?.dob || profile?.dateOfBirth || item?.dateOfBirth;
+        const computedAgeVal = dobCandidate ? calculateAgeFromDob(dobCandidate) : null;
+        const safeAge =
+          profile?.age && Number(profile.age) > 0
+            ? String(profile.age)
+            : item?.age && Number(item.age) > 0
+            ? String(item.age)
+            : computedAgeVal && computedAgeVal > 0
+            ? String(computedAgeVal)
+            : '24';
         return (
           <UserCard
             id={resolveProfileUserId(item) ?? item.id}

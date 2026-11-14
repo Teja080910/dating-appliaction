@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import { Colors, useTheme } from '../../../theme';
 import { t, useTranslation } from '../../../i18n';
+import { parseDobToLocalDate, formatDateToDobString, calculateAgeFromDob } from '../../../utils/dateUtils';
 
 interface YourBirthdayProps {
   value: string;
@@ -26,21 +27,30 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
     return d;
   }, []);
 
-  const dateObj = value ? new Date(value) : maxSelectableDate;
-  const safeDate = isNaN(dateObj.getTime()) || dateObj > maxSelectableDate ? maxSelectableDate : dateObj;
+  const { day, month, year, safeDate } = useMemo(() => {
+    const parsed = parseDobToLocalDate(value);
+    const validDate = isNaN(parsed.getTime()) || parsed > maxSelectableDate ? maxSelectableDate : parsed;
 
-  const day = String(safeDate.getDate());
-  const month = String(safeDate.getMonth() + 1);
-  const year = String(safeDate.getFullYear());
+    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+      const parts = value.trim().split('-');
+      return {
+        day: String(parseInt(parts[2], 10)),
+        month: String(parseInt(parts[1], 10)),
+        year: String(parseInt(parts[0], 10)),
+        safeDate: validDate,
+      };
+    }
+    return {
+      day: String(validDate.getDate()),
+      month: String(validDate.getMonth() + 1),
+      year: String(validDate.getFullYear()),
+      safeDate: validDate,
+    };
+  }, [value, maxSelectableDate]);
 
   const handleConfirm = (date: Date) => {
     setOpen(false);
-    const today = new Date();
-    let age = today.getFullYear() - date.getFullYear();
-    const monthGap = today.getMonth() - date.getMonth();
-    if (monthGap < 0 || (monthGap === 0 && today.getDate() < date.getDate())) {
-      age -= 1;
-    }
+    const age = calculateAgeFromDob(date);
 
     if (isNaN(age) || age < 18) {
       Alert.alert(
@@ -52,10 +62,8 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
       return;
     }
 
-    const yr = date.getFullYear();
-    const mo = ('0' + (date.getMonth() + 1)).slice(-2);
-    const dy = ('0' + date.getDate()).slice(-2);
-    onChange(`${yr}-${mo}-${dy}`);
+    const ymd = formatDateToDobString(date);
+    onChange(ymd);
   };
 
   return (

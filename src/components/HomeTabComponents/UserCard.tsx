@@ -165,6 +165,11 @@ const UserCard = ({
       image: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
       photos: rawProfile?.photos || (safeImage ? [safeImage] : []),
       images: rawProfile?.photos || rawProfile?.images || (safeImage ? [safeImage] : []),
+      mobile: '',
+      phone: '',
+      phoneNumber: '',
+      mobileNumber: '',
+      telegramUsername: '',
     };
 
     navigation.navigate('ViewMyProfileScreen', {

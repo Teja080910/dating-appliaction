@@ -154,5 +154,11 @@ describe('Bot-Only Telegram Connection (No Username Input)', () => {
     });
 
     expect(mockSetTelegramUsername).toHaveBeenCalledWith('');
+
+    // On very first click, UI immediately reflects Disconnected state without needing a 2nd click
+    const jsonAfter = JSON.stringify(renderer!.toJSON());
+    expect(jsonAfter).toContain('Connect Telegram');
+    expect(jsonAfter).toContain('Not connected');
+    expect(jsonAfter).not.toContain('Connected to: @sai_049');
   });
 });

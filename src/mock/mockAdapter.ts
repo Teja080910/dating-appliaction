@@ -45,6 +45,10 @@ const parseRequestBody = (data: any): any => {
 const hideTelegramFromPublicProfile = <T extends Record<string, any>>(profile: T): T => ({
   ...profile,
   telegramUsername: '',
+  mobile: '',
+  phone: '',
+  phoneNumber: '',
+  mobileNumber: '',
 });
 
 const calculateAge = (dob: unknown): number | null => {
@@ -575,18 +579,27 @@ export const handleMockRequest = async (
     const { otp, sessionId } = mockStore.createOtp(mobile);
     return createMockResponse(config, 200, {
       status: 'success',
-      message: `OTP sent successfully to ${mobile}`,
+      message: 'OTP sent to your WhatsApp number.',
       otp,
       sessionId,
       data: {
         sessionId,
         mobile,
+        expiresInSeconds: 300,
+        resendAfterSeconds: 30,
       },
+      resendAfterSeconds: 30,
+      expiresInSeconds: 300,
     });
   }
 
-  // POST /profile/whatsapp/verify
-  if (method === 'POST' && (url.includes('/profile/whatsapp/verify') || url.includes('/profile/verify-whatsapp-otp'))) {
+  // POST /profile/whatsapp/verify-otp or /profile/whatsapp/verify
+  if (
+    method === 'POST' &&
+    (url.includes('/profile/whatsapp/verify-otp') ||
+      url.includes('/profile/whatsapp/verify') ||
+      url.includes('/profile/verify-whatsapp-otp'))
+  ) {
     const mobile = body.mobile || body.phoneNumber || body.phone || body.whatsapp;
     const otp = body.otp;
     const sessionId = body.sessionId;
@@ -596,11 +609,19 @@ export const handleMockRequest = async (
       throw createMockError(config, 400, 'Invalid OTP. Please check and try again.');
     }
 
+    const currentUid = (await mockStore.getCurrentUserId()) || 'usr_man_101';
+    await mockStore.saveProfile({
+      userId: currentUid,
+      mobile,
+      whatsappVerified: true,
+    });
+
     return createMockResponse(config, 200, {
       status: 'success',
       message: 'WhatsApp number verified successfully',
       data: {
         mobile,
+        whatsappVerified: true,
         verified: true,
       },
     });

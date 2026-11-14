@@ -45,6 +45,7 @@ export interface MockProfile {
   mobile?: string;
   phoneNumber?: string;
   mobileNumber?: string;
+  whatsappVerified?: boolean;
   email?: string;
   kidCount?: string;
   kids?: string;

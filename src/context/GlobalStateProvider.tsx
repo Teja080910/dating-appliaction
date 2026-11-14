@@ -10,6 +10,7 @@ import { getThemeColors, Colors } from '../theme/colors';
 import { mockStore } from '../mock/mockStore';
 import { USE_MOCK } from '../environment/ApiConfig';
 import apiClient from '../api/apiClient';
+import { parseDobToLocalDate } from '../utils/dateUtils';
 
 const GlobalStateProvider = ({ children }: any) => {
   const systemColorScheme = useColorScheme();
@@ -151,6 +152,7 @@ const GlobalStateProvider = ({ children }: any) => {
           storedTheme,
           storedBio,
           storedDob,
+          userScopedDob,
           userScopedImages,
           userScopedProfileImage,
           deletedRaw,
@@ -166,6 +168,7 @@ const GlobalStateProvider = ({ children }: any) => {
           AsyncStorage.getItem('@app_appearance_theme'),
           AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
           AsyncStorage.getItem('userDob'),
+          id ? AsyncStorage.getItem(`user_dob_${id}`).catch(() => null) : Promise.resolve(null),
           id ? AsyncStorage.getItem(`user_photos_${id}`).catch(() => null) : Promise.resolve(null),
           id ? AsyncStorage.getItem(`user_profile_photo_${id}`).catch(() => null) : Promise.resolve(null),
           id ? AsyncStorage.getItem(`deleted_photos_${id}`).catch(() => null) : Promise.resolve(null),
@@ -183,9 +186,10 @@ const GlobalStateProvider = ({ children }: any) => {
           if (storedName) setName(storedName);
           if (storedDisplayName) setDisplayName(storedDisplayName);
           if (storedBio) setProfileText(storedBio);
-          if (storedDob) {
+          const effectiveDob = userScopedDob || storedDob;
+          if (effectiveDob) {
             try {
-              setDate(new Date(storedDob));
+              setDate(parseDobToLocalDate(effectiveDob));
             } catch {}
           }
           const resolvedGender = userScopedGender || storedGender || storedUserGender;
@@ -423,6 +427,7 @@ const GlobalStateProvider = ({ children }: any) => {
           storedDisplayName,
           storedBio,
           storedDob,
+          userScopedDob,
           storedPhone,
           userMobile,
           userScopedPhone,
@@ -433,6 +438,7 @@ const GlobalStateProvider = ({ children }: any) => {
           AsyncStorage.getItem('displayName'),
           AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
           AsyncStorage.getItem('userDob'),
+          activeId ? AsyncStorage.getItem(`user_dob_${activeId}`).catch(() => null) : Promise.resolve(null),
           AsyncStorage.getItem('phoneNumber'),
           AsyncStorage.getItem('userMobile'),
           activeId ? AsyncStorage.getItem(`user_phone_${activeId}`).catch(() => null) : Promise.resolve(null),
@@ -443,9 +449,10 @@ const GlobalStateProvider = ({ children }: any) => {
         if (storedDisplayName) setDisplayName(storedDisplayName);
         if (storedName || storedDisplayName) setName(storedDisplayName || storedName || '');
         if (storedBio) setProfileText(storedBio);
-        if (storedDob) {
+        const effectiveDob = userScopedDob || storedDob;
+        if (effectiveDob) {
           try {
-            setDate(new Date(storedDob));
+            setDate(parseDobToLocalDate(effectiveDob));
           } catch {}
         }
         const effectivePhone = userScopedPhone || storedPhone || userMobile;

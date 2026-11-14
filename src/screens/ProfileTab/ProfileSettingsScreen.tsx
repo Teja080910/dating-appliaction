@@ -25,6 +25,7 @@ import { getAuthSession } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import { dedupeImageUris } from '../../utils/imageHelpers';
+import { parseDobToLocalDate, formatDateToDobString, calculateAgeFromDob } from '../../utils/dateUtils';
 import { t, useTranslation } from '../../i18n';
 
 const ProfileSettingsScreen = () => {
@@ -53,7 +54,8 @@ const ProfileSettingsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [localDisplayName, setLocalDisplayName] = useState(displayName);
   const [localDescription, setLocalDescription] = useState(profileText);
-  const [localDob, setLocalDob] = useState(date.toISOString().split('T')[0]);
+  const [localDob, setLocalDob] = useState(() => formatDateToDobString(date));
+  const lastSavedDobRef = useRef<string | null>(null);
 
   // Contact details state (defaults to primary app language country)
   const [countryCode, setCountryCode] = useState(defaultCountry.code);
@@ -107,13 +109,15 @@ const ProfileSettingsScreen = () => {
           setProfileText((prev) => prev || storedBio);
         }
 
-        const storedDob = await AsyncStorage.getItem('userDob');
+        const uid = (await AsyncStorage.getItem('userId')) || '';
+        const userScopedDob = uid ? await AsyncStorage.getItem(`user_dob_${uid}`) : null;
+        const storedDob = userScopedDob || (await AsyncStorage.getItem('userDob'));
         if (storedDob) {
-          setLocalDob(storedDob);
-          setDate(new Date(storedDob));
+          const cleanDob = formatDateToDobString(storedDob);
+          setLocalDob(cleanDob);
+          setDate(parseDobToLocalDate(cleanDob));
         }
 
-        const uid = (await AsyncStorage.getItem('userId')) || '';
         const userScopedPhone = uid ? await AsyncStorage.getItem(`user_phone_${uid}`) : null;
         const storedPhone = userScopedPhone || (await AsyncStorage.getItem('phoneNumber'));
         if (storedPhone) {
@@ -134,20 +138,28 @@ const ProfileSettingsScreen = () => {
           }
         }
 
-        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
-          uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
-          uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
-          AsyncStorage.getItem('telegramUsername').catch(() => null),
-          AsyncStorage.getItem('@telegram_username').catch(() => null),
+        const [isDisc, isDiscGlobal] = await Promise.all([
+          uid ? AsyncStorage.getItem(`@amara_telegram_disconnected_${uid}`).catch(() => null) : null,
+          AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null),
         ]);
-        const candTg = [uTg, atTg, legTg, legAtTg].find((val) => {
-          if (!val) return false;
-          const c = String(val).trim().replace(/^@+/, '');
-          const n = c.toUpperCase();
-          return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
-        });
-        if (candTg) {
-          setLocalTelegramUsername(String(candTg).trim().replace(/^@+/, ''));
+        if (isDisc === 'true' || isDiscGlobal === 'true') {
+          setLocalTelegramUsername('');
+        } else {
+          const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+            uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
+            uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
+            AsyncStorage.getItem('telegramUsername').catch(() => null),
+            AsyncStorage.getItem('@telegram_username').catch(() => null),
+          ]);
+          const candTg = [uTg, atTg, legTg, legAtTg].find((val) => {
+            if (!val) return false;
+            const c = String(val).trim().replace(/^@+/, '');
+            const n = c.toUpperCase();
+            return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+          });
+          if (candTg) {
+            setLocalTelegramUsername(String(candTg).trim().replace(/^@+/, ''));
+          }
         }
       } catch (e) {}
     };
@@ -184,8 +196,13 @@ const ProfileSettingsScreen = () => {
     }
 
     if (profile.dob) {
-      setLocalDob(profile.dob);
-      setDate(new Date(profile.dob));
+      const cleanDob = formatDateToDobString(profile.dob);
+      if (lastSavedDobRef.current && lastSavedDobRef.current !== cleanDob) {
+        // Retain the user's freshly saved birthday instead of reverting to stale server response
+      } else {
+        setLocalDob(cleanDob);
+        setDate(parseDobToLocalDate(cleanDob));
+      }
     }
 
     const candidatePhone = profile.phoneNumber || profile.mobile || profile.phone || (profile as any).mobileNumber;
@@ -203,44 +220,49 @@ const ProfileSettingsScreen = () => {
       setLocalPhoneNumber('');
     }
 
-    const rawTg = (profile.telegramUsername || (profile as any).telegram || (profile as any).tgUsername)
-      ? String(profile.telegramUsername || (profile as any).telegram || (profile as any).tgUsername).replace(/^@+/, '').trim()
-      : '';
-    const normTg = rawTg.toUpperCase();
-    if (rawTg && normTg !== 'NONE' && normTg !== 'NULL' && normTg !== 'UNDEFINED' && normTg !== '-' && normTg !== 'N/A') {
-      setLocalTelegramUsername(rawTg);
-    } else {
-      AsyncStorage.getItem('userId').then(async (uid) => {
-        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
-          uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
-          uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
-          AsyncStorage.getItem('telegramUsername').catch(() => null),
-          AsyncStorage.getItem('@telegram_username').catch(() => null),
-        ]);
-        const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
-          if (!val) return false;
-          const c = String(val).trim().replace(/^@+/, '');
-          const n = c.toUpperCase();
-          return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
-        });
-        if (cand) {
-          setLocalTelegramUsername(String(cand).trim().replace(/^@+/, ''));
+    AsyncStorage.getItem('userId').then(async (uid) => {
+      const rawTg = (profile.telegramUsername || (profile as any).telegram || (profile as any).tgUsername)
+        ? String(profile.telegramUsername || (profile as any).telegram || (profile as any).tgUsername).replace(/^@+/, '').trim()
+        : '';
+      const normTg = rawTg.toUpperCase();
+      const isValidTg = rawTg && normTg !== 'NONE' && normTg !== 'NULL' && normTg !== 'UNDEFINED' && normTg !== '-' && normTg !== 'N/A';
+      if (isValidTg) {
+        setLocalTelegramUsername(rawTg);
+        await AsyncStorage.removeItem('@amara_telegram_disconnected_global').catch(() => {});
+        if (uid) {
+          await AsyncStorage.removeItem(`@amara_telegram_disconnected_${uid}`).catch(() => {});
         }
-      }).catch(() => {});
-    }
+        return;
+      }
+
+      const [isDisc, isDiscGlobal] = await Promise.all([
+        uid ? AsyncStorage.getItem(`@amara_telegram_disconnected_${uid}`).catch(() => null) : null,
+        AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null),
+      ]);
+      if (isDisc === 'true' || isDiscGlobal === 'true') {
+        setLocalTelegramUsername('');
+        return;
+      }
+      const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+        uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
+        uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
+        AsyncStorage.getItem('telegramUsername').catch(() => null),
+        AsyncStorage.getItem('@telegram_username').catch(() => null),
+      ]);
+      const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+        if (!val) return false;
+        const c = String(val).trim().replace(/^@+/, '');
+        const n = c.toUpperCase();
+        return c && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+      });
+      if (cand) {
+        setLocalTelegramUsername(String(cand).trim().replace(/^@+/, ''));
+      }
+    }).catch(() => {});
   }, [profileQuery.data, setDate, setDisplayName, setName, setProfileText]);
 
   const computedAge = useMemo(() => {
-    const dob = new Date(localDob);
-    const now = new Date();
-    let age = now.getFullYear() - dob.getFullYear();
-    const monthGap = now.getMonth() - dob.getMonth();
-
-    if (monthGap < 0 || (monthGap === 0 && now.getDate() < dob.getDate())) {
-      age -= 1;
-    }
-
-    return age;
+    return calculateAgeFromDob(localDob);
   }, [localDob]);
 
   const executePersist = async (
@@ -265,10 +287,11 @@ const ProfileSettingsScreen = () => {
     const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
 
     const persistLocalState = async (savePhone = true) => {
+      const cleanDob = formatDateToDobString(localDob);
       setDisplayName(cleanName);
       setName(cleanName);
       setProfileText(cleanBio);
-      setDate(new Date(localDob));
+      setDate(parseDobToLocalDate(cleanDob));
 
       await AsyncStorage.setItem('displayName', cleanName);
       await AsyncStorage.setItem('name', cleanName);
@@ -276,10 +299,10 @@ const ProfileSettingsScreen = () => {
       await AsyncStorage.setItem('bio', cleanBio);
       await AsyncStorage.setItem('userBio', cleanBio);
       await AsyncStorage.setItem('@onboarding_bio', cleanBio);
-      await AsyncStorage.setItem('userDob', localDob);
+      await AsyncStorage.setItem('userDob', cleanDob);
       if (currentUid) {
         await AsyncStorage.setItem(`user_name_${currentUid}`, cleanName);
-        await AsyncStorage.setItem(`user_dob_${currentUid}`, localDob);
+        await AsyncStorage.setItem(`user_dob_${currentUid}`, cleanDob);
       }
       const validPhotos = (images || []).filter(Boolean) as string[];
       await AsyncStorage.setItem('onboardingImages', JSON.stringify(images || []));
@@ -326,21 +349,38 @@ const ProfileSettingsScreen = () => {
           await AsyncStorage.setItem(`@telegram_username_${currentUid}`, cleanTg);
           await AsyncStorage.removeItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => {});
         }
-      } else {
-        const isExplicitlyDisconnected = currentUid
-          ? (await AsyncStorage.getItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => null)) === 'true'
-          : false;
-        if (isExplicitlyDisconnected) {
-          await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
-          if (currentUid) {
-            await AsyncStorage.multiRemove([
-              `user_telegram_${currentUid}`,
-              `@telegram_username_${currentUid}`,
-            ]).catch(() => {});
-          }
-        }
+        await AsyncStorage.removeItem('@amara_telegram_disconnected_global').catch(() => {});
       }
     };
+
+    const cleanDobToSave = formatDateToDobString(localDob);
+    lastSavedDobRef.current = cleanDobToSave;
+    await persistLocalState();
+
+    const isDiscGlobal = (await AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null)) === 'true';
+    const isDiscUid = currentUid
+      ? (await AsyncStorage.getItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => null)) === 'true'
+      : false;
+    const isExplicitlyDisconnected = isDiscGlobal || isDiscUid;
+
+    const existingTg = (profileQuery.data?.telegramUsername || '')
+      ? String(profileQuery.data.telegramUsername).trim().replace(/^@+/, '')
+      : '';
+    const normExistingTg = existingTg.toUpperCase();
+    const validExistingTg =
+      !isExplicitlyDisconnected &&
+      existingTg &&
+      normExistingTg !== 'NONE' &&
+      normExistingTg !== 'NULL' &&
+      normExistingTg !== 'UNDEFINED' &&
+      normExistingTg !== '-' &&
+      normExistingTg !== 'N/A'
+        ? existingTg
+        : '';
+
+    const tgToPersist = localTelegramUsername.trim()
+      ? localTelegramUsername.trim().replace(/^@+/, '')
+      : (isExplicitlyDisconnected ? 'NONE' : (validExistingTg || undefined));
 
     updateProfile.mutate(
       {
@@ -348,9 +388,9 @@ const ProfileSettingsScreen = () => {
         displayName: cleanName,
         name: cleanName,
         bio: cleanBio,
-        dob: localDob,
+        dob: cleanDobToSave,
         age: ageToSave,
-        telegramUsername: localTelegramUsername.trim() || undefined,
+        ...(tgToPersist ? { telegramUsername: tgToPersist } : {}),
         mobile: fullPhone || '',
         phoneNumber: fullPhone || '',
       } as any,
@@ -389,9 +429,9 @@ const ProfileSettingsScreen = () => {
                 displayName: cleanName,
                 name: cleanName,
                 bio: cleanBio,
-                dob: localDob,
+                dob: formatDateToDobString(localDob),
                 age: ageToSave,
-                telegramUsername: localTelegramUsername.trim() || undefined,
+                telegramUsername: tgToPersist,
               } as any);
               await persistLocalState(false);
               await profileQuery.refetch();

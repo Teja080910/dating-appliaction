@@ -14,6 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQueryClient } from '@tanstack/react-query';
 import { getUserId } from '../../../utils/sessionHelper';
 import { useTheme } from '../../../theme';
 import { useTelegram, useTelegramBotName, useMyTelegramStatus, fetchAmaraBotName, fetchAmaraBotLink, DEFAULT_AMARA_BOT_USERNAME } from '../../../api/useTelegram';
@@ -269,6 +270,7 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   useTranslation();
   const { themeColors, isDark } = useTheme();
   const { alert, AlertComponent } = useAlert();
+  const queryClient = useQueryClient();
   const { disconnectTelegram } = useTelegram();
   const { data: dynamicBotName } = useTelegramBotName();
   const { data: myTgStatus, refetch: refetchTgStatus } = useMyTelegramStatus();
@@ -277,9 +279,10 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
 
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
-  const isDisconnectedRef = useRef(false);
+  const [isDisconnected, setIsDisconnected] = useState(false);
+  const userExplicitlyDisconnectedRef = useRef(false);
   const [storedTelegram, setStoredTelegram] = useState('');
-  const cleanConnected = isDisconnectedRef.current
+  const cleanConnected = (isDisconnected || userExplicitlyDisconnectedRef.current)
     ? ''
     : extractTelegram(telegramUsername, myTgStatus?.telegramUsername, storedTelegram);
   const [tgLoading, setTgLoading] = useState(false);
@@ -317,7 +320,45 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     let isMounted = true;
     (async () => {
       try {
-        const uid = await getUserId().catch(() => null);
+        // If user explicitly disconnected in this session, never resurrect from stale props or query cache!
+        if (userExplicitlyDisconnectedRef.current || isDisconnected) {
+          if (isMounted) {
+            setIsDisconnected(true);
+            setStoredTelegram('');
+          }
+          return;
+        }
+
+        const uid = (await AsyncStorage.getItem('userId').catch(() => null)) || (await getUserId().catch(() => null));
+        const [isDiscUid, isDiscGlobal] = await Promise.all([
+          uid ? AsyncStorage.getItem(`@amara_telegram_disconnected_${uid}`).catch(() => null) : null,
+          AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null),
+        ]);
+        if (isDiscUid === 'true' || isDiscGlobal === 'true') {
+          if (isMounted) {
+            setIsDisconnected(true);
+            setStoredTelegram('');
+          }
+          return;
+        }
+
+        // If a valid telegram handle exists in props or backend status, it is active: clear stale disconnect flags
+        const effectivePropTg = extractTelegram(telegramUsername, myTgStatus?.telegramUsername);
+        if (effectivePropTg) {
+          await AsyncStorage.removeItem('@amara_telegram_disconnected_global').catch(() => {});
+          if (uid) {
+            await AsyncStorage.removeItem(`@amara_telegram_disconnected_${uid}`).catch(() => {});
+          }
+          if (isMounted) {
+            setIsDisconnected(false);
+            setStoredTelegram(effectivePropTg);
+            if (!telegramUsername) {
+              setTelegramUsername(effectivePropTg);
+            }
+          }
+          return;
+        }
+
         const [uTg, atTg, legTg, legAtTg] = await Promise.all([
           uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
           uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
@@ -342,15 +383,15 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [telegramUsername, setTelegramUsername]);
+  }, [isDisconnected, telegramUsername, setTelegramUsername, myTgStatus?.telegramUsername]);
 
   useEffect(() => {
-    if (isDisconnectedRef.current) return;
+    if (isDisconnected || userExplicitlyDisconnectedRef.current) return;
     const resolved = extractTelegram(myTgStatus?.telegramUsername, storedTelegram);
     if (resolved && !telegramUsername) {
       setTelegramUsername(resolved);
     }
-  }, [myTgStatus?.telegramUsername, storedTelegram, telegramUsername, setTelegramUsername]);
+  }, [isDisconnected, myTgStatus?.telegramUsername, storedTelegram, telegramUsername, setTelegramUsername]);
 
   // When returning from Telegram app to Amara, automatically refresh status
   useEffect(() => {
@@ -376,10 +417,16 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   };
 
   const handleConnectTelegramPress = async () => {
-    isDisconnectedRef.current = false;
+    userExplicitlyDisconnectedRef.current = false;
+    setIsDisconnected(false);
     setTgLoading(true);
     // 1. Fetch bot link with 1-click user connect parameter (?start=USER_{userId})
     try {
+      const uid = (await AsyncStorage.getItem('userId').catch(() => null)) || (await getUserId().catch(() => null));
+      if (uid) {
+        await AsyncStorage.removeItem(`@amara_telegram_disconnected_${uid}`).catch(() => {});
+      }
+      await AsyncStorage.removeItem('@amara_telegram_disconnected_global').catch(() => {});
       const botLink = await fetchAmaraBotLink();
       await openAmaraBot(botLink);
     } catch {
@@ -391,17 +438,63 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
   };
 
   const handleDisconnectTelegram = async () => {
-    isDisconnectedRef.current = true;
+    userExplicitlyDisconnectedRef.current = true;
+    setIsDisconnected(true);
     setTgLoading(true);
     setTelegramUsername('');
     setStoredTelegram('');
+
     try {
-      await disconnectTelegram.mutateAsync({ userId: '' });
+      const uid = (await AsyncStorage.getItem('userId').catch(() => null)) || (await getUserId().catch(() => null));
+      await AsyncStorage.setItem('@amara_telegram_disconnected_global', 'true').catch(() => {});
+      if (uid) {
+        await AsyncStorage.setItem(`@amara_telegram_disconnected_${uid}`, 'true').catch(() => {});
+        await AsyncStorage.multiRemove([
+          `user_telegram_${uid}`,
+          `@telegram_username_${uid}`,
+        ]).catch(() => {});
+      }
+      await AsyncStorage.multiRemove([
+        '@telegram_username',
+        'telegramUsername',
+        'telegramLink',
+      ]).catch(() => {});
+
+      // Synchronously clear react-query cache so UI stays disconnected on first click
+      queryClient.setQueriesData({ queryKey: ['my-telegram-status'] }, {
+        telegramUsername: '',
+        telegramLink: '',
+        isConnected: false,
+      });
+      queryClient.setQueryData(['my-telegram-status', 'current'], {
+        telegramUsername: '',
+        telegramLink: '',
+        isConnected: false,
+      });
+      if (uid) {
+        queryClient.setQueryData(['my-telegram-status', uid], {
+          telegramUsername: '',
+          telegramLink: '',
+          isConnected: false,
+        });
+      }
+      queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+        if (!old) return old;
+        return { ...old, telegramUsername: '', telegram: '' };
+      });
+      queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+        if (!old) return old;
+        return { ...old, telegramUsername: '', telegram: '' };
+      });
+
+      await disconnectTelegram.mutateAsync({ userId: uid || undefined });
       await refetchTgStatus?.();
+      alert(
+        t('profile.contactdetails.telegram_disconnected_title', { defaultValue: 'Telegram Disconnected' }),
+        t('profile.contactdetails.telegram_disconnected_desc', { defaultValue: 'Your Telegram account has been disconnected.' })
+      );
     } catch (error: any) {
       console.warn('Telegram Disconnect Error:', error);
-      setTelegramUsername('');
-      setStoredTelegram('');
     } finally {
       setTgLoading(false);
     }
@@ -446,6 +539,9 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
     setSendingOtp(true);
     setOtpError('');
     setInlineOtp('');
+    await AsyncStorage.removeItem('whatsapp_otp_session_id').catch(() => null);
+    setSessionId('');
+    sessionIdRef.current = '';
     try {
       const res = await sendWhatsappOtp.mutateAsync({ mobile: fullPhone });
       const sid = extractSessionIdFromResponse(res);
@@ -455,7 +551,8 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
         await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
       }
       setOtpSent(true);
-      setCountdown(30);
+      const cooldown = res?.data?.resendAfterSeconds || res?.resendAfterSeconds || 30;
+      setCountdown(cooldown);
       alert(
         t('profile.phone_otp.code_sent_title', { defaultValue: 'Code Sent' }),
         t('profile.phone_otp.new_code_sent_desc', {
@@ -525,15 +622,28 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
       );
     } catch (err: any) {
       const rawMsg = String(err?.response?.data?.message || err?.response?.data?.error || err?.message || '');
-      const isExpiredOrInvalidSession =
-        rawMsg.toLowerCase().includes('session') ||
-        rawMsg.toLowerCase().includes('expired') ||
-        rawMsg.toLowerCase().includes('invalid');
+      const lower = rawMsg.toLowerCase();
+      const isActuallyExpiredSession =
+        (lower.includes('session') && (lower.includes('expired') || lower.includes('not found') || lower.includes('invalid session'))) ||
+        lower.includes('session has expired');
 
-      if (isExpiredOrInvalidSession) {
+      const isInvalidOtp =
+        lower.includes('invalid otp') ||
+        lower.includes('incorrect otp') ||
+        lower.includes('wrong otp') ||
+        lower.includes('invalid code') ||
+        lower.includes('incorrect code');
+
+      if (isActuallyExpiredSession) {
         setOtpError(
           t('profile.phone_otp.session_expired_action', {
             defaultValue: 'This verification session has expired. Please tap "Resend Code" above to receive a fresh code.',
+          })
+        );
+      } else if (isInvalidOtp) {
+        setOtpError(
+          t('profile.phone_otp.invalid_code', {
+            defaultValue: 'Invalid verification code. Please check the code sent to your WhatsApp and try again.',
           })
         );
       } else {
@@ -735,25 +845,23 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
                       <Icon name="alert-circle-outline" size={14} color="#EF4444" style={{ marginRight: 4, marginTop: 1 }} />
                       <Text style={styles.inlineOtpErrorText}>{otpError}</Text>
                     </View>
-                    {(otpError.toLowerCase().includes('expired') || otpError.toLowerCase().includes('session')) && (
-                      <TouchableOpacity
-                        style={[styles.resendActionBtn, sendingOtp && { opacity: 0.7 }]}
-                        onPress={handleSendOtpInline}
-                        disabled={sendingOtp}
-                        activeOpacity={0.8}
-                      >
-                        {sendingOtp ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <>
-                            <Icon name="refresh" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                            <Text style={styles.resendActionBtnText}>
-                              {t('profile.phone_otp.resend_code_now', { defaultValue: 'Resend Code Now' })}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                      style={[styles.resendActionBtn, sendingOtp && { opacity: 0.7 }]}
+                      onPress={handleSendOtpInline}
+                      disabled={sendingOtp}
+                      activeOpacity={0.8}
+                    >
+                      {sendingOtp ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Icon name="refresh" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          <Text style={styles.resendActionBtnText}>
+                            {t('profile.phone_otp.resend_code_now', { defaultValue: 'Resend Code Now' })}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>

@@ -7,6 +7,7 @@ import { getUserId } from '../utils/sessionHelper';
 import { getAuthSession, repairStoredSessionIdentity } from '../utils/session';
 import { t } from '../i18n';
 import { generateDeterministicMobile } from '../utils/authPayload';
+import { parseDobToLocalDate, formatDateToDobString, calculateAgeFromDob, isValidAdultDob } from '../utils/dateUtils';
 
 const allowedFields = [
   'name',
@@ -182,21 +183,28 @@ const normalizeProfile = (payload: any) => {
   const resolvedDisplayName = rawDisplayName || rawName || '';
   const resolvedName = (rawName && rawName.toLowerCase() !== 'user') ? rawName : (rawDisplayName || rawName || '');
 
-  let computedAgeFromDob: number | null = null;
-  if (source?.dob) {
-    try {
-      const dobDate = new Date(source.dob);
-      if (!isNaN(dobDate.getTime())) {
-        const today = new Date();
-        let calcAge = today.getFullYear() - dobDate.getFullYear();
-        const m = today.getMonth() - dobDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
-          calcAge -= 1;
-        }
-        if (calcAge > 0) computedAgeFromDob = calcAge;
-      }
-    } catch {}
-  }
+  const rawDob = [
+    source?.dob,
+    source?.dateOfBirth,
+    source?.birthDate,
+    source?.birthday,
+    payloadSource?.dob,
+    payloadSource?.dateOfBirth,
+    payloadSource?.birthDate,
+    payloadSource?.birthday,
+    nestedProfile?.dob,
+    nestedProfile?.dateOfBirth,
+    nestedProfile?.birthDate,
+    nestedProfile?.birthday,
+    nestedUser?.dob,
+    nestedUser?.dateOfBirth,
+    nestedUser?.birthDate,
+    nestedUser?.birthday,
+  ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+
+  const resolvedDob = rawDob ? formatDateToDobString(rawDob) : null;
+  const computedAgeFromDob = resolvedDob ? calculateAgeFromDob(resolvedDob) : null;
+
   const resolvedAge = source?.age !== undefined && source?.age !== null && source?.age !== '' && Number(source.age) > 0
     ? numberOrZero(source.age)
     : (computedAgeFromDob || null);
@@ -232,7 +240,7 @@ const normalizeProfile = (payload: any) => {
     displayName: resolvedDisplayName,
     email: source?.email ? String(source.email) : '',
     bio: source?.bio ? String(source.bio) : (source?.description ? String(source.description) : ''),
-    dob: source?.dob ? String(source.dob) : null,
+    dob: resolvedDob,
     age: resolvedAge,
     gender: source?.gender ? String(source.gender) : null,
     orientation: source?.orientation ? String(source.orientation) : null,
@@ -371,6 +379,20 @@ export const useMyProfile = (uid?: any) => {
               norm.phone = fallbackP;
               norm.phoneNumber = fallbackP;
               norm.mobileNumber = fallbackP;
+            }
+          }
+          const [storedDobGlobal, storedDobScoped] = await Promise.all([
+            AsyncStorage.getItem('userDob').catch(() => null),
+            resolvedUserId ? AsyncStorage.getItem(`user_dob_${resolvedUserId}`).catch(() => null) : null,
+          ]);
+          const localStoredDob = storedDobScoped || storedDobGlobal || null;
+          if (localStoredDob) {
+            norm.dob = formatDateToDobString(localStoredDob);
+            norm.age = calculateAgeFromDob(localStoredDob);
+          } else if (norm.dob) {
+            norm.dob = formatDateToDobString(norm.dob);
+            if (!norm.age) {
+              norm.age = calculateAgeFromDob(norm.dob);
             }
           }
           setData(norm);
@@ -708,8 +730,8 @@ export const useProfile = () => {
       );
       const effectivePhone = String(rawPhone || '').trim();
 
-      const cleanTelegram = data.telegramUsername
-        ? String(data.telegramUsername).trim().replace(/^@+/, '')
+      const cleanTelegram = data.telegramUsername !== undefined
+        ? (String(data.telegramUsername).trim() ? String(data.telegramUsername).trim().replace(/^@+/, '') : 'NONE')
         : undefined;
 
       // Spring Boot ProfileUpdateRequest schema strictly supports:
@@ -731,19 +753,15 @@ export const useProfile = () => {
         cleanPayload.bio = data.bio;
       }
       if (data.dob) {
-        const d = new Date(data.dob);
-        if (!isNaN(d.getTime())) {
-          const today = new Date();
-          let age = today.getFullYear() - d.getFullYear();
-          const m = today.getMonth() - d.getMonth();
-          if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
-            age -= 1;
-          }
-          if (age < 18) {
-            throw new Error('You must be at least 18 years old.');
-          }
+        const cleanDob = formatDateToDobString(data.dob);
+        const age = calculateAgeFromDob(cleanDob);
+        if (age < 18) {
+          throw new Error('You must be at least 18 years old.');
         }
-        cleanPayload.dob = data.dob;
+        cleanPayload.dob = cleanDob;
+        if (!cleanPayload.age) {
+          cleanPayload.age = age;
+        }
       }
       if (data.age !== undefined && data.age !== null) {
         const numericAge = Number(data.age);
@@ -755,7 +773,7 @@ export const useProfile = () => {
       if (hasPhoneField) {
         cleanPayload.mobile = effectivePhone;
       }
-      if (cleanTelegram) {
+      if (cleanTelegram !== undefined) {
         cleanPayload.telegramUsername = cleanTelegram;
       }
       if (data.gender) {
@@ -809,6 +827,10 @@ export const useProfile = () => {
       // 5. Telegram: POST /telegram/connect?userId={userId}&username={username}
       // Sending unexpected fields like 'name', 'dob', 'mobile' to UpdateBasicDTO causes
       // Spring Jackson deserialization errors (HTTP 400 Bad Request).
+      const computedAgeToSave = cleanPayload.age
+        ? Number(cleanPayload.age)
+        : (cleanPayload.dob ? calculateAgeFromDob(cleanPayload.dob) : 21);
+
       const basicPayload: {
         userId: number;
         displayName: string;
@@ -818,20 +840,62 @@ export const useProfile = () => {
         userId: numericUserId,
         displayName: String(cleanPayload.displayName || cleanPayload.name || 'User').trim(),
         bio: String(cleanPayload.bio || '').trim(),
-        age: Number(cleanPayload.age) || 21,
+        age: computedAgeToSave,
       };
 
       let basicResponseData: any = null;
 
-      // 1. Call comprehensive PUT /profile/update so all fields (name, displayName, bio, dob, age, mobile, telegramUsername) persist
+      // 1. Persist directly into the backend database via /profile/{userId}/setup
+      // In Spring Boot OpenAPI, ProfileRequestDTO is the single schema containing `dob`.
+      const setupDto: Record<string, any> = {
+        displayName: String(cleanPayload.displayName || cleanPayload.name || 'User').trim(),
+        bio: String(cleanPayload.bio || '').trim(),
+        dob: cleanPayload.dob ? formatDateToDobString(cleanPayload.dob) : undefined,
+        age: computedAgeToSave,
+      };
+      if (cleanPayload.gender) setupDto.gender = String(cleanPayload.gender);
+      if (cleanPayload.orientation) setupDto.orientation = String(cleanPayload.orientation);
+      if (cleanPayload.language) setupDto.language = String(cleanPayload.language);
+      if (cleanPayload.appearance) setupDto.appearance = String(cleanPayload.appearance);
+      if (cleanPayload.bodyType) setupDto.bodyType = String(cleanPayload.bodyType);
+      if (cleanPayload.height !== undefined && cleanPayload.height !== null) setupDto.height = Number(cleanPayload.height);
+      if (cleanPayload.englishLevel) setupDto.englishLevel = String(cleanPayload.englishLevel);
+      if (cleanPayload.ethnicity) setupDto.ethnicity = String(cleanPayload.ethnicity);
+      if (cleanPayload.lookingFor) setupDto.lookingFor = String(cleanPayload.lookingFor);
+      if (cleanPayload.smoke) setupDto.smoke = String(cleanPayload.smoke);
+      if (cleanPayload.drink) setupDto.drink = String(cleanPayload.drink);
+
       try {
-        const updateRes = await apiClient.put('/profile/update', cleanPayload);
-        basicResponseData = updateRes.data;
-      } catch (updateErr: any) {
-        console.warn('[updateProfile] /profile/update failed:', updateErr?.message);
+        const setupRes = await apiClient.post(`/profile/${numericUserId}/setup`, setupDto, {
+          params: { ...setupDto, dto: JSON.stringify(setupDto) },
+        });
+        if (setupRes?.data) basicResponseData = setupRes.data;
+      } catch (setupErr: any) {
+        try {
+          const form = new FormData();
+          Object.entries(setupDto).forEach(([k, v]) => {
+            if (v !== undefined && v !== null) form.append(k, String(v));
+          });
+          const formRes = await apiClient.post(`/profile/${numericUserId}/setup`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            params: { ...setupDto, dto: JSON.stringify(setupDto) },
+          });
+          if (formRes?.data) basicResponseData = formRes.data;
+        } catch {}
       }
 
-      // 2. Also call PUT /profile/update-basic to maintain compatibility with backend services
+      // 2. Call comprehensive PUT /profile/update so all fields (name, displayName, bio, dob, age, mobile, telegramUsername) persist
+      try {
+        const updateRes = await apiClient.put('/profile/update', cleanPayload);
+        if (!basicResponseData) basicResponseData = updateRes.data;
+      } catch (updateErr: any) {
+        try {
+          const postRes = await apiClient.post('/profile/update', cleanPayload);
+          if (!basicResponseData) basicResponseData = postRes.data;
+        } catch {}
+      }
+
+      // 3. Also call PUT /profile/update-basic to maintain compatibility with backend services
       try {
         const basicRes = await apiClient.put('/profile/update-basic', basicPayload);
         if (!basicResponseData) basicResponseData = basicRes.data;
@@ -932,6 +996,30 @@ export const useProfile = () => {
             mobileNumber: cleanPhone,
           };
         });
+      }
+      if (variables?.dob) {
+        const cleanDob = formatDateToDobString(variables.dob);
+        const computedAge = calculateAgeFromDob(cleanDob);
+        queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            dob: cleanDob,
+            age: variables.age || computedAge,
+          };
+        });
+        queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            dob: cleanDob,
+            age: variables.age || computedAge,
+          };
+        });
+        await AsyncStorage.setItem('userDob', cleanDob);
+        if (uid) {
+          await AsyncStorage.setItem(`user_dob_${uid}`, cleanDob);
+        }
       }
       await invalidateProfile(uid);
     },
@@ -1116,7 +1204,11 @@ export const extractSessionIdFromResponse = (res: any): string => {
         return extractSessionIdFromResponse(JSON.parse(trimmed));
       } catch {}
     }
-    return trimmed;
+    // Only accept if it looks like an actual session ID/UUID (alphanumeric, no spaces, length >= 8)
+    if (/^[a-zA-Z0-9_-]{8,}$/.test(trimmed)) {
+      return trimmed;
+    }
+    return '';
   }
   const cand =
     res.sessionId ||
@@ -1124,30 +1216,35 @@ export const extractSessionIdFromResponse = (res: any): string => {
     res.SessionId ||
     res.otpSessionId ||
     res.otp_session_id ||
-    res.id ||
     res.token ||
     res.data?.sessionId ||
     res.data?.session_id ||
     res.data?.SessionId ||
     res.data?.otpSessionId ||
     res.data?.otp_session_id ||
-    res.data?.id ||
     res.data?.token ||
-    (typeof res.data === 'string' ? res.data : '') ||
     '';
-  return typeof cand === 'string' ? cand.trim() : String(cand || '').trim();
+  const val = typeof cand === 'string' ? cand.trim() : String(cand || '').trim();
+  if (val && /^[a-zA-Z0-9_-]{8,}$/.test(val)) {
+    return val;
+  }
+  return '';
 };
 
 export const useSendWhatsappOtp = () => {
   return useMutation<any, Error, SendWhatsappOtpInput>({
     mutationFn: async ({ mobile }) => {
-      const cleanMobile = mobile.trim();
+      const cleanMobile = String(mobile || '').trim();
       const noSpace = cleanMobile.replace(/\s+/g, '');
       const digitsOnly = cleanMobile.replace(/\D/g, '');
       const withPlus = noSpace.startsWith('+') ? noSpace : `+${digitsOnly}`;
 
+      // Clear any prior stale session ID before dispatching a fresh OTP request
+      await AsyncStorage.removeItem('whatsapp_otp_session_id').catch(() => null);
+
+      // Backend expects: { "mobile": "+91 98765 43210" } or withPlus
       const payload = {
-        mobile: withPlus,
+        mobile: cleanMobile.startsWith('+') ? cleanMobile : withPlus,
         phoneNumber: withPlus,
         phone: withPlus,
       };
@@ -1155,10 +1252,14 @@ export const useSendWhatsappOtp = () => {
       try {
         const res = await apiClient.post('/profile/whatsapp/send-otp', payload);
         const sid = extractSessionIdFromResponse(res?.data || res);
+        const serverMobile = res?.data?.mobile || (res as any)?.mobile || '';
         if (sid) {
           await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
         }
-        return res.data;
+        if (serverMobile) {
+          await AsyncStorage.setItem('whatsapp_otp_server_mobile', String(serverMobile).trim()).catch(() => null);
+        }
+        return res?.data ?? res;
       } catch (err: any) {
         const status = Number(err?.response?.status || 0);
         if (status === 404 || status === 405) {
@@ -1168,14 +1269,14 @@ export const useSendWhatsappOtp = () => {
             if (sid) {
               await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
             }
-            return fallback.data;
+            return fallback?.data ?? fallback;
           } catch {
             const fallback2 = await apiClient.post('/profile/send-whatsapp-otp', payload);
             const sid = extractSessionIdFromResponse(fallback2?.data || fallback2);
             if (sid) {
               await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
             }
-            return fallback2.data;
+            return fallback2?.data ?? fallback2;
           }
         }
         throw err;
@@ -1187,68 +1288,70 @@ export const useSendWhatsappOtp = () => {
 export const useVerifyWhatsappOtp = () => {
   return useMutation<any, Error, VerifyWhatsappOtpInput>({
     mutationFn: async ({ mobile, otp, sessionId }) => {
-      const cleanMobile = mobile.trim();
+      const cleanMobile = String(mobile || '').trim();
       const noSpace = cleanMobile.replace(/\s+/g, '');
       const digitsOnly = cleanMobile.replace(/\D/g, '');
       const withPlus = noSpace.startsWith('+') ? noSpace : `+${digitsOnly}`;
-      const cleanOtp = String(otp).trim();
-
-      const effectiveSessionId =
-        sessionId?.trim() ||
-        (await AsyncStorage.getItem('whatsapp_otp_session_id').catch(() => null))?.trim() ||
-        '';
-
-      const payload: Record<string, any> = {
-        mobile: withPlus,
-        phoneNumber: withPlus,
-        phone: withPlus,
-        otp: cleanOtp,
-      };
-
-      if (effectiveSessionId) {
-        payload.sessionId = effectiveSessionId;
-        payload.session_id = effectiveSessionId;
-        payload.otpSessionId = effectiveSessionId;
-      }
-
-      // The OTP could be verified by /auth/verify-otp or /profile/whatsapp/verify
-      // with either +919014701586 or national digits 9014701586, with or without sessionId.
       const national10 = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly;
-      const mobileVariants = Array.from(new Set([withPlus, national10, digitsOnly])).filter(Boolean);
+      const cleanOtp = String(otp || '').trim();
+
+      const storedSid = (await AsyncStorage.getItem('whatsapp_otp_session_id').catch(() => null))?.trim() || '';
+      const storedServerMobile = (await AsyncStorage.getItem('whatsapp_otp_server_mobile').catch(() => null))?.trim() || '';
+
+      const effectiveSessionId = sessionId?.trim() || storedSid;
+
+      const currentUid = (await AsyncStorage.getItem('userId').catch(() => null)) || (await getUserId().catch(() => null));
+      const numericUserId = currentUid && Number.isFinite(Number(currentUid)) ? Number(currentUid) : undefined;
+
+      // Candidate mobile formats to try against backend to guarantee match with DB
+      const mobileCandidates = Array.from(
+        new Set([
+          withPlus,                // e.g. "+919014701586" (standard E.164)
+          cleanMobile,             // e.g. "+91 9014701586" (spaced format)
+          storedServerMobile,      // e.g. "919014701586" (from server send-otp response data.mobile)
+          national10,              // e.g. "9014701586" (10-digit national number)
+          digitsOnly,              // e.g. "919014701586" (all digits)
+        ])
+      ).filter(Boolean);
+
+      const saveSuccessfulVerification = async (resData: any) => {
+        await AsyncStorage.multiRemove(['whatsapp_otp_session_id', 'whatsapp_otp_server_mobile']).catch(() => null);
+        await AsyncStorage.setItem('userMobile', cleanMobile).catch(() => null);
+        await AsyncStorage.setItem('phoneNumber', cleanMobile).catch(() => null);
+        await AsyncStorage.setItem('isPhoneVerified', 'true').catch(() => null);
+        await AsyncStorage.setItem('whatsappVerified', 'true').catch(() => null);
+        return resData;
+      };
 
       const verificationAttempts: Array<() => Promise<any>> = [];
 
-      // 1. Try /auth/verify-otp (matches /auth/send-otp that dispatched the SMS)
-      for (const m of mobileVariants) {
+      for (const m of mobileCandidates) {
+        // 1. POST /profile/whatsapp/verify-otp with sessionId (if available)
         if (effectiveSessionId) {
           verificationAttempts.push(() =>
-            apiClient.post('/auth/verify-otp', {
+            apiClient.post('/profile/whatsapp/verify-otp', {
               mobile: m,
-              otp: cleanOtp,
               sessionId: effectiveSessionId,
-              session_id: effectiveSessionId,
+              otp: cleanOtp,
             })
           );
         }
+        // 2. POST /profile/whatsapp/verify-otp without sessionId
         verificationAttempts.push(() =>
-          apiClient.post('/auth/verify-otp', {
+          apiClient.post('/profile/whatsapp/verify-otp', {
             mobile: m,
             otp: cleanOtp,
           })
         );
-      }
-
-      // 2. Try /profile/whatsapp/verify
-      for (const m of mobileVariants) {
+        // 3. POST /profile/whatsapp/verify
         if (effectiveSessionId) {
           verificationAttempts.push(() =>
             apiClient.post('/profile/whatsapp/verify', {
               mobile: m,
               phoneNumber: m,
               phone: m,
-              otp: cleanOtp,
               sessionId: effectiveSessionId,
-              session_id: effectiveSessionId,
+              otp: cleanOtp,
             })
           );
         }
@@ -1260,25 +1363,42 @@ export const useVerifyWhatsappOtp = () => {
             otp: cleanOtp,
           })
         );
+        // 4. POST /auth/verify-otp with userId (matching OpenAPI MsgVerifyOtp: { userId, mobile, otp })
+        if (numericUserId) {
+          verificationAttempts.push(() =>
+            apiClient.post('/auth/verify-otp', {
+              userId: numericUserId,
+              mobile: m,
+              otp: cleanOtp,
+              ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}),
+            })
+          );
+        }
+        // 5. POST /auth/verify-otp with mobile and otp
+        verificationAttempts.push(() =>
+          apiClient.post('/auth/verify-otp', {
+            mobile: m,
+            otp: cleanOtp,
+            ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}),
+          })
+        );
       }
-
-      // 3. Fallback to /profile/verify-whatsapp-otp
-      verificationAttempts.push(() =>
-        apiClient.post('/profile/verify-whatsapp-otp', payload)
-      );
 
       let lastError: any = null;
       for (const attempt of verificationAttempts) {
         try {
           const res = await attempt();
           if (res?.data || res?.status === 200 || res?.status === 201) {
-            await AsyncStorage.removeItem('whatsapp_otp_session_id').catch(() => null);
-            return res.data || res;
+            return await saveSuccessfulVerification(res.data || res);
           }
         } catch (err: any) {
           lastError = err;
           const status = Number(err?.response?.status || 0);
-          // If 401 Unauthorized or other fatal errors, keep going through remaining variants
+          const rawMsg = String(err?.response?.data?.message || err?.message || '').toLowerCase();
+          // If the OTP itself is wrong or conflicting phone number, stop immediately
+          if (rawMsg.includes('wrong') || rawMsg.includes('incorrect') || status === 409) {
+            throw err;
+          }
           continue;
         }
       }

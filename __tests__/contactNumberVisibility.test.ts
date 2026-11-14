@@ -85,4 +85,89 @@ describe('Contact Number Visibility and Fallback Tests', () => {
 
     expect(selfPhone).toBe('+919876543210');
   });
+
+  describe('Female Contact Privacy (Glambu / Amara Rule)', () => {
+    const normalizeTextValue = (val: unknown): string => {
+      if (val === undefined || val === null) return '';
+      const s = String(val).trim();
+      return s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined' ? '' : s;
+    };
+
+    it('masks female contact details when a male user views her profile before invitation acceptance', () => {
+      const isViewingSelf = false;
+      const isViewerWoman = false;
+      const isAcceptedMatch = false; // Not accepted yet!
+
+      const routed = {
+        id: 999,
+        name: 'Priya',
+        gender: 'female',
+        telegramUsername: 'priya_amara',
+        phoneNumber: '+919876543210',
+        mobile: '+919876543210',
+      };
+
+      const resolvedTelegram = isViewingSelf
+        ? normalizeTextValue(routed?.telegramUsername)
+        : (isViewerWoman || !isAcceptedMatch ? '' : normalizeTextValue(routed?.telegramUsername));
+
+      const resolvedPhone = isViewingSelf
+        ? normalizeTextValue(routed?.phoneNumber)
+        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile)));
+
+      expect(resolvedTelegram).toBe('');
+      expect(resolvedPhone).toBe('');
+    });
+
+    it('unmasks female contact details when an invitation is accepted and viewer is male', () => {
+      const isViewingSelf = false;
+      const isViewerWoman = false;
+      const isAcceptedMatch = true; // Accepted!
+
+      const routed = {
+        id: 999,
+        name: 'Priya',
+        gender: 'female',
+        telegramUsername: 'priya_amara',
+        phoneNumber: '+919876543210',
+        mobile: '+919876543210',
+      };
+
+      const resolvedTelegram = isViewingSelf
+        ? normalizeTextValue(routed?.telegramUsername)
+        : (isViewerWoman || !isAcceptedMatch ? '' : normalizeTextValue(routed?.telegramUsername));
+
+      const resolvedPhone = isViewingSelf
+        ? normalizeTextValue(routed?.phoneNumber)
+        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile)));
+
+      expect(resolvedTelegram).toBe('priya_amara');
+      expect(resolvedPhone).toBe('+919876543210');
+    });
+
+    it('never reveals male contact details to a female viewer even if match is accepted', () => {
+      const isViewingSelf = false;
+      const isViewerWoman = true; // Viewer is woman!
+      const isAcceptedMatch = true;
+
+      const routed = {
+        id: 111,
+        name: 'Rahul',
+        gender: 'male',
+        telegramUsername: 'rahul_amara',
+        phoneNumber: '+919876543210',
+      };
+
+      const resolvedTelegram = isViewingSelf
+        ? normalizeTextValue(routed?.telegramUsername)
+        : (isViewerWoman || !isAcceptedMatch ? '' : normalizeTextValue(routed?.telegramUsername));
+
+      const resolvedPhone = isViewingSelf
+        ? normalizeTextValue(routed?.phoneNumber)
+        : (isViewerWoman || !isAcceptedMatch ? '' : normalizeTextValue(routed?.phoneNumber));
+
+      expect(resolvedTelegram).toBe('');
+      expect(resolvedPhone).toBe('');
+    });
+  });
 });

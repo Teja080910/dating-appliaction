@@ -98,6 +98,7 @@ export const useTelegram = () => {
         await AsyncStorage.setItem(`@telegram_username_${resolvedUserId}`, normalizedUsername);
         await AsyncStorage.removeItem(`@amara_telegram_disconnected_${resolvedUserId}`).catch(() => {});
       }
+      await AsyncStorage.removeItem('@amara_telegram_disconnected_global').catch(() => {});
       // Purge legacy global keys so no other user on this device sees this username
       await AsyncStorage.multiRemove(['@telegram_username', 'telegramUsername']).catch(() => {});
       return normalizeTelegramResponse(res.data);
@@ -173,6 +174,7 @@ export const useTelegram = () => {
         'telegramUsername',
         'telegramLink',
       ]).catch(() => {});
+      await AsyncStorage.setItem('@amara_telegram_disconnected_global', 'true').catch(() => {});
 
       return normalizeTelegramResponse(resData || { status: 'success' });
     },
@@ -190,6 +192,19 @@ export const useTelegram = () => {
         telegramUsername: '',
         telegramLink: '',
         isConnected: false,
+      });
+
+      queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+        if (!old) return old;
+        return { ...old, telegramUsername: '', telegram: '' };
+      });
+      queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+        if (!old) return old;
+        return { ...old, telegramUsername: '', telegram: '' };
+      });
+      queryClient.setQueriesData({ queryKey: ['profile'] }, (old: any) => {
+        if (!old) return old;
+        return { ...old, telegramUsername: '', telegram: '' };
       });
 
       queryClient.invalidateQueries({ queryKey: ['my-telegram-status'] });
@@ -432,16 +447,6 @@ export const useMyTelegramStatus = (userIdCandidate?: string | number | null) =>
       let resolvedUserId: string | number = '';
       try {
         resolvedUserId = await resolveBackendTelegramUserId(userIdCandidate ?? undefined);
-        const isDisconnected = await AsyncStorage.getItem(
-          `@amara_telegram_disconnected_${resolvedUserId}`
-        ).catch(() => null);
-        if (isDisconnected === 'true') {
-          return {
-            telegramUsername: '',
-            telegramLink: '',
-            isConnected: false,
-          };
-        }
 
         const res = await apiClient.get('/telegram/link', {
           params: { userId: resolvedUserId },
@@ -489,6 +494,31 @@ export const useMyTelegramStatus = (userIdCandidate?: string | number | null) =>
           cleanUsername = '';
         }
 
+        if (cleanUsername) {
+          // Backend confirmed connected: clear any stale disconnect flags
+          await AsyncStorage.removeItem('@amara_telegram_disconnected_global').catch(() => {});
+          if (resolvedUserId) {
+            await AsyncStorage.removeItem(`@amara_telegram_disconnected_${resolvedUserId}`).catch(() => {});
+          }
+          return {
+            telegramUsername: cleanUsername,
+            telegramLink: telegramLink || `https://t.me/${cleanUsername}`,
+            isConnected: true,
+          };
+        }
+
+        const isDiscGlobal = await AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null);
+        const isDisconnected = resolvedUserId
+          ? await AsyncStorage.getItem(`@amara_telegram_disconnected_${resolvedUserId}`).catch(() => null)
+          : null;
+        if (isDiscGlobal === 'true' || isDisconnected === 'true') {
+          return {
+            telegramUsername: '',
+            telegramLink: '',
+            isConnected: false,
+          };
+        }
+
         // If /telegram/link only returned the bot link without the user's handle, check stored keys & profile
         if (!cleanUsername && resolvedUserId) {
           const [uTg, atTg, legTg, legAtTg] = await Promise.all([
@@ -514,6 +544,16 @@ export const useMyTelegramStatus = (userIdCandidate?: string | number | null) =>
           isConnected: Boolean(cleanUsername),
         };
       } catch {
+        const isDiscGlobal = await AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null);
+        const isDiscUid = resolvedUserId ? await AsyncStorage.getItem(`@amara_telegram_disconnected_${resolvedUserId}`).catch(() => null) : null;
+        if (isDiscGlobal === 'true' || isDiscUid === 'true') {
+          return {
+            telegramUsername: '',
+            telegramLink: '',
+            isConnected: false,
+          };
+        }
+
         const [uTg, atTg, legTg, legAtTg] = await Promise.all([
           resolvedUserId ? AsyncStorage.getItem(`user_telegram_${resolvedUserId}`).catch(() => null) : null,
           resolvedUserId ? AsyncStorage.getItem(`@telegram_username_${resolvedUserId}`).catch(() => null) : null,
