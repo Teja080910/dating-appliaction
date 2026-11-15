@@ -189,9 +189,19 @@ const ViewMyProfileScreen = () => {
           activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
         ]);
         if (isMounted) {
-          const effPhone = p3 || p1 || p2 || '';
-          if (effPhone) setStoredPhone(effPhone);
-          if (tg) setStoredTelegram(tg.replace(/^@+/, ''));
+          const isPhoneRemovedGlobal = (await AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null)) === 'true';
+          const isPhoneRemovedUid = activeUid ? (await AsyncStorage.getItem(`@amara_phone_removed_${activeUid}`).catch(() => null)) === 'true' : false;
+          const isPhoneRemoved = isPhoneRemovedGlobal || isPhoneRemovedUid;
+
+          const isTgRemovedGlobal = (await AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null)) === 'true';
+          const isTgRemovedUid = activeUid ? (await AsyncStorage.getItem(`@amara_telegram_disconnected_${activeUid}`).catch(() => null)) === 'true' : false;
+          const isTgRemoved = isTgRemovedGlobal || isTgRemovedUid;
+
+          const effPhone = isPhoneRemoved ? '' : (p3 || p1 || p2 || '');
+          const effTg = isTgRemoved ? '' : (tg ? tg.replace(/^@+/, '') : '');
+
+          setStoredPhone(effPhone);
+          setStoredTelegram(effTg);
         }
       } catch {}
     })();
@@ -506,9 +516,19 @@ const ViewMyProfileScreen = () => {
           activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
           activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
         ]);
-        const effPhone = p3 || p1 || p2 || '';
-        if (effPhone) setStoredPhone(effPhone);
-        if (tg) setStoredTelegram(tg.replace(/^@+/, ''));
+        const isPhoneRemovedGlobal = (await AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null)) === 'true';
+        const isPhoneRemovedUid = activeUid ? (await AsyncStorage.getItem(`@amara_phone_removed_${activeUid}`).catch(() => null)) === 'true' : false;
+        const isPhoneRemoved = isPhoneRemovedGlobal || isPhoneRemovedUid || event?.phoneNumber === '';
+
+        const isTgRemovedGlobal = (await AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null)) === 'true';
+        const isTgRemovedUid = activeUid ? (await AsyncStorage.getItem(`@amara_telegram_disconnected_${activeUid}`).catch(() => null)) === 'true' : false;
+        const isTgRemoved = isTgRemovedGlobal || isTgRemovedUid || event?.telegramUsername === '';
+
+        const effPhone = isPhoneRemoved ? '' : (event?.phoneNumber !== undefined ? event.phoneNumber : (p3 || p1 || p2 || ''));
+        const effTg = isTgRemoved ? '' : (event?.telegramUsername !== undefined ? event.telegramUsername : (tg ? tg.replace(/^@+/, '') : ''));
+
+        setStoredPhone(effPhone);
+        setStoredTelegram(effTg);
       } catch {}
       if (isViewingSelf && myId) {
         getAllImagesRef.current(String(myId), {
@@ -921,14 +941,22 @@ const ViewMyProfileScreen = () => {
       ? { ...routed, ...fetched }
       : (isTargetUserFetched ? { ...routed, ...fetched } : { ...routed });
 
-    const selfPhone =
-      normalizeTextValue(fetched?.phoneNumber) ||
-      normalizeTextValue(fetched?.mobile) ||
-      normalizeTextValue(fetched?.phone) ||
-      normalizeTextValue(fetched?.mobileNumber) ||
-      normalizeTextValue(contextPhone) ||
-      normalizeTextValue(storedPhone) ||
-      '';
+    const selfPhone = (() => {
+      const isPhoneCleared =
+        fetched?.phoneNumber === '' ||
+        fetched?.mobile === '' ||
+        (contextPhone === '' && !storedPhone);
+      if (isPhoneCleared) return '';
+      return (
+        normalizeTextValue(storedPhone) ||
+        normalizeTextValue(contextPhone) ||
+        normalizeTextValue(fetched?.phoneNumber) ||
+        normalizeTextValue(fetched?.mobile) ||
+        normalizeTextValue(fetched?.phone) ||
+        normalizeTextValue(fetched?.mobileNumber) ||
+        ''
+      );
+    })();
 
     return {
       ...baseData,
@@ -1005,7 +1033,19 @@ const ViewMyProfileScreen = () => {
         ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
         : Boolean((isTargetUserFetched ? (fetched?.verifiedSelfie ?? fetched?.selfieVerified) : null) ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
       telegramUsername: isViewingSelf
-        ? (normalizeTextValue(fetched?.telegramUsername) || normalizeTextValue(storedTelegram) || normalizeTextValue(myTgStatus?.telegramUsername) || '')
+        ? (() => {
+            const isTgCleared =
+              fetched?.telegramUsername === '' ||
+              fetched?.telegramUsername === 'NONE' ||
+              (!storedTelegram && (myTgStatus?.isConnected === false || !myTgStatus?.telegramUsername));
+            if (isTgCleared) return '';
+            return (
+              normalizeTextValue(storedTelegram) ||
+              normalizeTextValue(fetched?.telegramUsername) ||
+              normalizeTextValue(myTgStatus?.telegramUsername) ||
+              ''
+            );
+          })()
         : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : ''))),
       phoneNumber: isViewingSelf
         ? selfPhone

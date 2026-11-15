@@ -1,5 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ActivityIndicator,
   DeviceEventEmitter,
@@ -35,6 +36,7 @@ const ProfileSettingsScreen = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const queryClient = useQueryClient();
 
   const {
     displayName,
@@ -325,16 +327,19 @@ const ProfileSettingsScreen = () => {
         await AsyncStorage.setItem('userMobile', fullPhone);
         if (currentUid) {
           await AsyncStorage.setItem(`user_phone_${currentUid}`, fullPhone);
+          await AsyncStorage.removeItem(`@amara_phone_removed_${currentUid}`).catch(() => {});
         }
+        await AsyncStorage.removeItem('@amara_phone_removed_global').catch(() => {});
       } else if (!savePhone) {
         // preserve existing phone without overwriting with conflicting value
       } else {
         setContextPhone('');
-        await AsyncStorage.removeItem('phoneNumber');
-        await AsyncStorage.removeItem('userMobile');
+        await AsyncStorage.multiRemove(['phoneNumber', 'userMobile']).catch(() => {});
         if (currentUid) {
-          await AsyncStorage.removeItem(`user_phone_${currentUid}`);
+          await AsyncStorage.removeItem(`user_phone_${currentUid}`).catch(() => {});
+          await AsyncStorage.setItem(`@amara_phone_removed_${currentUid}`, 'true').catch(() => {});
         }
+        await AsyncStorage.setItem('@amara_phone_removed_global', 'true').catch(() => {});
       }
       if (localTelegramUsername.trim()) {
         const cleanTg = localTelegramUsername.trim().replace(/^@+/, '');
@@ -345,6 +350,16 @@ const ProfileSettingsScreen = () => {
           await AsyncStorage.removeItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => {});
         }
         await AsyncStorage.removeItem('@amara_telegram_disconnected_global').catch(() => {});
+      } else {
+        await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
+        if (currentUid) {
+          await AsyncStorage.multiRemove([
+            `user_telegram_${currentUid}`,
+            `@telegram_username_${currentUid}`,
+          ]).catch(() => {});
+          await AsyncStorage.setItem(`@amara_telegram_disconnected_${currentUid}`, 'true').catch(() => {});
+        }
+        await AsyncStorage.setItem('@amara_telegram_disconnected_global', 'true').catch(() => {});
       }
     };
 
@@ -352,30 +367,9 @@ const ProfileSettingsScreen = () => {
     lastSavedDobRef.current = cleanDobToSave;
     await persistLocalState();
 
-    const isDiscGlobal = (await AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null)) === 'true';
-    const isDiscUid = currentUid
-      ? (await AsyncStorage.getItem(`@amara_telegram_disconnected_${currentUid}`).catch(() => null)) === 'true'
-      : false;
-    const isExplicitlyDisconnected = isDiscGlobal || isDiscUid;
-
-    const existingTg = (profileQuery.data?.telegramUsername || '')
-      ? String(profileQuery.data.telegramUsername).trim().replace(/^@+/, '')
-      : '';
-    const normExistingTg = existingTg.toUpperCase();
-    const validExistingTg =
-      !isExplicitlyDisconnected &&
-      existingTg &&
-      normExistingTg !== 'NONE' &&
-      normExistingTg !== 'NULL' &&
-      normExistingTg !== 'UNDEFINED' &&
-      normExistingTg !== '-' &&
-      normExistingTg !== 'N/A'
-        ? existingTg
-        : '';
-
     const tgToPersist = localTelegramUsername.trim()
       ? localTelegramUsername.trim().replace(/^@+/, '')
-      : (isExplicitlyDisconnected ? 'NONE' : (validExistingTg || undefined));
+      : 'NONE';
 
     updateProfile.mutate(
       {
@@ -385,15 +379,27 @@ const ProfileSettingsScreen = () => {
         bio: cleanBio,
         dob: cleanDobToSave,
         age: ageToSave,
-        ...(tgToPersist ? { telegramUsername: tgToPersist } : {}),
+        telegramUsername: tgToPersist,
         mobile: fullPhone || '',
         phoneNumber: fullPhone || '',
+        phone: fullPhone || '',
       } as any,
       {
         onSuccess: async () => {
           await persistLocalState();
           await profileQuery.refetch();
-          DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
+          queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+          queryClient.invalidateQueries({ queryKey: ['profile-me'] });
+          queryClient.invalidateQueries({ queryKey: ['my-telegram-status'] });
+          queryClient.invalidateQueries({ queryKey: ['connections'] });
+          queryClient.invalidateQueries({ queryKey: ['connections-sent'] });
+          queryClient.invalidateQueries({ queryKey: ['connections-received'] });
+          setContextPhone(fullPhone || '');
+          DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', {
+            uid: currentUid,
+            phoneNumber: fullPhone || '',
+            telegramUsername: tgToPersist === 'NONE' ? '' : tgToPersist,
+          });
           navigation.goBack();
         },
         onError: async (error: any) => {

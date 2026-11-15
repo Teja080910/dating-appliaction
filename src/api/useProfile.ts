@@ -100,32 +100,42 @@ const normalizeProfile = (payload: any) => {
     return true;
   };
 
-  const resolvedPhone = [
-    source?.mobile,
-    source?.phoneNumber,
-    source?.phone,
-    source?.mobileNumber,
-    source?.whatsapp,
-    source?.whatsappNumber,
-    nestedProfile?.phoneNumber,
-    nestedProfile?.mobile,
-    nestedProfile?.phone,
-    nestedProfile?.mobileNumber,
-    nestedProfile?.whatsapp,
-    nestedProfile?.whatsappNumber,
-    payloadSource?.phoneNumber,
-    payloadSource?.phone,
-    payloadSource?.mobile,
-    payloadSource?.mobileNumber,
-    payloadSource?.whatsapp,
-    payloadSource?.whatsappNumber,
-    nestedUser?.phoneNumber,
-    nestedUser?.mobile,
-    nestedUser?.phone,
-    nestedUser?.mobileNumber,
-    nestedUser?.whatsapp,
-    nestedUser?.whatsappNumber,
-  ].find(isRealPhone) || '';
+  const isExplicitlyClearedPhone =
+    source?.mobile === '' ||
+    source?.phoneNumber === '' ||
+    nestedProfile?.mobile === '' ||
+    nestedProfile?.phoneNumber === '' ||
+    payloadSource?.mobile === '' ||
+    payloadSource?.phoneNumber === '';
+
+  const resolvedPhone = isExplicitlyClearedPhone
+    ? ''
+    : [
+        source?.mobile,
+        source?.phoneNumber,
+        source?.phone,
+        source?.mobileNumber,
+        source?.whatsapp,
+        source?.whatsappNumber,
+        nestedProfile?.phoneNumber,
+        nestedProfile?.mobile,
+        nestedProfile?.phone,
+        nestedProfile?.mobileNumber,
+        nestedProfile?.whatsapp,
+        nestedProfile?.whatsappNumber,
+        payloadSource?.phoneNumber,
+        payloadSource?.phone,
+        payloadSource?.mobile,
+        payloadSource?.mobileNumber,
+        payloadSource?.whatsapp,
+        payloadSource?.whatsappNumber,
+        nestedUser?.phoneNumber,
+        nestedUser?.mobile,
+        nestedUser?.phone,
+        nestedUser?.mobileNumber,
+        nestedUser?.whatsapp,
+        nestedUser?.whatsappNumber,
+      ].find(isRealPhone) || '';
   const cleanResolvedPhone = String(resolvedPhone).trim();
 
   const rawKidCount = [
@@ -209,27 +219,37 @@ const normalizeProfile = (payload: any) => {
     ? numberOrZero(source.age)
     : (computedAgeFromDob || null);
 
-  const resolvedTelegram = [
-    source?.telegramUsername,
-    source?.telegram,
-    source?.tgUsername,
-    source?.tg,
-    source?.telegramHandle,
-    nestedProfile?.telegramUsername,
-    nestedProfile?.telegram,
-    nestedProfile?.tgUsername,
-    nestedUser?.telegramUsername,
-    nestedUser?.telegram,
-    nestedUser?.tgUsername,
-    payloadSource?.telegramUsername,
-    payloadSource?.telegram,
-    payloadSource?.tgUsername,
-  ].find((v) => {
-    if (!v) return false;
-    const s = String(v).trim().replace(/^@+/, '');
-    const n = s.toUpperCase();
-    return s && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
-  }) || '';
+  const isExplicitlyClearedTelegram =
+    source?.telegramUsername === '' ||
+    source?.telegramUsername === 'NONE' ||
+    nestedProfile?.telegramUsername === '' ||
+    nestedProfile?.telegramUsername === 'NONE' ||
+    payloadSource?.telegramUsername === '' ||
+    payloadSource?.telegramUsername === 'NONE';
+
+  const resolvedTelegram = isExplicitlyClearedTelegram
+    ? ''
+    : [
+        source?.telegramUsername,
+        source?.telegram,
+        source?.tgUsername,
+        source?.tg,
+        source?.telegramHandle,
+        nestedProfile?.telegramUsername,
+        nestedProfile?.telegram,
+        nestedProfile?.tgUsername,
+        nestedUser?.telegramUsername,
+        nestedUser?.telegram,
+        nestedUser?.tgUsername,
+        payloadSource?.telegramUsername,
+        payloadSource?.telegram,
+        payloadSource?.tgUsername,
+      ].find((v) => {
+        if (!v) return false;
+        const s = String(v).trim().replace(/^@+/, '');
+        const n = s.toUpperCase();
+        return s && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
+      }) || '';
 
   return {
     id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
@@ -367,18 +387,24 @@ export const useMyProfile = (uid?: any) => {
           .catch(() => apiClient.get('/profile/get', { params: { userId: resolvedUserId } }));
         if (!cancelled) {
           const norm = normalizeProfile(res.data);
-          if (!norm.mobile && !norm.phoneNumber) {
-            const [p1, p2, p3] = await Promise.all([
-              AsyncStorage.getItem('phoneNumber'),
-              AsyncStorage.getItem('userMobile'),
-              resolvedUserId ? AsyncStorage.getItem(`user_phone_${resolvedUserId}`).catch(() => null) : null,
-            ]);
-            const fallbackP = p3 || p1 || p2 || '';
-            if (fallbackP) {
-              norm.mobile = fallbackP;
-              norm.phone = fallbackP;
-              norm.phoneNumber = fallbackP;
-              norm.mobileNumber = fallbackP;
+          const isPhoneRemovedGlobal = (await AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null)) === 'true';
+          const isPhoneRemovedUid = resolvedUserId
+            ? (await AsyncStorage.getItem(`@amara_phone_removed_${resolvedUserId}`).catch(() => null)) === 'true'
+            : false;
+          const isPhoneExplicitlyRemoved = isPhoneRemovedGlobal || isPhoneRemovedUid;
+
+          if (isPhoneExplicitlyRemoved) {
+            norm.mobile = '';
+            norm.phone = '';
+            norm.phoneNumber = '';
+            norm.mobileNumber = '';
+          } else if (!norm.mobile && !norm.phoneNumber) {
+            const scopedP = resolvedUserId ? await AsyncStorage.getItem(`user_phone_${resolvedUserId}`).catch(() => null) : null;
+            if (scopedP) {
+              norm.mobile = scopedP;
+              norm.phone = scopedP;
+              norm.phoneNumber = scopedP;
+              norm.mobileNumber = scopedP;
             }
           }
           const [storedDobGlobal, storedDobScoped] = await Promise.all([
@@ -954,7 +980,15 @@ export const useProfile = () => {
       }
 
       // Update Telegram Account
-      if (cleanTelegram) {
+      if (cleanTelegram === 'NONE' || cleanTelegram === '') {
+        secondaryPromises.push(
+          apiClient.delete('/telegram/disconnect', {
+            params: {
+              userId: numericUserId,
+            },
+          }).catch(() => {})
+        );
+      } else if (cleanTelegram) {
         secondaryPromises.push(
           apiClient.post('/telegram/connect', null, {
             params: {
@@ -995,6 +1029,35 @@ export const useProfile = () => {
             phoneNumber: cleanPhone,
             mobileNumber: cleanPhone,
           };
+        });
+      }
+
+      if (variables.telegramUsername !== undefined) {
+        const cleanTg = (
+          variables.telegramUsername === 'NONE' || !String(variables.telegramUsername).trim()
+            ? ''
+            : String(variables.telegramUsername).trim().replace(/^@+/, '')
+        );
+        queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            telegramUsername: cleanTg,
+            telegram: cleanTg,
+          };
+        });
+        queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            telegramUsername: cleanTg,
+            telegram: cleanTg,
+          };
+        });
+        queryClient.setQueriesData({ queryKey: ['my-telegram-status'] }, {
+          telegramUsername: cleanTg,
+          telegramLink: cleanTg ? `https://t.me/${cleanTg}` : '',
+          isConnected: Boolean(cleanTg),
         });
       }
       if (variables?.dob) {

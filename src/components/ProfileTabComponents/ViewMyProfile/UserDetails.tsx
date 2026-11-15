@@ -142,14 +142,21 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const loadStoredContacts = useCallback(async () => {
     try {
       const activeUid = currentUserId || (await getUserId().catch(() => null));
-      const [tgScoped, p1, p2, p3] = await Promise.all([
+      const [tgScoped, p1, p2, p3, isPhoneRemovedGlobal, isPhoneRemovedUid, isTgRemovedGlobal, isTgRemovedUid] = await Promise.all([
         activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
         AsyncStorage.getItem('phoneNumber'),
         AsyncStorage.getItem('userMobile'),
         activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
+        AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
+        activeUid ? AsyncStorage.getItem(`@amara_phone_removed_${activeUid}`).catch(() => null) : null,
+        AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null),
+        activeUid ? AsyncStorage.getItem(`@amara_telegram_disconnected_${activeUid}`).catch(() => null) : null,
       ]);
-      const effectiveTg = tgScoped;
-      const effectiveP = p3 || (activeUid ? null : (p1 || p2));
+      const isPhoneRemoved = isPhoneRemovedGlobal === 'true' || isPhoneRemovedUid === 'true';
+      const isTgRemoved = isTgRemovedGlobal === 'true' || isTgRemovedUid === 'true';
+
+      const effectiveTg = isTgRemoved ? null : tgScoped;
+      const effectiveP = isPhoneRemoved ? null : (p3 || (activeUid ? null : (p1 || p2)));
       setOwnTelegram(effectiveTg ? effectiveTg.trim().replace(/^@+/, '').toLowerCase() : '');
       setStoredPhone(effectiveP || '');
     } catch {}
@@ -513,12 +520,23 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const targetTelegramUsername = (() => {
     let raw = '';
     if (isOwnProfile) {
+      const isTgExplicitlyDisconnected =
+        myTgStatus?.isConnected === false ||
+        (resolvedProfile as any)?.telegramUsername === '' ||
+        (resolvedProfile as any)?.telegramUsername === 'NONE' ||
+        (profile as any)?.telegramUsername === '' ||
+        (profile as any)?.telegramUsername === 'NONE' ||
+        (propProfile as any)?.telegramUsername === '' ||
+        (propProfile as any)?.telegramUsername === 'NONE';
+      if (isTgExplicitlyDisconnected && !ownTelegram) {
+        return '';
+      }
       raw = extractTelegram(
+        ownTelegram,
         resolvedProfile,
         profile,
         propProfile,
-        ownTelegram,
-        myTgStatus?.telegramUsername
+        myTgStatus?.isConnected ? myTgStatus?.telegramUsername : null
       );
     } else {
       if (isViewerWoman) return '';
@@ -536,13 +554,23 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const targetPhoneNumber = (() => {
     if (isOwnProfile) {
+      const isPhoneExplicitlyCleared =
+        (resolvedProfile as any)?.mobile === '' ||
+        (resolvedProfile as any)?.phoneNumber === '' ||
+        (profile as any)?.mobile === '' ||
+        (profile as any)?.phoneNumber === '' ||
+        (propProfile as any)?.mobile === '' ||
+        (propProfile as any)?.phoneNumber === '';
+      if (isPhoneExplicitlyCleared && !storedPhone) {
+        return '';
+      }
       return (
         extractPhone(
+          storedPhone,
           resolvedProfile,
           profile,
           propProfile,
-          contextPhone,
-          storedPhone
+          contextPhone
         ) || ''
       );
     }

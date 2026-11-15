@@ -719,6 +719,12 @@ class MockStore {
       'phone' in profileData ||
       'mobileNumber' in (profileData as any);
 
+    const hasTelegramKey = 'telegramUsername' in profileData;
+    const rawTg = profileData.telegramUsername;
+    const cleanTg = (rawTg && rawTg !== 'NONE' && rawTg !== 'NULL' && rawTg !== 'UNDEFINED' && rawTg !== '-' && rawTg !== 'N/A')
+      ? String(rawTg).trim().replace(/^@+/, '')
+      : '';
+
     const rawEffectivePhone = (
       profileData.mobile !== undefined ? profileData.mobile :
       (profileData as any).phoneNumber !== undefined ? (profileData as any).phoneNumber :
@@ -757,6 +763,10 @@ class MockStore {
         (updated as any).phoneNumber = effectivePhone;
         (updated as any).mobileNumber = effectivePhone;
       }
+      if (hasTelegramKey) {
+        updated.telegramUsername = cleanTg;
+        (updated as any).telegram = cleanTg;
+      }
       this.profiles[existingIndex] = updated;
     } else {
       updated = {
@@ -768,7 +778,7 @@ class MockStore {
         gender: profileData.gender || 'man',
         bio: profileData.bio || '',
         photos: profileData.photos || [],
-        telegramUsername: profileData.telegramUsername || '',
+        telegramUsername: cleanTg,
         ...profileData,
         mobile: effectivePhone,
         phone: effectivePhone,
@@ -804,8 +814,8 @@ class MockStore {
         (this.users[userIndex] as any).phoneNumber = effectivePhone;
         (this.users[userIndex] as any).mobileNumber = effectivePhone;
       }
-      if (profileData.telegramUsername) {
-        this.users[userIndex].telegramUsername = profileData.telegramUsername;
+      if (hasTelegramKey) {
+        this.users[userIndex].telegramUsername = cleanTg;
       }
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users));
     }
@@ -828,23 +838,67 @@ class MockStore {
         });
       });
       await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
+    }
 
-      // Also sync this.requests where userId is sender
-      let reqsChanged = false;
-      this.requests.forEach((r) => {
-        if (this.matchUserId(r.senderId, userId) || this.matchUserId(r.sender?.userId, userId)) {
-          if (r.sender) {
-            r.sender.photos = validPhotos;
-            r.sender.photo = validPhotos[0] || '';
-          }
+    // Also sync this.requests where userId is sender or receiver for photos, phone, and telegram
+    let reqsChanged = false;
+    this.requests.forEach((r) => {
+      const isSender = this.matchUserId(r.senderId, userId) || this.matchUserId(r.sender?.userId, userId);
+      const isReceiver = this.matchUserId(r.receiverId, userId) || this.matchUserId(r.receiver?.userId, userId);
+
+      if (isSender) {
+        if (Array.isArray(profileData.photos) && r.sender) {
+          const validPhotos = profileData.photos.filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+          r.sender.photos = validPhotos;
+          r.sender.photo = validPhotos[0] || '';
           (r as any).senderPhotos = validPhotos;
           (r as any).senderPhoto = validPhotos[0] || '';
           reqsChanged = true;
         }
-      });
-      if (reqsChanged) {
-        await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests));
+        if (hasPhoneKey) {
+          (r as any).senderMobile = effectivePhone;
+          if (r.sender) {
+            r.sender.mobile = effectivePhone;
+            r.sender.phone = effectivePhone;
+            (r.sender as any).phoneNumber = effectivePhone;
+            (r.sender as any).mobileNumber = effectivePhone;
+          }
+          reqsChanged = true;
+        }
+        if (hasTelegramKey) {
+          (r as any).senderTelegram = cleanTg;
+          if (r.sender) {
+            r.sender.telegramUsername = cleanTg;
+            (r.sender as any).telegram = cleanTg;
+          }
+          reqsChanged = true;
+        }
       }
+
+      if (isReceiver) {
+        if (hasPhoneKey) {
+          (r as any).receiverMobile = effectivePhone;
+          (r as any).receiverWhatsapp = effectivePhone;
+          if (r.receiver) {
+            r.receiver.mobile = effectivePhone;
+            r.receiver.phone = effectivePhone;
+            (r.receiver as any).phoneNumber = effectivePhone;
+            (r.receiver as any).mobileNumber = effectivePhone;
+          }
+          reqsChanged = true;
+        }
+        if (hasTelegramKey) {
+          (r as any).receiverTelegram = cleanTg;
+          if (r.receiver) {
+            r.receiver.telegramUsername = cleanTg;
+            (r.receiver as any).telegram = cleanTg;
+          }
+          reqsChanged = true;
+        }
+      }
+    });
+    if (reqsChanged) {
+      await AsyncStorage.setItem(REQUESTS_KEY, JSON.stringify(this.requests));
     }
 
     return updated;
@@ -1116,30 +1170,14 @@ class MockStore {
         const resolvedReceiverPhoto =
           resolvedReceiverPhotos[0] || rProfile?.photo || (rProfile as any)?.profileImageUrl || r.receiver?.photo || '';
 
-        const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || sUser?.telegramUsername || '';
-        const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || rUser?.telegramUsername || '';
-        const sPhone =
-          (sProfile as any)?.phoneNumber ||
-          sProfile?.mobile ||
-          sProfile?.phone ||
-          (r.sender as any)?.phoneNumber ||
-          r.sender?.mobile ||
-          r.sender?.phone ||
-          (sUser as any)?.phoneNumber ||
-          sUser?.mobile ||
-          (sUser as any)?.phone ||
-          '';
-        const rPhone =
-          (rProfile as any)?.phoneNumber ||
-          rProfile?.mobile ||
-          rProfile?.phone ||
-          (r.receiver as any)?.phoneNumber ||
-          r.receiver?.mobile ||
-          r.receiver?.phone ||
-          (rUser as any)?.phoneNumber ||
-          rUser?.mobile ||
-          (rUser as any)?.phone ||
-          '';
+        const sTg = sProfile ? (sProfile.telegramUsername || '') : (r.sender?.telegramUsername || sUser?.telegramUsername || '');
+        const rTg = rProfile ? (rProfile.telegramUsername || '') : (r.receiver?.telegramUsername || rUser?.telegramUsername || '');
+        const sPhone = sProfile
+          ? (sProfile.mobile || (sProfile as any).phoneNumber || sProfile.phone || '')
+          : ((r.sender as any)?.phoneNumber || r.sender?.mobile || r.sender?.phone || (sUser as any)?.phoneNumber || sUser?.mobile || (sUser as any)?.phone || '');
+        const rPhone = rProfile
+          ? (rProfile.mobile || (rProfile as any).phoneNumber || rProfile.phone || '')
+          : ((r.receiver as any)?.phoneNumber || r.receiver?.mobile || r.receiver?.phone || (rUser as any)?.phoneNumber || rUser?.mobile || (rUser as any)?.phone || '');
 
         const baseSender = r.sender
           ? {
@@ -1212,30 +1250,14 @@ class MockStore {
         const resolvedReceiverPhoto =
           resolvedReceiverPhotos[0] || rProfile?.photo || (rProfile as any)?.profileImageUrl || r.receiver?.photo || '';
 
-        const sTg = sProfile?.telegramUsername || r.sender?.telegramUsername || sUser?.telegramUsername || '';
-        const rTg = rProfile?.telegramUsername || r.receiver?.telegramUsername || rUser?.telegramUsername || '';
-        const sPhone =
-          (sProfile as any)?.phoneNumber ||
-          sProfile?.mobile ||
-          sProfile?.phone ||
-          (r.sender as any)?.phoneNumber ||
-          r.sender?.mobile ||
-          r.sender?.phone ||
-          (sUser as any)?.phoneNumber ||
-          sUser?.mobile ||
-          (sUser as any)?.phone ||
-          '';
-        const rPhone =
-          (rProfile as any)?.phoneNumber ||
-          rProfile?.mobile ||
-          rProfile?.phone ||
-          (r.receiver as any)?.phoneNumber ||
-          r.receiver?.mobile ||
-          r.receiver?.phone ||
-          (rUser as any)?.phoneNumber ||
-          rUser?.mobile ||
-          (rUser as any)?.phone ||
-          '';
+        const sTg = sProfile ? (sProfile.telegramUsername || '') : (r.sender?.telegramUsername || sUser?.telegramUsername || '');
+        const rTg = rProfile ? (rProfile.telegramUsername || '') : (r.receiver?.telegramUsername || rUser?.telegramUsername || '');
+        const sPhone = sProfile
+          ? (sProfile.mobile || (sProfile as any).phoneNumber || sProfile.phone || '')
+          : ((r.sender as any)?.phoneNumber || r.sender?.mobile || r.sender?.phone || (sUser as any)?.phoneNumber || sUser?.mobile || (sUser as any)?.phone || '');
+        const rPhone = rProfile
+          ? (rProfile.mobile || (rProfile as any).phoneNumber || rProfile.phone || '')
+          : ((r.receiver as any)?.phoneNumber || r.receiver?.mobile || r.receiver?.phone || (rUser as any)?.phoneNumber || rUser?.mobile || (rUser as any)?.phone || '');
 
         const baseSender = r.sender
           ? {
@@ -1722,7 +1744,7 @@ class MockStore {
 
   public async getApprovedConnections(userId: string): Promise<MockRequest[]> {
     await this.init();
-    return this.requests.filter(
+    const approved = this.requests.filter(
       (r) =>
         r.status === 'APPROVED' &&
         (this.matchUserId(r.senderId, userId) ||
@@ -1730,6 +1752,23 @@ class MockStore {
           this.matchUserId(r.sender?.id, userId) ||
           this.matchUserId(r.receiver?.id, userId))
     );
+    return approved.map((r) => {
+      const sProfile = this.profiles.find((p) => this.matchUserId(p.userId, r.senderId) || this.matchUserId(p.userId, r.sender?.id) || this.matchUserId(p.userId, r.sender?.userId));
+      const rProfile = this.profiles.find((p) => this.matchUserId(p.userId, r.receiverId) || this.matchUserId(p.userId, r.receiver?.id) || this.matchUserId(p.userId, r.receiver?.userId));
+      const sTg = sProfile ? (sProfile.telegramUsername || '') : (r.sender?.telegramUsername || '');
+      const rTg = rProfile ? (rProfile.telegramUsername || '') : (r.receiver?.telegramUsername || '');
+      const sPhone = sProfile ? (sProfile.mobile || (sProfile as any).phoneNumber || sProfile.phone || '') : (r.sender?.mobile || (r.sender as any)?.phoneNumber || '');
+      const rPhone = rProfile ? (rProfile.mobile || (rProfile as any).phoneNumber || rProfile.phone || '') : (r.receiver?.mobile || (r.receiver as any)?.phoneNumber || '');
+      return {
+        ...r,
+        senderTelegram: sTg,
+        receiverTelegram: rTg,
+        senderMobile: sPhone,
+        receiverMobile: rPhone,
+        sender: r.sender ? { ...r.sender, telegramUsername: sTg, mobile: sPhone, phone: sPhone, phoneNumber: sPhone } : undefined,
+        receiver: r.receiver ? { ...r.receiver, telegramUsername: rTg, mobile: rPhone, phone: rPhone, phoneNumber: rPhone } : undefined,
+      };
+    });
   }
 
   public async findUserByTelegram(
