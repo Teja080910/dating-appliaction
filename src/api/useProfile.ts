@@ -444,22 +444,51 @@ export const useMyProfile = (uid?: any) => {
             }
           }
 
+          // Also fetch live authoritative images from /users/{resolvedUserId}/images
+          let livePhotos: string[] = [];
+          try {
+            const imgRes = await apiClient.get(`/users/${resolvedUserId}/images`);
+            const rawList = Array.isArray(imgRes?.data)
+              ? imgRes.data
+              : Array.isArray(imgRes?.data?.images)
+              ? imgRes.data.images
+              : [];
+            livePhotos = rawList
+              .map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null))
+              .filter((u: any): u is string => {
+                if (typeof u !== 'string') return false;
+                const trimmed = u.trim();
+                if (!trimmed) return false;
+                const lower = trimmed.toLowerCase();
+                if (lower.includes('success') || lower.includes('done') || lower.includes('error')) return false;
+                return trimmed.startsWith('http') || trimmed.startsWith('/') || /\.(jpg|jpeg|png|webp|gif)/i.test(trimmed);
+              });
+          } catch {}
+
           // Also retain locally uploaded photos from user_photos_${resolvedUserId}
           const storedPhotosRaw = resolvedUserId ? await AsyncStorage.getItem(`user_photos_${resolvedUserId}`).catch(() => null) : null;
+          let storedPhotos: string[] = [];
           if (storedPhotosRaw) {
             try {
               const parsedP = JSON.parse(storedPhotosRaw);
               if (Array.isArray(parsedP) && parsedP.some(Boolean)) {
-                const cleanStored = parsedP.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
-                if (cleanStored.length > 0) {
-                  norm.photos = cleanStored;
-                  norm.images = cleanStored;
-                  if (cleanStored[0]) {
-                    norm.profileImageUrl = cleanStored[0];
-                  }
-                }
+                storedPhotos = parsedP.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
               }
             } catch {}
+          }
+
+          const combinedPhotos = livePhotos.length > 0 ? livePhotos : storedPhotos;
+          if (combinedPhotos.length > 0) {
+            norm.photos = combinedPhotos;
+            norm.images = combinedPhotos;
+            if (combinedPhotos[0]) {
+              norm.profileImageUrl = combinedPhotos[0];
+            }
+            if (livePhotos.length > 0) {
+              const slots = [...livePhotos];
+              while (slots.length < 6) slots.push(null);
+              AsyncStorage.setItem(`user_photos_${resolvedUserId}`, JSON.stringify(slots)).catch(() => {});
+            }
           }
           setData(norm);
         }
@@ -528,6 +557,10 @@ export const useProfile = () => {
     await queryClient.invalidateQueries({queryKey: ['profile-me']});
     await queryClient.invalidateQueries({queryKey: ['profile']});
     await queryClient.invalidateQueries({queryKey: ['my-telegram-status']});
+    await queryClient.invalidateQueries({queryKey: ['userImages']});
+    await queryClient.invalidateQueries({queryKey: ['discovery-filter']});
+    await queryClient.invalidateQueries({queryKey: ['dashboard-users']});
+    await queryClient.invalidateQueries({queryKey: ['users']});
     DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid });
   };
 
@@ -882,8 +915,23 @@ export const useProfile = () => {
       if (data.lookingFor) {
         cleanPayload.lookingFor = String(data.lookingFor);
       }
-      if (Array.isArray(data.photos)) {
-        cleanPayload.photos = data.photos.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+      const rawPhotos = Array.isArray(data.photos)
+        ? data.photos
+        : Array.isArray((data as any).images)
+        ? (data as any).images
+        : [];
+      const validPhotos = rawPhotos.filter(
+        (u: any) => typeof u === 'string' && u.trim().length > 0
+      );
+
+      if (validPhotos.length > 0 && resolvedUserId) {
+        const slots = [...validPhotos];
+        while (slots.length < 6) slots.push(null);
+        AsyncStorage.setItem(`user_photos_${resolvedUserId}`, JSON.stringify(slots)).catch(() => {});
+        if (validPhotos[0]) {
+          AsyncStorage.setItem('profileImage', validPhotos[0]).catch(() => {});
+          AsyncStorage.setItem(`user_profile_photo_${resolvedUserId}`, validPhotos[0]).catch(() => {});
+        }
       }
 
       const numericUserId = !isNaN(Number(resolvedUserId))
@@ -935,9 +983,16 @@ export const useProfile = () => {
       if (cleanPayload.lookingFor) setupDto.lookingFor = String(cleanPayload.lookingFor);
       if (cleanPayload.smoke) setupDto.smoke = String(cleanPayload.smoke);
       if (cleanPayload.drink) setupDto.drink = String(cleanPayload.drink);
+      if (validPhotos.length > 0) {
+        setupDto.photos = validPhotos;
+        setupDto.images = validPhotos;
+        setupDto.profileImageUrl = validPhotos[0];
+      }
+      if (hasPhoneField) setupDto.mobile = effectivePhone;
 
+      const targetSetupId = resolvedUserId || numericUserId;
       try {
-        const setupRes = await apiClient.post(`/profile/${numericUserId}/setup`, setupDto, {
+        const setupRes = await apiClient.post(`/profile/${targetSetupId}/setup`, setupDto, {
           params: { ...setupDto, dto: JSON.stringify(setupDto) },
         });
         if (setupRes?.data) basicResponseData = setupRes.data;
@@ -947,7 +1002,7 @@ export const useProfile = () => {
           Object.entries(setupDto).forEach(([k, v]) => {
             if (v !== undefined && v !== null) form.append(k, String(v));
           });
-          const formRes = await apiClient.post(`/profile/${numericUserId}/setup`, form, {
+          const formRes = await apiClient.post(`/profile/${targetSetupId}/setup`, form, {
             params: { ...setupDto, dto: JSON.stringify(setupDto) },
           });
           if (formRes?.data) basicResponseData = formRes.data;
@@ -1104,6 +1159,58 @@ export const useProfile = () => {
           isConnected: Boolean(cleanTg),
         });
       }
+      if (variables.photos !== undefined || (variables as any).images !== undefined) {
+        const rawNew = variables.photos || (variables as any).images || [];
+        const newPhotos = rawNew.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+        queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            photos: newPhotos,
+            images: newPhotos,
+            profileImageUrl: newPhotos[0] || '',
+            photo: newPhotos[0] || '',
+          };
+        });
+        queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            photos: newPhotos,
+            images: newPhotos,
+            profileImageUrl: newPhotos[0] || '',
+            photo: newPhotos[0] || '',
+          };
+        });
+        if (uid) {
+          queryClient.setQueriesData({ queryKey: ['userImages', uid] }, newPhotos);
+          queryClient.setQueriesData({ queryKey: ['userImages', String(uid)] }, newPhotos);
+        }
+      }
+
+      if (variables.bio !== undefined) {
+        queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+          if (!old) return old;
+          return { ...old, bio: variables.bio };
+        });
+        queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+          if (!old) return old;
+          return { ...old, bio: variables.bio };
+        });
+      }
+
+      if (variables.displayName || (variables as any).name) {
+        const newName = variables.displayName || (variables as any).name;
+        queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
+          if (!old) return old;
+          return { ...old, displayName: newName, name: newName };
+        });
+        queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
+          if (!old) return old;
+          return { ...old, displayName: newName, name: newName };
+        });
+      }
+
       if (variables?.dob) {
         const cleanDob = formatDateToDobString(variables.dob);
         const computedAge = calculateAgeFromDob(cleanDob);
@@ -1183,10 +1290,18 @@ export const useProfile = () => {
       const resolvedUserId = await resolveNumericUserId(uid);
 
       const formData = new FormData();
-      formData.append('photo', filePayload as any);
       formData.append('image', filePayload as any);
+      formData.append('photo', filePayload as any);
+      formData.append('file', filePayload as any);
       if (resolvedUserId) {
         formData.append('userId', String(resolvedUserId));
+      }
+
+      if (resolvedUserId) {
+        try {
+          const userImgRes = await apiClient.post(`/users/${resolvedUserId}/images`, formData);
+          return userImgRes.data;
+        } catch {}
       }
 
       const res = await apiClient.post('/profile/upload-image', formData, {

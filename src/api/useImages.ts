@@ -73,11 +73,30 @@ const resolveImageArray = (payload: unknown): ServerUserImage[] => {
   return [];
 };
 
+const isLikelyValidUrl = (u: string | null | undefined): boolean => {
+  if (!u) return false;
+  const str = u.trim();
+  if (!str) return false;
+  const lower = str.toLowerCase();
+  if (lower.includes('success') || lower.includes('failed') || lower.includes('error') || lower.includes('done')) {
+    return false;
+  }
+  return (
+    str.startsWith('http://') ||
+    str.startsWith('https://') ||
+    str.startsWith('/') ||
+    str.startsWith('file://') ||
+    str.startsWith('content://') ||
+    /\.(jpg|jpeg|png|webp|gif)/i.test(str)
+  );
+};
+
 export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserImage[] => {
   const images = resolveImageArray(payload)
     .map((image: any) => {
       if (typeof image === 'string') {
         const url = image.trim();
+        if (!isLikelyValidUrl(url)) return null;
         return {
           id: null,
           imageUrl: url ? getAbsoluteUrl(url) : null,
@@ -98,6 +117,9 @@ export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserIma
         image?.image ||
         null;
       const cleanUrl = typeof rawUrl === 'string' ? rawUrl.trim() : null;
+      if (!isLikelyValidUrl(cleanUrl)) {
+        return null;
+      }
       const rawId = image?.id ?? image?.imageId;
       const parsedId =
         typeof rawId === 'number'
@@ -116,7 +138,7 @@ export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserIma
         uploadedAt: image?.uploadedAt ?? null,
       };
     })
-    .filter((image) => Boolean(image.imageUrl));
+    .filter((image): image is NormalizedUserImage => Boolean(image && image.imageUrl));
 
   const profileImages = images.filter((image) => image.isProfile);
   const remainingImages = images.filter((image) => !image.isProfile);
@@ -173,14 +195,28 @@ export const useUserImages = (userId?: string) => {
       };
 
       const formData = new FormData();
-      // OpenAPI spec specifies properties 'photo' and 'image' on multipart/form-data.
-      // Append both so whichever property the backend controller binds, it finds the part.
-      formData.append('photo', filePayload as any);
+      // OpenAPI spec specifies property 'image' on multipart/form-data.
+      // Append 'image', 'photo', and 'file' so whichever property the backend controller binds, it finds the part.
       formData.append('image', filePayload as any);
+      formData.append('photo', filePayload as any);
+      formData.append('file', filePayload as any);
 
       const queryParams = normalizedUserId
         ? { userId: normalizedUserId, uid: normalizedUserId }
         : undefined;
+
+      // Primary endpoint per OpenAPI spec: /users/{userId}/images (POST) with fallback to /profile/upload-image
+      if (normalizedUserId) {
+        try {
+          const userImgRes = await apiClient.post(`/users/${normalizedUserId}/images`, formData);
+          return userImgRes.data;
+        } catch (uErr: any) {
+          // If status is 404 or method not allowed, fall back to /profile/upload-image
+          if (uErr?.response?.status && uErr.response.status !== 404 && uErr.response.status !== 405) {
+            // If it failed with 400 or other, fall through to try /profile/upload-image
+          }
+        }
+      }
 
       try {
         const res = await apiClient.post('/profile/upload-image', formData, {
@@ -192,8 +228,9 @@ export const useUserImages = (userId?: string) => {
         if (err?.response?.status === 400 && normalizedUserId) {
           try {
             const fallbackFormData = new FormData();
-            fallbackFormData.append('photo', filePayload as any);
             fallbackFormData.append('image', filePayload as any);
+            fallbackFormData.append('photo', filePayload as any);
+            fallbackFormData.append('file', filePayload as any);
             fallbackFormData.append('userId', String(normalizedUserId));
             fallbackFormData.append('uid', String(normalizedUserId));
 

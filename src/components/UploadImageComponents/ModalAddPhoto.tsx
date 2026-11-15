@@ -100,6 +100,9 @@ const ModalAddPhoto = () => {
       nextSlots[targetIndex] = imageUrl;
       setImages(nextSlots);
       AsyncStorage.setItem('onboardingImages', JSON.stringify(nextSlots)).catch(() => {});
+      if (userId) {
+        AsyncStorage.setItem(`user_photos_${userId}`, JSON.stringify(nextSlots)).catch(() => {});
+      }
 
       // Cache local file URI for Face Validation service sync
       AsyncStorage.getItem('@local_onboarding_photos')
@@ -123,11 +126,23 @@ const ModalAddPhoto = () => {
         photo: asset,
       });
 
-      const uploadedUrl =
-        uploadResponse?.imageUrl ||
-        uploadResponse?.data?.imageUrl ||
-        uploadResponse?.url ||
-        asset.uri;
+      let uploadedUrl: string | null = null;
+      if (typeof uploadResponse === 'object' && uploadResponse !== null) {
+        uploadedUrl =
+          uploadResponse?.imageUrl ||
+          uploadResponse?.data?.imageUrl ||
+          uploadResponse?.url ||
+          uploadResponse?.data?.url ||
+          null;
+      } else if (typeof uploadResponse === 'string') {
+        const s = uploadResponse.trim();
+        if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/') || /\.(jpg|jpeg|png|webp|gif)/i.test(s)) {
+          uploadedUrl = s;
+        }
+      }
+      if (!uploadedUrl) {
+        uploadedUrl = asset.uri;
+      }
 
       const uploadedImageId =
         typeof uploadResponse?.id === 'number'

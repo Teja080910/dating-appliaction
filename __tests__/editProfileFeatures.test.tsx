@@ -167,4 +167,16 @@ describe('Edit Profile New Features', () => {
       renderer!.unmount();
     });
   });
+
+  it('safely handles generic picker names in isDeletedPhotoUri without false-positive deletions', () => {
+    const { isDeletedPhotoUri } = require('../src/utils/imageHelpers');
+    const deletedList = ['https://server.com/uploads/gallery_1.jpg', 'gallery_1.jpg'];
+    
+    // New photo with common picker filename shouldn't be deleted if URI doesn't match
+    const newPickedPhoto = 'file:///data/user/0/com.amara/cache/gallery_1.jpg';
+    expect(isDeletedPhotoUri(newPickedPhoto, deletedList)).toBe(false);
+
+    // Exact URI in deleted list is marked deleted
+    expect(isDeletedPhotoUri('https://server.com/uploads/gallery_1.jpg', deletedList)).toBe(true);
+  });
 });

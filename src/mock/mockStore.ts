@@ -819,7 +819,7 @@ class MockStore {
       if (profileData.age !== undefined && profileData.age !== null) {
         (this.users[userIndex] as any).age = Number(profileData.age);
       }
-      if (profileData.bio) {
+      if (profileData.bio !== undefined) {
         (this.users[userIndex] as any).bio = profileData.bio;
       }
       if (hasPhoneKey) {
@@ -836,12 +836,10 @@ class MockStore {
         const validPhotos = Array.isArray(rawList)
           ? rawList.filter((p: any): p is string => typeof p === 'string' && p.trim().length > 0)
           : [];
-        if (validPhotos.length > 0) {
-          (this.users[userIndex] as any).photos = validPhotos;
-          (this.users[userIndex] as any).images = validPhotos;
-          (this.users[userIndex] as any).profileImageUrl = validPhotos[0];
-          (this.users[userIndex] as any).photo = validPhotos[0];
-        }
+        (this.users[userIndex] as any).photos = validPhotos;
+        (this.users[userIndex] as any).images = validPhotos;
+        (this.users[userIndex] as any).profileImageUrl = validPhotos[0] || '';
+        (this.users[userIndex] as any).photo = validPhotos[0] || '';
       }
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users));
     }
@@ -908,6 +906,15 @@ class MockStore {
       }
 
       if (isReceiver) {
+        if ((Array.isArray(profileData.photos) || Array.isArray((profileData as any).images)) && r.receiver) {
+          const rawPhotos = profileData.photos || (profileData as any).images;
+          const validPhotos = rawPhotos.filter((p: any): p is string => typeof p === 'string' && p.trim().length > 0);
+          r.receiver.photos = validPhotos;
+          r.receiver.photo = validPhotos[0] || '';
+          (r as any).receiverPhotos = validPhotos;
+          (r as any).receiverPhoto = validPhotos[0] || '';
+          reqsChanged = true;
+        }
         if (hasPhoneKey) {
           (r as any).receiverMobile = effectivePhone;
           (r as any).receiverWhatsapp = effectivePhone;

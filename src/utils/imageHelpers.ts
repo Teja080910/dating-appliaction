@@ -55,3 +55,39 @@ export const padToSlots = (photos: (string | null)[], totalSlots = 6): (string |
   }
   return result;
 };
+
+export const getFilenameFromUrl = (u?: string | null): string => {
+  if (!u) return '';
+  const clean = u.split('?')[0].split('#')[0];
+  return clean.substring(clean.lastIndexOf('/') + 1);
+};
+
+export const isDeletedPhotoUri = (
+  uri: string | null | undefined,
+  deletedList: string[],
+  getAbsoluteUrlFn?: (url: string | null | undefined) => string
+): boolean => {
+  if (!uri || !Array.isArray(deletedList) || deletedList.length === 0) return false;
+  const clean = uri.trim();
+  if (!clean) return false;
+  const abs = getAbsoluteUrlFn ? getAbsoluteUrlFn(clean) : clean;
+  const filename = getFilenameFromUrl(clean).toLowerCase();
+  const isGeneric =
+    ['photo.jpg', 'image.jpg', 'default.jpg'].includes(filename) ||
+    filename.startsWith('gallery_') ||
+    filename.startsWith('photo_') ||
+    filename.startsWith('image_') ||
+    filename.startsWith('rn_image_picker');
+
+  return deletedList.some((d) => {
+    if (!d) return false;
+    const cleanD = String(d).trim();
+    if (!cleanD) return false;
+    if (cleanD === clean || cleanD === abs) return true;
+    const dAbs = getAbsoluteUrlFn ? getAbsoluteUrlFn(cleanD) : cleanD;
+    if (dAbs === abs || dAbs === clean) return true;
+    const dFile = getFilenameFromUrl(cleanD).toLowerCase();
+    if (filename && dFile && !isGeneric && filename === dFile) return true;
+    return false;
+  });
+};

@@ -543,6 +543,12 @@ const ViewMyProfileScreen = () => {
             setOwnGalleryImages(dedupeImageUris([data]));
           },
         });
+      } else if (!isViewingSelf && numericTargetId && isSameId(event?.uid, numericTargetId)) {
+        getAllImagesRef.current(String(numericTargetId), {
+          onSuccess: (data: any) => {
+            setTargetGalleryImages(dedupeImageUris([data]));
+          },
+        });
       }
     });
     return () => {
@@ -1135,6 +1141,15 @@ const ViewMyProfileScreen = () => {
 
   const acceptedChatPhone = useMemo(() => {
     if (isViewerWoman) return '';
+    if (isTargetUserFetched && isProfileOfTarget(fetchedProfile)) {
+      if (
+        (fetchedProfile as any)?.mobile === '' ||
+        (fetchedProfile as any)?.phoneNumber === '' ||
+        (fetchedProfile as any)?.phone === ''
+      ) {
+        return '';
+      }
+    }
     return extractPhone(
       isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
       targetPartyFromMatch,
@@ -1148,6 +1163,14 @@ const ViewMyProfileScreen = () => {
 
   const acceptedChatTg = useMemo(() => {
     if (isViewerWoman) return '';
+    if (isTargetUserFetched && isProfileOfTarget(fetchedProfile)) {
+      if (
+        (fetchedProfile as any)?.telegramUsername === '' ||
+        (fetchedProfile as any)?.telegramUsername === 'NONE'
+      ) {
+        return '';
+      }
+    }
     return extractTelegram(
       isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
       targetPartyFromMatch,

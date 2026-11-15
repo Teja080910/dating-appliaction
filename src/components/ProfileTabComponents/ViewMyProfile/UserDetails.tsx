@@ -541,9 +541,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     } else {
       if (isViewerWoman) return '';
       if (!isApprovedInvitation) return '';
+      if (
+        (resolvedProfile as any)?.telegramUsername === '' ||
+        (resolvedProfile as any)?.telegramUsername === 'NONE' ||
+        (profile as any)?.telegramUsername === '' ||
+        (profile as any)?.telegramUsername === 'NONE'
+      ) {
+        return '';
+      }
       raw = extractTelegram(
-        targetParty,
         !isProfileMine ? resolvedProfile : null,
+        targetParty,
         !isContextProfileMine ? profile : null,
         !isPropProfileMine ? propProfile : null
       );
@@ -576,10 +584,20 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     }
     if (isViewerWoman) return '';
     if (!isApprovedInvitation) return '';
+    if (
+      (resolvedProfile as any)?.mobile === '' ||
+      (resolvedProfile as any)?.phoneNumber === '' ||
+      (resolvedProfile as any)?.phone === '' ||
+      (profile as any)?.mobile === '' ||
+      (profile as any)?.phoneNumber === '' ||
+      (profile as any)?.phone === ''
+    ) {
+      return '';
+    }
     return (
       extractPhone(
-        targetParty,
         !isProfileMine ? resolvedProfile : null,
+        targetParty,
         !isContextProfileMine ? profile : null,
         !isPropProfileMine ? propProfile : null
       ) || ''
@@ -1068,12 +1086,34 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           </View>
         )}
 
-        <View style={styles.bioBlock}>
-          <Text style={styles.sectionTitle}>{t('more_info.header.about_me')}</Text>
-          <Text style={styles.bioText}>
-            {resolvedProfile?.bio || profile?.bio || (isOwnProfile ? (profileText || t('profile.userdetails.i_am_good_enough_for_every_good_thing_you_can_imagine')) : "Dm for vc only")}
-          </Text>
-        </View>
+        {(() => {
+          const bioToDisplay = (
+            resolvedProfile?.bio !== undefined
+              ? String(resolvedProfile.bio).trim()
+              : (profile?.bio !== undefined
+                ? String(profile.bio).trim()
+                : (isOwnProfile ? String(profileText || '').trim() : ''))
+          );
+          if (bioToDisplay) {
+            return (
+              <View style={styles.bioBlock}>
+                <Text style={styles.sectionTitle}>{t('more_info.header.about_me')}</Text>
+                <Text style={styles.bioText}>{bioToDisplay}</Text>
+              </View>
+            );
+          }
+          if (isOwnProfile) {
+            return (
+              <View style={styles.bioBlock}>
+                <Text style={styles.sectionTitle}>{t('more_info.header.about_me')}</Text>
+                <Text style={[styles.bioText, { fontStyle: 'italic', opacity: 0.6 }]}>
+                  {t('profile.userdetails.no_bio', { defaultValue: 'No bio added yet.' })}
+                </Text>
+              </View>
+            );
+          }
+          return null;
+        })()}
       </View>
 
       {/* Details Section */}
@@ -1091,22 +1131,38 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           )}
         </View>
         <View style={styles.pillsContainer}>
-          <DetailPill icon="tape-measure" text={t('more_info.heightselector.cm', { currentHeight: normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '160') : '160') })} />
-          <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || t('profile.userdetails.slim')) : t('profile.userdetails.slim')))} />
-          <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || t('profile.userdetails.attractive')) : t('profile.userdetails.attractive')))} />
-          <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || t('profile.userdetails.other')) : t('profile.userdetails.other')))} />
-          <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || t('profile.userdetails.no')) : t('profile.userdetails.no')))} />
-          <DetailPill icon="glass-cocktail" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || t('profile.userdetails.no')) : t('profile.userdetails.no')))} />
-          <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Medium') : 'Medium')) })} />
-          <DetailPill
-            icon="baby-face-outline"
-            text={t('profile.userdetails.kids', {
-              normalizeTextValue: normalizeTextValue(
-                resolvedProfile?.kids || resolvedProfile?.kidCount || profile?.kids || profile?.kidCount,
-                isOwnProfile ? (selectedKids || localKids || "0") : "0"
-              ),
-            })}
-          />
+          {Boolean(resolvedProfile?.height || profile?.height || (isOwnProfile && height)) && (
+            <DetailPill icon="tape-measure" text={t('more_info.heightselector.cm', { currentHeight: normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '') : '') })} />
+          )}
+          {Boolean(resolvedProfile?.bodyType || profile?.bodyType || (isOwnProfile && selectedBodyType)) && (
+            <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.appearance || profile?.appearance || (isOwnProfile && selectedAppearance)) && (
+            <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.ethnicity || profile?.ethnicity || (isOwnProfile && selectedEthinicity)) && (
+            <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.smoke || profile?.smoke || (isOwnProfile && selectedSmoking)) && (
+            <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.drink || profile?.drink || (isOwnProfile && selectedDrinking)) && (
+            <DetailPill icon="glass-cocktail" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.englishLevel || profile?.englishLevel || (isOwnProfile && englishSkillLevel)) && (
+            <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Medium') : 'Medium')) })} />
+          )}
+          {Boolean(resolvedProfile?.kids || resolvedProfile?.kidCount || profile?.kids || profile?.kidCount || (isOwnProfile && (selectedKids || localKids))) && (
+            <DetailPill
+              icon="baby-face-outline"
+              text={t('profile.userdetails.kids', {
+                normalizeTextValue: normalizeTextValue(
+                  resolvedProfile?.kids || resolvedProfile?.kidCount || profile?.kids || profile?.kidCount,
+                  isOwnProfile ? (selectedKids || localKids || "0") : "0"
+                ),
+              })}
+            />
+          )}
           {Boolean(resolvedProfile?.netWorth || profile?.netWorth || (isOwnProfile && (selectedNetWorth || localNetWorth))) ? (
             <DetailPill
               icon="currency-usd"

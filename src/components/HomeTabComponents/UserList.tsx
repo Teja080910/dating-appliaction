@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -9,6 +9,7 @@ import { useDiscovery } from '../../api/useDiscovery';
 import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
+import { isSameUserId } from '../../utils/session';
 import { getSavedSearchFilters, getLocalBlockedUsers } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing, useTheme } from '../../theme';
 import { useResponsive } from '../../utils/responsive';
@@ -416,6 +417,32 @@ const UserList = ({
       setRefreshKey((prev) => prev + 1);
     }, [])
   );
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', (data: any) => {
+      if (data?.uid) {
+        setProfiles((prevProfiles) =>
+          prevProfiles.map((user) => {
+            const uId = String(resolveProfileUserId(user) || user?.id || '');
+            if (isSameUserId(uId, data.uid)) {
+              return {
+                ...user,
+                ...(data.name || data.displayName ? { name: data.displayName || data.name, displayName: data.displayName || data.name } : {}),
+                ...(data.bio !== undefined ? { bio: data.bio } : {}),
+                ...(data.photos ? { photos: data.photos, images: data.photos } : {}),
+                ...(data.photo ? { photo: data.photo, profileImageUrl: data.photo } : {}),
+              };
+            }
+            return user;
+          })
+        );
+      }
+      setRefreshKey((prev) => prev + 1);
+    });
+    return () => {
+      sub.remove();
+    };
+  }, []);
 
   const filterUsersMutationRef = useRef(filterUsers.mutateAsync);
   const searchUsersMutationRef = useRef(searchUsers.mutateAsync);

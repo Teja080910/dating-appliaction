@@ -214,9 +214,20 @@ const GlobalStateProvider = ({ children }: any) => {
             if (effectivePhone) setPhoneNumber(effectivePhone);
           }
 
-          // Photos MUST be strictly scoped to the active account identity.
-          // Never fall back to un-scoped 'onboardingImages' when logged in under a specific userId.
-          const effectiveImages = userScopedImages || (id ? null : storedImages);
+          // Prioritize user-scoped images, falling back to onboardingImages if user-scoped images are not yet set
+          let effectiveImages = userScopedImages;
+          if (!effectiveImages && storedImages) {
+            try {
+              const parsedStored = JSON.parse(storedImages);
+              if (Array.isArray(parsedStored) && parsedStored.some(Boolean)) {
+                effectiveImages = storedImages;
+                if (id) {
+                  AsyncStorage.setItem(`user_photos_${id}`, storedImages).catch(() => {});
+                }
+              }
+            } catch {}
+          }
+
           if (effectiveImages) {
             try {
               const parsed = JSON.parse(effectiveImages);
@@ -235,7 +246,13 @@ const GlobalStateProvider = ({ children }: any) => {
             setImages(emptyImageSlots());
           }
 
-          const effectiveProfilePhoto = userScopedProfileImage || (id ? null : storedProfileImage);
+          let effectiveProfilePhoto = userScopedProfileImage;
+          if (!effectiveProfilePhoto && storedProfileImage) {
+            effectiveProfilePhoto = storedProfileImage;
+            if (id) {
+              AsyncStorage.setItem(`user_profile_photo_${id}`, storedProfileImage).catch(() => {});
+            }
+          }
           if (effectiveProfilePhoto) {
             try {
               const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];

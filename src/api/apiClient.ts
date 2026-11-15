@@ -246,6 +246,10 @@ export const getAbsoluteUrl = (url: string | null | undefined) => {
   const normalizedUrl = typeof url === 'string' ? url.trim() : '';
   if (!normalizedUrl) return 'https://via.placeholder.com/150';
   if (/^(https?:\/\/|file:\/\/|content:\/\/|asset:\/\/|ph:\/\/|data:)/i.test(normalizedUrl)) return normalizedUrl;
+  const lower = normalizedUrl.toLowerCase();
+  if (lower.includes('success') || lower.includes('failed') || lower.includes('error') || lower.includes('done') || normalizedUrl.includes(' ')) {
+    return 'https://via.placeholder.com/150';
+  }
   return `${BASE_URL}${normalizedUrl.startsWith('/') ? normalizedUrl : `/${normalizedUrl}`}`;
 };
 

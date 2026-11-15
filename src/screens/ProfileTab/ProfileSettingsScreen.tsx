@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
 import { useProfile, extractSessionIdFromResponse } from '../../api/useProfile';
 import Description from '../../components/ProfileTabComponents/ProfileSettings/Description';
 import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/DisplayName';
@@ -25,7 +26,7 @@ import { Colors, useTheme } from '../../theme';
 import { getAuthSession } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
-import { dedupeImageUris } from '../../utils/imageHelpers';
+import { dedupeImageUris, isDeletedPhotoUri } from '../../utils/imageHelpers';
 import { parseDobToLocalDate, formatDateToDobString, calculateAgeFromDob } from '../../utils/dateUtils';
 import { t, useTranslation } from '../../i18n';
 
@@ -68,6 +69,7 @@ const ProfileSettingsScreen = () => {
   const [countryFlag, setCountryFlag] = useState(defaultCountry.flag);
   const [localPhoneNumber, setLocalPhoneNumber] = useState('');
   const [localTelegramUsername, setLocalTelegramUsername] = useState('');
+  const [storedUserId, setStoredUserId] = useState('');
 
   const isCleanPhoneNumber = (val?: string | null): boolean => {
     if (!val) return false;
@@ -108,13 +110,20 @@ const ProfileSettingsScreen = () => {
           setDisplayName((prev) => prev || storedName);
         }
 
-        const storedBio = (await AsyncStorage.getItem('bio')) || (await AsyncStorage.getItem('@onboarding_bio'));
-        if (storedBio) {
-          setLocalDescription((prev) => prev || storedBio);
-          setProfileText((prev) => prev || storedBio);
+        const storedBio = await AsyncStorage.getItem('bio');
+        if (storedBio !== null) {
+          setLocalDescription(storedBio);
+          setProfileText(storedBio);
+        } else {
+          const onboardingBio = await AsyncStorage.getItem('@onboarding_bio');
+          if (onboardingBio) {
+            setLocalDescription(onboardingBio);
+            setProfileText(onboardingBio);
+          }
         }
 
         const uid = (await AsyncStorage.getItem('userId')) || '';
+        if (uid) setStoredUserId(uid);
         const userScopedDob = uid ? await AsyncStorage.getItem(`user_dob_${uid}`) : null;
         const storedDob = userScopedDob || (await AsyncStorage.getItem('userDob'));
         if (storedDob) {
@@ -199,7 +208,7 @@ const ProfileSettingsScreen = () => {
       setName(nextName);
     }
 
-    if (profile.bio) {
+    if (profile.bio !== undefined && profile.bio !== null) {
       setLocalDescription(profile.bio);
       setProfileText(profile.bio);
     }
@@ -308,8 +317,39 @@ const ProfileSettingsScreen = () => {
     }
 
     const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
+    const cleanCurrentUid = currentUid ? String(currentUid).trim() : '';
+    const currentUidDigits = cleanCurrentUid.replace(/\D/g, '');
 
-    const persistLocalState = async (savePhone = true) => {
+    const userPhotosRaw = cleanCurrentUid
+      ? (await AsyncStorage.getItem(`user_photos_${cleanCurrentUid}`).catch(() => null)) ||
+        (currentUidDigits ? await AsyncStorage.getItem(`user_photos_${currentUidDigits}`).catch(() => null) : null)
+      : null;
+    let currentPhotos: string[] | undefined = undefined;
+    if (userPhotosRaw) {
+      try {
+        const parsed = JSON.parse(userPhotosRaw);
+        if (Array.isArray(parsed)) {
+          currentPhotos = parsed.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+        }
+      } catch {}
+    }
+
+    const deletedRaw = cleanCurrentUid
+      ? (await AsyncStorage.getItem(`deleted_photos_${cleanCurrentUid}`).catch(() => null)) ||
+        (await AsyncStorage.getItem('deleted_image_uris').catch(() => null))
+      : null;
+    const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+
+    const liveContextPhotos = (images || []).filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+    const sourcePhotos = liveContextPhotos.length > 0
+      ? liveContextPhotos
+      : (currentPhotos !== undefined
+        ? currentPhotos
+        : (images || []).filter((u): u is string => typeof u === 'string' && u.trim().length > 0));
+
+    const photosToSend = sourcePhotos.filter((u) => !isDeletedPhotoUri(u, deletedList, getAbsoluteUrl));
+
+    const persistLocalState = async (savePhone = true, photos = photosToSend) => {
       const cleanDob = formatDateToDobString(localDob);
       setDisplayName(cleanName);
       setName(cleanName);
@@ -327,29 +367,32 @@ const ProfileSettingsScreen = () => {
         await AsyncStorage.setItem(`user_name_${currentUid}`, cleanName);
         await AsyncStorage.setItem(`user_dob_${currentUid}`, cleanDob);
       }
-      const validPhotos = (images || []).filter(Boolean) as string[];
-      await AsyncStorage.setItem('onboardingImages', JSON.stringify(images || []));
+
+      await AsyncStorage.setItem('onboardingImages', JSON.stringify(photos));
       if (currentUid) {
         const cleanUid = String(currentUid).trim();
         const digits = cleanUid.replace(/\D/g, '');
-        await AsyncStorage.setItem(`user_photos_${cleanUid}`, JSON.stringify(images || []));
+        await AsyncStorage.setItem(`user_photos_${cleanUid}`, JSON.stringify(photos));
         if (digits && digits !== cleanUid) {
-          await AsyncStorage.setItem(`user_photos_${digits}`, JSON.stringify(images || []));
+          await AsyncStorage.setItem(`user_photos_${digits}`, JSON.stringify(photos));
         }
       }
-      if (validPhotos[0]) {
-        await AsyncStorage.setItem('profileImage', validPhotos[0]);
+      if (photos[0]) {
+        await AsyncStorage.setItem('profileImage', photos[0]);
         if (currentUid) {
-          await AsyncStorage.setItem(`user_profile_photo_${currentUid}`, validPhotos[0]);
+          await AsyncStorage.setItem(`user_profile_photo_${currentUid}`, photos[0]);
         }
-        setProfileImage(validPhotos[0]);
-        setProfileImageUrl(validPhotos[0]);
+        setProfileImage(photos[0]);
+        setProfileImageUrl(photos[0]);
       } else {
         await AsyncStorage.removeItem('profileImage');
         if (currentUid) {
           await AsyncStorage.removeItem(`user_profile_photo_${currentUid}`);
         }
+        setProfileImage(null);
+        setProfileImageUrl(null);
       }
+      setImages(photos);
 
       if (savePhone && fullPhone) {
         setContextPhone(fullPhone);
@@ -399,29 +442,11 @@ const ProfileSettingsScreen = () => {
     if (!fullPhone) {
       userExplicitlyRemovedPhoneRef.current = true;
     }
-    await persistLocalState();
+    await persistLocalState(true, photosToSend);
 
     const tgToPersist = localTelegramUsername.trim()
       ? localTelegramUsername.trim().replace(/^@+/, '')
       : 'NONE';
-
-    const validContextPhotos = (images || []).filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
-    const cleanCurrentUid = currentUid ? String(currentUid).trim() : '';
-    const currentUidDigits = cleanCurrentUid.replace(/\D/g, '');
-    const userPhotosRaw = cleanCurrentUid
-      ? (await AsyncStorage.getItem(`user_photos_${cleanCurrentUid}`).catch(() => null)) ||
-        (currentUidDigits ? await AsyncStorage.getItem(`user_photos_${currentUidDigits}`).catch(() => null) : null)
-      : null;
-    let currentPhotos: string[] | undefined = undefined;
-    if (userPhotosRaw) {
-      try {
-        const parsed = JSON.parse(userPhotosRaw);
-        if (Array.isArray(parsed) && parsed.some(Boolean)) {
-          currentPhotos = parsed.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
-        }
-      } catch {}
-    }
-    const photosToSend = validContextPhotos.length > 0 ? validContextPhotos : currentPhotos;
 
     updateProfile.mutate(
       {
@@ -435,11 +460,14 @@ const ProfileSettingsScreen = () => {
         mobile: fullPhone || '',
         phoneNumber: fullPhone || '',
         phone: fullPhone || '',
-        ...(photosToSend && photosToSend.length > 0 ? { photos: photosToSend } : {}),
+        photos: photosToSend,
+        images: photosToSend,
+        profileImageUrl: photosToSend[0] || '',
+        photo: photosToSend[0] || '',
       } as any,
       {
         onSuccess: async () => {
-          await persistLocalState();
+          await persistLocalState(true, photosToSend);
           await profileQuery.refetch();
           queryClient.invalidateQueries({ queryKey: ['myProfile'] });
           queryClient.invalidateQueries({ queryKey: ['profile-me'] });
@@ -447,23 +475,26 @@ const ProfileSettingsScreen = () => {
           queryClient.invalidateQueries({ queryKey: ['connections'] });
           queryClient.invalidateQueries({ queryKey: ['connections-sent'] });
           queryClient.invalidateQueries({ queryKey: ['connections-received'] });
+          queryClient.invalidateQueries({ queryKey: ['userImages'] });
+          queryClient.invalidateQueries({ queryKey: ['discovery-filter'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-users'] });
+          queryClient.invalidateQueries({ queryKey: ['users'] });
           setContextPhone(fullPhone || '');
-          const userPhotosRaw = currentUid ? await AsyncStorage.getItem(`user_photos_${currentUid}`).catch(() => null) : null;
-          let currentPhotos: string[] | undefined = undefined;
-          if (userPhotosRaw) {
-            try {
-              const parsed = JSON.parse(userPhotosRaw);
-              if (Array.isArray(parsed) && parsed.some(Boolean)) {
-                currentPhotos = parsed;
-              }
-            } catch {}
-          }
+          setImages(photosToSend);
+          setProfileImage(photosToSend[0] || null);
+          setProfileImageUrl(photosToSend[0] || null);
 
           DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', {
             uid: currentUid,
             phoneNumber: fullPhone || '',
             telegramUsername: tgToPersist === 'NONE' ? '' : tgToPersist,
-            ...(currentPhotos ? { photos: currentPhotos, photo: currentPhotos[0] || '' } : {}),
+            bio: cleanBio,
+            displayName: cleanName,
+            name: cleanName,
+            photos: photosToSend,
+            images: photosToSend,
+            photo: photosToSend[0] || '',
+            profileImageUrl: photosToSend[0] || '',
           });
           navigation.goBack();
         },
@@ -498,10 +529,25 @@ const ProfileSettingsScreen = () => {
                 dob: formatDateToDobString(localDob),
                 age: ageToSave,
                 telegramUsername: tgToPersist,
+                photos: photosToSend,
+                images: photosToSend,
+                profileImageUrl: photosToSend[0] || '',
+                photo: photosToSend[0] || '',
               } as any);
-              await persistLocalState(false);
+              await persistLocalState(false, photosToSend);
               await profileQuery.refetch();
-              DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
+              DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', {
+                uid: currentUid,
+                phoneNumber: '',
+                telegramUsername: tgToPersist === 'NONE' ? '' : tgToPersist,
+                bio: cleanBio,
+                displayName: cleanName,
+                name: cleanName,
+                photos: photosToSend,
+                images: photosToSend,
+                photo: photosToSend[0] || '',
+                profileImageUrl: photosToSend[0] || '',
+              });
               alert(
                 t('profile.profilesettingsscreen.phone_already_exists_title', {
                   defaultValue: 'Number Already in Use',
@@ -708,7 +754,7 @@ const ProfileSettingsScreen = () => {
 
         <ProfilePhotoGrid
           initialPhotos={profilePhotos}
-          userId={String(profileQuery.data?.userId || profileQuery.data?.id || '') || undefined}
+          userId={String(profileQuery.data?.userId || profileQuery.data?.id || storedUserId || '') || undefined}
         />
 
         {/* Contact Details (WhatsApp & Telegram) */}

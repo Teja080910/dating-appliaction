@@ -112,8 +112,13 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     const clean = uri.trim();
     if (!clean) return false;
     const abs = getAbsoluteUrl(clean) || clean;
-    const filename = getFilenameFromUrl(clean);
-    const isGeneric = ['photo.jpg', 'image.jpg', 'default.jpg'].includes((filename || '').toLowerCase());
+    const filename = getFilenameFromUrl(clean).toLowerCase();
+    const isGeneric =
+      ['photo.jpg', 'image.jpg', 'default.jpg'].includes(filename) ||
+      filename.startsWith('gallery_') ||
+      filename.startsWith('photo_') ||
+      filename.startsWith('image_') ||
+      filename.startsWith('rn_image_picker');
 
     return deletedList.some((d) => {
       if (!d) return false;
@@ -122,7 +127,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       if (cleanD === clean || cleanD === abs) return true;
       const dAbs = getAbsoluteUrl(cleanD) || cleanD;
       if (dAbs === abs || dAbs === clean) return true;
-      const dFile = getFilenameFromUrl(cleanD);
+      const dFile = getFilenameFromUrl(cleanD).toLowerCase();
       if (filename && dFile && !isGeneric && filename === dFile) return true;
       return false;
     });
@@ -225,8 +230,8 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
           storedSlots = storedRaw.filter((u) => u && !isDeletedUri(u, deletedList));
         }
 
-        // Prefer local storedSlots if populated, otherwise use server validInitial
-        const base = storedSlots.length > 0 ? storedSlots : validInitial;
+        // Prefer whichever source has more valid photos
+        const base = storedSlots.length >= validInitial.length ? storedSlots : validInitial;
         const resolvedSlots: (string | null)[] = [...base];
         while (resolvedSlots.length < TOTAL_SLOTS) {
           resolvedSlots.push(null);
@@ -239,7 +244,9 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
             setProfileImage(resolvedSlots[0]);
             setProfileImageUrl(resolvedSlots[0]);
           }
-          await saveStoredUserPhotos(uid, resolvedSlots);
+          if (base.length >= storedSlots.length) {
+            await saveStoredUserPhotos(uid, resolvedSlots);
+          }
         }
       })();
     }
@@ -373,6 +380,14 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
             }
           }
 
+          // If replacing an existing photo in this slot and user has >= 5 photos on server,
+          // delete the old photo first to avoid "Max 5 images allowed" backend error.
+          if (oldImageId && activeUid && serverImages.length >= 5) {
+            try {
+              await deleteImage.mutateAsync({ imageId: oldImageId, userId: activeUid }).catch(() => {});
+            } catch {}
+          }
+
           uploadImage.mutate(
             {
               uid: activeUid || undefined,
@@ -384,20 +399,29 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
             },
             {
               onSuccess: async (uploadRes: any) => {
-                if (oldImageId) {
-                  await deleteImage.mutateAsync({ imageId: oldImageId, userId: activeUid || undefined }).catch(() => {});
+                if (oldImageId && activeUid) {
+                  await deleteImage.mutateAsync({ imageId: oldImageId, userId: activeUid }).catch(() => {});
                 }
 
                 const newId = uploadRes?.id || uploadRes?.data?.id || (uploadRes?.imageId ? Number(uploadRes.imageId) : undefined);
-                const newUrl =
-                  uploadRes?.imageUrl ||
-                  uploadRes?.data?.imageUrl ||
-                  (typeof uploadRes === 'string' ? uploadRes : undefined) ||
-                  uploadRes?.url ||
-                  uploadRes?.data?.url ||
-                  uploadRes?.profileImageUrl ||
-                  uploadRes?.data?.profileImageUrl;
-                const finalUrl = newUrl ? (getAbsoluteUrl(newUrl) || newUrl) : asset.uri;
+                let newUrl: string | null = null;
+                if (typeof uploadRes === 'object' && uploadRes !== null) {
+                  newUrl =
+                    uploadRes?.imageUrl ||
+                    uploadRes?.data?.imageUrl ||
+                    uploadRes?.url ||
+                    uploadRes?.data?.url ||
+                    uploadRes?.profileImageUrl ||
+                    uploadRes?.data?.profileImageUrl ||
+                    null;
+                } else if (typeof uploadRes === 'string') {
+                  const s = uploadRes.trim();
+                  if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/') || /\.(jpg|jpeg|png|webp|gif)/i.test(s)) {
+                    newUrl = s;
+                  }
+                }
+
+                let finalUrl = newUrl ? (getAbsoluteUrl(newUrl) || newUrl) : asset.uri;
 
                 if (newId) {
                   setImageMap((prev) => ({ ...prev, [index]: Number(newId) }));
@@ -444,12 +468,33 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 }
 
                 if (activeUid) {
-                  let serverSlots: string[] = [];
                   try {
                     const data = await getAllImages.mutateAsync(activeUid);
                     const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
                     setServerImages(mapped.normalized);
-                    serverSlots = (mapped?.slots || []).filter((u: any): u is string => typeof u === 'string' && u.trim().length > 0);
+
+                    // If newUrl was not returned directly from upload endpoint, resolve from latest image
+                    if (!newUrl && mapped.normalized.length > 0) {
+                      const found = mapped.normalized.find((img) => {
+                        if (!img.imageUrl) return false;
+                        const f1 = getFilenameFromUrl(img.imageUrl);
+                        const f2 = getFilenameFromUrl(asset.uri);
+                        if (f1 && f2 && f1 === f2) return true;
+                        return false;
+                      });
+                      const resolvedImg = found || mapped.normalized[mapped.normalized.length - 1];
+                      if (resolvedImg?.imageUrl) {
+                        newUrl = resolvedImg.imageUrl;
+                        finalUrl = getAbsoluteUrl(newUrl) || newUrl;
+                        updated[index] = finalUrl;
+                        setImages([...updated]);
+                        if (index === 0) {
+                          setProfileImage(finalUrl);
+                          setProfileImageUrl(finalUrl);
+                        }
+                        await saveStoredUserPhotos(activeUid, updated);
+                      }
+                    }
 
                     // Map true server image ID to this slot so future deletes target the exact ID
                     const found = mapped.normalized.find((img) => {
@@ -475,7 +520,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                   }
 
                   const validPhotos = updated.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
-                  const allPhotos = serverSlots.length >= validPhotos.length ? serverSlots : validPhotos;
+                  const allPhotos = validPhotos;
                   const updatePayload = {
                     userId: activeUid,
                     ...(index === 0 ? { profileImageUrl: finalUrl, photo: finalUrl } : {}),
