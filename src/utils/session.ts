@@ -18,6 +18,7 @@ import {
   STORAGE_KEYS,
   USER_VERIFIED_KEY,
   isResolvedApiUserId,
+  isSameUserId,
   isLikelyFallbackSubjectId,
   restoreScopedOnboardingState,
   initVerifiedIdentityCache,
@@ -106,6 +107,7 @@ const describeError = (error: any) => ({
 });
 
 // Helping functions isResolvedApiUserId etc. now imported from sessionState.ts
+export { isSameUserId };
 
 const decodeJwtPayload = (token: string | null | undefined) => {
   const normalizedToken = normalizeStoredString(token);

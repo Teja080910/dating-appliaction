@@ -21,7 +21,7 @@ import { mapImagesToSlots, useUserImages, NormalizedUserImage } from '../../../a
 import { useProfile } from '../../../api/useProfile';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../../theme';
-import { getAuthSession, isResolvedApiUserId } from '../../../utils/session';
+import { getAuthSession, isResolvedApiUserId, isSameUserId } from '../../../utils/session';
 import { getAuthToken, getUserId } from '../../../utils/sessionHelper';
 import { useAlert } from '../../AlertModal';
 import { requestPermissions } from '../../../utils/types/permission';
@@ -156,11 +156,48 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     } catch {}
   }, []);
 
+  const getStoredUserPhotos = useCallback(async (uid?: string | null) => {
+    if (!uid) return null;
+    const clean = String(uid).trim();
+    const digits = clean.replace(/\D/g, '');
+    const keys = [
+      `user_photos_${clean}`,
+      digits ? `user_photos_${digits}` : null,
+      digits ? `user_photos_usr_woman_${digits}` : null,
+      digits ? `user_photos_usr_man_${digits}` : null,
+      'onboardingImages',
+    ].filter(Boolean) as string[];
+
+    for (const k of keys) {
+      try {
+        const raw = await AsyncStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.some(Boolean)) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return null;
+  }, []);
+
+  const saveStoredUserPhotos = useCallback(async (uid: string | null | undefined, slots: (string | null)[]) => {
+    await AsyncStorage.setItem('onboardingImages', JSON.stringify(slots)).catch(() => {});
+    if (!uid) return;
+    const clean = String(uid).trim();
+    const digits = clean.replace(/\D/g, '');
+    await AsyncStorage.setItem(`user_photos_${clean}`, JSON.stringify(slots)).catch(() => {});
+    if (digits && digits !== clean) {
+      await AsyncStorage.setItem(`user_photos_${digits}`, JSON.stringify(slots)).catch(() => {});
+    }
+  }, []);
+
   // Reset hydration and edits when switching users
   useEffect(() => {
     const currentUid = propUserId ? String(propUserId).trim() : null;
     const prevUid = activeUserKeyRef.current ? String(activeUserKeyRef.current).trim() : null;
-    if (currentUid && prevUid && prevUid !== currentUid && uploadingSlot === null) {
+    if (currentUid && prevUid && !isSameUserId(prevUid, currentUid) && uploadingSlot === null) {
       hasHydratedFromInitial.current = false;
       hasUserEdited.current = false;
       isInitRef.current = false;
@@ -181,17 +218,11 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
           .filter(Boolean)
           .filter((u) => !isDeletedUri(u, deletedList)) as string[];
 
-        // Check locally stored user_photos_${uid}
-        const userKey = uid ? `user_photos_${uid}` : 'onboardingImages';
-        const storedRaw = await AsyncStorage.getItem(userKey).catch(() => null);
+        // Check locally stored user_photos across scoped keys
+        const storedRaw = await getStoredUserPhotos(uid);
         let storedSlots: (string | null)[] = [];
-        if (storedRaw) {
-          try {
-            const p = JSON.parse(storedRaw);
-            if (Array.isArray(p)) {
-              storedSlots = p.filter((u) => u && !isDeletedUri(u, deletedList));
-            }
-          } catch {}
+        if (Array.isArray(storedRaw)) {
+          storedSlots = storedRaw.filter((u) => u && !isDeletedUri(u, deletedList));
         }
 
         // Prefer local storedSlots if populated, otherwise use server validInitial
@@ -208,14 +239,11 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
             setProfileImage(resolvedSlots[0]);
             setProfileImageUrl(resolvedSlots[0]);
           }
-          if (uid) {
-            AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(resolvedSlots)).catch(() => {});
-          }
-          AsyncStorage.setItem('onboardingImages', JSON.stringify(resolvedSlots)).catch(() => {});
+          await saveStoredUserPhotos(uid, resolvedSlots);
         }
       })();
     }
-  }, [initialPhotos, isDeletedUri, getDeletedUris, localUserId, resolveActiveUserId, setImages, setProfileImage, setProfileImageUrl, propUserId, uploadingSlot]);
+  }, [initialPhotos, isDeletedUri, getDeletedUris, localUserId, resolveActiveUserId, setImages, setProfileImage, setProfileImageUrl, propUserId, uploadingSlot, getStoredUserPhotos, saveStoredUserPhotos]);
 
   useEffect(() => {
     const init = async () => {
@@ -225,28 +253,24 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
         setAuthUserId?.(uid);
       }
 
-      if (isInitRef.current && activeUserKeyRef.current === uid) return;
+      if (isInitRef.current && isSameUserId(activeUserKeyRef.current, uid)) return;
       isInitRef.current = true;
       if (uid) activeUserKeyRef.current = uid;
 
       const currentValid = (images || []).filter(Boolean);
       try {
-        const userKey = uid ? `user_photos_${uid}` : 'onboardingImages';
-        const stored = await AsyncStorage.getItem(userKey);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.some(Boolean) && !hasUserEdited.current && uploadingSlot === null) {
-            const deletedList = await getDeletedUris(uid);
-            const slots = parsed.filter((u) => u && !isDeletedUri(u, deletedList));
-            while (slots.length < TOTAL_SLOTS) slots.push(null);
-            if (slots.some(Boolean)) {
-              const validSlots = slots.filter(Boolean);
-              if (validSlots.length >= currentValid.length) {
-                setImages(slots);
-                if (slots[0]) {
-                  setProfileImage(slots[0]);
-                  setProfileImageUrl(slots[0]);
-                }
+        const stored = await getStoredUserPhotos(uid);
+        if (Array.isArray(stored) && stored.some(Boolean) && !hasUserEdited.current && uploadingSlot === null) {
+          const deletedList = await getDeletedUris(uid);
+          const slots = stored.filter((u) => u && !isDeletedUri(u, deletedList));
+          while (slots.length < TOTAL_SLOTS) slots.push(null);
+          if (slots.some(Boolean)) {
+            const validSlots = slots.filter(Boolean);
+            if (validSlots.length >= currentValid.length) {
+              setImages(slots);
+              if (slots[0]) {
+                setProfileImage(slots[0]);
+                setProfileImageUrl(slots[0]);
               }
             }
           }
@@ -273,7 +297,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 setProfileImage(activeSlots[0]);
                 setProfileImageUrl(activeSlots[0]);
               }
-              AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(activeSlots)).catch(() => {});
+              await saveStoredUserPhotos(uid, activeSlots);
             }
           },
           onError: () => {},
@@ -281,7 +305,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       }
     };
     void init();
-  }, [resolveActiveUserId, propUserId, uploadingSlot]);
+  }, [resolveActiveUserId, propUserId, uploadingSlot, getStoredUserPhotos, saveStoredUserPhotos]);
 
   const handlePickImage = (index: number) => {
     setSelectedSlotIndex(index);
@@ -395,10 +419,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 }
 
                 // Await persisting updated list to storage so any readers see the latest state
-                await AsyncStorage.setItem('onboardingImages', JSON.stringify(updated)).catch(() => {});
-                if (activeUid) {
-                  await AsyncStorage.setItem(`user_photos_${activeUid}`, JSON.stringify(updated)).catch(() => {});
-                }
+                await saveStoredUserPhotos(activeUid, updated);
 
                 // Scrub uploaded image URIs and filenames from deleted photo tombstones
                 const scrubTargets = [asset.uri, newUrl, finalUrl].filter(Boolean) as string[];
@@ -423,10 +444,12 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 }
 
                 if (activeUid) {
+                  let serverSlots: string[] = [];
                   try {
                     const data = await getAllImages.mutateAsync(activeUid);
                     const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
                     setServerImages(mapped.normalized);
+                    serverSlots = (mapped?.slots || []).filter((u: any): u is string => typeof u === 'string' && u.trim().length > 0);
 
                     // Map true server image ID to this slot so future deletes target the exact ID
                     const found = mapped.normalized.find((img) => {
@@ -452,11 +475,15 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                   }
 
                   const validPhotos = updated.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
-                  apiClient.put('/profile/update', {
+                  const allPhotos = serverSlots.length >= validPhotos.length ? serverSlots : validPhotos;
+                  const updatePayload = {
                     userId: activeUid,
                     ...(index === 0 ? { profileImageUrl: finalUrl, photo: finalUrl } : {}),
-                    ...(validPhotos.length > 0 ? { photos: validPhotos } : {}),
-                  }).catch(() => {});
+                    ...(allPhotos.length > 0 ? { photos: allPhotos, images: allPhotos } : {}),
+                  };
+                  apiClient.put('/profile/update', updatePayload).catch(() => {
+                    apiClient.put('/profile/update-basic', updatePayload).catch(() => {});
+                  });
 
                   queryClient.invalidateQueries({ queryKey: ['myProfile'] });
                   queryClient.invalidateQueries({ queryKey: ['profile-me'] });
@@ -470,7 +497,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 }
               },
               onError: (err) => {
-                console.error('Image upload failed:', err);
+                console.error('Image upload failed:', (err as any)?.response?.data || (err as any)?.message || err);
                 const reverted = [...(images || [])];
                 while (reverted.length < TOTAL_SLOTS) reverted.push(null);
                 reverted[index] = previousPhoto;

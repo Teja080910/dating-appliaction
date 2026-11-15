@@ -140,6 +140,14 @@ const UserCard = ({
     const rawProfile = profileData?.profile || profileData || {};
     const targetUserId = id || rawProfile?.userId || rawProfile?.id;
     const resolvedCity = rawProfile?.currentCity || rawProfile?.city || (typeof safeDistance === 'string' && !safeDistance.toLowerCase().includes('away') && !safeDistance.toLowerCase().includes('nearby') ? safeDistance : undefined);
+    const candidatePhotos = [
+      ...(Array.isArray(rawProfile?.photos) ? rawProfile.photos : []),
+      ...(Array.isArray(rawProfile?.images) ? rawProfile.images : []),
+      ...(Array.isArray(profileData?.photos) ? profileData.photos : []),
+      ...(Array.isArray(profileData?.images) ? profileData.images : []),
+    ].filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+    const resolvedPhotos = candidatePhotos.length > 0 ? Array.from(new Set(candidatePhotos)) : (safeImage ? [safeImage] : []);
+
     const fullProfileData = {
       ...rawProfile,
       id: targetUserId,
@@ -161,10 +169,10 @@ const UserCard = ({
       distanceKm: rawProfile?.distanceKm,
       online: isOnline,
       isNew,
-      profileImageUrl: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
-      image: safeImage || rawProfile?.profileImageUrl || (rawProfile?.photos && rawProfile.photos[0]),
-      photos: rawProfile?.photos || (safeImage ? [safeImage] : []),
-      images: rawProfile?.photos || rawProfile?.images || (safeImage ? [safeImage] : []),
+      profileImageUrl: safeImage || rawProfile?.profileImageUrl || resolvedPhotos[0],
+      image: safeImage || rawProfile?.profileImageUrl || resolvedPhotos[0],
+      photos: resolvedPhotos,
+      images: resolvedPhotos,
       mobile: '',
       phone: '',
       phoneNumber: '',

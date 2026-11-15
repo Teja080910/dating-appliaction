@@ -451,6 +451,7 @@ export const handleMockRequest = async (
       gender: profile?.gender || user?.gender || (isWoman ? 'woman' : 'man'),
       bio: profile?.bio !== undefined ? profile.bio : '',
       photos,
+      images: photos,
       profileImageUrl: photos[0] || '',
       telegramUsername: profile?.telegramUsername || user?.telegramUsername || '',
       verifiedSelfie: profile?.verifiedSelfie ?? true,

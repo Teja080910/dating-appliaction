@@ -134,9 +134,27 @@ export const initVerifiedIdentityCache = async () => {
   } catch (e) {}
 };
 
+export const isSameUserId = (a: unknown, b: unknown): boolean => {
+  if (!a || !b) return false;
+  const sA = String(a).toLowerCase().trim();
+  const sB = String(b).toLowerCase().trim();
+  if (sA === sB) return true;
+  const numA = sA.replace(/\D/g, '');
+  const numB = sB.replace(/\D/g, '');
+  if (numA && numB && numA === numB) return true;
+  if ((sA.length >= 3 && sB.endsWith(sA)) || (sB.length >= 3 && sA.endsWith(sB))) return true;
+  return false;
+};
+
 export const isResolvedApiUserId = (value: unknown): boolean => {
   const normalized = String(value || '').trim();
-  if (!normalized || normalized === '0' || normalized === 'null' || normalized === 'undefined') {
+  if (
+    !normalized ||
+    normalized === '0' ||
+    normalized.toLowerCase() === 'null' ||
+    normalized.toLowerCase() === 'undefined' ||
+    normalized.toLowerCase() === 'nan'
+  ) {
     return false;
   }
 

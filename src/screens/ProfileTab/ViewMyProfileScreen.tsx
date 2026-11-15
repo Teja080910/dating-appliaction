@@ -550,9 +550,14 @@ const ViewMyProfileScreen = () => {
     };
   }, [isViewingSelf, myId, loadDeletedUris]);
 
+  const prevTargetIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     let isMounted = true;
-    setTargetGalleryImages([]); // Clear immediately when switching target to prevent leaking other profiles
+    if (numericTargetId && prevTargetIdRef.current !== numericTargetId) {
+      setTargetGalleryImages([]); // Clear only when actually switching to a different target profile
+      prevTargetIdRef.current = numericTargetId;
+    }
 
     if (!numericTargetId || isViewingSelf) {
       return () => {
@@ -913,34 +918,36 @@ const ViewMyProfileScreen = () => {
     };
 
     const activeContextPhotos = filterOutDeleted(contextImages || []);
-    const fetchedPhotos = filterOutDeleted(Array.isArray(fetched?.photos) ? fetched.photos : []);
+    const fetchedPhotos = filterOutDeleted([
+      fetched?.photos,
+      fetched?.images,
+      fetched?.profile?.photos,
+      fetched?.profile?.images,
+    ]);
     const ownGallery = filterOutDeleted(ownGalleryImages || []);
     const liveTargetGallery = filterOutDeleted(targetGalleryImages || []);
 
-    // Prioritize authoritative live sources:
+    // Merge all authoritative and routed sources so every uploaded image is preserved:
     // 1. targetGalleryImages (fetched live from /users/{userId}/images)
-    // 2. fetchedPhotos (fetched live from /profile/get or /profile/me)
-    // 3. routed photos/images (fallback when no live server gallery exists)
-    const targetImages =
-      liveTargetGallery.length > 0
-        ? liveTargetGallery
-        : fetchedPhotos.length > 0
-        ? fetchedPhotos
-        : filterOutDeleted([
-            routed?.photos,
-            routed?.images,
-            routed?.allImages,
-            routeImage,
-            routed?.profileImageUrl,
-          ]);
+    // 2. fetchedPhotos & fetchedImages (fetched live from /profile/get or /profile/me)
+    // 3. routed photos/images from card navigation
+    const targetImages = dedupeImageUris([
+      liveTargetGallery,
+      fetchedPhotos,
+      routed?.photos,
+      routed?.images,
+      routed?.allImages,
+      routed?.profileImageUrl,
+      routeImage,
+    ]).filter((uri) => filterOutDeleted([uri]).length > 0);
 
-    const ownImages = activeContextPhotos.length > 0
-      ? activeContextPhotos
-      : ownGallery.length > 0
-        ? ownGallery
-        : fetchedPhotos.length > 0
-          ? fetchedPhotos
-          : filterOutDeleted([profileImageUrl, profileImage]);
+    const ownImages = dedupeImageUris([
+      activeContextPhotos,
+      ownGallery,
+      fetchedPhotos,
+      profileImageUrl,
+      profileImage,
+    ]).filter((uri) => filterOutDeleted([uri]).length > 0);
 
     const mergedImages = isViewingSelf ? ownImages : targetImages;
 
@@ -1181,7 +1188,16 @@ const ViewMyProfileScreen = () => {
     }
   }, [acceptedChatPhone, acceptedChatTg, mergedProfile]);
 
-  if (loading) {
+  const hasProfileData = Boolean(
+    mergedProfile?.name ||
+    mergedProfile?.displayName ||
+    routeProfileData?.name ||
+    routeProfileData?.displayName ||
+    fetchedProfile?.name ||
+    fetchedProfile?.displayName
+  );
+
+  if (loading && !hasProfileData) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={Colors.primary} />

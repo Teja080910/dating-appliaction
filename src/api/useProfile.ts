@@ -251,11 +251,20 @@ const normalizeProfile = (payload: any) => {
         return s && n !== 'NONE' && n !== 'NULL' && n !== 'UNDEFINED' && n !== '-' && n !== 'N/A';
       }) || '';
 
+  const rawId = source?.id ?? source?.userId ?? nestedUser?.id ?? nestedUser?.userId;
+  const parsedNumericId = typeof rawId === 'number' && !isNaN(rawId)
+    ? rawId
+    : typeof rawId === 'string' && /^\d+$/.test(rawId)
+    ? Number(rawId)
+    : null;
+  const rawUserId = source?.userId !== undefined && source?.userId !== null
+    ? String(source.userId)
+    : (source?.id && String(source.id).toLowerCase() !== 'nan' ? String(source.id) : (nestedUser?.id ? String(nestedUser.id) : ''));
+  const resolvedUserId = rawUserId && rawUserId.toLowerCase() !== 'nan' ? rawUserId : '';
+
   return {
-    id: source?.id !== undefined && source?.id !== null ? Number(source.id) : null,
-    userId: source?.userId !== undefined && source?.userId !== null
-      ? String(source.userId)
-      : (nestedUser?.id !== undefined && nestedUser?.id !== null ? String(nestedUser.id) : ''),
+    id: parsedNumericId ?? (resolvedUserId && !isNaN(Number(resolvedUserId)) ? Number(resolvedUserId) : null),
+    userId: resolvedUserId,
     name: resolvedName,
     displayName: resolvedDisplayName,
     email: source?.email ? String(source.email) : '',
@@ -334,6 +343,9 @@ export const useMyProfile = (uid?: any) => {
   );
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
   const refetch = useCallback(() => setRefreshKey(k => k + 1), []);
 
   useEffect(() => {
@@ -346,10 +358,10 @@ export const useMyProfile = (uid?: any) => {
   }, [refetch]);
 
   useEffect(() => {
-    if (!resolvedUserId) return;
+    if (!resolvedUserId || process.env.NODE_ENV === 'test') return;
     const interval = setInterval(() => {
       refetch();
-    }, 2500);
+    }, 15000);
     return () => clearInterval(interval);
   }, [resolvedUserId, refetch]);
 
@@ -381,7 +393,9 @@ export const useMyProfile = (uid?: any) => {
   useEffect(() => {
     if (!resolvedUserId) return;
 
-    setLoading(true);
+    if (!dataRef.current) {
+      setLoading(true);
+    }
     setError(null);
     let cancelled = false;
     const fetch = async () => {
@@ -872,7 +886,9 @@ export const useProfile = () => {
         cleanPayload.photos = data.photos.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
       }
 
-      const numericUserId = Number(resolvedUserId);
+      const numericUserId = !isNaN(Number(resolvedUserId))
+        ? Number(resolvedUserId)
+        : (Number(String(resolvedUserId).replace(/\D/g, '')) || 0);
 
       // Spring Boot backend strictly enforces distinct DTO contracts:
       // 1. UpdateBasicDTO: { userId: Long, displayName: String, bio: String, age: Integer }
@@ -932,7 +948,6 @@ export const useProfile = () => {
             if (v !== undefined && v !== null) form.append(k, String(v));
           });
           const formRes = await apiClient.post(`/profile/${numericUserId}/setup`, form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
             params: { ...setupDto, dto: JSON.stringify(setupDto) },
           });
           if (formRes?.data) basicResponseData = formRes.data;
@@ -1157,13 +1172,25 @@ export const useProfile = () => {
 
   const uploadImage = useMutation<any, Error, UploadImageInput>({
     mutationFn: async ({photo, uid}) => {
-      const formData = createImageFormData('image', photo);
+      const fileName = photo.name || photo.fileName || `photo_${Date.now()}.jpg`;
+      const fileType = photo.type || 'image/jpeg';
+      const filePayload = {
+        uri: photo.uri,
+        name: fileName,
+        type: fileType,
+      };
+
       const resolvedUserId = await resolveNumericUserId(uid);
 
-      formData.append('userId', resolvedUserId);
+      const formData = new FormData();
+      formData.append('photo', filePayload as any);
+      formData.append('image', filePayload as any);
+      if (resolvedUserId) {
+        formData.append('userId', String(resolvedUserId));
+      }
 
       const res = await apiClient.post('/profile/upload-image', formData, {
-        //headers: {'Content-Type': 'multipart/form-data'},
+        params: resolvedUserId ? { userId: resolvedUserId, uid: resolvedUserId } : undefined,
       });
 
       return res.data;

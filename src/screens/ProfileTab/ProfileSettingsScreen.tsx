@@ -330,7 +330,12 @@ const ProfileSettingsScreen = () => {
       const validPhotos = (images || []).filter(Boolean) as string[];
       await AsyncStorage.setItem('onboardingImages', JSON.stringify(images || []));
       if (currentUid) {
-        await AsyncStorage.setItem(`user_photos_${currentUid}`, JSON.stringify(images || []));
+        const cleanUid = String(currentUid).trim();
+        const digits = cleanUid.replace(/\D/g, '');
+        await AsyncStorage.setItem(`user_photos_${cleanUid}`, JSON.stringify(images || []));
+        if (digits && digits !== cleanUid) {
+          await AsyncStorage.setItem(`user_photos_${digits}`, JSON.stringify(images || []));
+        }
       }
       if (validPhotos[0]) {
         await AsyncStorage.setItem('profileImage', validPhotos[0]);
@@ -400,7 +405,13 @@ const ProfileSettingsScreen = () => {
       ? localTelegramUsername.trim().replace(/^@+/, '')
       : 'NONE';
 
-    const userPhotosRaw = currentUid ? await AsyncStorage.getItem(`user_photos_${currentUid}`).catch(() => null) : null;
+    const validContextPhotos = (images || []).filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+    const cleanCurrentUid = currentUid ? String(currentUid).trim() : '';
+    const currentUidDigits = cleanCurrentUid.replace(/\D/g, '');
+    const userPhotosRaw = cleanCurrentUid
+      ? (await AsyncStorage.getItem(`user_photos_${cleanCurrentUid}`).catch(() => null)) ||
+        (currentUidDigits ? await AsyncStorage.getItem(`user_photos_${currentUidDigits}`).catch(() => null) : null)
+      : null;
     let currentPhotos: string[] | undefined = undefined;
     if (userPhotosRaw) {
       try {
@@ -410,6 +421,7 @@ const ProfileSettingsScreen = () => {
         }
       } catch {}
     }
+    const photosToSend = validContextPhotos.length > 0 ? validContextPhotos : currentPhotos;
 
     updateProfile.mutate(
       {
@@ -423,7 +435,7 @@ const ProfileSettingsScreen = () => {
         mobile: fullPhone || '',
         phoneNumber: fullPhone || '',
         phone: fullPhone || '',
-        ...(currentPhotos && currentPhotos.length > 0 ? { photos: currentPhotos } : {}),
+        ...(photosToSend && photosToSend.length > 0 ? { photos: photosToSend } : {}),
       } as any,
       {
         onSuccess: async () => {

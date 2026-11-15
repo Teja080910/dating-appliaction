@@ -164,18 +164,47 @@ export const useUserImages = (userId?: string) => {
     mutationFn: async ({photo, uid}: {photo: any; uid?: string}) => {
       const normalizedUserId = await resolveUserId(uid);
 
-      const formData = new FormData();
-      formData.append('image', {
+      const fileName = photo.name || photo.fileName || `photo_${Date.now()}.jpg`;
+      const fileType = photo.type || 'image/jpeg';
+      const filePayload = {
         uri: photo.uri,
-        name: photo.name || photo.fileName || `image_${Date.now()}.jpg`,
-        type: photo.type || 'image/jpeg',
-      } as any);
+        name: fileName,
+        type: fileType,
+      };
 
-      const res = await apiClient.post('/profile/upload-image', formData, {
-        params: normalizedUserId ? {userId: normalizedUserId} : undefined,
-      });
+      const formData = new FormData();
+      // OpenAPI spec specifies properties 'photo' and 'image' on multipart/form-data.
+      // Append both so whichever property the backend controller binds, it finds the part.
+      formData.append('photo', filePayload as any);
+      formData.append('image', filePayload as any);
 
-      return res.data;
+      const queryParams = normalizedUserId
+        ? { userId: normalizedUserId, uid: normalizedUserId }
+        : undefined;
+
+      try {
+        const res = await apiClient.post('/profile/upload-image', formData, {
+          params: queryParams,
+        });
+        return res.data;
+      } catch (err: any) {
+        // If 400 Bad Request occurs, retry with userId included directly in FormData
+        if (err?.response?.status === 400 && normalizedUserId) {
+          try {
+            const fallbackFormData = new FormData();
+            fallbackFormData.append('photo', filePayload as any);
+            fallbackFormData.append('image', filePayload as any);
+            fallbackFormData.append('userId', String(normalizedUserId));
+            fallbackFormData.append('uid', String(normalizedUserId));
+
+            const fallbackRes = await apiClient.post('/profile/upload-image', fallbackFormData);
+            return fallbackRes.data;
+          } catch (fallbackErr) {
+            throw err;
+          }
+        }
+        throw err;
+      }
     },
     onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
@@ -221,8 +250,22 @@ export const useUserImages = (userId?: string) => {
             const res = await apiClient.get(`/images/${normalizedUserId}`);
             payload = res.data;
           } catch (e3) {
-            const res = await apiClient.get(`/profile/get`, { params: { userId: normalizedUserId } });
-            payload = res.data;
+            try {
+              const res = await apiClient.get(`/profile/get`, { params: { userId: normalizedUserId } });
+              payload = res.data;
+            } catch (e4) {
+              try {
+                const res = await apiClient.post(`/profile/me`, null, { params: { userId: normalizedUserId } });
+                payload = res.data;
+              } catch (e5) {
+                try {
+                  const res = await apiClient.get(`/profile/me/${normalizedUserId}`);
+                  payload = res.data;
+                } catch (e6) {
+                  payload = null;
+                }
+              }
+            }
           }
         }
       }

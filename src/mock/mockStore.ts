@@ -657,12 +657,24 @@ class MockStore {
       });
     }
 
-    return list.map((p, index) => ({
-      ...p,
-      id: p.id || (p.gender === 'woman' ? 201 + index : 101 + index),
-      online: p.online !== undefined ? p.online : true,
-      currentCity: p.currentCity || (p as any).city || (p.gender === 'woman' ? 'Mumbai' : 'Delhi'),
-    }));
+    return list.map((p, index) => {
+      const photos = Array.isArray(p.photos) && p.photos.length > 0
+        ? p.photos
+        : Array.isArray((p as any).images) && (p as any).images.length > 0
+        ? (p as any).images
+        : [];
+      const primaryPhoto = (p as any).profileImageUrl || (p as any).photo || (photos.length > 0 ? photos[0] : null);
+      return {
+        ...p,
+        photos,
+        images: photos,
+        profileImageUrl: primaryPhoto,
+        image: primaryPhoto,
+        id: p.id || (p.gender === 'woman' ? 201 + index : 101 + index),
+        online: p.online !== undefined ? p.online : true,
+        currentCity: p.currentCity || (p as any).city || (p.gender === 'woman' ? 'Mumbai' : 'Delhi'),
+      };
+    });
   }
 
   public async getProfileByUserId(userId: string): Promise<MockProfile | undefined> {
@@ -711,7 +723,9 @@ class MockStore {
   public async saveProfile(profileData: Partial<MockProfile>): Promise<MockProfile> {
     await this.init();
     const userId = String(profileData.userId);
-    const existingIndex = this.profiles.findIndex((p) => String(p.userId) === userId);
+    const existingIndex = this.profiles.findIndex(
+      (p) => this.matchUserId(p.userId, userId) || this.matchUserId((p as any).id, userId)
+    );
 
     const hasPhoneKey =
       'mobile' in profileData ||
@@ -739,8 +753,8 @@ class MockStore {
       if (cleanTarget.length >= 7) {
         const conflictingUser = this.users.find(
           (u) =>
-            String(u.userId) !== userId &&
-            String(u.id) !== userId &&
+            !this.matchUserId(u.userId, userId) &&
+            !this.matchUserId(u.id, userId) &&
             u.mobile &&
             u.mobile.replace(/[^\d]/g, '') === cleanTarget
         );
@@ -817,14 +831,32 @@ class MockStore {
       if (hasTelegramKey) {
         this.users[userIndex].telegramUsername = cleanTg;
       }
+      if (profileData.photos || (profileData as any).images) {
+        const rawList = profileData.photos || (profileData as any).images;
+        const validPhotos = Array.isArray(rawList)
+          ? rawList.filter((p: any): p is string => typeof p === 'string' && p.trim().length > 0)
+          : [];
+        if (validPhotos.length > 0) {
+          (this.users[userIndex] as any).photos = validPhotos;
+          (this.users[userIndex] as any).images = validPhotos;
+          (this.users[userIndex] as any).profileImageUrl = validPhotos[0];
+          (this.users[userIndex] as any).photo = validPhotos[0];
+        }
+      }
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users));
     }
 
-    if (Array.isArray(profileData.photos)) {
-      const validPhotos = profileData.photos.filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+    const photosList = Array.isArray(profileData.photos)
+      ? profileData.photos
+      : Array.isArray((profileData as any).images)
+      ? (profileData as any).images
+      : null;
+
+    if (photosList) {
+      const validPhotos = photosList.filter((p: any): p is string => typeof p === 'string' && p.trim().length > 0);
       // Cleanly replace user images to match the exact profile photos list
       this.images = this.images.filter((img) => !this.matchUserId(img.userId, userId));
-      validPhotos.forEach((photoUrl, idx) => {
+      validPhotos.forEach((photoUrl: string, idx: number) => {
         const id = this.images.length ? Math.max(...this.images.map((img) => img.id)) + 1 : 1;
         this.images.push({
           id,
@@ -914,16 +946,21 @@ class MockStore {
   // --- User Images ---
   public async getUserImages(userId: string): Promise<MockUserImage[]> {
     await this.init();
-    const existing = this.images.filter((img) => String(img.userId) === String(userId));
+    const existing = this.images.filter((img) => this.matchUserId(img.userId, userId));
     if (existing.length > 0) {
       return existing;
     }
 
     // Seed images from profile photos if available
     const profile = await this.getProfileByUserId(userId);
-    if (profile && Array.isArray(profile.photos) && profile.photos.length > 0) {
-      for (let i = 0; i < profile.photos.length; i++) {
-        const photoUrl = profile.photos[i];
+    const seedPhotos = profile && Array.isArray(profile.photos) && profile.photos.length > 0
+      ? profile.photos
+      : profile && Array.isArray((profile as any).images) && (profile as any).images.length > 0
+      ? (profile as any).images
+      : [];
+    if (seedPhotos.length > 0) {
+      for (let i = 0; i < seedPhotos.length; i++) {
+        const photoUrl = seedPhotos[i];
         if (photoUrl) {
           const id = this.images.length ? Math.max(...this.images.map((img) => img.id)) + 1 : 1;
           const newImg: MockUserImage = {
@@ -940,7 +977,7 @@ class MockStore {
         }
       }
       await AsyncStorage.setItem(IMAGES_KEY, JSON.stringify(this.images));
-      return this.images.filter((img) => String(img.userId) === String(userId));
+      return this.images.filter((img) => this.matchUserId(img.userId, userId));
     }
 
     return [];
@@ -979,7 +1016,7 @@ class MockStore {
     await this.init();
     let updated = false;
     for (const img of this.images) {
-      if (String(img.userId) === String(userId)) {
+      if (this.matchUserId(img.userId, userId)) {
         if (img.id === imageId) {
           img.isProfile = true;
           updated = true;

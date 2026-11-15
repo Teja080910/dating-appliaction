@@ -155,9 +155,23 @@ apiClient.interceptors.request.use(
         delete config.headers.Authorization;
       }
 
-      if (config.data instanceof FormData) {
-        config.headers['Content-Type'] = 'multipart/form-data';
-      } else if (!config.headers['Content-Type']) {
+      const isFormData =
+        config.data instanceof FormData ||
+        (config.data && typeof config.data === 'object' && Array.isArray((config.data as any)._parts));
+
+      if (isFormData) {
+        // In React Native / Axios, setting Content-Type manually strips the boundary parameter
+        // which causes Spring Boot / Tomcat to reject the request with HTTP 400 Bad Request.
+        // Deleting Content-Type allows the runtime to set multipart/form-data; boundary=... automatically.
+        if (config.headers) {
+          if (typeof (config.headers as any).delete === 'function') {
+            (config.headers as any).delete('Content-Type');
+            (config.headers as any).delete('content-type');
+          }
+          delete (config.headers as any)['Content-Type'];
+          delete (config.headers as any)['content-type'];
+        }
+      } else if (!config.headers['Content-Type'] && !config.headers['content-type']) {
         config.headers['Content-Type'] = 'application/json';
       }
 
