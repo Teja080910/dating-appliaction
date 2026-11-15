@@ -521,13 +521,11 @@ export const useMyTelegramStatus = (userIdCandidate?: string | number | null) =>
 
         // If /telegram/link only returned the bot link without the user's handle, check stored keys & profile
         if (!cleanUsername && resolvedUserId) {
-          const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+          const [uTg, atTg] = await Promise.all([
             AsyncStorage.getItem(`user_telegram_${resolvedUserId}`).catch(() => null),
             AsyncStorage.getItem(`@telegram_username_${resolvedUserId}`).catch(() => null),
-            AsyncStorage.getItem('telegramUsername').catch(() => null),
-            AsyncStorage.getItem('@telegram_username').catch(() => null),
           ]);
-          const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+          const cand = [uTg, atTg].find((val) => {
             if (!val) return false;
             const c = String(val).trim().replace(/^@+/, '');
             const n = c.toUpperCase();
@@ -554,13 +552,11 @@ export const useMyTelegramStatus = (userIdCandidate?: string | number | null) =>
           };
         }
 
-        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+        const [uTg, atTg] = await Promise.all([
           resolvedUserId ? AsyncStorage.getItem(`user_telegram_${resolvedUserId}`).catch(() => null) : null,
           resolvedUserId ? AsyncStorage.getItem(`@telegram_username_${resolvedUserId}`).catch(() => null) : null,
-          AsyncStorage.getItem('telegramUsername').catch(() => null),
-          AsyncStorage.getItem('@telegram_username').catch(() => null),
         ]);
-        const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+        const cand = [uTg, atTg].find((val) => {
           if (!val) return false;
           const c = String(val).trim().replace(/^@+/, '');
           const n = c.toUpperCase();

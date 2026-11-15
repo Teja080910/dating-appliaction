@@ -439,8 +439,8 @@ export const useConnection = (userId?: string | number) => {
       const [myPhoto, myName, myPhone, myTg, myBio, myCity] = await Promise.all([
         AsyncStorage.getItem('userPhoto'),
         AsyncStorage.getItem('displayName'),
-        AsyncStorage.getItem('phoneNumber'),
-        AsyncStorage.getItem('telegramUsername'),
+        resolvedUserId ? AsyncStorage.getItem(`user_phone_${resolvedUserId}`).catch(() => null) : AsyncStorage.getItem('phoneNumber'),
+        resolvedUserId ? AsyncStorage.getItem(`user_telegram_${resolvedUserId}`).catch(() => null) : null,
         AsyncStorage.getItem('bio'),
         AsyncStorage.getItem('userCity'),
       ]);
@@ -557,13 +557,14 @@ export const useConnection = (userId?: string | number) => {
           const maleTg = match.sender?.telegramUsername || match.senderTelegram;
           const maleUid = match.sender?.userId || match.sender?.id || match.senderId;
 
+          const currentFemaleUid = await getUserId().catch(() => null);
           const [myPhoto, myName, myAge, myCity, myPhone, myTg, myBio, myEdu, myProf] = await Promise.all([
             AsyncStorage.getItem('userPhoto'),
             AsyncStorage.getItem('userName'),
             AsyncStorage.getItem('userAge'),
             AsyncStorage.getItem('userCity'),
-            AsyncStorage.getItem('phoneNumber'),
-            AsyncStorage.getItem('telegramUsername'),
+            currentFemaleUid ? AsyncStorage.getItem(`user_phone_${currentFemaleUid}`).catch(() => null) : AsyncStorage.getItem('phoneNumber'),
+            currentFemaleUid ? AsyncStorage.getItem(`user_telegram_${currentFemaleUid}`).catch(() => null) : null,
             AsyncStorage.getItem('userBio'),
             AsyncStorage.getItem('userEducation'),
             AsyncStorage.getItem('userProfession'),

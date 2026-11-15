@@ -142,15 +142,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const loadStoredContacts = useCallback(async () => {
     try {
       const activeUid = currentUserId || (await getUserId().catch(() => null));
-      const [tgGlobal, tgScoped, p1, p2, p3] = await Promise.all([
-        AsyncStorage.getItem('telegramUsername'),
+      const [tgScoped, p1, p2, p3] = await Promise.all([
         activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
         AsyncStorage.getItem('phoneNumber'),
         AsyncStorage.getItem('userMobile'),
         activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
       ]);
-      const effectiveTg = tgScoped || tgGlobal;
-      const effectiveP = p3 || p1 || p2;
+      const effectiveTg = tgScoped;
+      const effectiveP = p3 || (activeUid ? null : (p1 || p2));
       setOwnTelegram(effectiveTg ? effectiveTg.trim().replace(/^@+/, '').toLowerCase() : '');
       setStoredPhone(effectiveP || '');
     } catch {}
@@ -482,6 +481,35 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     isAcceptedStatus((resolvedProfile as any)?.requestStatus)
   );
 
+  const targetParty = (() => {
+    if (matchingMatch) {
+      const sId = matchingMatch?.sender?.id ?? matchingMatch?.sender?.userId ?? (matchingMatch as any)?.senderId;
+      const rId = matchingMatch?.receiver?.id ?? matchingMatch?.receiver?.userId ?? (matchingMatch as any)?.receiverId;
+      if (resolvedTargetUserId && isSameId(rId, resolvedTargetUserId)) return matchingMatch.receiver;
+      if (resolvedTargetUserId && isSameId(sId, resolvedTargetUserId)) return matchingMatch.sender;
+      if (currentUserId && isSameId(sId, currentUserId)) return matchingMatch.receiver;
+      if (currentUserId && isSameId(rId, currentUserId)) return matchingMatch.sender;
+      return matchingMatch.receiver;
+    }
+    if (matchingInvitation) {
+      return matchingInvitation.receiver || (matchingInvitation as any)?.receiverProfile;
+    }
+    if (matchingReceived) {
+      return matchingReceived.sender || (matchingReceived as any)?.senderProfile;
+    }
+    return null;
+  })();
+
+  const isProfileMine =
+    isSameId(resolvedProfile?.id, currentUserId) ||
+    isSameId(resolvedProfile?.userId, currentUserId);
+  const isContextProfileMine =
+    isSameId(profile?.id, currentUserId) ||
+    isSameId(profile?.userId, currentUserId);
+  const isPropProfileMine =
+    isSameId(propProfile?.id, currentUserId) ||
+    isSameId(propProfile?.userId, currentUserId);
+
   const targetTelegramUsername = (() => {
     let raw = '';
     if (isOwnProfile) {
@@ -495,19 +523,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     } else {
       if (isViewerWoman) return '';
       if (!isApprovedInvitation) return '';
-      const isProfileMine =
-        isSameId(resolvedProfile?.id, currentUserId) ||
-        isSameId(resolvedProfile?.userId, currentUserId);
       raw = extractTelegram(
-        matchingMatch?.receiver,
-        matchingMatch?.sender,
-        matchingInvitation?.receiver,
-        (matchingInvitation as any)?.receiverProfile,
-        matchingReceived?.sender,
-        (matchingReceived as any)?.senderProfile,
+        targetParty,
         !isProfileMine ? resolvedProfile : null,
-        !isProfileMine ? profile : null,
-        !isProfileMine ? propProfile : null
+        !isContextProfileMine ? profile : null,
+        !isPropProfileMine ? propProfile : null
       );
     }
     const clean = raw.trim().replace(/^@+/, '');
@@ -528,19 +548,13 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     }
     if (isViewerWoman) return '';
     if (!isApprovedInvitation) return '';
-    const isProfileMine =
-      isSameId(resolvedProfile?.id, currentUserId) ||
-      isSameId(resolvedProfile?.userId, currentUserId);
-    return extractPhone(
-      matchingMatch?.receiver,
-      matchingMatch?.sender,
-      matchingInvitation?.receiver,
-      (matchingInvitation as any)?.receiverProfile,
-      matchingReceived?.sender,
-      (matchingReceived as any)?.senderProfile,
-      !isProfileMine ? resolvedProfile : null,
-      !isProfileMine ? profile : null,
-      !isProfileMine ? propProfile : null
+    return (
+      extractPhone(
+        targetParty,
+        !isProfileMine ? resolvedProfile : null,
+        !isContextProfileMine ? profile : null,
+        !isPropProfileMine ? propProfile : null
+      ) || ''
     );
   })();
 

@@ -359,13 +359,11 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({
           return;
         }
 
-        const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+        const [uTg, atTg] = await Promise.all([
           uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
           uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
-          AsyncStorage.getItem('telegramUsername').catch(() => null),
-          AsyncStorage.getItem('@telegram_username').catch(() => null),
         ]);
-        const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+        const cand = [uTg, atTg].find((val) => {
           if (!val) return false;
           const c = String(val).trim().replace(/^@+/, '');
           const n = c.toUpperCase();

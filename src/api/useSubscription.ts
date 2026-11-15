@@ -141,12 +141,181 @@ export const toBackendPlanName = (plan: unknown): string => {
   return p || 'STANDARD';
 };
 
+export interface BackendSubscriptionPlan {
+  plan: string;
+  displayName: string;
+  price: number;
+  durationDays: number;
+  dailyRequestLimit: number | null;
+  unlimited: boolean;
+  limitLabel: string;
+  tagline: string;
+  description: string;
+  worldwideSearch: boolean;
+  eliteBadge: boolean;
+  priorityHandoff: boolean;
+  popular: boolean;
+  bestValue: boolean;
+}
+
+export interface ClientSubscriptionPlan {
+  id: string;
+  canonicalId: string;
+  type: string;
+  label: string;
+  name: string;
+  price: string;
+  amount: number;
+  unit: string;
+  billedText: string;
+  subText: string;
+  durationDays: number;
+  dailyRequestLimit: number | null;
+  unlimited: boolean;
+  limitLabel: string;
+  contactView: string;
+  tagline: string;
+  description: string;
+  worldwideSearch: boolean;
+  eliteBadge: boolean;
+  priorityHandoff: boolean;
+  popular: boolean;
+  bestValue: boolean;
+  badge?: 'POPULAR' | 'BEST VALUE' | string;
+}
+
+export const DEFAULT_SUBSCRIPTION_PLANS: BackendSubscriptionPlan[] = [
+  {
+    plan: 'STANDARD',
+    displayName: 'Standard',
+    price: 1,
+    durationDays: 120,
+    dailyRequestLimit: 10,
+    unlimited: false,
+    limitLabel: '10 requests/day',
+    tagline: 'Invite up to 10 members per day',
+    description: 'Standard Plan: 10 daily connection requests for 120 days.',
+    worldwideSearch: false,
+    eliteBadge: false,
+    priorityHandoff: false,
+    popular: false,
+    bestValue: false,
+  },
+  {
+    plan: 'PREMIUM',
+    displayName: 'Premium',
+    price: 2,
+    durationDays: 180,
+    dailyRequestLimit: 20,
+    unlimited: false,
+    limitLabel: '20 requests/day',
+    tagline: 'Invite up to 20 members per day',
+    description: 'Premium Plan: 20 daily connection requests for 180 days.',
+    worldwideSearch: true,
+    eliteBadge: false,
+    priorityHandoff: true,
+    popular: true,
+    bestValue: false,
+  },
+  {
+    plan: 'ELITE',
+    displayName: 'Elite',
+    price: 3,
+    durationDays: 365,
+    dailyRequestLimit: null,
+    unlimited: true,
+    limitLabel: 'Unlimited requests',
+    tagline: 'Invite unlimited members per day',
+    description: 'Elite Plan: unlimited daily connection requests for 365 days.',
+    worldwideSearch: true,
+    eliteBadge: true,
+    priorityHandoff: true,
+    popular: false,
+    bestValue: true,
+  },
+];
+
+export const normalizeBackendPlan = (item: any): ClientSubscriptionPlan => {
+  const planCode = toBackendPlanName(item?.plan || item?.id || item?.type || 'STANDARD');
+  const displayName = item?.displayName || item?.name || item?.label || (planCode === 'STANDARD' ? 'Standard' : planCode === 'PREMIUM' ? 'Premium' : 'Elite');
+  const priceNum = typeof item?.price === 'number' ? item.price : Number(item?.price || item?.amount || 0);
+  const duration = typeof item?.durationDays === 'number' ? item.durationDays : Number(item?.durationDays || (planCode === 'STANDARD' ? 120 : planCode === 'PREMIUM' ? 180 : 365));
+  const unlimited = Boolean(item?.unlimited || item?.dailyRequestLimit == null || planCode === 'ELITE');
+  const limitLabel = item?.limitLabel || (unlimited ? 'Unlimited requests' : `${item?.dailyRequestLimit ?? (planCode === 'PREMIUM' ? 20 : 10)} requests/day`);
+  const popular = Boolean(item?.popular || (planCode === 'PREMIUM' && item?.popular !== false));
+  const bestValue = Boolean(item?.bestValue || (planCode === 'ELITE' && item?.bestValue !== false));
+
+  return {
+    id: planCode,
+    canonicalId: planCode,
+    type: planCode,
+    label: displayName,
+    name: displayName,
+    price: `₹${priceNum || (planCode === 'STANDARD' ? 1 : planCode === 'PREMIUM' ? 2 : 3)}`,
+    amount: priceNum || (planCode === 'STANDARD' ? 1 : planCode === 'PREMIUM' ? 2 : 3),
+    unit: '',
+    billedText: `${duration} Days`,
+    subText: limitLabel,
+    durationDays: duration,
+    dailyRequestLimit: unlimited ? null : (item?.dailyRequestLimit != null ? Number(item.dailyRequestLimit) : (planCode === 'PREMIUM' ? 20 : 10)),
+    unlimited,
+    limitLabel,
+    contactView: unlimited ? 'UNLIMITED' : String(item?.dailyRequestLimit ?? (planCode === 'PREMIUM' ? '20' : '10')),
+    tagline: item?.tagline || (unlimited ? 'Invite unlimited members per day' : `Invite up to ${item?.dailyRequestLimit ?? (planCode === 'PREMIUM' ? 20 : 10)} members per day`),
+    description: item?.description || (unlimited ? 'Elite Plan: unlimited daily connection requests for 365 days.' : `${displayName} Plan: ${limitLabel} for ${duration} days.`),
+    worldwideSearch: Boolean(item?.worldwideSearch || planCode === 'PREMIUM' || planCode === 'ELITE'),
+    eliteBadge: Boolean(item?.eliteBadge || planCode === 'ELITE'),
+    priorityHandoff: Boolean(item?.priorityHandoff || planCode === 'PREMIUM' || planCode === 'ELITE'),
+    popular,
+    bestValue,
+    badge: popular ? 'POPULAR' : bestValue ? 'BEST VALUE' : undefined,
+  };
+};
+
+export const fetchSubscriberPlans = async (): Promise<ClientSubscriptionPlan[]> => {
+  try {
+    const response = await apiClient
+      .get('/subscriber/plans')
+      .catch(() => apiClient.get('/subscription/plans'));
+
+    const data = response?.data;
+    const rawList = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data?.plans)
+      ? data.plans
+      : null;
+
+    if (rawList && rawList.length > 0) {
+      return rawList.map(normalizeBackendPlan);
+    }
+  } catch (err: any) {
+    if (__DEV__) {
+      console.warn('⚠️ [Subscription] Failed to fetch /subscriber/plans, falling back to defaults:', err?.message || err);
+    }
+  }
+
+  return DEFAULT_SUBSCRIPTION_PLANS.map(normalizeBackendPlan);
+};
+
+export const useSubscriberPlans = () => {
+  return useQuery<ClientSubscriptionPlan[]>({
+    queryKey: ['subscriber-plans'],
+    queryFn: fetchSubscriberPlans,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    initialData: DEFAULT_SUBSCRIPTION_PLANS.map(normalizeBackendPlan),
+  });
+};
+
 /**
  * Hook for Subscription & Payment (Razorpay)
  * Swagger: subscription-controller
  */
 export const useSubscription = (userId?: string | null) => {
   const queryClient = useQueryClient();
+  const plansQuery = useSubscriberPlans();
   const statusQueryKey = ['subscription-status', userId ? String(userId) : 'me'];
   const resolveBackendUserId = async () => {
     if (userId && isResolvedApiUserId(String(userId))) return String(userId);
@@ -439,6 +608,11 @@ export const useSubscription = (userId?: string | null) => {
     respondSubscriptionRequest,
     createOrder,
     razorpayWebhook,
+
+    plans: plansQuery.data || DEFAULT_SUBSCRIPTION_PLANS.map(normalizeBackendPlan),
+    isLoadingPlans: plansQuery.isLoading,
+    refetchPlans: plansQuery.refetch,
+    usePlans: useSubscriberPlans,
 
     useSubscriptionStatus: () => subStatus,
     subscriptionDetails: () => subStatus,

@@ -145,13 +145,11 @@ const ProfileSettingsScreen = () => {
         if (isDisc === 'true' || isDiscGlobal === 'true') {
           setLocalTelegramUsername('');
         } else {
-          const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+          const [uTg, atTg] = await Promise.all([
             uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
             uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
-            AsyncStorage.getItem('telegramUsername').catch(() => null),
-            AsyncStorage.getItem('@telegram_username').catch(() => null),
           ]);
-          const candTg = [uTg, atTg, legTg, legAtTg].find((val) => {
+          const candTg = [uTg, atTg].find((val) => {
             if (!val) return false;
             const c = String(val).trim().replace(/^@+/, '');
             const n = c.toUpperCase();
@@ -243,13 +241,11 @@ const ProfileSettingsScreen = () => {
         setLocalTelegramUsername('');
         return;
       }
-      const [uTg, atTg, legTg, legAtTg] = await Promise.all([
+      const [uTg, atTg] = await Promise.all([
         uid ? AsyncStorage.getItem(`user_telegram_${uid}`).catch(() => null) : null,
         uid ? AsyncStorage.getItem(`@telegram_username_${uid}`).catch(() => null) : null,
-        AsyncStorage.getItem('telegramUsername').catch(() => null),
-        AsyncStorage.getItem('@telegram_username').catch(() => null),
       ]);
-      const cand = [uTg, atTg, legTg, legAtTg].find((val) => {
+      const cand = [uTg, atTg].find((val) => {
         if (!val) return false;
         const c = String(val).trim().replace(/^@+/, '');
         const n = c.toUpperCase();
@@ -342,8 +338,7 @@ const ProfileSettingsScreen = () => {
       }
       if (localTelegramUsername.trim()) {
         const cleanTg = localTelegramUsername.trim().replace(/^@+/, '');
-        await AsyncStorage.setItem('telegramUsername', cleanTg);
-        await AsyncStorage.setItem('@telegram_username', cleanTg);
+        await AsyncStorage.multiRemove(['telegramUsername', '@telegram_username']).catch(() => {});
         if (currentUid) {
           await AsyncStorage.setItem(`user_telegram_${currentUid}`, cleanTg);
           await AsyncStorage.setItem(`@telegram_username_${currentUid}`, cleanTg);

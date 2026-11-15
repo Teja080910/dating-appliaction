@@ -16,7 +16,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../context/CreateGlobalStateContext';
-import { useSubscription, toBackendPlanName } from '../api/useSubscription';
+import {
+  useSubscription,
+  toBackendPlanName,
+  useSubscriberPlans,
+  DEFAULT_SUBSCRIPTION_PLANS,
+  normalizeBackendPlan,
+  ClientSubscriptionPlan,
+} from '../api/useSubscription';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
 import RazorpayCheckout from 'react-native-razorpay';
@@ -35,7 +42,7 @@ type SupportedPaymentMode = 'upi' | 'card' | 'netbanking' | 'wallet';
 type RazorpayCheckoutOptions = Parameters<typeof RazorpayCheckout.open>[0];
 type RazorpayCheckoutResponse = Awaited<ReturnType<typeof RazorpayCheckout.open>>;
 
-const getPlans = () => [
+const FALLBACK_DEFAULT_PLANS: ClientSubscriptionPlan[] = [
   {
     id: 'STANDARD',
     canonicalId: 'STANDARD',
@@ -48,8 +55,17 @@ const getPlans = () => [
     billedText: '120 Days',
     subText: '10 requests/day',
     durationDays: 120,
+    dailyRequestLimit: 10,
+    unlimited: false,
+    limitLabel: '10 requests/day',
     contactView: '10',
-    description: 'Standard plan with 10 daily connection requests.',
+    tagline: 'Invite up to 10 members per day',
+    description: 'Standard Plan: 10 daily connection requests for 120 days.',
+    worldwideSearch: false,
+    eliteBadge: false,
+    priorityHandoff: false,
+    popular: false,
+    bestValue: false,
     badge: undefined,
   },
   {
@@ -64,8 +80,17 @@ const getPlans = () => [
     billedText: '180 Days',
     subText: '20 requests/day',
     durationDays: 180,
+    dailyRequestLimit: 20,
+    unlimited: false,
+    limitLabel: '20 requests/day',
     contactView: '20',
-    description: 'Premium plan with 20 daily connection requests.',
+    tagline: 'Invite up to 20 members per day',
+    description: 'Premium Plan: 20 daily connection requests for 180 days.',
+    worldwideSearch: true,
+    eliteBadge: false,
+    priorityHandoff: true,
+    popular: true,
+    bestValue: false,
     badge: 'POPULAR',
   },
   {
@@ -80,11 +105,27 @@ const getPlans = () => [
     billedText: '365 Days',
     subText: 'Unlimited requests',
     durationDays: 365,
+    dailyRequestLimit: null,
+    unlimited: true,
+    limitLabel: 'Unlimited requests',
     contactView: 'UNLIMITED',
-    description: 'Elite plan with unlimited daily connection requests.',
+    tagline: 'Invite unlimited members per day',
+    description: 'Elite Plan: unlimited daily connection requests for 365 days.',
+    worldwideSearch: true,
+    eliteBadge: true,
+    priorityHandoff: true,
+    popular: false,
+    bestValue: true,
     badge: 'BEST VALUE',
   },
 ];
+
+const getPlans = (): ClientSubscriptionPlan[] => {
+  if (Array.isArray(DEFAULT_SUBSCRIPTION_PLANS) && typeof normalizeBackendPlan === 'function') {
+    return DEFAULT_SUBSCRIPTION_PLANS.map(normalizeBackendPlan);
+  }
+  return FALLBACK_DEFAULT_PLANS;
+};
 
 const getBenefitSlides = () => [
   {
@@ -389,7 +430,19 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const { alert, AlertComponent } = useAlert();
   const { setIsSubscribed, isSubscribed, displayName, name, email, phoneNumber, gender, authUserId } =
     useContext(AppContext);
-  const { createOrder, verifyPayment, activateSubscription, subscriptionStatus, refetchStatus } = useSubscription();
+  const subHook = useSubscription();
+  const {
+    createOrder,
+    verifyPayment,
+    activateSubscription,
+    subscriptionStatus,
+    refetchStatus,
+  } = subHook;
+  const subscriberPlansHook = typeof useSubscriberPlans === 'function' ? useSubscriberPlans() : null;
+  const plans: ClientSubscriptionPlan[] = useMemo(() => {
+    const list = subscriberPlansHook?.data || subHook?.plans;
+    return Array.isArray(list) && list.length > 0 ? list : getPlans();
+  }, [subscriberPlansHook?.data, subHook?.plans]);
   const [loading, setLoading] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('PREMIUM');
   const [activePlan, setActivePlan] = useState<string | null>(null);
@@ -526,8 +579,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   };
 
   const selectedPlan = useMemo(() => {
-    return getPlans().find((p) => p.id === selectedPlanId) || getPlans()[0];
-  }, [selectedPlanId]);
+    return plans.find((p) => p.id === selectedPlanId) || plans[0] || getPlans()[0];
+  }, [plans, selectedPlanId]);
 
   const isSelectedActive = Boolean(activePlan && activePlan === selectedPlanId);
 
@@ -561,7 +614,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setIsSubscribed(true);
       await AsyncStorage.setItem('isSubscribed', 'true');
       await AsyncStorage.setItem('@subscription_plan', backendPlan);
-      const activatedPlan = getPlans().find((plan) => plan.id === planId) || getPlans()[0];
+      const activatedPlan = plans.find((plan) => plan.id === planId) || plans[0] || getPlans()[0];
       const durationDays = activatedPlan?.durationDays || 120;
       const endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
       await AsyncStorage.setItem('@subscription_endDate', endDate);
@@ -579,7 +632,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setIsSubscribed(true);
       await AsyncStorage.setItem('isSubscribed', 'true');
       await AsyncStorage.setItem('@subscription_plan', backendPlan);
-      const activatedPlan = getPlans().find((plan) => plan.id === planId) || getPlans()[0];
+      const activatedPlan = plans.find((plan) => plan.id === planId) || plans[0] || getPlans()[0];
       const durationDays = activatedPlan?.durationDays || 120;
       const endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
       await AsyncStorage.setItem('@subscription_endDate', endDate);
@@ -637,7 +690,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         normalizedOrder = normalizeOrderResponse(orderData);
       } catch (orderErr: any) {
         console.warn('[SubscriptionModal] Live create-order failed, falling back to test checkout sheet:', orderErr);
-        const planObj = getPlans().find((p) => p.id === selectedPlanId) || getPlans()[0];
+        const planObj = plans.find((p) => p.id === selectedPlanId) || plans[0] || getPlans()[0];
         normalizedOrder = {
           key: 'rzp_test_1DP5mmOlF5G5ag',
           orderId: `order_local_${Date.now()}`,
@@ -847,7 +900,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
           {/* 3 Plans Side-by-Side */}
           <View style={styles.plansRow}>
-            {getPlans().map((plan) => {
+            {plans.map((plan) => {
               const isSelected = selectedPlanId === plan.id;
               const isActivePlan = activePlan === plan.id;
               return (
@@ -942,12 +995,54 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   days: activeDaysLeft ?? 0,
                   defaultValue: `You currently have the ${selectedPlan.name} Plan active (${activeDaysLeft !== null ? `${activeDaysLeft} days remaining` : 'Active'}).`,
                 })
-              : selectedPlanId === 'ELITE'
-              ? t('common.subscriptionmodal.elite_plan_desc', { defaultValue: 'Elite Plan: Unlimited daily connection requests for 365 days.' })
-              : selectedPlanId === 'PREMIUM'
-              ? t('common.subscriptionmodal.premium_plan_desc', { defaultValue: 'Premium Plan: 20 daily connection requests for 180 days.' })
-              : t('common.subscriptionmodal.standard_plan_desc', { defaultValue: 'Standard Plan: 10 daily connection requests for 120 days.' })}
+              : selectedPlan.description || (
+                  selectedPlanId === 'ELITE'
+                    ? t('common.subscriptionmodal.elite_plan_desc', { defaultValue: 'Elite Plan: Unlimited daily connection requests for 365 days.' })
+                    : selectedPlanId === 'PREMIUM'
+                    ? t('common.subscriptionmodal.premium_plan_desc', { defaultValue: 'Premium Plan: 20 daily connection requests for 180 days.' })
+                    : t('common.subscriptionmodal.standard_plan_desc', { defaultValue: 'Standard Plan: 10 daily connection requests for 120 days.' })
+                )}
           </Text>
+
+          {/* Selected Plan Feature Highlights */}
+          <View style={styles.featuresContainer}>
+            <View style={styles.featureItem}>
+              <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+              <Text style={styles.featureItemText}>
+                {selectedPlan.tagline || selectedPlan.subText}
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Icon
+                name={selectedPlan.worldwideSearch ? 'check-circle' : 'close-circle-outline'}
+                size={16}
+                color={selectedPlan.worldwideSearch ? '#10B981' : isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.featureItemText, !selectedPlan.worldwideSearch && styles.featureItemDisabled]}>
+                Worldwide Search
+              </Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Icon
+                name={selectedPlan.priorityHandoff ? 'check-circle' : 'close-circle-outline'}
+                size={16}
+                color={selectedPlan.priorityHandoff ? '#10B981' : isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.featureItemText, !selectedPlan.priorityHandoff && styles.featureItemDisabled]}>
+                Priority Telegram Handoff
+              </Text>
+            </View>
+            {selectedPlan.eliteBadge && (
+              <View style={styles.featureItem}>
+                <Icon name="shield-star" size={16} color="#F59E0B" style={{ marginRight: 8 }} />
+                <Text style={styles.featureItemText}>
+                  VIP Elite Profile Badge
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* Subscribe CTA */}
           <TouchableOpacity
@@ -1014,7 +1109,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           currentOrder?.amount
             ? String(Math.round(currentOrder.amount / 100))
             : String(
-                getPlans().find((p) => p.id === selectedPlanId)?.amount || '2'
+                plans.find((p) => p.id === selectedPlanId)?.amount || '2'
               )
         }
         onSuccess={() => {
@@ -1264,6 +1359,32 @@ function createStyles(colors: any, isDark: boolean = true) {
       lineHeight: 16,
       marginTop: 20,
       paddingHorizontal: 24,
+    },
+    featuresContainer: {
+      marginTop: 14,
+      marginHorizontal: 20,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F9FAFB',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E5E7EB',
+      gap: 8,
+    },
+    featureItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    featureItemText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+    },
+    featureItemDisabled: {
+      color: colors.textSecondary,
+      opacity: 0.6,
+      textDecorationLine: 'line-through',
     },
     subscribeButton: {
       marginHorizontal: 16,

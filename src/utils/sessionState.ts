@@ -247,6 +247,9 @@ export const clearOnboardingState = async () => {
     '@amara_kid_count',
     '@amara_net_worth',
     '@selfie_verified',
+    'telegramUsername',
+    '@telegram_username',
+    'telegramLink',
     'bio',
     'profileText',
   ]);

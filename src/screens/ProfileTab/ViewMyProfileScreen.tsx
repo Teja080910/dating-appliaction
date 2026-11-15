@@ -186,7 +186,7 @@ const ViewMyProfileScreen = () => {
           AsyncStorage.getItem('phoneNumber'),
           AsyncStorage.getItem('userMobile'),
           activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
-          AsyncStorage.getItem('telegramUsername'),
+          activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
         ]);
         if (isMounted) {
           const effPhone = p3 || p1 || p2 || '';
@@ -504,7 +504,7 @@ const ViewMyProfileScreen = () => {
           AsyncStorage.getItem('phoneNumber'),
           AsyncStorage.getItem('userMobile'),
           activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
-          AsyncStorage.getItem('telegramUsername'),
+          activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
         ]);
         const effPhone = p3 || p1 || p2 || '';
         if (effPhone) setStoredPhone(effPhone);

@@ -1233,6 +1233,60 @@ export const handleMockRequest = async (
     });
   }
 
+  // GET /subscriber/plans or /subscription/plans
+  if (method === 'GET' && (url.includes('/subscriber/plans') || url.includes('/subscription/plans'))) {
+    return createMockResponse(config, 200, [
+      {
+        plan: 'STANDARD',
+        displayName: 'Standard',
+        price: 1,
+        durationDays: 120,
+        dailyRequestLimit: 10,
+        unlimited: false,
+        limitLabel: '10 requests/day',
+        tagline: 'Invite up to 10 members per day',
+        description: 'Standard Plan: 10 daily connection requests for 120 days.',
+        worldwideSearch: false,
+        eliteBadge: false,
+        priorityHandoff: false,
+        popular: false,
+        bestValue: false,
+      },
+      {
+        plan: 'PREMIUM',
+        displayName: 'Premium',
+        price: 2,
+        durationDays: 180,
+        dailyRequestLimit: 20,
+        unlimited: false,
+        limitLabel: '20 requests/day',
+        tagline: 'Invite up to 20 members per day',
+        description: 'Premium Plan: 20 daily connection requests for 180 days.',
+        worldwideSearch: true,
+        eliteBadge: false,
+        priorityHandoff: true,
+        popular: true,
+        bestValue: false,
+      },
+      {
+        plan: 'ELITE',
+        displayName: 'Elite',
+        price: 3,
+        durationDays: 365,
+        dailyRequestLimit: null,
+        unlimited: true,
+        limitLabel: 'Unlimited requests',
+        tagline: 'Invite unlimited members per day',
+        description: 'Elite Plan: unlimited daily connection requests for 365 days.',
+        worldwideSearch: true,
+        eliteBadge: true,
+        priorityHandoff: true,
+        popular: false,
+        bestValue: true,
+      },
+    ]);
+  }
+
   // GET /subscriber/status
   if (method === 'GET' && (url.includes('/subscriber/status') || url.includes('/subscription/status'))) {
     const targetUserId = queryParams.userId || 'usr_man_101';
