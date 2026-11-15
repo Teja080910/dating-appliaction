@@ -346,6 +346,14 @@ export const useMyProfile = (uid?: any) => {
   }, [refetch]);
 
   useEffect(() => {
+    if (!resolvedUserId) return;
+    const interval = setInterval(() => {
+      refetch();
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [resolvedUserId, refetch]);
+
+  useEffect(() => {
     let cancelled = false;
     if (hasValidUid(uid)) {
       const stringUid = String(uid);
@@ -420,6 +428,24 @@ export const useMyProfile = (uid?: any) => {
             if (!norm.age) {
               norm.age = calculateAgeFromDob(norm.dob);
             }
+          }
+
+          // Also retain locally uploaded photos from user_photos_${resolvedUserId}
+          const storedPhotosRaw = resolvedUserId ? await AsyncStorage.getItem(`user_photos_${resolvedUserId}`).catch(() => null) : null;
+          if (storedPhotosRaw) {
+            try {
+              const parsedP = JSON.parse(storedPhotosRaw);
+              if (Array.isArray(parsedP) && parsedP.some(Boolean)) {
+                const cleanStored = parsedP.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+                if (cleanStored.length > 0) {
+                  norm.photos = cleanStored;
+                  norm.images = cleanStored;
+                  if (cleanStored[0]) {
+                    norm.profileImageUrl = cleanStored[0];
+                  }
+                }
+              }
+            } catch {}
           }
           setData(norm);
         }
@@ -842,6 +868,9 @@ export const useProfile = () => {
       if (data.lookingFor) {
         cleanPayload.lookingFor = String(data.lookingFor);
       }
+      if (Array.isArray(data.photos)) {
+        cleanPayload.photos = data.photos.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+      }
 
       const numericUserId = Number(resolvedUserId);
 
@@ -1262,35 +1291,70 @@ export const extractSessionIdFromResponse = (res: any): string => {
   if (!res) return '';
   if (typeof res === 'string') {
     const trimmed = res.trim();
-    if (trimmed.startsWith('{')) {
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
         return extractSessionIdFromResponse(JSON.parse(trimmed));
       } catch {}
     }
-    // Only accept if it looks like an actual session ID/UUID (alphanumeric, no spaces, length >= 8)
-    if (/^[a-zA-Z0-9_-]{8,}$/.test(trimmed)) {
+    // Check if whole string is a UUID or alphanumeric token (length >= 6)
+    if (/^[a-zA-Z0-9_-]{6,}$/.test(trimmed)) {
       return trimmed;
     }
+    // Search for embedded UUID inside arbitrary string
+    const uuidMatch = trimmed.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    if (uuidMatch) return uuidMatch[0];
+    // Search for session key/value pattern e.g. "sessionId: xyz" or "Details: xyz"
+    const patternMatch = trimmed.match(/(?:session|sess|otp|details|token|ref)[-_]?id?[:=\s"']+([a-zA-Z0-9_-]{6,})/i);
+    if (patternMatch && patternMatch[1]) return patternMatch[1];
     return '';
   }
+
+  // Check top-level and nested candidate fields (including Details used by 2Factor.in & SMS gateways)
   const cand =
     res.sessionId ||
     res.session_id ||
     res.SessionId ||
     res.otpSessionId ||
     res.otp_session_id ||
+    res.Details ||
+    res.details ||
     res.token ||
+    res.id ||
+    res.refId ||
+    res.referenceId ||
+    res.otpSession ||
+    res.otp_session ||
     res.data?.sessionId ||
     res.data?.session_id ||
     res.data?.SessionId ||
     res.data?.otpSessionId ||
     res.data?.otp_session_id ||
+    res.data?.Details ||
+    res.data?.details ||
     res.data?.token ||
+    res.data?.id ||
+    res.data?.refId ||
+    res.data?.referenceId ||
+    res.data?.otpSession ||
+    res.data?.otp_session ||
+    (typeof res.data === 'string' ? res.data : '') ||
     '';
+
   const val = typeof cand === 'string' ? cand.trim() : String(cand || '').trim();
-  if (val && /^[a-zA-Z0-9_-]{8,}$/.test(val)) {
-    return val;
+  if (val) {
+    if (/^[a-zA-Z0-9_-]{6,}$/.test(val)) {
+      return val;
+    }
+    const uuidMatch = val.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    if (uuidMatch) return uuidMatch[0];
   }
+
+  // Recursively inspect nested data if present
+  if (res.data && typeof res.data === 'object') {
+    const nested = extractSessionIdFromResponse(res.data);
+    if (nested) return nested;
+  }
+
   return '';
 };
 
@@ -1312,8 +1376,7 @@ export const useSendWhatsappOtp = () => {
         phone: withPlus,
       };
 
-      try {
-        const res = await apiClient.post('/profile/whatsapp/send-otp', payload);
+      const recordSessionId = async (res: any) => {
         const sid = extractSessionIdFromResponse(res?.data || res);
         const serverMobile = res?.data?.mobile || (res as any)?.mobile || '';
         if (sid) {
@@ -1322,24 +1385,30 @@ export const useSendWhatsappOtp = () => {
         if (serverMobile) {
           await AsyncStorage.setItem('whatsapp_otp_server_mobile', String(serverMobile).trim()).catch(() => null);
         }
-        return res?.data ?? res;
+        const dataObj =
+          typeof res?.data === 'object' && res?.data !== null
+            ? res.data
+            : typeof res === 'object' && res !== null
+            ? res
+            : {};
+        return {
+          ...dataObj,
+          sessionId: sid || dataObj.sessionId || dataObj.session_id || dataObj.Details || dataObj.details || '',
+        };
+      };
+
+      try {
+        const res = await apiClient.post('/profile/whatsapp/send-otp', payload);
+        return await recordSessionId(res);
       } catch (err: any) {
         const status = Number(err?.response?.status || 0);
         if (status === 404 || status === 405) {
           try {
             const fallback = await apiClient.post('/auth/send-otp', { mobile: withPlus });
-            const sid = extractSessionIdFromResponse(fallback?.data || fallback);
-            if (sid) {
-              await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
-            }
-            return fallback?.data ?? fallback;
+            return await recordSessionId(fallback);
           } catch {
             const fallback2 = await apiClient.post('/profile/send-whatsapp-otp', payload);
-            const sid = extractSessionIdFromResponse(fallback2?.data || fallback2);
-            if (sid) {
-              await AsyncStorage.setItem('whatsapp_otp_session_id', sid).catch(() => null);
-            }
-            return fallback2?.data ?? fallback2;
+            return await recordSessionId(fallback2);
           }
         }
         throw err;
@@ -1364,7 +1433,11 @@ export const useVerifyWhatsappOtp = () => {
       const effectiveSessionId = sessionId?.trim() || storedSid;
 
       const currentUid = (await AsyncStorage.getItem('userId').catch(() => null)) || (await getUserId().catch(() => null));
-      const numericUserId = currentUid && Number.isFinite(Number(currentUid)) ? Number(currentUid) : undefined;
+      const numericUserId = currentUid && Number.isFinite(Number(currentUid))
+        ? Number(currentUid)
+        : currentUid && /^\d+$/.test(String(currentUid).replace(/\D/g, ''))
+          ? Number(String(currentUid).replace(/\D/g, ''))
+          : undefined;
 
       // Candidate mobile formats to try against backend to guarantee match with DB
       const mobileCandidates = Array.from(
@@ -1386,38 +1459,53 @@ export const useVerifyWhatsappOtp = () => {
         return resData;
       };
 
+      const sessionFields = effectiveSessionId
+        ? {
+            sessionId: effectiveSessionId,
+            session_id: effectiveSessionId,
+            otpSessionId: effectiveSessionId,
+            Details: effectiveSessionId,
+            details: effectiveSessionId,
+          }
+        : {};
+
       const verificationAttempts: Array<() => Promise<any>> = [];
 
       for (const m of mobileCandidates) {
-        // 1. POST /profile/whatsapp/verify-otp with sessionId (if available)
+        // 1. POST /profile/whatsapp/verify-otp with session fields
         if (effectiveSessionId) {
           verificationAttempts.push(() =>
             apiClient.post('/profile/whatsapp/verify-otp', {
               mobile: m,
-              sessionId: effectiveSessionId,
+              phoneNumber: m,
+              phone: m,
               otp: cleanOtp,
+              ...sessionFields,
             })
           );
         }
-        // 2. POST /profile/whatsapp/verify-otp without sessionId
+        // 2. POST /profile/whatsapp/verify-otp without session fields
         verificationAttempts.push(() =>
           apiClient.post('/profile/whatsapp/verify-otp', {
             mobile: m,
+            phoneNumber: m,
+            phone: m,
             otp: cleanOtp,
           })
         );
-        // 3. POST /profile/whatsapp/verify
+        // 3. POST /profile/whatsapp/verify with session fields
         if (effectiveSessionId) {
           verificationAttempts.push(() =>
             apiClient.post('/profile/whatsapp/verify', {
               mobile: m,
               phoneNumber: m,
               phone: m,
-              sessionId: effectiveSessionId,
               otp: cleanOtp,
+              ...sessionFields,
             })
           );
         }
+        // 4. POST /profile/whatsapp/verify without session fields
         verificationAttempts.push(() =>
           apiClient.post('/profile/whatsapp/verify', {
             mobile: m,
@@ -1426,23 +1514,29 @@ export const useVerifyWhatsappOtp = () => {
             otp: cleanOtp,
           })
         );
-        // 4. POST /auth/verify-otp with userId (matching OpenAPI MsgVerifyOtp: { userId, mobile, otp })
-        if (numericUserId) {
-          verificationAttempts.push(() =>
-            apiClient.post('/auth/verify-otp', {
-              userId: numericUserId,
-              mobile: m,
-              otp: cleanOtp,
-              ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}),
-            })
-          );
-        }
-        // 5. POST /auth/verify-otp with mobile and otp
+        // 5. POST /auth/verify-otp with userId (matching OpenAPI MsgVerifyOtp: { userId, mobile, otp })
+        verificationAttempts.push(() =>
+          apiClient.post('/auth/verify-otp', {
+            ...(numericUserId ? { userId: numericUserId } : (currentUid ? { userId: currentUid } : {})),
+            mobile: m,
+            otp: cleanOtp,
+            ...sessionFields,
+          })
+        );
+        // 6. POST /auth/verify-otp with mobile and otp
         verificationAttempts.push(() =>
           apiClient.post('/auth/verify-otp', {
             mobile: m,
             otp: cleanOtp,
-            ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}),
+            ...sessionFields,
+          })
+        );
+        // 7. POST /verify-register/otp
+        verificationAttempts.push(() =>
+          apiClient.post('/verify-register/otp', {
+            mobile: m,
+            otp: cleanOtp,
+            ...sessionFields,
           })
         );
       }

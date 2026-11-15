@@ -582,8 +582,10 @@ export const handleMockRequest = async (
       message: 'OTP sent to your WhatsApp number.',
       otp,
       sessionId,
+      Details: sessionId,
       data: {
         sessionId,
+        Details: sessionId,
         mobile,
         expiresInSeconds: 300,
         resendAfterSeconds: 30,
@@ -602,7 +604,7 @@ export const handleMockRequest = async (
   ) {
     const mobile = body.mobile || body.phoneNumber || body.phone || body.whatsapp;
     const otp = body.otp;
-    const sessionId = body.sessionId;
+    const sessionId = body.sessionId || body.session_id || body.Details || body.details || body.otpSessionId;
 
     const isValid = mockStore.verifyOtp(mobile, otp, sessionId);
     if (!isValid) {
@@ -627,8 +629,8 @@ export const handleMockRequest = async (
     });
   }
 
-  // POST /profile/upload-image
-  if (method === 'POST' && url.includes('/upload-image')) {
+  // POST /profile/upload-image or /users/:id/images
+  if (method === 'POST' && (url.includes('/upload-image') || (url.includes('/users/') && url.includes('/images')))) {
     const targetUserId = queryParams.userId || body.userId || (await mockStore.getCurrentUserId()) || 'usr_man_101';
     let imageUri = '';
 

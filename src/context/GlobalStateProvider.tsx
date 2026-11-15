@@ -200,13 +200,19 @@ const GlobalStateProvider = ({ children }: any) => {
             setSelected(resolvedGender);
           }
 
-          const [storedPhone, userMobile, userScopedPhone] = await Promise.all([
+          const [storedPhone, userMobile, userScopedPhone, phoneRemovedUid, phoneRemovedGlobal] = await Promise.all([
             AsyncStorage.getItem('phoneNumber'),
             AsyncStorage.getItem('userMobile'),
             id ? AsyncStorage.getItem(`user_phone_${id}`).catch(() => null) : Promise.resolve(null),
+            id ? AsyncStorage.getItem(`@amara_phone_removed_${id}`).catch(() => null) : Promise.resolve(null),
+            AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
           ]);
-          const effectivePhone = userScopedPhone || storedPhone || userMobile;
-          if (effectivePhone) setPhoneNumber(effectivePhone);
+          if (phoneRemovedUid === 'true' || phoneRemovedGlobal === 'true') {
+            setPhoneNumber('');
+          } else {
+            const effectivePhone = userScopedPhone || storedPhone || userMobile;
+            if (effectivePhone) setPhoneNumber(effectivePhone);
+          }
 
           // Photos MUST be strictly scoped to the active account identity.
           // Never fall back to un-scoped 'onboardingImages' when logged in under a specific userId.
@@ -435,6 +441,8 @@ const GlobalStateProvider = ({ children }: any) => {
           userScopedPhone,
           userScopedPhotos,
           userScopedProfilePhoto,
+          phoneRemovedUid,
+          phoneRemovedGlobal,
         ] = await Promise.all([
           AsyncStorage.getItem('name'),
           AsyncStorage.getItem('displayName'),
@@ -446,6 +454,8 @@ const GlobalStateProvider = ({ children }: any) => {
           activeId ? AsyncStorage.getItem(`user_phone_${activeId}`).catch(() => null) : Promise.resolve(null),
           activeId ? AsyncStorage.getItem(`user_photos_${activeId}`).catch(() => null) : Promise.resolve(null),
           activeId ? AsyncStorage.getItem(`user_profile_photo_${activeId}`).catch(() => null) : Promise.resolve(null),
+          activeId ? AsyncStorage.getItem(`@amara_phone_removed_${activeId}`).catch(() => null) : Promise.resolve(null),
+          AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
         ]);
 
         if (storedDisplayName) setDisplayName(storedDisplayName);
@@ -457,8 +467,28 @@ const GlobalStateProvider = ({ children }: any) => {
             setDate(parseDobToLocalDate(effectiveDob));
           } catch {}
         }
-        const effectivePhone = userScopedPhone || storedPhone || userMobile;
-        if (effectivePhone) setPhoneNumber(effectivePhone);
+        if (event?.phoneNumber === '' || phoneRemovedUid === 'true' || phoneRemovedGlobal === 'true') {
+          setPhoneNumber('');
+        } else {
+          const effectivePhone = event?.phoneNumber || userScopedPhone || storedPhone || userMobile;
+          if (effectivePhone) setPhoneNumber(effectivePhone);
+        }
+
+        // If explicit photos are emitted in the event, adopt them immediately without clobbering
+        if (event?.photos && Array.isArray(event.photos) && event.photos.some(Boolean)) {
+          const slots = [...event.photos];
+          while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+          setImages(slots);
+          const pImg = event.photo || slots[0] || null;
+          if (pImg) {
+            setProfileImage(pImg);
+            setProfileImageUrl(pImg);
+          }
+          if (activeId) {
+            AsyncStorage.setItem(`user_photos_${activeId}`, JSON.stringify(slots)).catch(() => {});
+          }
+          return;
+        }
 
         // Synchronize photos from local scoped storage first
         let hasScopedPhotos = false;

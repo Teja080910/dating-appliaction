@@ -4,9 +4,9 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { mockStore } from '../src/mock/mockStore';
 import apiClient from '../src/api/apiClient';
-import ContactDetails from '../src/components/ProfileTabComponents/ProfileSettings/ContactDetails';
+import ContactDetails, { parsePhoneNumberAndCountry } from '../src/components/ProfileTabComponents/ProfileSettings/ContactDetails';
 import PhoneOtpModal from '../src/components/ProfileTabComponents/ProfileSettings/PhoneOtpModal';
-import { parsePhoneNumberAndCountry } from '../src/components/ProfileTabComponents/ProfileSettings/ContactDetails';
+import { extractSessionIdFromResponse } from '../src/api/useProfile';
 
 jest.mock('react-native-linear-gradient', () => 'LinearGradient');
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'Icon');
@@ -332,6 +332,36 @@ describe('Phone Number OTP Verification in Edit Profile', () => {
       const jsonAfter = JSON.stringify(renderer!.toJSON());
       expect(jsonAfter).toContain('Enter 6-digit OTP');
       expect(jsonAfter).toContain('Validate');
+    });
+  });
+
+  describe('OTP Session ID Extraction Tests', () => {
+    it('extracts session ID from 2Factor.in style response with Details', () => {
+      const response = {
+        Status: 'Success',
+        Details: '42217c18-97e0-40e1-bbd4-d53bdfce8be3',
+      };
+      expect(extractSessionIdFromResponse(response)).toBe('42217c18-97e0-40e1-bbd4-d53bdfce8be3');
+    });
+
+    it('extracts session ID from nested data.Details response', () => {
+      const response = {
+        status: 'success',
+        data: {
+          Details: '88390b21-4f11-479c-982f-04a6915f0122',
+        },
+      };
+      expect(extractSessionIdFromResponse(response)).toBe('88390b21-4f11-479c-982f-04a6915f0122');
+    });
+
+    it('extracts session ID from raw UUID string or string with prefix', () => {
+      expect(extractSessionIdFromResponse('42217c18-97e0-40e1-bbd4-d53bdfce8be3')).toBe('42217c18-97e0-40e1-bbd4-d53bdfce8be3');
+      expect(extractSessionIdFromResponse('SessionId: 42217c18-97e0-40e1-bbd4-d53bdfce8be3')).toBe('42217c18-97e0-40e1-bbd4-d53bdfce8be3');
+    });
+
+    it('extracts standard sessionId and session_id', () => {
+      expect(extractSessionIdFromResponse({ sessionId: 'sess_12345678' })).toBe('sess_12345678');
+      expect(extractSessionIdFromResponse({ session_id: 'sess_abcdefgh' })).toBe('sess_abcdefgh');
     });
   });
 });

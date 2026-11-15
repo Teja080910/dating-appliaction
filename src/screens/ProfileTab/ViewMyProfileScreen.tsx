@@ -481,6 +481,7 @@ const ViewMyProfileScreen = () => {
       void refetchProfileRef.current?.();
       void connectionRef.current?.sentList?.refetch?.();
       void connectionRef.current?.receivedList?.refetch?.();
+      void connectionRef.current?.connectionList?.refetch?.();
 
       if (isViewingSelf) {
         AsyncStorage.getItem('@amara_net_worth').then((val) => {
@@ -500,8 +501,14 @@ const ViewMyProfileScreen = () => {
             },
           });
         }
+      } else if (numericTargetId) {
+        getAllImagesRef.current(String(numericTargetId), {
+          onSuccess: (data: any) => {
+            setTargetGalleryImages(dedupeImageUris([data]));
+          },
+        });
       }
-    }, [isViewingSelf, myId, setSelectedNetWorth, setSelectedKids, loadDeletedUris]),
+    }, [isViewingSelf, myId, numericTargetId, setSelectedNetWorth, setSelectedKids, loadDeletedUris]),
   );
 
   useEffect(() => {
@@ -960,75 +967,75 @@ const ViewMyProfileScreen = () => {
 
     return {
       ...baseData,
-      id: (isViewingSelf ? (fetched?.id || myId) : (numericTargetId || (isTargetUserFetched ? fetched?.id : null) || routed?.id)) || null,
-      targetUserId: isViewingSelf ? null : (numericTargetId || routed?.targetUserId || routed?.userId || null),
+      id: (isViewingSelf ? (fetched?.id || myId) : ((isTargetUserFetched ? fetched?.id : null) || numericTargetId || routed?.id)) || null,
+      targetUserId: isViewingSelf ? null : ((isTargetUserFetched ? (fetched?.userId || fetched?.id) : null) || numericTargetId || routed?.targetUserId || routed?.userId || null),
       name: isViewingSelf
         ? (normalizeTextValue(displayName) || normalizeTextValue(name) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name) || t('home.usercard.user'))
-        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(routed?.name) || (isTargetUserFetched ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name)) : '') || t('home.usercard.user')),
+        : (isTargetUserFetched ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name)) : (normalizeTextValue(routed?.displayName) || normalizeTextValue(routed?.name) || t('home.usercard.user'))),
       displayName: isViewingSelf
         ? (normalizeTextValue(displayName) || normalizeTextValue(name) || normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name) || t('home.usercard.user'))
-        : (normalizeTextValue(routed?.displayName) || normalizeTextValue(routed?.name) || (isTargetUserFetched ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name)) : '') || t('home.usercard.user')),
+        : (isTargetUserFetched ? (normalizeTextValue(fetched?.displayName) || normalizeTextValue(fetched?.name)) : (normalizeTextValue(routed?.displayName) || normalizeTextValue(routed?.name) || t('home.usercard.user'))),
       age: isViewingSelf
         ? (ownAge || fetched?.age || null)
-        : (routed?.age || (isTargetUserFetched ? fetched?.age : null) || null),
+        : (isTargetUserFetched ? (fetched?.age || null) : (routed?.age || null)),
       bio: isViewingSelf
         ? (normalizeTextValue(profileText) || normalizeTextValue(fetched?.bio) || '')
-        : (normalizeTextValue(routed?.bio) || (isTargetUserFetched ? normalizeTextValue(fetched?.bio) : '') || ''),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.bio) : (normalizeTextValue(routed?.bio) || '')),
       height: isViewingSelf
         ? (fetched?.height || height || null)
-        : (routed?.height || (isTargetUserFetched ? fetched?.height : null) || null),
+        : (isTargetUserFetched ? (fetched?.height || null) : (routed?.height || null)),
       appearance: isViewingSelf
         ? (normalizeTextValue(fetched?.appearance) || normalizeTextValue(selectedAppearance) || '')
-        : (normalizeTextValue(routed?.appearance) || (isTargetUserFetched ? normalizeTextValue(fetched?.appearance) : '') || ''),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.appearance) : (normalizeTextValue(routed?.appearance) || '')),
       bodyType: isViewingSelf
         ? (normalizeTextValue(fetched?.bodyType) || normalizeTextValue(selectedBodyType) || '')
-        : (normalizeTextValue(routed?.bodyType) || (isTargetUserFetched ? normalizeTextValue(fetched?.bodyType) : '') || ''),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.bodyType) : (normalizeTextValue(routed?.bodyType) || '')),
       language: isViewingSelf
         ? (normalizeTextValue(fetched?.language) || contextLanguage || '')
-        : (normalizeTextValue(routed?.language) || (isTargetUserFetched ? normalizeTextValue(fetched?.language) : '') || t('profile.userdetails.english')),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.language) : (normalizeTextValue(routed?.language) || t('profile.userdetails.english'))),
       englishLevel: isViewingSelf
         ? (normalizeTextValue(fetched?.englishLevel) || contextEnglishLevel || '')
-        : (normalizeTextValue(routed?.englishLevel) || (isTargetUserFetched ? normalizeTextValue(fetched?.englishLevel) : '') || t('profile.viewmyprofilescreen.conversational')),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.englishLevel) : (normalizeTextValue(routed?.englishLevel) || t('profile.viewmyprofilescreen.conversational'))),
       ethnicity: isViewingSelf
         ? (normalizeTextValue(fetched?.ethnicity) || normalizeTextValue(selectedEthinicity) || '')
-        : (normalizeTextValue(routed?.ethnicity) || (isTargetUserFetched ? normalizeTextValue(fetched?.ethnicity) : '') || t('profile.viewmyprofilescreen.asian')),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.ethnicity) : (normalizeTextValue(routed?.ethnicity) || t('profile.viewmyprofilescreen.asian'))),
       smoke: isViewingSelf
         ? (normalizeTextValue(fetched?.smoke) || normalizeTextValue(selectedSmoking) || '')
-        : (normalizeTextValue(routed?.smoke) || (isTargetUserFetched ? normalizeTextValue(fetched?.smoke) : '') || t('profile.viewmyprofilescreen.never')),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.smoke) : (normalizeTextValue(routed?.smoke) || t('profile.viewmyprofilescreen.never'))),
       drink: isViewingSelf
         ? (normalizeTextValue(fetched?.drink) || normalizeTextValue(selectedDrinking) || '')
-        : (normalizeTextValue(routed?.drink) || (isTargetUserFetched ? normalizeTextValue(fetched?.drink) : '') || t('profile.viewmyprofilescreen.socially')),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.drink) : (normalizeTextValue(routed?.drink) || t('profile.viewmyprofilescreen.socially'))),
       lookingFor: isViewingSelf
         ? (normalizeTextValue(fetched?.lookingFor) || contextLookingFor || '')
-        : (normalizeTextValue(routed?.lookingFor) || (isTargetUserFetched ? normalizeTextValue(fetched?.lookingFor) : '') || t('profile.viewmyprofilescreen.long_term')),
+        : (isTargetUserFetched ? normalizeTextValue(fetched?.lookingFor) : (normalizeTextValue(routed?.lookingFor) || t('profile.viewmyprofilescreen.long_term'))),
       kidCount: isViewingSelf
         ? (normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids) || normalizeTextValue(selectedKids) || '')
-        : (normalizeTextValue(routed?.kidCount) || normalizeTextValue(routed?.kids) || (isTargetUserFetched ? (normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids)) : '') || ''),
+        : (isTargetUserFetched ? (normalizeTextValue(fetched?.kidCount) || normalizeTextValue(fetched?.kids) || '') : (normalizeTextValue(routed?.kidCount) || normalizeTextValue(routed?.kids) || '')),
       kids: isViewingSelf
         ? (normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount) || normalizeTextValue(selectedKids) || '')
-        : (normalizeTextValue(routed?.kids) || normalizeTextValue(routed?.kidCount) || (isTargetUserFetched ? (normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount)) : '') || ''),
+        : (isTargetUserFetched ? (normalizeTextValue(fetched?.kids) || normalizeTextValue(fetched?.kidCount) || '') : (normalizeTextValue(routed?.kids) || normalizeTextValue(routed?.kidCount) || '')),
       netWorth: isViewingSelf
         ? (normalizeTextValue(fetched?.netWorth) || normalizeTextValue(selectedNetWorth) || '')
-        : (normalizeTextValue(routed?.netWorth) || (isTargetUserFetched ? normalizeTextValue(fetched?.netWorth) : '') || ''),
+        : (isTargetUserFetched ? (normalizeTextValue(fetched?.netWorth) || '') : (normalizeTextValue(routed?.netWorth) || '')),
       currentCity: isViewingSelf
         ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(location) || '')
-        : (normalizeTextValue(routed?.currentCity) || (isTargetUserFetched ? normalizeTextValue(fetched?.currentCity) : '') || normalizeTextValue(routed?.city) || t('home.usercard.nearby')),
+        : (isTargetUserFetched ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(fetched?.city) || t('home.usercard.nearby')) : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(routed?.city) || t('home.usercard.nearby'))),
       location: isViewingSelf
         ? (normalizeTextValue(fetched?.location) || normalizeTextValue(location) || '')
-        : (normalizeTextValue(routed?.location) || (isTargetUserFetched ? normalizeTextValue(fetched?.location) : '') || normalizeTextValue(routed?.place) || ''),
-      place: routed?.place || fetched?.place || null,
-      neighborhood: routed?.neighborhood || fetched?.neighborhood || null,
-      area: routed?.area || fetched?.area || null,
-      lastActive: routed?.lastActive || fetched?.lastActive || null,
-      online: Boolean(routed?.online ?? fetched?.online ?? false),
+        : (isTargetUserFetched ? (normalizeTextValue(fetched?.location) || normalizeTextValue(fetched?.currentCity) || '') : (normalizeTextValue(routed?.location) || normalizeTextValue(routed?.place) || '')),
+      place: (isTargetUserFetched ? fetched?.place : null) || routed?.place || fetched?.place || null,
+      neighborhood: (isTargetUserFetched ? fetched?.neighborhood : null) || routed?.neighborhood || fetched?.neighborhood || null,
+      area: (isTargetUserFetched ? fetched?.area : null) || routed?.area || fetched?.area || null,
+      lastActive: (isTargetUserFetched ? fetched?.lastActive : null) || routed?.lastActive || fetched?.lastActive || null,
+      online: Boolean((isTargetUserFetched ? fetched?.online : null) ?? routed?.online ?? fetched?.online ?? false),
       distance: isViewingSelf
         ? ''
-        : (routed?.distance || (isTargetUserFetched ? fetched?.distance : '') || ''),
+        : ((isTargetUserFetched ? fetched?.distance : '') || routed?.distance || ''),
       distanceKm: isViewingSelf
         ? null
-        : (routed?.distanceKm ?? (isTargetUserFetched ? fetched?.distanceKm : null) ?? null),
-      latitude: routed?.latitude ?? fetched?.latitude ?? routed?.lat ?? fetched?.lat ?? null,
-      longitude: routed?.longitude ?? fetched?.longitude ?? routed?.lng ?? fetched?.lng ?? null,
+        : ((isTargetUserFetched ? fetched?.distanceKm : null) ?? routed?.distanceKm ?? null),
+      latitude: (isTargetUserFetched ? (fetched?.latitude ?? fetched?.lat) : null) ?? routed?.latitude ?? fetched?.latitude ?? routed?.lat ?? fetched?.lat ?? null,
+      longitude: (isTargetUserFetched ? (fetched?.longitude ?? fetched?.lng) : null) ?? routed?.longitude ?? fetched?.longitude ?? routed?.lng ?? fetched?.lng ?? null,
       verifiedSelfie: isViewingSelf
         ? Boolean(fetched?.verifiedSelfie ?? fetched?.selfieVerified ?? verifiedSelfie)
         : Boolean((isTargetUserFetched ? (fetched?.verifiedSelfie ?? fetched?.selfieVerified) : null) ?? routed?.verifiedSelfie ?? routed?.selfieVerified),
@@ -1046,22 +1053,22 @@ const ViewMyProfileScreen = () => {
               ''
             );
           })()
-        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.telegramUsername) || (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (isTargetUserFetched ? normalizeTextValue(fetched?.telegramUsername) : normalizeTextValue(routed?.telegramUsername))),
       phoneNumber: isViewingSelf
         ? selfPhone
-        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (isTargetUserFetched ? (normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : (normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber)))),
       mobile: isViewingSelf
         ? selfPhone
-        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (isTargetUserFetched ? (normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.mobileNumber)) : (normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.mobileNumber)))),
       phone: isViewingSelf
         ? selfPhone
-        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber) || (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (isTargetUserFetched ? (normalizeTextValue(fetched?.phone) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.mobileNumber)) : (normalizeTextValue(routed?.phone) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.mobileNumber)))),
       mobileNumber: isViewingSelf
         ? selfPhone
-        : (isViewerWoman || !isAcceptedMatch ? '' : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone) || (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : ''))),
+        : (isViewerWoman || !isAcceptedMatch ? '' : (isTargetUserFetched ? (normalizeTextValue(fetched?.mobileNumber) || normalizeTextValue(fetched?.mobile) || normalizeTextValue(fetched?.phoneNumber) || normalizeTextValue(fetched?.phone)) : (normalizeTextValue(routed?.mobileNumber) || normalizeTextValue(routed?.mobile) || normalizeTextValue(routed?.phoneNumber) || normalizeTextValue(routed?.phone)))),
       profileImageUrl: isViewingSelf
         ? (contextPrimaryImage || (ownImages[0] || null) || normalizeTextValue(fetched?.profileImageUrl))
-        : (normalizeTextValue(routed?.profileImageUrl) || (isTargetUserFetched ? normalizeTextValue(fetched?.profileImageUrl) : '') || routeImage || (targetImages[0] || null)),
+        : (isTargetUserFetched && fetched?.profileImageUrl ? normalizeTextValue(fetched.profileImageUrl) : (normalizeTextValue(routed?.profileImageUrl) || routeImage || (targetImages[0] || null))),
       images: mergedImages.length > 0 ? mergedImages : (routeImage ? [routeImage] : []),
     };
   }, [
@@ -1122,26 +1129,26 @@ const ViewMyProfileScreen = () => {
   const acceptedChatPhone = useMemo(() => {
     if (isViewerWoman) return '';
     return extractPhone(
-      isProfileOfTarget(routeProfileData) ? routeProfileData : null,
       isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
+      targetPartyFromMatch,
+      isProfileOfTarget(routeProfileData) ? routeProfileData : null,
       matchingInvitation?.receiver,
       (matchingInvitation as any)?.receiverProfile,
       matchingReceived?.sender,
-      (matchingReceived as any)?.senderProfile,
-      targetPartyFromMatch
+      (matchingReceived as any)?.senderProfile
     );
   }, [isViewerWoman, routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
 
   const acceptedChatTg = useMemo(() => {
     if (isViewerWoman) return '';
     return extractTelegram(
-      isProfileOfTarget(routeProfileData) ? routeProfileData : null,
       isTargetUserFetched && isProfileOfTarget(fetchedProfile) ? fetchedProfile : null,
+      targetPartyFromMatch,
+      isProfileOfTarget(routeProfileData) ? routeProfileData : null,
       matchingInvitation?.receiver,
       (matchingInvitation as any)?.receiverProfile,
       matchingReceived?.sender,
-      (matchingReceived as any)?.senderProfile,
-      targetPartyFromMatch
+      (matchingReceived as any)?.senderProfile
     );
   }, [isViewerWoman, routeProfileData, isTargetUserFetched, fetchedProfile, matchingInvitation, matchingReceived, targetPartyFromMatch, isProfileOfTarget]);
 

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useProfile } from '../../api/useProfile';
+import { useProfile, extractSessionIdFromResponse } from '../../api/useProfile';
 import Description from '../../components/ProfileTabComponents/ProfileSettings/Description';
 import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/DisplayName';
 import ProfileSettingsHeader from '../../components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader';
@@ -58,6 +58,9 @@ const ProfileSettingsScreen = () => {
   const [localDescription, setLocalDescription] = useState(profileText);
   const [localDob, setLocalDob] = useState(() => formatDateToDobString(date));
   const lastSavedDobRef = useRef<string | null>(null);
+  const hasUserEditedPhoneRef = useRef(false);
+  const userExplicitlyRemovedPhoneRef = useRef(false);
+  const lastSavedPhoneRef = useRef<string | null>(null);
 
   // Contact details state (defaults to primary app language country)
   const [countryCode, setCountryCode] = useState(defaultCountry.code);
@@ -120,10 +123,16 @@ const ProfileSettingsScreen = () => {
           setDate(parseDobToLocalDate(cleanDob));
         }
 
-        const userScopedPhone = uid ? await AsyncStorage.getItem(`user_phone_${uid}`) : null;
-        const storedPhone = userScopedPhone || (await AsyncStorage.getItem('phoneNumber'));
-        if (storedPhone) {
-          if (isCleanPhoneNumber(storedPhone)) {
+        const [phoneRemovedUid, phoneRemovedGlobal] = await Promise.all([
+          uid ? AsyncStorage.getItem(`@amara_phone_removed_${uid}`).catch(() => null) : null,
+          AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
+        ]);
+        if (phoneRemovedUid === 'true' || phoneRemovedGlobal === 'true' || userExplicitlyRemovedPhoneRef.current) {
+          setLocalPhoneNumber('');
+        } else if (!hasUserEditedPhoneRef.current) {
+          const userScopedPhone = uid ? await AsyncStorage.getItem(`user_phone_${uid}`) : null;
+          const storedPhone = userScopedPhone || (await AsyncStorage.getItem('phoneNumber'));
+          if (storedPhone && isCleanPhoneNumber(storedPhone)) {
             const parsed = parsePhoneNumberAndCountry(storedPhone);
             if (parsed?.code) {
               setCountryCode(parsed.code);
@@ -135,7 +144,7 @@ const ProfileSettingsScreen = () => {
             }
           } else {
             // Clean up any stale/email-contaminated value from storage
-            await AsyncStorage.removeItem('phoneNumber');
+            await AsyncStorage.multiRemove(['phoneNumber', 'userMobile']).catch(() => {});
             setLocalPhoneNumber('');
           }
         }
@@ -205,19 +214,35 @@ const ProfileSettingsScreen = () => {
       }
     }
 
-    const candidatePhone = profile.phoneNumber || profile.mobile || profile.phone || (profile as any).mobileNumber;
-    if (candidatePhone && isCleanPhoneNumber(candidatePhone)) {
-      const parsed = parsePhoneNumberAndCountry(candidatePhone);
-      if (parsed?.code) {
-        setCountryCode(parsed.code);
-        if (parsed.name) setCountryName(parsed.name);
-        if (parsed.flag) setCountryFlag(parsed.flag);
-      }
-      if (parsed?.number) {
-        setLocalPhoneNumber(parsed.number);
-      }
+    if (hasUserEditedPhoneRef.current || userExplicitlyRemovedPhoneRef.current) {
+      // User is actively editing or cleared phone; do not overwrite from query response
     } else {
-      setLocalPhoneNumber('');
+      AsyncStorage.getItem('userId').then(async (uid) => {
+        const [phoneRemovedUid, phoneRemovedGlobal] = await Promise.all([
+          uid ? AsyncStorage.getItem(`@amara_phone_removed_${uid}`).catch(() => null) : null,
+          AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
+        ]);
+        if (phoneRemovedUid === 'true' || phoneRemovedGlobal === 'true' || userExplicitlyRemovedPhoneRef.current) {
+          setLocalPhoneNumber('');
+          return;
+        }
+        if (hasUserEditedPhoneRef.current) return;
+
+        const candidatePhone = profile.phoneNumber || profile.mobile || profile.phone || (profile as any).mobileNumber;
+        if (candidatePhone && isCleanPhoneNumber(candidatePhone)) {
+          const parsed = parsePhoneNumberAndCountry(candidatePhone);
+          if (parsed?.code) {
+            setCountryCode(parsed.code);
+            if (parsed.name) setCountryName(parsed.name);
+            if (parsed.flag) setCountryFlag(parsed.flag);
+          }
+          if (parsed?.number) {
+            setLocalPhoneNumber(parsed.number);
+          }
+        } else {
+          setLocalPhoneNumber('');
+        }
+      }).catch(() => {});
     }
 
     AsyncStorage.getItem('userId').then(async (uid) => {
@@ -365,11 +390,26 @@ const ProfileSettingsScreen = () => {
 
     const cleanDobToSave = formatDateToDobString(localDob);
     lastSavedDobRef.current = cleanDobToSave;
+    lastSavedPhoneRef.current = fullPhone;
+    if (!fullPhone) {
+      userExplicitlyRemovedPhoneRef.current = true;
+    }
     await persistLocalState();
 
     const tgToPersist = localTelegramUsername.trim()
       ? localTelegramUsername.trim().replace(/^@+/, '')
       : 'NONE';
+
+    const userPhotosRaw = currentUid ? await AsyncStorage.getItem(`user_photos_${currentUid}`).catch(() => null) : null;
+    let currentPhotos: string[] | undefined = undefined;
+    if (userPhotosRaw) {
+      try {
+        const parsed = JSON.parse(userPhotosRaw);
+        if (Array.isArray(parsed) && parsed.some(Boolean)) {
+          currentPhotos = parsed.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+        }
+      } catch {}
+    }
 
     updateProfile.mutate(
       {
@@ -383,6 +423,7 @@ const ProfileSettingsScreen = () => {
         mobile: fullPhone || '',
         phoneNumber: fullPhone || '',
         phone: fullPhone || '',
+        ...(currentPhotos && currentPhotos.length > 0 ? { photos: currentPhotos } : {}),
       } as any,
       {
         onSuccess: async () => {
@@ -395,10 +436,22 @@ const ProfileSettingsScreen = () => {
           queryClient.invalidateQueries({ queryKey: ['connections-sent'] });
           queryClient.invalidateQueries({ queryKey: ['connections-received'] });
           setContextPhone(fullPhone || '');
+          const userPhotosRaw = currentUid ? await AsyncStorage.getItem(`user_photos_${currentUid}`).catch(() => null) : null;
+          let currentPhotos: string[] | undefined = undefined;
+          if (userPhotosRaw) {
+            try {
+              const parsed = JSON.parse(userPhotosRaw);
+              if (Array.isArray(parsed) && parsed.some(Boolean)) {
+                currentPhotos = parsed;
+              }
+            } catch {}
+          }
+
           DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', {
             uid: currentUid,
             phoneNumber: fullPhone || '',
             telegramUsername: tgToPersist === 'NONE' ? '' : tgToPersist,
+            ...(currentPhotos ? { photos: currentPhotos, photo: currentPhotos[0] || '' } : {}),
           });
           navigation.goBack();
         },
@@ -463,9 +516,22 @@ const ProfileSettingsScreen = () => {
           }
 
           // Always save locally and return smoothly without disruptive popups
+          const userPhotosRaw = currentUid ? await AsyncStorage.getItem(`user_photos_${currentUid}`).catch(() => null) : null;
+          let currentPhotos: string[] | undefined = undefined;
+          if (userPhotosRaw) {
+            try {
+              const parsed = JSON.parse(userPhotosRaw);
+              if (Array.isArray(parsed) && parsed.some(Boolean)) {
+                currentPhotos = parsed;
+              }
+            } catch {}
+          }
           await persistLocalState();
           await profileQuery.refetch();
-          DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', { uid: currentUid });
+          DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', {
+            uid: currentUid,
+            ...(currentPhotos ? { photos: currentPhotos, photo: currentPhotos[0] || '' } : {}),
+          });
           navigation.goBack();
         },
         onSettled: () => setLoading(false),
@@ -514,6 +580,7 @@ const ProfileSettingsScreen = () => {
     try {
       const data = await sendWhatsappOtp.mutateAsync({ mobile: pendingPhone });
       const sessId =
+        extractSessionIdFromResponse(data) ||
         data?.sessionId ||
         data?.data?.sessionId ||
         data?.session_id ||
@@ -642,7 +709,25 @@ const ProfileSettingsScreen = () => {
           countryFlag={countryFlag}
           setCountryFlag={setCountryFlag}
           phoneNumber={localPhoneNumber}
-          setPhoneNumber={setLocalPhoneNumber}
+          setPhoneNumber={(val: string) => {
+            hasUserEditedPhoneRef.current = true;
+            const trimmed = (val || '').trim();
+            if (!trimmed) {
+              userExplicitlyRemovedPhoneRef.current = true;
+              lastSavedPhoneRef.current = '';
+              AsyncStorage.getItem('userId').then(async (uid) => {
+                await AsyncStorage.multiRemove(['phoneNumber', 'userMobile']).catch(() => {});
+                if (uid) {
+                  await AsyncStorage.removeItem(`user_phone_${uid}`).catch(() => {});
+                  await AsyncStorage.setItem(`@amara_phone_removed_${uid}`, 'true').catch(() => {});
+                }
+                await AsyncStorage.setItem('@amara_phone_removed_global', 'true').catch(() => {});
+              }).catch(() => {});
+            } else {
+              userExplicitlyRemovedPhoneRef.current = false;
+            }
+            setLocalPhoneNumber(val);
+          }}
           telegramUsername={localTelegramUsername}
           setTelegramUsername={setLocalTelegramUsername}
           isVerified={isPhoneVerified}

@@ -173,9 +173,6 @@ export const useUserImages = (userId?: string) => {
 
       const res = await apiClient.post('/profile/upload-image', formData, {
         params: normalizedUserId ? {userId: normalizedUserId} : undefined,
-        /*headers: {
-          'Content-Type': 'multipart/form-data',
-        },*/
       });
 
       return res.data;
@@ -183,6 +180,9 @@ export const useUserImages = (userId?: string) => {
     onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
         queryKey: ['userImages', variables?.uid || userId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['myProfile'],
       });
     },
   });

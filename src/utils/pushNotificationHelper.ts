@@ -4,7 +4,39 @@ import Toast from 'react-native-toast-message';
 import apiClient from '../api/apiClient';
 import { navigationRef, navigate } from './navigationHelper';
 
+// Silence RN Firebase modular migration warning in v21+
+(globalThis as any).RNFB_SILENCE_MODULAR_DEPRECATION_WARNINGS = true;
+
 const DEVICE_TOKEN_KEY = '@amara_device_token';
+
+/**
+ * Safely obtain Firebase Messaging instance passing getApp() to avoid modular SDK deprecation warnings
+ */
+const getMessagingInstance = () => {
+  try {
+    const appModule = require('@react-native-firebase/app');
+    const getApp = appModule.getApp || appModule.default?.getApp;
+    const app = typeof getApp === 'function' ? getApp() : undefined;
+    const messagingModule = require('@react-native-firebase/messaging');
+
+    if (typeof messagingModule.getMessaging === 'function') {
+      return app ? messagingModule.getMessaging(app) : messagingModule.getMessaging();
+    }
+    const messaging = messagingModule.default || messagingModule;
+    if (typeof messaging === 'function') {
+      return app ? messaging(app) : messaging();
+    }
+  } catch (err) {
+    try {
+      const messagingModule = require('@react-native-firebase/messaging');
+      const messaging = messagingModule.default || messagingModule;
+      if (typeof messaging === 'function') {
+        return messaging();
+      }
+    } catch {}
+  }
+  return null;
+};
 
 /**
  * Checks whether a token is a real valid Firebase Cloud Messaging token
@@ -21,11 +53,8 @@ export const isRealFcmToken = (token?: string | null): boolean => {
 export const getDeviceToken = async (): Promise<string> => {
   try {
     // 1. Try Firebase Messaging if available
-    const messagingModule = require('@react-native-firebase/messaging');
-    const messaging = messagingModule.default || messagingModule;
-    if (messaging && typeof messaging === 'function') {
-      const fcm = messaging();
-
+    const fcm = getMessagingInstance();
+    if (fcm) {
       if (typeof fcm.registerDeviceForRemoteMessages === 'function') {
         await fcm.registerDeviceForRemoteMessages().catch(() => null);
       }
@@ -337,11 +366,8 @@ export const setupPushNotificationListeners = (
   let unsubscribeOnTokenRefresh: (() => void) | undefined;
 
   try {
-    const messagingModule = require('@react-native-firebase/messaging');
-    const messaging = messagingModule.default || messagingModule;
-    if (messaging && typeof messaging === 'function') {
-      const fcm = messaging();
-
+    const fcm = getMessagingInstance();
+    if (fcm) {
       // 1. Foreground message handler
       if (typeof fcm.onMessage === 'function') {
         unsubscribeOnMessage = fcm.onMessage(async (remoteMessage: any) => {
