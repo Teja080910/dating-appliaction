@@ -35,6 +35,24 @@ const normalizeBooleanFilter = (value: unknown) => {
 
 const SENSITIVE_USER_FIELDS = ['mobile', 'password'];
 
+export const isDeletedUserRecord = (user: any): boolean => {
+  if (!user || typeof user !== 'object') return false;
+  const p = user?.profile || {};
+  if (user.isDeleted === true || p.isDeleted === true) return true;
+  if (user.deleted === true || p.deleted === true) return true;
+  if (user.deactivated === true || p.deactivated === true) return true;
+  if (user.isActive === false || p.isActive === false) return true;
+  const status = String(user.status || p.status || '').toUpperCase();
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(status)) {
+    return true;
+  }
+  const accountStatus = String(user.accountStatus || p.accountStatus || '').toUpperCase();
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(accountStatus)) {
+    return true;
+  }
+  return false;
+};
+
 const sanitizeUserRecord = (user: any): any => {
   if (!user || typeof user !== 'object') {
     return user;
@@ -69,7 +87,9 @@ const normalizePagedUsersResponse = (payload: any) => {
     (Array.isArray(base.data) ? base.data : null) ||
     (Array.isArray(payload) ? payload : []);
 
-  const sanitized = content.map(sanitizeUserRecord);
+  const sanitized = content
+    .filter((u: any) => !isDeletedUserRecord(u))
+    .map(sanitizeUserRecord);
 
   return {
     totalPages: Number(base.totalPages ?? 0),
@@ -211,18 +231,18 @@ const normalizeSearchRequest = (data: any) => {
 
 const normalizeSearchUsersResponse = (payload: any) => {
   if (Array.isArray(payload)) {
-    return payload.map(sanitizeUserRecord);
+    return payload.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
   }
 
   if (payload && typeof payload === 'object') {
     if (Array.isArray(payload.data)) {
-      return payload.data.map(sanitizeUserRecord);
+      return payload.data.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.content)) {
-      return payload.content.map(sanitizeUserRecord);
+      return payload.content.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.users)) {
-      return payload.users.map(sanitizeUserRecord);
+      return payload.users.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
     }
   }
 

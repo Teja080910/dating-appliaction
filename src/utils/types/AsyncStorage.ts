@@ -286,3 +286,44 @@ export const clearBlockedUsers = async (
     console.warn('Failed to clear blocked users:', e);
   }
 };
+
+const DELETED_ACCOUNTS_KEY = '@amara_deleted_accounts';
+
+export const recordDeletedAccountLocally = async (
+  userId: string | number | null | undefined
+): Promise<void> => {
+  if (!userId) return;
+  try {
+    const raw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    const idStr = String(userId).trim();
+    if (idStr && !list.includes(idStr)) {
+      list.push(idStr);
+      await AsyncStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(list));
+    }
+    // Also remove from @amara_registered_profiles so it never re-appears on this device
+    const rawReg = await AsyncStorage.getItem('@amara_registered_profiles');
+    if (rawReg) {
+      const regList = JSON.parse(rawReg);
+      if (Array.isArray(regList)) {
+        const filtered = regList.filter((item: any) => {
+          const itemUid = String(item?.userId || item?.id || item?.uid || item?.profile?.userId || '').trim();
+          return itemUid !== idStr;
+        });
+        await AsyncStorage.setItem('@amara_registered_profiles', JSON.stringify(filtered));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to record deleted account locally:', e);
+  }
+};
+
+export const getLocalDeletedAccounts = async (): Promise<string[]> => {
+  try {
+    const raw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+

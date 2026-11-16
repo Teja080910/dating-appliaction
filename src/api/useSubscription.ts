@@ -95,8 +95,8 @@ const normalizeSubscriptionStatus = (payload: any): NormalizedSubscriptionStatus
     plan,
     startDate: source?.startDate ? String(source.startDate) : null,
     endDate,
-    priorityHandoff: Boolean(source?.priorityHandoff || plan === 'PREMIUM' || plan === 'ELITE'),
-    eliteBadge: Boolean(source?.eliteBadge || plan === 'ELITE'),
+    priorityHandoff: Boolean(source?.priorityHandoff),
+    eliteBadge: Boolean(source?.eliteBadge),
     dailyRequestLimit,
     remainingDays,
     durationDays,
@@ -211,9 +211,9 @@ export const DEFAULT_SUBSCRIPTION_PLANS: BackendSubscriptionPlan[] = [
     limitLabel: '20 requests/day',
     tagline: 'Invite up to 20 members per day',
     description: 'Premium Plan: 20 daily connection requests for 180 days.',
-    worldwideSearch: true,
+    worldwideSearch: false,
     eliteBadge: false,
-    priorityHandoff: true,
+    priorityHandoff: false,
     popular: true,
     bestValue: false,
   },
@@ -227,9 +227,9 @@ export const DEFAULT_SUBSCRIPTION_PLANS: BackendSubscriptionPlan[] = [
     limitLabel: 'Unlimited requests',
     tagline: 'Invite unlimited members per day',
     description: 'Elite Plan: unlimited daily connection requests for 365 days.',
-    worldwideSearch: true,
-    eliteBadge: true,
-    priorityHandoff: true,
+    worldwideSearch: false,
+    eliteBadge: false,
+    priorityHandoff: false,
     popular: false,
     bestValue: true,
   },
@@ -240,10 +240,10 @@ export const normalizeBackendPlan = (item: any): ClientSubscriptionPlan => {
   const displayName = item?.displayName || item?.name || item?.label || (planCode === 'STANDARD' ? 'Standard' : planCode === 'PREMIUM' ? 'Premium' : 'Elite');
   const priceNum = typeof item?.price === 'number' ? item.price : Number(item?.price || item?.amount || 0);
   const duration = typeof item?.durationDays === 'number' ? item.durationDays : Number(item?.durationDays || (planCode === 'STANDARD' ? 120 : planCode === 'PREMIUM' ? 180 : 365));
-  const unlimited = Boolean(item?.unlimited || item?.dailyRequestLimit == null || planCode === 'ELITE');
-  const limitLabel = item?.limitLabel || (unlimited ? 'Unlimited requests' : `${item?.dailyRequestLimit ?? (planCode === 'PREMIUM' ? 20 : 10)} requests/day`);
-  const popular = Boolean(item?.popular || (planCode === 'PREMIUM' && item?.popular !== false));
-  const bestValue = Boolean(item?.bestValue || (planCode === 'ELITE' && item?.bestValue !== false));
+  const unlimited = Boolean(item?.unlimited || (item?.dailyRequestLimit == null && item?.unlimited !== false));
+  const limitLabel = item?.limitLabel || (unlimited ? 'Unlimited requests' : `${item?.dailyRequestLimit ?? 10} requests/day`);
+  const popular = Boolean(item?.popular);
+  const bestValue = Boolean(item?.bestValue);
 
   return {
     id: planCode,
@@ -261,11 +261,11 @@ export const normalizeBackendPlan = (item: any): ClientSubscriptionPlan => {
     unlimited,
     limitLabel,
     contactView: unlimited ? 'UNLIMITED' : String(item?.dailyRequestLimit ?? (planCode === 'PREMIUM' ? '20' : '10')),
-    tagline: item?.tagline || (unlimited ? 'Invite unlimited members per day' : `Invite up to ${item?.dailyRequestLimit ?? (planCode === 'PREMIUM' ? 20 : 10)} members per day`),
-    description: item?.description || (unlimited ? 'Elite Plan: unlimited daily connection requests for 365 days.' : `${displayName} Plan: ${limitLabel} for ${duration} days.`),
-    worldwideSearch: Boolean(item?.worldwideSearch || planCode === 'PREMIUM' || planCode === 'ELITE'),
-    eliteBadge: Boolean(item?.eliteBadge || planCode === 'ELITE'),
-    priorityHandoff: Boolean(item?.priorityHandoff || planCode === 'PREMIUM' || planCode === 'ELITE'),
+    tagline: item?.tagline || '',
+    description: item?.description || '',
+    worldwideSearch: Boolean(item?.worldwideSearch),
+    eliteBadge: Boolean(item?.eliteBadge),
+    priorityHandoff: Boolean(item?.priorityHandoff),
     popular,
     bestValue,
     badge: popular ? 'POPULAR' : bestValue ? 'BEST VALUE' : undefined,

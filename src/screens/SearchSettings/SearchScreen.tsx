@@ -36,7 +36,9 @@ import {
   saveSearchFilters,
   clearSavedSearchFilters,
   getActiveFilterCount,
+  getLocalDeletedAccounts,
 } from '../../utils/types/AsyncStorage';
+import { isDeletedProfile } from '../../components/HomeTabComponents/UserList';
 import { t, useTranslation } from '../../i18n';
 
 const SearchScreen = ({ navigation }: any) => {
@@ -280,9 +282,12 @@ const SearchScreen = ({ navigation }: any) => {
         }
       }
 
-      let filteredResults = profiles;
+      const deletedAccountIds = await getLocalDeletedAccounts();
+      const activeProfiles = (profiles || []).filter((p: any) => !isDeletedProfile(p, deletedAccountIds));
+
+      let filteredResults = activeProfiles;
       if (!filters.worldwide && Number.isFinite(Number(filters.maxDistanceKm)) && Number(filters.maxDistanceKm) > 0) {
-        filteredResults = filterByRadius(profiles, filters, userLocation, location);
+        filteredResults = filterByRadius(activeProfiles, filters, userLocation, location);
       }
       setDistanceRange(Number(filters.maxDistanceKm) || 50);
       setIsChecked(Boolean(filters.worldwide));

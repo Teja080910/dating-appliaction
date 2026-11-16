@@ -86,9 +86,9 @@ const FALLBACK_DEFAULT_PLANS: ClientSubscriptionPlan[] = [
     contactView: '20',
     tagline: 'Invite up to 20 members per day',
     description: 'Premium Plan: 20 daily connection requests for 180 days.',
-    worldwideSearch: true,
+    worldwideSearch: false,
     eliteBadge: false,
-    priorityHandoff: true,
+    priorityHandoff: false,
     popular: true,
     bestValue: false,
     badge: 'POPULAR',
@@ -111,9 +111,9 @@ const FALLBACK_DEFAULT_PLANS: ClientSubscriptionPlan[] = [
     contactView: 'UNLIMITED',
     tagline: 'Invite unlimited members per day',
     description: 'Elite Plan: unlimited daily connection requests for 365 days.',
-    worldwideSearch: true,
-    eliteBadge: true,
-    priorityHandoff: true,
+    worldwideSearch: false,
+    eliteBadge: false,
+    priorityHandoff: false,
     popular: false,
     bestValue: true,
     badge: 'BEST VALUE',
@@ -134,7 +134,7 @@ const getBenefitSlides = () => [
     iconColor: '#FF4D67',
     iconBg: 'rgba(255, 77, 103, 0.14)',
     title: t('common.subscriptionmodal.become_a_premium_member'),
-    subtitle: t('common.subscriptionmodal.invite_up_to_30_members_per_day'),
+    subtitle: t('common.subscriptionmodal.connect_daily_members', { defaultValue: 'Send daily connection requests to members.' }),
   },
   {
     id: '2',
@@ -146,14 +146,6 @@ const getBenefitSlides = () => [
   },
   {
     id: '3',
-    icon: 'earth',
-    iconColor: '#2F80ED',
-    iconBg: 'rgba(47, 128, 237, 0.14)',
-    title: t('common.subscriptionmodal.worldwide_search'),
-    subtitle: t('common.subscriptionmodal.find_matches_anywhere_in_the_world_not_just_your_local_area'),
-  },
-  {
-    id: '4',
     icon: 'shield-check-outline',
     iconColor: '#27AE60',
     iconBg: 'rgba(39, 174, 96, 0.14)',
@@ -1006,35 +998,47 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
           {/* Selected Plan Feature Highlights */}
           <View style={styles.featuresContainer}>
-            <View style={styles.featureItem}>
-              <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-              <Text style={styles.featureItemText}>
-                {selectedPlan.tagline || selectedPlan.subText}
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Icon
-                name={selectedPlan.worldwideSearch ? 'check-circle' : 'close-circle-outline'}
-                size={16}
-                color={selectedPlan.worldwideSearch ? '#10B981' : isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={[styles.featureItemText, !selectedPlan.worldwideSearch && styles.featureItemDisabled]}>
-                Worldwide Search
-              </Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Icon
-                name={selectedPlan.priorityHandoff ? 'check-circle' : 'close-circle-outline'}
-                size={16}
-                color={selectedPlan.priorityHandoff ? '#10B981' : isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={[styles.featureItemText, !selectedPlan.priorityHandoff && styles.featureItemDisabled]}>
-                Priority Telegram Handoff
-              </Text>
-            </View>
-            {selectedPlan.eliteBadge && (
+            {Boolean(selectedPlan.tagline) && (
+              <View style={styles.featureItem}>
+                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={styles.featureItemText}>
+                  {selectedPlan.tagline}
+                </Text>
+              </View>
+            )}
+            {Boolean(selectedPlan.limitLabel) && (
+              <View style={styles.featureItem}>
+                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={styles.featureItemText}>
+                  {selectedPlan.limitLabel}
+                </Text>
+              </View>
+            )}
+            {Boolean(selectedPlan.durationDays) && (
+              <View style={styles.featureItem}>
+                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={styles.featureItemText}>
+                  {`${selectedPlan.durationDays} Days validity`}
+                </Text>
+              </View>
+            )}
+            {Boolean(selectedPlan.worldwideSearch) && (
+              <View style={styles.featureItem}>
+                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={styles.featureItemText}>
+                  Worldwide Search
+                </Text>
+              </View>
+            )}
+            {Boolean(selectedPlan.priorityHandoff) && (
+              <View style={styles.featureItem}>
+                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={styles.featureItemText}>
+                  Priority Telegram Handoff
+                </Text>
+              </View>
+            )}
+            {Boolean(selectedPlan.eliteBadge) && (
               <View style={styles.featureItem}>
                 <Icon name="shield-star" size={16} color="#F59E0B" style={{ marginRight: 8 }} />
                 <Text style={styles.featureItemText}>

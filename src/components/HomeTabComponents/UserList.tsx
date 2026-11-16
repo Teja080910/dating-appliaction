@@ -10,7 +10,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import UserCard from './UserCard';
 import { getUserId } from '../../utils/sessionHelper';
 import { isSameUserId } from '../../utils/session';
-import { getSavedSearchFilters, getLocalBlockedUsers } from '../../utils/types/AsyncStorage';
+import { getSavedSearchFilters, getLocalBlockedUsers, getLocalDeletedAccounts } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing, useTheme } from '../../theme';
 import { useResponsive } from '../../utils/responsive';
 import { resolveProfileDistance, filterByRadius } from '../../utils/distanceHelper';
@@ -357,6 +357,42 @@ const keepInvitableProfiles = (items: any[]) =>
     return true;
   });
 
+export const isDeletedProfile = (item: any, deletedIds: string[] = []): boolean => {
+  if (!item) return true;
+  const p = item?.profile || {};
+  const u = item?.user || {};
+
+  if (item.isDeleted === true || p.isDeleted === true || u.isDeleted === true) return true;
+  if (item.deleted === true || p.deleted === true || u.deleted === true) return true;
+  if (item.deactivated === true || p.deactivated === true || u.deactivated === true) return true;
+  if (item.isActive === false || p.isActive === false || u.isActive === false) return true;
+
+  const status = String(item.status || p.status || u.status || '').toUpperCase();
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(status)) {
+    return true;
+  }
+
+  const accountStatus = String(item.accountStatus || p.accountStatus || u.accountStatus || '').toUpperCase();
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(accountStatus)) {
+    return true;
+  }
+
+  if (deletedIds && deletedIds.length > 0) {
+    const uid = String(resolveProfileUserId(item) || '').trim();
+    const itemId = String(item?.id || '').trim();
+    const itemUserId = String(item?.userId || p?.userId || u?.userId || '').trim();
+    if (
+      (Boolean(uid) && deletedIds.includes(uid)) ||
+      (Boolean(itemId) && deletedIds.includes(itemId)) ||
+      (Boolean(itemUserId) && deletedIds.includes(itemUserId))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const isBlockedProfile = (item: any, blockedIds: string[]): boolean => {
   if (!blockedIds || blockedIds.length === 0) return false;
   const uid = String(resolveProfileUserId(item) || '').trim();
@@ -667,6 +703,11 @@ const UserList = ({
         }
 
         // Merge any locally registered profiles on this device so newly created accounts appear immediately
+        const [blockedUserIds, deletedAccountIds] = await Promise.all([
+          getLocalBlockedUsers(resolvedUserId),
+          getLocalDeletedAccounts(),
+        ]);
+
         try {
           const rawReg = await AsyncStorage.getItem('@amara_registered_profiles');
           if (rawReg) {
@@ -678,7 +719,7 @@ const UserList = ({
               const newlyCreated: any[] = [];
               for (const rItem of regList) {
                 const rId = String(resolveProfileUserId(rItem) || rItem?.id || '');
-                if (rId && !existingIds.has(rId)) {
+                if (rId && !existingIds.has(rId) && !isDeletedProfile(rItem, deletedAccountIds)) {
                   existingIds.add(rId);
                   newlyCreated.push({
                     ...rItem,
@@ -700,8 +741,8 @@ const UserList = ({
         const filteredByAttributes = hasFilters && savedFilters
           ? items.filter((item) => matchesSearchFilters(item, savedFilters))
           : items;
-        const blockedUserIds = await getLocalBlockedUsers(resolvedUserId);
-        const unblockedItems = filteredByAttributes.filter((item) => !isBlockedProfile(item, blockedUserIds));
+        const activeItems = filteredByAttributes.filter((item) => !isDeletedProfile(item, deletedAccountIds));
+        const unblockedItems = activeItems.filter((item) => !isBlockedProfile(item, blockedUserIds));
         const genderMatched = unblockedItems.filter((item) =>
           matchesGenderSelection(item, selectedGender, activeGenders) &&
           (mode === 'online' && savedFilters?.onlyOnline ? (item?.online === true || item?.profile?.online === true) : true)
@@ -794,11 +835,15 @@ const UserList = ({
         const activeGenders =
           savedFilters?.gender ||
           (savedFilters?.showMe ? [savedFilters.showMe] : (showMe ? [showMe] : null));
-        const blockedUserIds = await getLocalBlockedUsers(resolvedUserId);
+        const [blockedUserIds, deletedAccountIds] = await Promise.all([
+          getLocalBlockedUsers(resolvedUserId),
+          getLocalDeletedAccounts(),
+        ]);
         const filteredByAttributes = hasFilters && savedFilters
           ? newItems.filter((item: any) => matchesSearchFilters(item, savedFilters))
           : newItems;
-        const unblockedItems = filteredByAttributes.filter((item: any) => !isBlockedProfile(item, blockedUserIds));
+        const activeItems = filteredByAttributes.filter((item: any) => !isDeletedProfile(item, deletedAccountIds));
+        const unblockedItems = activeItems.filter((item: any) => !isBlockedProfile(item, blockedUserIds));
         const genderMatched = unblockedItems.filter((item: any) =>
           matchesGenderSelection(item, selectedGender, activeGenders)
         );

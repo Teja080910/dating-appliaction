@@ -125,4 +125,26 @@ describe('Subscriber Plans API Integration (/subscriber/plans)', () => {
     expect(plans[2].price).toBe('₹3');
     expect(plans[2].billedText).toBe('365 Days');
   });
+
+  test('does not invent or synthesize fields not present in API payload', () => {
+    const rawApiPlan = {
+      plan: 'PREMIUM',
+      displayName: 'Premium',
+      price: 2,
+      durationDays: 180,
+      dailyRequestLimit: 20,
+      unlimited: false,
+      popular: true,
+      bestValue: false,
+      tagline: 'Invite up to 20 members per day',
+      description: 'Premium Plan: 20 daily connection requests for 180 days.',
+      limitLabel: '20 requests/day',
+    };
+
+    const clientPlan = normalizeBackendPlan(rawApiPlan);
+
+    expect(clientPlan.worldwideSearch).toBe(false);
+    expect(clientPlan.priorityHandoff).toBe(false);
+    expect(clientPlan.eliteBadge).toBe(false);
+  });
 });

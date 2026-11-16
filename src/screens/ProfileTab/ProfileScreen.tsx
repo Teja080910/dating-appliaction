@@ -9,6 +9,7 @@ import { useAuth } from '../../api/useAuth';
 import { clearFullSession } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { getUserId } from '../../utils/sessionHelper';
+import { recordDeletedAccountLocally } from '../../utils/types/AsyncStorage';
 import { Colors, Spacing, useTheme } from '../../theme';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useMyProfile } from '../../api/useProfile';
@@ -205,6 +206,9 @@ const ProfileScreen = () => {
     try {
       setIsDeleting(true);
       const resolvedUserId = (await getUserId()) || myProfile?.userId || myProfile?.id;
+      if (resolvedUserId) {
+        await recordDeletedAccountLocally(resolvedUserId);
+      }
       deleteAccount.mutate(resolvedUserId, {
         onSuccess: async () => {
           setDeleteModalVisible(false);
