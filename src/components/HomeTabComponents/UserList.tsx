@@ -368,12 +368,12 @@ export const isDeletedProfile = (item: any, deletedIds: string[] = []): boolean 
   if (item.isActive === false || p.isActive === false || u.isActive === false) return true;
 
   const status = String(item.status || p.status || u.status || '').toUpperCase();
-  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(status)) {
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION', 'PENDING_DELETION'].includes(status)) {
     return true;
   }
 
   const accountStatus = String(item.accountStatus || p.accountStatus || u.accountStatus || '').toUpperCase();
-  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(accountStatus)) {
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION', 'PENDING_DELETION'].includes(accountStatus)) {
     return true;
   }
 

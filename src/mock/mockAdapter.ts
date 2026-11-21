@@ -258,6 +258,22 @@ export const handleMockRequest = async (
       throw createMockError(config, 401, 'Invalid credentials. Please verify your password.');
     }
 
+    // Check if account is scheduled for deletion / deactivated
+    const isPendingDeletion = Boolean(
+      (user as any).isDeactivated ||
+      (user as any).status === 'PENDING_DELETION' ||
+      (user as any).isActive === false
+    );
+
+    if (isPendingDeletion) {
+      const deactivatedAt = (user as any).deactivatedAt ? new Date((user as any).deactivatedAt).getTime() : Date.now();
+      const isPast30Days = Date.now() - deactivatedAt > 30 * 24 * 60 * 60 * 1000;
+      if (isPast30Days) {
+        await mockStore.deleteUser(user.userId);
+        throw createMockError(config, 404, 'Account has been permanently deleted after 30-day grace period.');
+      }
+    }
+
     await mockStore.setCurrentUserId(user.userId);
     const profile = await mockStore.getProfileByUserId(user.userId);
     const finalGender =
@@ -277,6 +293,8 @@ export const handleMockRequest = async (
     return createMockResponse(config, 200, {
       token: `mock-jwt-token-${user.userId}`,
       userId: user.userId,
+      pendingDeletion: isPendingDeletion,
+      deletionDate: (user as any).deletionDate || null,
       user: {
         id: user.id,
         userId: user.userId,
@@ -286,6 +304,10 @@ export const handleMockRequest = async (
         mobile: user.mobile && !user.mobile.includes('@') ? user.mobile : '',
         gender: finalGender,
         telegramUsername: user.telegramUsername || '',
+        isActive: !isPendingDeletion,
+        isDeactivated: isPendingDeletion,
+        status: isPendingDeletion ? 'PENDING_DELETION' : 'ACTIVE',
+        deletionDate: (user as any).deletionDate || null,
         profile,
       },
     });
@@ -359,19 +381,20 @@ export const handleMockRequest = async (
 
   // POST /account/deactivate
   if (method === 'POST' && url.includes('/account/deactivate')) {
-    const targetUserId = queryParams.userId || body.userId;
+    const targetUserId = queryParams.userId || body?.userId || (await mockStore.getCurrentUserId());
     if (targetUserId) {
       await mockStore.deactivateUser(String(targetUserId));
     }
     return createMockResponse(config, 200, {
       status: 'success',
-      message: 'Account deactivated successfully.',
+      message: 'Account deactivated successfully. Profile hidden and scheduled for deletion in 30 days.',
+      gracePeriodDays: 30,
     });
   }
 
   // PUT /account/activate
   if (method === 'PUT' && url.includes('/account/activate')) {
-    const targetUserId = queryParams.userId || body.userId;
+    const targetUserId = queryParams.userId || body?.userId || (await mockStore.getCurrentUserId());
     if (targetUserId) {
       await mockStore.activateUser(String(targetUserId));
     }

@@ -1,11 +1,23 @@
 import { DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient, { getAbsoluteUrl, toApiUserId } from './apiClient';
-import { getUserId } from '../utils/sessionHelper';
-import { isResolvedApiUserId } from '../utils/sessionState';
+import apiClient, { getAbsoluteUrl, getNativeNetworkError, toApiUserId } from './apiClient';
+import { getAuthToken, getUserId } from '../utils/sessionHelper';
+import { decodeJwtPayload, isResolvedApiUserId } from '../utils/sessionState';
 import { repairStoredSessionIdentity } from '../utils/session';
 
 export const MAX_PROFILE_IMAGES = 6;
+
+/**
+ * Every profile photo goes through the same picker settings: full-resolution
+ * captures (2-8 MB) are what make the multipart body fail in transit.
+ */
+export const UPLOAD_PHOTO_OPTIONS = {
+  mediaType: 'photo' as const,
+  quality: 0.7 as const,
+  maxWidth: 1080,
+  maxHeight: 1440,
+};
 
 export interface ServerUserImage {
   id?: number;
@@ -26,6 +38,13 @@ export interface NormalizedUserImage {
   fileSize: number | null;
   uploadedAt: string | null;
 }
+
+const getBearerSubject = (token: string | null | undefined): string | null => {
+  const payload = decodeJwtPayload(token);
+  const subject = payload?.sub ?? payload?.subject ?? payload?.userId ?? null;
+  const clean = subject === null || subject === undefined ? '' : String(subject).trim();
+  return clean || null;
+};
 
 const resolveImageArray = (payload: unknown): ServerUserImage[] => {
   if (Array.isArray(payload)) {
@@ -89,6 +108,173 @@ const isLikelyValidUrl = (u: string | null | undefined): boolean => {
     str.startsWith('content://') ||
     /\.(jpg|jpeg|png|webp|gif)/i.test(str)
   );
+};
+
+const toNumericId = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string' && value.trim() && !isNaN(Number(value))) {
+    return Number(value);
+  }
+  return null;
+};
+
+/**
+ * Upload endpoints answer with:
+ * { status, message, imageUrl, data: { id, imageUrl, isProfile, slotIndex } }
+ * Older/partial builds answered with just the image URL, so accept both shapes.
+ */
+export const parseUploadResponse = (
+  payload: unknown
+): { id: number | null; imageUrl: string | null } => {
+  if (typeof payload === 'string') {
+    const text = payload.trim();
+    return { id: null, imageUrl: isLikelyValidUrl(text) ? getAbsoluteUrl(text) : null };
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return { id: null, imageUrl: null };
+  }
+
+  const root = payload as Record<string, any>;
+  const data = root.data && typeof root.data === 'object' ? (root.data as Record<string, any>) : null;
+  const rawUrl = data?.imageUrl ?? root.imageUrl ?? data?.url ?? root.url ?? null;
+  const rawId = data?.id ?? root.id ?? data?.imageId ?? root.imageId ?? null;
+  const cleanUrl = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+
+  return {
+    id: toNumericId(rawId),
+    imageUrl: cleanUrl && isLikelyValidUrl(cleanUrl) ? getAbsoluteUrl(cleanUrl) : null,
+  };
+};
+
+/**
+ * Returns the backend's own reason for a rejected image request (selfie
+ * verification, photo limit, ownership violation, malformed multipart...)
+ * so the UI can show it verbatim instead of a generic failure message.
+ */
+export const getUploadErrorMessage = (error: any): string | null => {
+  const raw =
+    error?.response?.data?.message ??
+    error?.response?.data?.error ??
+    (typeof error?.response?.data === 'string' ? error.response.data : null) ??
+    null;
+  const message = typeof raw === 'string' ? raw.trim() : '';
+  if (message) return message;
+
+  // Below-HTTP failures: the native IOException text (see getNativeNetworkError).
+  return getNativeNetworkError(error);
+};
+
+const getRejectionText = (error: any): string => {
+  const data = error?.response?.data;
+  return String(data?.message || data?.error || (typeof data === 'string' ? data : '')).trim();
+};
+
+/**
+ * The upload endpoint answers "Photo rejected." / BAD_REQUEST when the server's
+ * face check refuses the image. The text carries no usable reason, so the UI
+ * replaces it with guidance instead of showing the raw string.
+ */
+export const isGenericPhotoRejection = (error: any): boolean => {
+  if (Number(error?.response?.status) !== 400) return false;
+  const message = getRejectionText(error).toLowerCase();
+  return (
+    message === 'photo rejected.' ||
+    message === 'photo rejected' ||
+    message === 'invalid image' ||
+    message === 'bad request'
+  );
+};
+
+export const isSelfieMismatch = (error: any): boolean => {
+  if (Number(error?.response?.status) !== 400) return false;
+  const message = getRejectionText(error).toLowerCase();
+  return message.includes('does not match') || message.includes('not the same person');
+};
+
+export type PhotoRejectionKind = 'no_face' | 'selfie_mismatch' | 'verification_unavailable';
+
+/**
+ * Maps a rejected upload to the guidance the user must see. The rules are:
+ * the first photo only has to be a real, clearly visible human face; every
+ * photo after that must additionally be the person from the verified selfie.
+ */
+export const getPhotoRejectionKind = (
+  error: any,
+  { isPrimary = false }: { isPrimary?: boolean } = {},
+): PhotoRejectionKind | null => {
+  const status = Number(error?.response?.status);
+  const message = getRejectionText(error).toLowerCase();
+
+  if (
+    status === 503 ||
+    message.includes('verification is temporarily unavailable') ||
+    message.includes('temporarily unavailable')
+  ) {
+    return 'verification_unavailable';
+  }
+
+  if (isSelfieMismatch(error)) {
+    return 'selfie_mismatch';
+  }
+
+  if (isGenericPhotoRejection(error)) {
+    // A generic refusal on the first photo means no usable face was detected.
+    // On later photos it means the face did not match the verified selfie.
+    return isPrimary ? 'no_face' : 'selfie_mismatch';
+  }
+
+  if (status === 400 && (message.includes('no face') || message.includes('face not detected'))) {
+    return 'no_face';
+  }
+
+  return null;
+};
+
+/**
+ * Title/body to show for a rejected photo. Kept here so Edit Profile and
+ * onboarding phrase the same reason identically.
+ */
+export const getPhotoRejectionCopy = (
+  kind: PhotoRejectionKind,
+  translate: (key: string, options?: { defaultValue?: string }) => string = (key, options) =>
+    options?.defaultValue ?? key,
+): { title: string; message: string } => {
+  if (kind === 'no_face') {
+    return {
+      title: translate('profile.uploadimage.photo_no_face_title', {
+        defaultValue: 'No Face Detected',
+      }),
+      message: translate('profile.uploadimage.photo_no_face_desc', {
+        defaultValue:
+          'Your first photo must clearly show a real human face. Avoid group shots, filters, sunglasses and heavy shadows, then try again.',
+      }),
+    };
+  }
+
+  if (kind === 'verification_unavailable') {
+    return {
+      title: translate('profile.uploadimage.photo_verify_unavailable_title', {
+        defaultValue: 'Verification Unavailable',
+      }),
+      message: translate('profile.uploadimage.photo_verify_unavailable_desc', {
+        defaultValue:
+          'Face verification is temporarily unavailable, so your photo could not be checked. Please try again in a few minutes.',
+      }),
+    };
+  }
+
+  return {
+    title: translate('profile.uploadimage.photo_not_same_person_title', {
+      defaultValue: 'Not the Same Person',
+    }),
+    message: translate('profile.uploadimage.photo_not_same_person_desc', {
+      defaultValue:
+        'This photo does not match your verified selfie. Every photo on your profile must be of you. Upload a clear photo of the same person shown in your selfie.',
+    }),
+  };
 };
 
 export const normalizeUserImagesResponse = (payload: unknown): NormalizedUserImage[] => {
@@ -194,54 +380,43 @@ export const useUserImages = (userId?: string) => {
         type: fileType,
       };
 
+      // POST /users/{userId}/images does not exist. The backend resolves the
+      // account from the bearer token, so userId is only sent when it provably
+      // matches the token's subject — a stale cached id is what produced
+      // 403 PROFILE_OWNERSHIP_VIOLATION.
+      const tokenSubject = getBearerSubject(await getAuthToken().catch(() => null));
+      const trustedUserId =
+        tokenSubject && normalizedUserId && String(tokenSubject) === String(normalizedUserId)
+          ? String(normalizedUserId)
+          : null;
+
       const formData = new FormData();
-      // OpenAPI spec specifies property 'image' on multipart/form-data.
-      // Append 'image', 'photo', and 'file' so whichever property the backend controller binds, it finds the part.
-      formData.append('image', filePayload as any);
       formData.append('photo', filePayload as any);
-      formData.append('file', filePayload as any);
-
-      const queryParams = normalizedUserId
-        ? { userId: normalizedUserId, uid: normalizedUserId }
-        : undefined;
-
-      // Primary endpoint per OpenAPI spec: /users/{userId}/images (POST) with fallback to /profile/upload-image
-      if (normalizedUserId) {
-        try {
-          const userImgRes = await apiClient.post(`/users/${normalizedUserId}/images`, formData);
-          return userImgRes.data;
-        } catch (uErr: any) {
-          // If status is 404 or method not allowed, fall back to /profile/upload-image
-          if (uErr?.response?.status && uErr.response.status !== 404 && uErr.response.status !== 405) {
-            // If it failed with 400 or other, fall through to try /profile/upload-image
-          }
-        }
+      if (trustedUserId) {
+        formData.append('userId', trustedUserId);
       }
 
-      try {
-        const res = await apiClient.post('/profile/upload-image', formData, {
-          params: queryParams,
-        });
-        return res.data;
-      } catch (err: any) {
-        // If 400 Bad Request occurs, retry with userId included directly in FormData
-        if (err?.response?.status === 400 && normalizedUserId) {
-          try {
-            const fallbackFormData = new FormData();
-            fallbackFormData.append('image', filePayload as any);
-            fallbackFormData.append('photo', filePayload as any);
-            fallbackFormData.append('file', filePayload as any);
-            fallbackFormData.append('userId', String(normalizedUserId));
-            fallbackFormData.append('uid', String(normalizedUserId));
+      const selfieVerifiedFlag =
+        (await AsyncStorage.getItem('@selfie_verified').catch(() => null)) === 'true';
 
-            const fallbackRes = await apiClient.post('/profile/upload-image', fallbackFormData);
-            return fallbackRes.data;
-          } catch (fallbackErr) {
-            throw err;
-          }
-        }
-        throw err;
-      }
+      console.log('[upload-image] sending', {
+        userId: trustedUserId || 'from-token',
+        tokenSubject,
+        cachedUserId: normalizedUserId,
+        selfieVerifiedFlag,
+        uri: filePayload.uri,
+        name: filePayload.name,
+        type: filePayload.type,
+        fileSize: photo.fileSize ?? photo.size ?? null,
+      });
+
+      const res = await apiClient.post('/profile/upload-image', formData, {
+        ...(trustedUserId ? { params: { userId: trustedUserId } } : {}),
+        // Photo payloads are far larger than JSON calls; the 30s default
+        // times out on slow networks.
+        timeout: 60000,
+      });
+      return res.data;
     },
     onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
@@ -417,7 +592,14 @@ export const useUserImages = (userId?: string) => {
         throw new Error('Unable to resolve backend userId for profile photo.');
       }
 
-      const res = await apiClient.put(`/users/${normalizedUserId}/profile-photo/${imageId}`);
+      // Backend expects the string user code (SA1000) plus the numeric image id
+      // from GET /users/{userId}/images.
+      const numericImageId = Number(imageId);
+      if (!Number.isFinite(numericImageId) || numericImageId <= 0) {
+        throw new Error('Invalid image id for profile photo.');
+      }
+
+      const res = await apiClient.put(`/users/${normalizedUserId}/profile-photo/${numericImageId}`);
       return res.data;
     },
     onSuccess: async (_, variables) => {

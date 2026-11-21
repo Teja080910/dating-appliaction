@@ -320,7 +320,8 @@ export const useAlert = () => {
   const alert = (
     titleOrMessage: string,
     messageOrButtons?: string | AlertButton[],
-    maybeButtons?: AlertButton[]
+    maybeButtons?: AlertButton[],
+    options?: { force?: boolean },
   ) => {
     let title: string | undefined;
     let message: string;
@@ -354,7 +355,14 @@ export const useAlert = () => {
     const hasDestructiveBtn =
       Boolean(buttons && buttons.some((b) => b.style === 'destructive'));
 
-    const isAllowed = isDeleteAccount || isPhotoRemoval || isDuplicatePhone || hasDestructiveBtn;
+    // `force` bypasses the whitelist: used for messages the user must always
+    // see, such as a rejected profile photo or a photo-limit error.
+    const isAllowed =
+      Boolean(options?.force) ||
+      isDeleteAccount ||
+      isPhotoRemoval ||
+      isDuplicatePhone ||
+      hasDestructiveBtn;
 
     if (!isAllowed) {
       // Automatically trigger primary button callback if present (e.g. navigation or confirm)

@@ -24,6 +24,7 @@ import { Colors, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
 import { t, useTranslation } from '../../i18n';
+import { filterSupportedLanguages } from '../../utils/languageHelper';
 
 const HIDDEN_PROFILE_LANGUAGES = new Set(['telugu']);
 const HIDDEN_LOOKING_FOR_VALUES = new Set(['long-term relationship']);
@@ -204,9 +205,7 @@ const MoreInfoScreen = () => {
         .map((item) => item.trim())
         .filter(Boolean);
 
-    const visibleLanguages = splitValues(profile.language).filter(
-      (item) => !HIDDEN_PROFILE_LANGUAGES.has(item.toLowerCase()),
-    );
+    const visibleLanguages = filterSupportedLanguages(profile.language);
     const visibleLookingFor = splitValues(profile.lookingFor).filter(
       (item) => !HIDDEN_LOOKING_FOR_VALUES.has(item.toLowerCase()),
     );
@@ -311,7 +310,7 @@ const MoreInfoScreen = () => {
 
       const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
       const englishLevelStr = englishLevels[Number(englishSkillLevel)] || 'Basic';
-      const languageStr = Array.isArray(selectedLanguages) ? selectedLanguages.join(', ') : '';
+      const languageStr = filterSupportedLanguages(selectedLanguages).join(', ');
       const lookingForStr = Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '';
 
       const detailsPayload = {

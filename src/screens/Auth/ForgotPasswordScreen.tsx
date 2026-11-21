@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -42,9 +43,89 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [errorToastVisible, setErrorToastVisible] = useState(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(20)).current;
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showErrorToast = (msg: string) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setErrorMessage(msg);
+    setErrorToastVisible(true);
+    toastOpacity.setValue(0);
+    toastTranslateY.setValue(20);
+
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    toastTimerRef.current = setTimeout(() => {
+      dismissErrorToast();
+    }, 4500);
+  };
+
+  const dismissErrorToast = () => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 20,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    hideTimerRef.current = setTimeout(() => {
+      setErrorToastVisible(false);
+      setErrorMessage('');
+    }, 220);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
 
   const { forgotPasswordSendOtp, forgotPasswordReset } = useAuth();
   const passwordValidation = useMemo(() => validateStrongPassword(newPassword), [newPassword]);
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+  const cleanEmail = email.trim();
+  const isEmailFormatValid = cleanEmail.length > 0 && EMAIL_REGEX.test(cleanEmail);
+  const showEmailError =
+    (cleanEmail.length > 0 && !isEmailFormatValid) ||
+    (submitted && !isEmailFormatValid);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,21 +134,16 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
   );
 
   const handleSendResetCode = () => {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      alert(t('auth.forgotpasswordscreen.missing_info'), t('auth.forgotpasswordscreen.please_enter_your_email_address'));
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      alert(t('auth.forgotpasswordscreen.invalid_email'), t('auth.forgotpasswordscreen.please_enter_a_valid_email_address'));
+    setSubmitted(true);
+    const cleanLowerEmail = email.trim().toLowerCase();
+    if (!cleanLowerEmail || !EMAIL_REGEX.test(cleanLowerEmail)) {
       return;
     }
 
     setLoading(true);
     Keyboard.dismiss();
     forgotPasswordSendOtp.mutate(
-      { email: cleanEmail },
+      { email: cleanLowerEmail },
       {
         onSuccess: (data: any) => {
           setLoading(false);
@@ -76,12 +152,31 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
             setSessionId(String(sId).trim());
           }
           setStep(2);
-          alert(t('auth.forgotpasswordscreen.code_sent'), t('auth.forgotpasswordscreen.we_have_sent_a_verification_code_to_your_email_c', { cleanEmail }));
+          alert(t('auth.forgotpasswordscreen.code_sent'), t('auth.forgotpasswordscreen.we_have_sent_a_verification_code_to_your_email_c', { cleanEmail: cleanLowerEmail }));
         },
         onError: (err: any) => {
           setLoading(false);
-          const msg = err?.response?.data?.message || err?.message || 'Could not send reset code.';
-          alert(t('auth.forgotpasswordscreen.request_failed'), msg);
+          const status = Number(err?.response?.status || err?.status);
+          const code = String(err?.response?.data?.code || err?.code || '').toUpperCase();
+          const rawMsg = String(err?.response?.data?.message || err?.response?.data?.error || err?.message || '');
+          const lowerMsg = rawMsg.toLowerCase();
+
+          const isAccountNotFound =
+            status === 404 ||
+            code === 'NOT_FOUND' ||
+            lowerMsg.includes('not found') ||
+            lowerMsg.includes('please register') ||
+            lowerMsg.includes('not registered') ||
+            lowerMsg.includes('no account');
+
+          const displayMsg =
+            isAccountNotFound
+              ? (rawMsg && !rawMsg.includes('Request failed')
+                  ? rawMsg
+                  : 'Account not found. Please register first.')
+              : (rawMsg || 'Could not send reset code.');
+
+          showErrorToast(displayMsg);
         },
       },
     );
@@ -163,18 +258,15 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
 
                 {/* Main Content Area (Brand + Form unified) */}
                 <View style={styles.mainContent}>
-                  {/* Official Amara Brand Logo & Title */}
+                  {/* Official Amara Brand Title */}
                   <View style={styles.brandContainer}>
-                    <View style={styles.logoHaloWrap}>
-                      <AttractiveLogo size={66} />
-                    </View>
                     <Text style={styles.brandTitle}>{t('home.homeheader.amara')}</Text>
                     <Text style={styles.pageHeading}>{t('auth.forgotpasswordscreen.reset_password')}</Text>
                   </View>
 
                   {/* Input Card & Buttons */}
                   <View style={styles.formContainer}>
-                    <View style={styles.inputCard}>
+                    <View style={[styles.inputCard, showEmailError && styles.inputCardWithError]}>
                       <Text style={styles.inputLabel}>{t('auth.forgotpasswordscreen.email')}</Text>
                       <View style={styles.inputFieldRow}>
                         <Icon name="email-outline" size={20} color="#6B7280" style={styles.inputIcon} />
@@ -185,10 +277,18 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
                           autoCapitalize="none"
                           keyboardType="email-address"
                           value={email}
-                          onChangeText={setEmail}
+                          onChangeText={(val) => {
+                            setEmail(val);
+                            if (errorToastVisible) dismissErrorToast();
+                          }}
                         />
                       </View>
                     </View>
+                    {showEmailError && (
+                      <Text style={styles.validationErrorText}>
+                        {t('auth.loginscreen.invalid_email_address', { defaultValue: 'Invalid email address' })}
+                      </Text>
+                    )}
 
                     {/* Send Reset Code Button (Solid White Pill Button) */}
                     <TouchableOpacity
@@ -233,6 +333,38 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
             </KeyboardAvoidingView>
           </SafeAreaView>
         </LinearGradient>
+
+        {/* Floating Bottom Toast with Small Amara Logo */}
+        {errorToastVisible && (
+          <Animated.View
+            style={[
+              styles.errorToastContainer,
+              {
+                opacity: toastOpacity,
+                transform: [{ translateY: toastTranslateY }],
+              },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                dismissErrorToast();
+                if (errorMessage.toLowerCase().includes('register')) {
+                  navigation.navigate('Register');
+                }
+              }}
+              style={styles.errorToastInner}
+            >
+              <View style={styles.toastLogoWrap}>
+                <AttractiveLogo size={26} />
+              </View>
+              <Text style={styles.errorToastText} numberOfLines={2}>
+                {errorMessage}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {AlertComponent}
       </View>
     );
@@ -271,11 +403,8 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
 
               {/* Main Content Area */}
               <View style={styles.mainContent}>
-                {/* Brand Logo & Title */}
+                {/* Brand Title */}
                 <View style={styles.brandContainer}>
-                  <View style={styles.logoHaloWrap}>
-                    <AttractiveLogo size={66} />
-                  </View>
                   <Text style={styles.brandTitle}>{t('home.homeheader.amara')}</Text>
                   <Text style={styles.pageHeading}>{t('auth.forgotpasswordscreen.reset_your_password')}</Text>
                   <Text style={styles.step2SubtitleText}>
@@ -418,6 +547,38 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
+
+      {/* Floating Bottom Toast with Small Amara Logo */}
+      {errorToastVisible && (
+        <Animated.View
+          style={[
+            styles.errorToastContainer,
+            {
+              opacity: toastOpacity,
+              transform: [{ translateY: toastTranslateY }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              dismissErrorToast();
+              if (errorMessage.toLowerCase().includes('register')) {
+                navigation.navigate('Register');
+              }
+            }}
+            style={styles.errorToastInner}
+          >
+            <View style={styles.toastLogoWrap}>
+              <AttractiveLogo size={26} />
+            </View>
+            <Text style={styles.errorToastText} numberOfLines={2}>
+              {errorMessage}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       {AlertComponent}
     </View>
   );
@@ -501,6 +662,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     marginBottom: 12,
+  },
+  inputCardWithError: {
+    marginBottom: 5,
+  },
+  validationErrorText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '400',
+    marginTop: -2,
+    marginBottom: 10,
+    marginLeft: 18,
+    letterSpacing: 0.2,
   },
   inputLabel: {
     fontSize: 11,
@@ -603,5 +776,50 @@ const styles = StyleSheet.create({
   reqChipTextMet: {
     color: '#10B981',
     fontWeight: '600',
+  },
+  errorToastContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'android' ? 54 : 66,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  errorToastInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#160E1A',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    maxWidth: '90%',
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+  },
+  toastLogoWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  errorToastText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 0.1,
+    lineHeight: 19,
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });

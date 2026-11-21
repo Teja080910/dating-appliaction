@@ -7,6 +7,10 @@ import { getAuthSession } from '../utils/session';
 import apiClient from './apiClient';
 
 export const SELFIE_VERIFICATION_URL_STORAGE_KEY = '@amara_selfie_verification_url';
+export const SELFIE_VERIFICATION_URL_SAVED_AT_KEY = '@amara_selfie_verification_url_saved_at';
+// The AI tunnel URL (ngrok) is short-lived, so a cached copy older than this is
+// treated as dead and re-fetched from the backend instead of being reused.
+export const SELFIE_VERIFICATION_URL_TTL_MS = 90 * 60 * 1000;
 export const DEFAULT_SELFIE_VERIFICATION_URL = (FACE_VALIDATION_URL || '')
   .trim()
   .replace(/\/+$/, '');
@@ -85,7 +89,10 @@ export const saveSelfieVerificationUrl = async (url: string): Promise<void> => {
   if (!clean.startsWith('http://') && !clean.startsWith('https://')) return;
   activeFaceValidationUrl = clean;
   faceValidationClient.defaults.baseURL = clean;
-  await AsyncStorage.setItem(SELFIE_VERIFICATION_URL_STORAGE_KEY, clean).catch(() => {});
+  await AsyncStorage.multiSet([
+    [SELFIE_VERIFICATION_URL_STORAGE_KEY, clean],
+    [SELFIE_VERIFICATION_URL_SAVED_AT_KEY, String(Date.now())],
+  ]).catch(() => {});
   if (__DEV__) {
     console.log('📸 [FaceValidation] Active base URL updated to:', clean);
   }
@@ -96,13 +103,32 @@ export const saveSelfieVerificationUrl = async (url: string): Promise<void> => {
  */
 export const getStoredSelfieVerificationUrl = async (): Promise<string | null> => {
   try {
-    const stored = await AsyncStorage.getItem(SELFIE_VERIFICATION_URL_STORAGE_KEY);
-    if (stored && (stored.startsWith('http://') || stored.startsWith('https://'))) {
-      const clean = stored.trim().replace(/\/+$/, '');
-      activeFaceValidationUrl = clean;
-      faceValidationClient.defaults.baseURL = clean;
-      return clean;
+    const [[, stored], [, savedAtRaw]] = await AsyncStorage.multiGet([
+      SELFIE_VERIFICATION_URL_STORAGE_KEY,
+      SELFIE_VERIFICATION_URL_SAVED_AT_KEY,
+    ]);
+    if (!stored || (!stored.startsWith('http://') && !stored.startsWith('https://'))) {
+      return null;
     }
+
+    const savedAt = Number(savedAtRaw);
+    const isExpired =
+      Number.isFinite(savedAt) && savedAt > 0
+        ? Date.now() - savedAt > SELFIE_VERIFICATION_URL_TTL_MS
+        : stored.includes('ngrok-free.dev'); // legacy entry without a timestamp
+
+    if (isExpired) {
+      await AsyncStorage.multiRemove([
+        SELFIE_VERIFICATION_URL_STORAGE_KEY,
+        SELFIE_VERIFICATION_URL_SAVED_AT_KEY,
+      ]).catch(() => {});
+      return null;
+    }
+
+    const clean = stored.trim().replace(/\/+$/, '');
+    activeFaceValidationUrl = clean;
+    faceValidationClient.defaults.baseURL = clean;
+    return clean;
   } catch {}
   return null;
 };
@@ -124,25 +150,23 @@ export const fetchSelfieVerificationUrl = async (): Promise<string | null> => {
     try {
       const res = await apiClient.get(ep);
       const url = extractSelfieVerificationUrl(res?.data);
-      if (url && !url.includes('ngrok-free.dev')) {
+      // A URL handed over by the backend right now is always accepted — even a
+      // short-lived ngrok tunnel. Only cached copies are treated as stale.
+      if (url) {
         await saveSelfieVerificationUrl(url);
         return url;
       }
     } catch {}
   }
 
-  // 2. Return cached from AsyncStorage (filtering out dead ngrok URLs)
+  // 2. Cached value, as long as it has not exceeded its lifetime
   const cached = await getStoredSelfieVerificationUrl();
   if (cached) {
-    if (cached.includes('ngrok-free.dev')) {
-      await AsyncStorage.removeItem(SELFIE_VERIFICATION_URL_STORAGE_KEY).catch(() => {});
-    } else {
-      return cached;
-    }
+    return cached;
   }
 
-  // 3. Fallback to default if set and not ngrok
-  if (DEFAULT_SELFIE_VERIFICATION_URL && !DEFAULT_SELFIE_VERIFICATION_URL.includes('ngrok-free.dev')) {
+  // 3. Fallback to the configured default
+  if (DEFAULT_SELFIE_VERIFICATION_URL) {
     return DEFAULT_SELFIE_VERIFICATION_URL;
   }
 
@@ -424,6 +448,69 @@ export const uploadVerificationPhotosApi = async ({
     (enrichedError as any).response = error?.response;
     throw enrichedError;
   }
+};
+
+export interface VerifySinglePhotoParams {
+  userId?: string | number;
+  photoUri: string;
+  /** First photo of an empty gallery only has to show a real human face. */
+  isFirstPhoto?: boolean;
+}
+
+export type SinglePhotoVerdict = 'no_face' | 'selfie_mismatch' | null;
+
+/**
+ * Client-side face check for one photo, applied to every account regardless of
+ * gender. The first photo must contain a real human face; every later photo
+ * must also match the selfie stored as the live photo.
+ *
+ * Returns null when the photo passes or when the AI service cannot give a
+ * verdict (offline / not configured), so an unavailable service never blocks
+ * uploads — the backend check still applies.
+ */
+export const verifySingleProfilePhoto = async ({
+  userId,
+  photoUri,
+  isFirstPhoto = false,
+}: VerifySinglePhotoParams): Promise<SinglePhotoVerdict> => {
+  if (!photoUri) return null;
+
+  let payload: any = null;
+  try {
+    payload = await uploadVerificationPhotosApi({ userId, photoUris: [photoUri] });
+  } catch (error: any) {
+    if (isFaceServiceUnavailable(error)) {
+      console.warn('[FaceValidation] Photo check skipped, AI service unavailable.');
+      return null;
+    }
+    const message = String(
+      error?.response?.data?.error || error?.response?.data?.message || error?.message || ''
+    ).toLowerCase();
+    if (message.includes('no face') || message.includes('face not detected')) {
+      return 'no_face';
+    }
+    if (message.includes('does not match') || message.includes('not the same person')) {
+      return 'selfie_mismatch';
+    }
+    return null;
+  }
+
+  const result = Array.isArray(payload?.results) ? payload.results[0] : null;
+  if (!result) return null;
+
+  if (result.face_detected === false || result.reason === 'No face detected') {
+    return 'no_face';
+  }
+
+  if (!isFirstPhoto) {
+    const similarity = Number(result.similarity);
+    const mismatch =
+      result.match_found === false ||
+      (result.match_found === undefined && Number.isFinite(similarity) && similarity < 0.35);
+    if (mismatch) return 'selfie_mismatch';
+  }
+
+  return null;
 };
 
 export const useFaceValidation = () => {

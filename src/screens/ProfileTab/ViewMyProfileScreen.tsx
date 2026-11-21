@@ -10,7 +10,11 @@ import {
   Image,
   ImageSourcePropType,
   Linking,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  PanResponder,
   Platform,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -38,6 +42,7 @@ import { isResolvedApiUserId, repairStoredSessionIdentity } from "../../utils/se
 import { mockStore } from "../../mock/mockStore";
 import { USE_MOCK } from "../../environment/ApiConfig";
 import { openWhatsAppChat, extractPhone, extractTelegram } from "../../utils/whatsappHelper";
+import { filterSupportedLanguages } from "../../utils/languageHelper";
 
 import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
@@ -137,6 +142,7 @@ const ViewMyProfileScreen = () => {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   // 1 : 1.28-1.34 aspect ratio matches the Discover grid framing so portrait photos and heads are fully visible without being cropped
   const heroCardHeight = Math.min(Math.max(Math.round(screenWidth * 1.28), 380), 500);
+  const cardWidth = Math.max(Math.round(screenWidth - 32), 200);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route = useRoute<any>();
   const { alert, AlertComponent } = useAlert();
@@ -254,7 +260,7 @@ const ViewMyProfileScreen = () => {
   } = (route.params as any) || {};
 
   const { themeColors, isDark } = useTheme();
-  const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
+  const styles = useMemo(() => createStyles(themeColors, isDark, cardWidth), [themeColors, isDark, cardWidth]);
   const [ownGalleryImages, setOwnGalleryImages] = useState<string[]>([]);
   const [targetGalleryImages, setTargetGalleryImages] = useState<string[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -588,15 +594,8 @@ const ViewMyProfileScreen = () => {
     };
   }, [numericTargetId, isViewingSelf]);
 
-  const flatlistRef = useRef(null);
+  const sliderScrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-
-  const handleScroll = (event: any) => {
-    const index = Math.round(
-      event.nativeEvent.contentOffset.x / screenWidth
-    );
-    setActiveIndex(index);
-  };
 
   const isSameId = (a: any, b: any) => {
     const sa = String(a || '').trim().toLowerCase();
@@ -1004,8 +1003,8 @@ const ViewMyProfileScreen = () => {
         ? (normalizeTextValue(fetched?.bodyType) || normalizeTextValue(selectedBodyType) || '')
         : (isTargetUserFetched ? normalizeTextValue(fetched?.bodyType) : (normalizeTextValue(routed?.bodyType) || '')),
       language: isViewingSelf
-        ? (normalizeTextValue(fetched?.language) || contextLanguage || '')
-        : (isTargetUserFetched ? normalizeTextValue(fetched?.language) : (normalizeTextValue(routed?.language) || t('profile.userdetails.english'))),
+        ? filterSupportedLanguages(fetched?.language || contextLanguage).join(', ')
+        : filterSupportedLanguages(isTargetUserFetched ? fetched?.language : (routed?.language || t('profile.userdetails.english'))).join(', '),
       englishLevel: isViewingSelf
         ? (normalizeTextValue(fetched?.englishLevel) || contextEnglishLevel || '')
         : (isTargetUserFetched ? normalizeTextValue(fetched?.englishLevel) : (normalizeTextValue(routed?.englishLevel) || t('profile.viewmyprofilescreen.conversational'))),
@@ -1247,6 +1246,70 @@ const ViewMyProfileScreen = () => {
         ? [fallbackImage]
         : [];
 
+  const activeIndexRef = useRef(activeIndex);
+  activeIndexRef.current = activeIndex;
+
+  const scrollToNext = useCallback(() => {
+    if (sliderImages.length <= 1) return;
+    const current = activeIndexRef.current;
+    const next = current + 1 < sliderImages.length ? current + 1 : 0;
+    setActiveIndex(next);
+    sliderScrollRef.current?.scrollTo({
+      x: next * cardWidth,
+      animated: true,
+    });
+  }, [sliderImages.length, cardWidth]);
+
+  const scrollToPrev = useCallback(() => {
+    if (sliderImages.length <= 1) return;
+    const current = activeIndexRef.current;
+    const prev = current > 0 ? current - 1 : sliderImages.length - 1;
+    setActiveIndex(prev);
+    sliderScrollRef.current?.scrollTo({
+      x: prev * cardWidth,
+      animated: true,
+    });
+  }, [sliderImages.length, cardWidth]);
+
+  const handleHeroScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetX = event.nativeEvent.contentOffset.x;
+      const index = Math.round(offsetX / cardWidth);
+      if (index >= 0 && index < sliderImages.length && index !== activeIndexRef.current) {
+        setActiveIndex(index);
+      }
+    },
+    [cardWidth, sliderImages.length]
+  );
+
+  const cardPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return (
+            Math.abs(gestureState.dx) > 10 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
+          );
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx < -25) {
+            scrollToNext();
+          } else if (gestureState.dx > 25) {
+            scrollToPrev();
+          }
+        },
+      }),
+    [scrollToNext, scrollToPrev]
+  );
+
+  useEffect(() => {
+    if (activeIndex >= sliderImages.length && sliderImages.length > 0) {
+      setActiveIndex(0);
+      sliderScrollRef.current?.scrollTo({ x: 0, animated: false });
+    }
+  }, [sliderImages.length, activeIndex]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar
@@ -1294,61 +1357,80 @@ const ViewMyProfileScreen = () => {
         <View style={styles.sliderWrapper}>
           {sliderImages.length > 0 ? (
             <View style={[styles.imageCard, { height: heroCardHeight }]}>
-              <Image
-                source={
-                  typeof sliderImages[activeIndex] === 'string'
-                    ? isApiHostedUrl(getAbsoluteUrl(sliderImages[activeIndex])!)
+              <ScrollView
+                ref={sliderScrollRef}
+                horizontal
+                pagingEnabled={Platform.OS === 'ios'}
+                snapToInterval={cardWidth}
+                snapToAlignment="start"
+                decelerationRate="fast"
+                showsHorizontalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                onScroll={handleHeroScroll}
+                onMomentumScrollEnd={handleHeroScroll}
+                style={{ width: cardWidth, height: heroCardHeight }}
+                contentContainerStyle={{ width: cardWidth * sliderImages.length, height: heroCardHeight }}
+              >
+                {sliderImages.map((img: any, index: number) => {
+                  const cleanUrl = typeof img === 'string' ? getAbsoluteUrl(img) : null;
+                  const source = typeof img === 'string'
+                    ? isApiHostedUrl(cleanUrl!)
                       ? {
-                          uri: getAbsoluteUrl(sliderImages[activeIndex])!,
+                          uri: cleanUrl!,
                           headers: {
                             'ngrok-skip-browser-warning': '69420',
                             'User-Agent': 'AMARA-App',
                             ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
                           },
                         }
-                      : { uri: getAbsoluteUrl(sliderImages[activeIndex])! }
-                    : sliderImages[activeIndex]
-                }
-                style={styles.image}
-                resizeMode="cover"
-                blurRadius={!isViewingSelf && !effectiveIsSubscribed && !isViewerWoman ? (Platform.OS === 'android' ? 22 : 16) : 0}
-              />
+                      : { uri: cleanUrl! }
+                    : img;
 
-              {/* Tap navigation for slider */}
-              {sliderImages.length > 1 && (
-                <>
-                  <TouchableOpacity
-                    style={styles.heroTapLeft}
-                    activeOpacity={1}
-                    onPress={() =>
-                      setActiveIndex((prev) =>
-                        prev > 0 ? prev - 1 : sliderImages.length - 1
-                      )
-                    }
-                  />
-                  <TouchableOpacity
-                    style={styles.heroTapRight}
-                    activeOpacity={1}
-                    onPress={() =>
-                      setActiveIndex((prev) =>
-                        prev + 1 < sliderImages.length ? prev + 1 : 0
-                      )
-                    }
-                  />
-                </>
-              )}
+                  return (
+                    <Pressable
+                      key={index}
+                      onPress={(e) => {
+                        if (sliderImages.length <= 1) return;
+                        const x = e.nativeEvent.locationX;
+                        if (x < cardWidth * 0.35) {
+                          scrollToPrev();
+                        } else if (x > cardWidth * 0.65) {
+                          scrollToNext();
+                        }
+                      }}
+                      style={{ width: cardWidth, height: heroCardHeight }}
+                    >
+                      <Image
+                        source={source}
+                        style={styles.image}
+                        resizeMode="cover"
+                      />
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
 
-              {/* Upgrade to premium blur overlay card when viewing another user and not subscribed (men only) */}
+              {/* Upgrade to premium card overlay in middle of photo (men only when viewing another user and not subscribed) */}
               {!isViewingSelf && !effectiveIsSubscribed && !isViewerWoman && (
                 <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
-                  <View style={styles.blurCardOverlay} pointerEvents="auto">
+                  <View
+                    style={styles.blurCardOverlay}
+                    {...cardPanResponder.panHandlers}
+                  >
+                    <View style={styles.cardCrownBadge}>
+                      <MaterialCommunityIcons name="crown" size={30} color="#FFD700" />
+                    </View>
+                    <Text style={styles.cardTitle}>
+                      {t('profile.profilescreen.premium_membership', { defaultValue: 'Premium Membership' })}
+                    </Text>
                     <TouchableOpacity
                       style={styles.upgradePillBtn}
                       activeOpacity={0.85}
                       onPress={openSubscriptionPlans}
-                      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     >
-                      <MaterialCommunityIcons name="crown" size={20} color="#FF4D6D" style={styles.crownIcon} />
+                      <MaterialCommunityIcons name="crown" size={18} color="#FF4D6D" style={styles.crownIcon} />
                       <Text style={styles.upgradePillText}>{t('profile.viewmyprofilescreen.upgrade_to_premium')}</Text>
                     </TouchableOpacity>
                   </View>
@@ -1456,7 +1538,7 @@ const ViewMyProfileScreen = () => {
 
 export default ViewMyProfileScreen;
 
-const createStyles = (colors: any, isDark: boolean = true) =>
+const createStyles = (colors: any, isDark: boolean = true, cardWidth: number = 360) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -1581,39 +1663,64 @@ const createStyles = (colors: any, isDark: boolean = true) =>
       elevation: 10,
     },
     blurCardOverlay: {
-      width: 240,
-      height: 240,
+      width: Math.min(260, Math.max(cardWidth - 48, 200)),
+      paddingVertical: 20,
+      paddingHorizontal: 16,
       borderRadius: 24,
-      backgroundColor: isDark ? 'rgba(30, 24, 38, 0.52)' : 'rgba(255, 255, 255, 0.38)',
+      backgroundColor: isDark ? 'rgba(24, 18, 34, 0.72)' : 'rgba(255, 255, 255, 0.78)',
       borderWidth: 1.5,
       borderColor: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.65)',
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 10,
-      elevation: 8,
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+      elevation: 10,
+    },
+    cardCrownBadge: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      backgroundColor: isDark ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 215, 0, 0.22)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 215, 0, 0.3)',
+    },
+    cardTitle: {
+      color: isDark ? '#FFFFFF' : '#1E1924',
+      fontSize: 16,
+      fontWeight: '800',
+      letterSpacing: 0.3,
+      textAlign: 'center',
+      marginBottom: 14,
+      textShadowColor: isDark ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
     },
     upgradePillBtn: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: '#1E1924',
       paddingVertical: 12,
-      paddingHorizontal: 22,
+      paddingHorizontal: 20,
       borderRadius: 25,
-      elevation: 10,
+      elevation: 6,
       shadowColor: '#000',
       shadowOpacity: 0.35,
       shadowRadius: 6,
-      zIndex: 60,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.15)',
     },
     crownIcon: {
       marginRight: 8,
     },
     upgradePillText: {
       color: '#FFFFFF',
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: '700',
     },
     stickyBottomBar: {

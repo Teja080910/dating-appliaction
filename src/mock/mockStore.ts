@@ -1872,6 +1872,10 @@ class MockStore {
     const user = await this.findUserById(userId);
     if (user) {
       (user as any).isActive = false;
+      (user as any).isDeactivated = true;
+      (user as any).status = 'PENDING_DELETION';
+      (user as any).deactivatedAt = new Date().toISOString();
+      (user as any).deletionDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users));
     }
   }
@@ -1881,6 +1885,10 @@ class MockStore {
     const user = await this.findUserById(userId);
     if (user) {
       (user as any).isActive = true;
+      (user as any).isDeactivated = false;
+      (user as any).status = 'ACTIVE';
+      delete (user as any).deactivatedAt;
+      delete (user as any).deletionDate;
       await AsyncStorage.setItem(USERS_KEY, JSON.stringify(this.users));
     }
   }

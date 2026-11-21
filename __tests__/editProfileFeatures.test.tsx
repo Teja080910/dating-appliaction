@@ -21,12 +21,15 @@ jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'Icon');
 jest.mock('react-native-vector-icons/Feather', () => 'Feather');
 
 jest.mock('../src/api/useImages', () => ({
-  TOTAL_SLOTS: 6,
+  MAX_PROFILE_IMAGES: 6,
   mapImagesToSlots: () => ({ slots: [], imageIdByIndex: {}, profileImageUrl: null }),
+  parseUploadResponse: () => ({ id: null, imageUrl: null }),
+  getUploadErrorMessage: () => null,
   useUserImages: () => ({
     uploadImage: { mutate: jest.fn() },
     getAllImages: { mutate: jest.fn() },
     deleteImage: { mutate: jest.fn() },
+    setProfilePhoto: { mutate: jest.fn() },
   }),
 }));
 

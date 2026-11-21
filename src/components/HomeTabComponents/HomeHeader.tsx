@@ -6,7 +6,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import AttractiveLogo from '../AttractiveLogo';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
 import { t, useTranslation } from '../../i18n';
@@ -152,13 +151,7 @@ const HomeHeader = ({ selectedFilter, onFilterChange }: Props) => {
 
       {/* Brand Header */}
       <View style={styles.brandRow}>
-        <View style={styles.logoContainer}>
-          <AttractiveLogo size={34} />
-          <View style={styles.logoTextWrap}>
-            <Text style={styles.logoText}>{t('home.homeheader.amara')}</Text>
-            <Text style={styles.logoSubtext}>{t('home.homeheader.curated_private_matches')}</Text>
-          </View>
-        </View>
+        <Text style={styles.logoText}>{t('home.homeheader.amara')}</Text>
       </View>
 
       {/* Filter and Tabs Row */}
@@ -297,28 +290,14 @@ const createStyles = (colors: any) =>
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       marginBottom: 14,
       paddingLeft: 2,
     },
-    logoContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    logoTextWrap: {
-      marginLeft: 10,
-    },
     logoText: {
-      fontSize: 20,
-      fontWeight: '900',
-      color: colors.text,
-      letterSpacing: 0.8,
-    },
-    logoSubtext: {
-      fontSize: 10.5,
-      color: colors.textSecondary,
-      fontWeight: '600',
-      marginTop: 1,
+      fontSize: 24,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: 0.5,
     },
     controlsRow: {
       flexDirection: 'row',

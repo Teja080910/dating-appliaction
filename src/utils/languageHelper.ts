@@ -33,6 +33,41 @@ export const PROFILE_LANGUAGES: string[] = [
 ];
 
 /**
+ * Normalizes and filters a language string or array to ONLY include
+ * the 10 officially supported profile languages.
+ * Strips out any unapproved/extra languages (like Hindi, Gujarati, Telugu, etc.).
+ * If no supported language matches, defaults to ['English'].
+ */
+export const filterSupportedLanguages = (
+  rawLanguage: string | string[] | null | undefined
+): string[] => {
+  if (!rawLanguage) return ['English'];
+  const candidates: string[] = Array.isArray(rawLanguage)
+    ? rawLanguage
+    : String(rawLanguage).split(',');
+
+  const matched: string[] = [];
+  for (const cand of candidates) {
+    const trimmed = String(cand).trim().toLowerCase();
+    if (!trimmed) continue;
+    const found = PROFILE_LANGUAGES.find(
+      (pl) => pl.toLowerCase() === trimmed
+    );
+    if (found && !matched.includes(found)) {
+      matched.push(found);
+    }
+  }
+
+  return matched.length > 0 ? matched : ['English'];
+};
+
+export const isSupportedProfileLanguage = (lang: string): boolean => {
+  if (!lang) return false;
+  const lower = lang.trim().toLowerCase();
+  return PROFILE_LANGUAGES.some((pl) => pl.toLowerCase() === lower);
+};
+
+/**
  * Returns the country flag emoji for a given language string (name, englishName, or code).
  * Defaults to 🌐 if unknown.
  */

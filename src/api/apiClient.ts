@@ -24,6 +24,28 @@ const isPublicAuthRequest = (url: string | null | undefined) => {
   return PUBLIC_AUTH_PATHS.some((path) => normalizedUrl.includes(path));
 };
 
+/**
+ * React Native stores the native IOException text in the XHR, but `response`
+ * returns '' once the request has failed (`_hasError`). `responseText` still
+ * exposes it, so read that first.
+ */
+export const getNativeNetworkError = (error: any): string | null => {
+  const request = error?.request;
+  if (!request) return null;
+
+  try {
+    const text = request.responseText;
+    if (typeof text === 'string' && text.trim()) return text.trim();
+  } catch {}
+
+  try {
+    const response = request.response;
+    if (typeof response === 'string' && response.trim()) return response.trim();
+  } catch {}
+
+  return null;
+};
+
 const summarizeApiError = (error: any) => {
   const respData = error?.response?.data;
   let detailsText: string | null = null;
@@ -33,12 +55,15 @@ const summarizeApiError = (error: any) => {
     detailsText = respData.message || respData.error || respData.details || JSON.stringify(respData);
   }
 
+  const nativeReason = !error?.response ? getNativeNetworkError(error) : '';
+
   return {
     status: Number(error?.response?.status || 0) || null,
     url: String(error?.config?.url || '').trim() || null,
     message: String(error?.message || 'Unknown API error'),
     details: detailsText,
     data: respData,
+    ...(nativeReason ? { native: nativeReason } : {}),
   };
 };
 
@@ -100,18 +125,38 @@ const hybridAdapter = async (config: any) => {
         throw backendError;
       }
 
-      // Re-throw client/validation errors and mutation rejections so caller fallbacks
-      // and UI validation handlers (such as 409 Conflict, 400 Bad Request) execute.
-      if (method !== 'get' && status >= 400) {
+      // Writes must never be faked. A network-level failure (status 0: timeout,
+      // connection drop, unreachable host) previously fell through to the mock
+      // adapter, which answered 200 with a fake image and swallowed the error.
+      if (method !== 'get') {
+        // Native IOException text for below-HTTP failures ("cleartext not
+        // permitted", "unexpected end of stream", "Could not open file"...).
+        const nativeReason = getNativeNetworkError(backendError);
+        // A 4xx write rejection is an expected business answer (photo rejected,
+        // photo limit, ownership...). It is surfaced to the user through an
+        // alert, so it must not raise a LogBox error in development.
+        const logRejectedWrite =
+          status >= 400 && status < 500 ? console.log : console.error;
+        logRejectedWrite(
+          `[ApiClient] ${method.toUpperCase()} ${url} failed (status ${status || 'network'}):`,
+          backendError?.message,
+          nativeReason ? `| native: ${nativeReason}` : '',
+        );
         throw backendError;
       }
+
+      // Gallery data must come from the server. Serving mock images here makes
+      // the photo grid look populated while nothing is actually stored.
+      if (url.includes('/images') || url.includes('/upload-image')) {
+        console.error('[ApiClient] Image request failed, not falling back to mock:', url, backendError?.message);
+        throw backendError;
+      }
+
       if (status === 400 || status === 403 || status === 409 || status === 422) {
         throw backendError;
       }
 
-      if (__DEV__) {
-        console.log('[ApiClient] Backend request failed, falling back to mock data:', url, backendError?.message);
-      }
+      console.warn('[ApiClient] Backend request failed, falling back to mock data:', url, backendError?.message);
       return handleMockRequest(config);
     }
   }
@@ -160,16 +205,18 @@ apiClient.interceptors.request.use(
         (config.data && typeof config.data === 'object' && Array.isArray((config.data as any)._parts));
 
       if (isFormData) {
-        // In React Native / Axios, setting Content-Type manually strips the boundary parameter
-        // which causes Spring Boot / Tomcat to reject the request with HTTP 400 Bad Request.
-        // Deleting Content-Type allows the runtime to set multipart/form-data; boundary=... automatically.
-        if (config.headers) {
-          if (typeof (config.headers as any).delete === 'function') {
-            (config.headers as any).delete('Content-Type');
-            (config.headers as any).delete('content-type');
-          }
-          delete (config.headers as any)['Content-Type'];
-          delete (config.headers as any)['content-type'];
+        // axios runs dispatchRequest AFTER this interceptor and does
+        //   headers.setContentType('application/x-www-form-urlencoded', false)
+        // for every POST/PUT/PATCH. Deleting the header here therefore does
+        // nothing — axios re-adds the urlencoded type and React Native refuses
+        // to send a multipart body with it, failing with the native error
+        // "multipart != application/x-www-form-urlencoded".
+        // Setting it explicitly wins, because axios only fills it in when absent.
+        // The boundary is appended by the native multipart builder.
+        if (typeof (config.headers as any)?.set === 'function') {
+          (config.headers as any).set('Content-Type', 'multipart/form-data');
+        } else if (config.headers) {
+          (config.headers as any)['Content-Type'] = 'multipart/form-data';
         }
       } else if (!config.headers['Content-Type'] && !config.headers['content-type']) {
         config.headers['Content-Type'] = 'application/json';

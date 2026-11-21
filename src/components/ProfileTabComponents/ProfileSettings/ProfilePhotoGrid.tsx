@@ -16,18 +16,28 @@ import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import apiClient, { getAbsoluteUrl, isApiHostedUrl } from '../../../api/apiClient';
-import { mapImagesToSlots, useUserImages, NormalizedUserImage } from '../../../api/useImages';
-import { useProfile } from '../../../api/useProfile';
+import { getAbsoluteUrl, isApiHostedUrl } from '../../../api/apiClient';
+import {
+  mapImagesToSlots,
+  useUserImages,
+  NormalizedUserImage,
+  MAX_PROFILE_IMAGES,
+  UPLOAD_PHOTO_OPTIONS,
+  parseUploadResponse,
+  getUploadErrorMessage,
+  getPhotoRejectionKind,
+  getPhotoRejectionCopy,
+} from '../../../api/useImages';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, useTheme } from '../../../theme';
+import { verifySingleProfilePhoto } from '../../../api/useFaceValidation';
 import { getAuthSession, isResolvedApiUserId, isSameUserId } from '../../../utils/session';
 import { getAuthToken, getUserId } from '../../../utils/sessionHelper';
 import { useAlert } from '../../AlertModal';
 import { requestPermissions } from '../../../utils/types/permission';
 import { t, useTranslation } from '../../../i18n';
 
-const TOTAL_SLOTS = 6;
+const TOTAL_SLOTS = MAX_PROFILE_IMAGES;
 
 interface ProfilePhotoGridProps {
   initialPhotos?: (string | null)[];
@@ -50,7 +60,6 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
   } = useContext(AppContext);
 
   const { uploadImage, getAllImages, deleteImage, setProfilePhoto } = useUserImages();
-  const { updateProfile } = useProfile();
   const [imageMap, setImageMap] = useState<Record<number, number>>({});
   const [serverImages, setServerImages] = useState<NormalizedUserImage[]>([]);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -80,25 +89,21 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
   }, []);
 
   const resolveActiveUserId = useCallback(async () => {
-    if (propUserId && isResolvedApiUserId(propUserId)) {
-      return String(propUserId);
-    }
-    if (authUserId && isResolvedApiUserId(authUserId)) {
-      return String(authUserId);
-    }
-    const storedUid = await getUserId().catch(() => null);
-    if (storedUid && isResolvedApiUserId(storedUid)) {
-      return String(storedUid);
-    }
     const directUid = await AsyncStorage.getItem('userId').catch(() => null);
-    if (directUid && isResolvedApiUserId(directUid)) {
-      return String(directUid);
-    }
     const authSession = await getAuthSession().catch(() => null);
-    if (authSession?.userId && isResolvedApiUserId(authSession.userId)) {
-      return String(authSession.userId);
-    }
-    return null;
+    const storedUid = await getUserId().catch(() => null);
+
+    const candidates = [propUserId, authUserId, storedUid, directUid, authSession?.userId];
+
+    // Writes are ownership-checked against the logged-in account, so the
+    // alphanumeric code (SA1000) must win over a numeric DB id.
+    const slug = candidates.find(
+      (value) => value && /[A-Za-z]/.test(String(value)) && isResolvedApiUserId(value),
+    );
+    if (slug) return String(slug);
+
+    const fallback = candidates.find((value) => value && isResolvedApiUserId(value));
+    return fallback ? String(fallback) : null;
   }, [authUserId, propUserId]);
 
   const getFilenameFromUrl = (u?: string | null) => {
@@ -120,6 +125,8 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       filename.startsWith('image_') ||
       filename.startsWith('rn_image_picker');
 
+    const isRemoteUrl = /^https?:\/\//i.test(clean);
+
     return deletedList.some((d) => {
       if (!d) return false;
       const cleanD = String(d).trim();
@@ -128,7 +135,10 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
       const dAbs = getAbsoluteUrl(cleanD) || cleanD;
       if (dAbs === abs || dAbs === clean) return true;
       const dFile = getFilenameFromUrl(cleanD).toLowerCase();
-      if (filename && dFile && !isGeneric && filename === dFile) return true;
+      // Only match by filename for device-local URIs. Remote photos are
+      // identified by full URL because the backend reuses names such as
+      // /amara/SA1000/3.jpg, which would otherwise hide a new upload.
+      if (filename && dFile && !isGeneric && filename === dFile) return !isRemoteUrl;
       return false;
     });
   }, []);
@@ -333,11 +343,10 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
         return;
       }
 
-      const options = { mediaType: 'photo' as const, quality: 0.8 as const };
       const result =
         source === 'camera'
-          ? await launchCamera(options)
-          : await launchImageLibrary(options);
+          ? await launchCamera(UPLOAD_PHOTO_OPTIONS)
+          : await launchImageLibrary(UPLOAD_PHOTO_OPTIONS);
 
       if (result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
@@ -346,6 +355,10 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
           setUploadingSlot(index);
           const previousPhoto = (images || [])[index] || null;
           const oldImageId = imageMap[index];
+          // True only when the profile has no photos at all: this upload is the
+          // first photo, which only needs to show a real human face. Later
+          // photos must also match the verified selfie.
+          const hasNoExistingPhoto = !(images || []).some(Boolean);
           const current = [...(images || [])];
           while (current.length <= index) current.push(null);
           current[index] = asset.uri;
@@ -380,9 +393,33 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
             }
           }
 
-          // If replacing an existing photo in this slot and user has >= 5 photos on server,
-          // delete the old photo first to avoid "Max 5 images allowed" backend error.
-          if (oldImageId && activeUid && serverImages.length >= 5) {
+          // Face-check the photo before it is accepted. Runs for every account,
+          // regardless of gender: the first photo must show a real human face,
+          // every later one must match the verified selfie.
+          const verdict = await verifySingleProfilePhoto({
+            userId: activeUid || undefined,
+            photoUri: asset.uri,
+            isFirstPhoto: hasNoExistingPhoto,
+          }).catch(() => null);
+
+          if (verdict) {
+            const reverted = [...(images || [])];
+            while (reverted.length < TOTAL_SLOTS) reverted.push(null);
+            reverted[index] = previousPhoto;
+            setImages(reverted);
+            if (index === 0) {
+              setProfileImage(previousPhoto);
+              setProfileImageUrl(previousPhoto);
+            }
+            setUploadingSlot(null);
+            const copy = getPhotoRejectionCopy(verdict, t);
+            alert(copy.title, copy.message, undefined, { force: true });
+            return;
+          }
+
+          // At the 6-photo backend limit the old photo must be deleted before the
+          // replacement is uploaded, otherwise the upload is rejected.
+          if (oldImageId && activeUid && serverImages.length >= MAX_PROFILE_IMAGES) {
             try {
               await deleteImage.mutateAsync({ imageId: oldImageId, userId: activeUid }).catch(() => {});
             } catch {}
@@ -395,6 +432,7 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 uri: asset.uri,
                 fileName: asset.fileName || `photo_${Date.now()}.jpg`,
                 type: asset.type || 'image/jpeg',
+                fileSize: asset.fileSize,
               },
             },
             {
@@ -403,25 +441,11 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                   await deleteImage.mutateAsync({ imageId: oldImageId, userId: activeUid }).catch(() => {});
                 }
 
-                const newId = uploadRes?.id || uploadRes?.data?.id || (uploadRes?.imageId ? Number(uploadRes.imageId) : undefined);
-                let newUrl: string | null = null;
-                if (typeof uploadRes === 'object' && uploadRes !== null) {
-                  newUrl =
-                    uploadRes?.imageUrl ||
-                    uploadRes?.data?.imageUrl ||
-                    uploadRes?.url ||
-                    uploadRes?.data?.url ||
-                    uploadRes?.profileImageUrl ||
-                    uploadRes?.data?.profileImageUrl ||
-                    null;
-                } else if (typeof uploadRes === 'string') {
-                  const s = uploadRes.trim();
-                  if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/') || /\.(jpg|jpeg|png|webp|gif)/i.test(s)) {
-                    newUrl = s;
-                  }
-                }
+                const uploaded = parseUploadResponse(uploadRes);
+                const newId = uploaded.id;
+                let newUrl: string | null = uploaded.imageUrl;
 
-                let finalUrl = newUrl ? (getAbsoluteUrl(newUrl) || newUrl) : asset.uri;
+                let finalUrl: string = newUrl || asset.uri || '';
 
                 if (newId) {
                   setImageMap((prev) => ({ ...prev, [index]: Number(newId) }));
@@ -519,17 +543,6 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                     }
                   }
 
-                  const validPhotos = updated.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
-                  const allPhotos = validPhotos;
-                  const updatePayload = {
-                    userId: activeUid,
-                    ...(index === 0 ? { profileImageUrl: finalUrl, photo: finalUrl } : {}),
-                    ...(allPhotos.length > 0 ? { photos: allPhotos, images: allPhotos } : {}),
-                  };
-                  apiClient.put('/profile/update', updatePayload).catch(() => {
-                    apiClient.put('/profile/update-basic', updatePayload).catch(() => {});
-                  });
-
                   queryClient.invalidateQueries({ queryKey: ['myProfile'] });
                   queryClient.invalidateQueries({ queryKey: ['profile-me'] });
                   queryClient.invalidateQueries({ queryKey: ['userImages'] });
@@ -542,12 +555,31 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
                 }
               },
               onError: (err) => {
-                console.error('Image upload failed:', (err as any)?.response?.data || (err as any)?.message || err);
+                const status = Number((err as any)?.response?.status);
+                // Business rejections are shown in an alert; logging them with
+                // console.error would open a LogBox error overlay in dev.
+                const logUploadError = status >= 400 && status < 500 ? console.log : console.error;
+                logUploadError('Image upload failed:', (err as any)?.response?.data || (err as any)?.message || err);
                 const reverted = [...(images || [])];
                 while (reverted.length < TOTAL_SLOTS) reverted.push(null);
                 reverted[index] = previousPhoto;
                 setImages(reverted);
-                alert(t('profile.profilephotogrid.upload_failed'), t('profile.profilephotogrid.failed_to_upload_image_please_try_again'));
+                const rejectionKind = getPhotoRejectionKind(err, {
+                  isPrimary: hasNoExistingPhoto,
+                });
+                if (rejectionKind) {
+                  const copy = getPhotoRejectionCopy(rejectionKind, t);
+                  alert(copy.title, copy.message, undefined, { force: true });
+                } else {
+                  alert(
+                    t('profile.profilephotogrid.upload_failed'),
+                    getUploadErrorMessage(err) ||
+                      (err as any)?.message ||
+                      t('profile.profilephotogrid.failed_to_upload_image_please_try_again'),
+                    undefined,
+                    { force: true },
+                  );
+                }
               },
               onSettled: () => {
                 setUploadingSlot(null);
@@ -668,17 +700,6 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({ initialPhotos, user
     // Update serverImages list
     if (imageId) {
       setServerImages((prev) => prev.filter((img) => img.id !== imageId));
-    }
-
-    // Sync remaining photos to profile endpoint
-    if (uid) {
-      apiClient.put('/profile/update', {
-        userId: uid,
-        photos: remainingPhotos,
-        images: remainingPhotos,
-        profileImageUrl: newPrimary || '',
-        photo: newPrimary || '',
-      }).catch(() => {});
     }
 
     // 7. Delete on server (pass imageId or targetUri, plus userId & imageUrl)

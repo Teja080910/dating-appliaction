@@ -116,6 +116,60 @@ describe('Glambu-style Auth and Verification Screens with Amara Theme', () => {
     });
   });
 
+  test('LoginScreen displays floating bottom error message toast on invalid submission', async () => {
+    let tree: any;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(renderWithProviders(<LoginScreen navigation={mockNavigation} />));
+    });
+
+    // Find the Login button
+    const root = tree.root;
+    const loginButton = root.findAllByProps({ activeOpacity: 0.88 })[0];
+    expect(loginButton).toBeDefined();
+
+    // Trigger Login press with empty inputs
+    await ReactTestRenderer.act(async () => {
+      loginButton.props.onPress();
+    });
+
+    const strAfterPress = JSON.stringify(tree.toJSON());
+    expect(strAfterPress).toContain('Invalid email or password');
+
+    await ReactTestRenderer.act(async () => {
+      tree.unmount();
+    });
+  });
+
+  test('LoginScreen displays inline validation errors for invalid email and short password', async () => {
+    let tree: any;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(renderWithProviders(<LoginScreen navigation={mockNavigation} />));
+    });
+
+    const root = tree.root;
+    const textInputs = root.findAllByType('TextInput' as any);
+    const emailInput = textInputs[0];
+    const passwordInput = textInputs[1];
+
+    // Enter invalid email format (e.g. sailakshmiborra45@gmail.c)
+    await ReactTestRenderer.act(async () => {
+      emailInput.props.onChangeText('sailakshmiborra45@gmail.c');
+    });
+
+    // Enter short password (< 6 chars)
+    await ReactTestRenderer.act(async () => {
+      passwordInput.props.onChangeText('1234');
+    });
+
+    const str = JSON.stringify(tree.toJSON());
+    expect(str).toContain('Invalid email address');
+    expect(str).toContain('Password must be at least 6 characters long');
+
+    await ReactTestRenderer.act(async () => {
+      tree.unmount();
+    });
+  });
+
   test('ForgotPasswordScreen renders Glambu-style layout and buttons', () => {
     let tree: any;
     ReactTestRenderer.act(() => {
@@ -127,6 +181,28 @@ describe('Glambu-style Auth and Verification Screens with Amara Theme', () => {
     expect(str).toContain('Send reset code');
     expect(str).toContain('Back to login');
     ReactTestRenderer.act(() => {
+      tree.unmount();
+    });
+  });
+
+  test('ForgotPasswordScreen displays inline validation error for invalid email format', async () => {
+    let tree: any;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(renderWithProviders(<ForgotPasswordScreen navigation={mockNavigation} />));
+    });
+
+    const root = tree.root;
+    const emailInput = root.findByType('TextInput' as any);
+
+    // Enter invalid email format
+    await ReactTestRenderer.act(async () => {
+      emailInput.props.onChangeText('invalid.email@c');
+    });
+
+    const str = JSON.stringify(tree.toJSON());
+    expect(str).toContain('Invalid email address');
+
+    await ReactTestRenderer.act(async () => {
       tree.unmount();
     });
   });
@@ -145,6 +221,43 @@ describe('Glambu-style Auth and Verification Screens with Amara Theme', () => {
     expect(str).toContain('Create account');
     expect(str).toContain('Already have an account? Log in');
     ReactTestRenderer.act(() => {
+      tree.unmount();
+    });
+  });
+
+  test('RegisterScreen displays inline validation errors for invalid email and mismatched passwords', async () => {
+    let tree: any;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(renderWithProviders(<RegisterScreen navigation={mockNavigation} />));
+    });
+
+    const root = tree.root;
+    const textInputs = root.findAllByType('TextInput' as any);
+    const emailInput = textInputs[1];
+    const passwordInput = textInputs[2];
+    const confirmPasswordInput = textInputs[3];
+
+    // Enter invalid email format
+    await ReactTestRenderer.act(async () => {
+      emailInput.props.onChangeText('invalid.email@c');
+    });
+
+    // Enter short password
+    await ReactTestRenderer.act(async () => {
+      passwordInput.props.onChangeText('1234');
+    });
+
+    // Enter mismatching confirm password
+    await ReactTestRenderer.act(async () => {
+      confirmPasswordInput.props.onChangeText('999999');
+    });
+
+    const str = JSON.stringify(tree.toJSON());
+    expect(str).toContain('Invalid email address');
+    expect(str).toContain('Password must be at least 6 characters long');
+    expect(str).toContain('Passwords do not match');
+
+    await ReactTestRenderer.act(async () => {
       tree.unmount();
     });
   });

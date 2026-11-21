@@ -12,7 +12,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
 import { getAbsoluteUrl, isApiHostedUrl } from '../../api/apiClient';
 import { getAuthToken } from '../../utils/sessionHelper';
-import { mapImagesToSlots, useUserImages } from '../../api/useImages';
+import { mapImagesToSlots, useUserImages, UPLOAD_PHOTO_OPTIONS } from '../../api/useImages';
 import { useMyProfile } from '../../api/useProfile';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors } from '../../theme';
@@ -179,7 +179,7 @@ const AdditionalUploadSection = () => {
         onPress: async () => {
           setUploadingSlot(index);
           try {
-            const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+            const result = await launchImageLibrary(UPLOAD_PHOTO_OPTIONS);
             if (result.assets && result.assets.length > 0) {
               const asset = result.assets[0];
               if (asset.uri) {
@@ -252,7 +252,7 @@ const AdditionalUploadSection = () => {
       // UPLOAD CASE
       setUploadingSlot(index);
       try {
-        const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+        const result = await launchImageLibrary(UPLOAD_PHOTO_OPTIONS);
 
         if (result.assets && result.assets.length > 0) {
           const asset = result.assets[0];

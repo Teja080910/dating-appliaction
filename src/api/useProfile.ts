@@ -485,7 +485,7 @@ export const useMyProfile = (uid?: any) => {
               norm.profileImageUrl = combinedPhotos[0];
             }
             if (livePhotos.length > 0) {
-              const slots = [...livePhotos];
+              const slots: (string | null)[] = [...livePhotos];
               while (slots.length < 6) slots.push(null);
               AsyncStorage.setItem(`user_photos_${resolvedUserId}`, JSON.stringify(slots)).catch(() => {});
             }
@@ -934,29 +934,20 @@ export const useProfile = () => {
         }
       }
 
-      const numericUserId = !isNaN(Number(resolvedUserId))
-        ? Number(resolvedUserId)
-        : (Number(String(resolvedUserId).replace(/\D/g, '')) || 0);
-
-      // Spring Boot backend strictly enforces distinct DTO contracts:
-      // 1. UpdateBasicDTO: { userId: Long, displayName: String, bio: String, age: Integer }
-      // 2. UpdateDetailsDTO: { userId: Long, language: String, bodyType: String, appearance: String, height: Integer }
-      // 3. UpdatePreferencesDTO: { userId: Long, lookingFor: String, smoke: String, drink: String }
-      // 4. GenderOrientationRequest: { userId: Long, gender: String, orientation: String }
-      // 5. Telegram: POST /telegram/connect?userId={userId}&username={username}
-      // Sending unexpected fields like 'name', 'dob', 'mobile' to UpdateBasicDTO causes
-      // Spring Jackson deserialization errors (HTTP 400 Bad Request).
+      // userId is the backend string code (e.g. SA1000), never a number derived
+      // from it. Sending a fabricated numeric id makes the backend's ownership
+      // check fail with 403 PROFILE_OWNERSHIP_VIOLATION.
       const computedAgeToSave = cleanPayload.age
         ? Number(cleanPayload.age)
         : (cleanPayload.dob ? calculateAgeFromDob(cleanPayload.dob) : 21);
 
       const basicPayload: {
-        userId: number;
+        userId: string;
         displayName: string;
         bio: string;
         age: number;
       } = {
-        userId: numericUserId,
+        userId: String(resolvedUserId),
         displayName: String(cleanPayload.displayName || cleanPayload.name || 'User').trim(),
         bio: String(cleanPayload.bio || '').trim(),
         age: computedAgeToSave,
@@ -990,7 +981,7 @@ export const useProfile = () => {
       }
       if (hasPhoneField) setupDto.mobile = effectivePhone;
 
-      const targetSetupId = resolvedUserId || numericUserId;
+      const targetSetupId = resolvedUserId;
       try {
         const setupRes = await apiClient.post(`/profile/${targetSetupId}/setup`, setupDto, {
           params: { ...setupDto, dto: JSON.stringify(setupDto) },
@@ -1034,13 +1025,13 @@ export const useProfile = () => {
       // Update Details (height, bodyType, appearance, language)
       if (cleanPayload.height !== undefined || cleanPayload.bodyType || cleanPayload.appearance || cleanPayload.language) {
         const detailsPayload: {
-          userId: number;
+          userId: string;
           language?: string;
           bodyType?: string;
           appearance?: string;
           height?: number;
         } = {
-          userId: numericUserId,
+          userId: String(resolvedUserId),
         };
         if (cleanPayload.language) detailsPayload.language = String(cleanPayload.language);
         if (cleanPayload.bodyType) detailsPayload.bodyType = String(cleanPayload.bodyType);
@@ -1054,12 +1045,12 @@ export const useProfile = () => {
       // Update Preferences (lookingFor, smoke, drink)
       if (cleanPayload.lookingFor || cleanPayload.smoke || cleanPayload.drink) {
         const preferencesPayload: {
-          userId: number;
+          userId: string;
           lookingFor?: string;
           smoke?: string;
           drink?: string;
         } = {
-          userId: numericUserId,
+          userId: String(resolvedUserId),
         };
         if (cleanPayload.lookingFor) preferencesPayload.lookingFor = String(cleanPayload.lookingFor);
         if (cleanPayload.smoke) preferencesPayload.smoke = String(cleanPayload.smoke);
@@ -1071,7 +1062,7 @@ export const useProfile = () => {
       if (cleanPayload.gender || cleanPayload.orientation) {
         secondaryPromises.push(
           apiClient.post('/profile/gender-orientation', {
-            userId: numericUserId,
+            userId: String(resolvedUserId),
             gender: String(cleanPayload.gender || 'man'),
             orientation: String(cleanPayload.orientation || 'straight'),
           }).catch(() => {})
@@ -1083,7 +1074,7 @@ export const useProfile = () => {
         secondaryPromises.push(
           apiClient.delete('/telegram/disconnect', {
             params: {
-              userId: numericUserId,
+              userId: String(resolvedUserId),
             },
           }).catch(() => {})
         );
@@ -1091,7 +1082,7 @@ export const useProfile = () => {
         secondaryPromises.push(
           apiClient.post('/telegram/connect', null, {
             params: {
-              userId: numericUserId,
+              userId: String(resolvedUserId),
               username: cleanTelegram,
             },
           }).catch(() => {})
@@ -1254,7 +1245,7 @@ export const useProfile = () => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
       const payload = {
-        userId: Number(resolvedUserId),
+        userId: String(resolvedUserId),
         displayName: data.displayName,
         bio: data.bio,
         age: Number(data.age) || 21,
@@ -1278,7 +1269,7 @@ export const useProfile = () => {
   };
 
   const uploadImage = useMutation<any, Error, UploadImageInput>({
-    mutationFn: async ({photo, uid}) => {
+    mutationFn: async ({photo}) => {
       const fileName = photo.name || photo.fileName || `photo_${Date.now()}.jpg`;
       const fileType = photo.type || 'image/jpeg';
       const filePayload = {
@@ -1287,25 +1278,15 @@ export const useProfile = () => {
         type: fileType,
       };
 
-      const resolvedUserId = await resolveNumericUserId(uid);
-
+      // Exactly one file part: referencing the same file twice makes the native
+      // networking layer open it twice and fail with "Network Error".
+      // userId is omitted on purpose: the backend resolves the account from the
+      // bearer token, and a stale cached userId causes 403 PROFILE_OWNERSHIP_VIOLATION.
       const formData = new FormData();
-      formData.append('image', filePayload as any);
       formData.append('photo', filePayload as any);
-      formData.append('file', filePayload as any);
-      if (resolvedUserId) {
-        formData.append('userId', String(resolvedUserId));
-      }
-
-      if (resolvedUserId) {
-        try {
-          const userImgRes = await apiClient.post(`/users/${resolvedUserId}/images`, formData);
-          return userImgRes.data;
-        } catch {}
-      }
 
       const res = await apiClient.post('/profile/upload-image', formData, {
-        params: resolvedUserId ? { userId: resolvedUserId, uid: resolvedUserId } : undefined,
+        timeout: 60000,
       });
 
       return res.data;
@@ -1318,22 +1299,12 @@ export const useProfile = () => {
   };
 
   const uploadSelfie = useMutation<any, Error, UploadSelfieInput>({
-    mutationFn: async ({photo, uid}) => {
+    mutationFn: async ({photo}) => {
       const formData = createImageFormData('selfie', photo);
-      try {
-        const res = await apiClient.post('/profile/selfie/upload', formData);
-        return res.data;
-      } catch (err: any) {
-        const resolvedUserId = uid || (await getUserId().catch(() => null));
-        if (resolvedUserId) {
-          formData.append('userId', String(resolvedUserId));
-          const fallbackRes = await apiClient.post('/profile/selfie/upload', formData, {
-            params: { userId: String(resolvedUserId) },
-          });
-          return fallbackRes.data;
-        }
-        throw err;
-      }
+      const res = await apiClient.post('/profile/selfie/upload', formData, {
+        timeout: 60000,
+      });
+      return res.data;
     },
   });
 
@@ -1352,19 +1323,12 @@ export const useProfile = () => {
         resolvedUserId = session?.userId;
       }
 
-      try {
-        const res = await apiClient.put(
-          resolvedUserId ? `/profile/selfie/verify/${resolvedUserId}` : '/profile/selfie/verify'
-        );
-        return res.data;
-      } catch (err: any) {
-        const fallback = await apiClient.put('/profile/selfie/verify').catch(() =>
-          apiClient.post(
-            resolvedUserId ? `/profile/selfie/verify/${resolvedUserId}` : '/profile/selfie/verify'
-          )
-        );
-        return fallback?.data ?? { status: 'success', message: 'Verified' };
+      if (!resolvedUserId) {
+        throw new Error('UserId not resolved for selfie verification.');
       }
+
+      const res = await apiClient.put(`/profile/selfie/verify/${resolvedUserId}`);
+      return res.data;
     },
     onSuccess: async (_, variables) => {
       await invalidateProfile(variables?.uid);

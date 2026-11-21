@@ -103,14 +103,9 @@ describe('Woman Profile Image Upload and Open Stability', () => {
     expect(updateRes.data.data.photos).toContain(newPhotoUrl);
   });
 
-  test('6. FormData request removes manual Content-Type header so native multipart boundary is preserved', async () => {
+  test('6. FormData request forces multipart Content-Type so axios cannot apply its urlencoded default', async () => {
     const formData = new FormData();
     formData.append('photo', {
-      uri: 'file:///data/user/0/com.amara/cache/test.jpg',
-      name: 'test.jpg',
-      type: 'image/jpeg',
-    } as any);
-    formData.append('image', {
       uri: 'file:///data/user/0/com.amara/cache/test.jpg',
       name: 'test.jpg',
       type: 'image/jpeg',
@@ -121,7 +116,7 @@ describe('Woman Profile Image Upload and Open Stability', () => {
       method: 'post',
       data: formData,
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
     };
 
@@ -129,8 +124,13 @@ describe('Woman Profile Image Upload and Open Stability', () => {
     const requestInterceptor: any = (apiClient.interceptors.request as any).handlers[0]?.fulfilled;
     if (requestInterceptor) {
       const processedConfig = await requestInterceptor(config);
-      // Content-Type should have been deleted so boundary is not stripped
-      expect(processedConfig.headers['Content-Type']).toBeUndefined();
+      const contentType =
+        typeof processedConfig.headers.get === 'function'
+          ? processedConfig.headers.get('Content-Type')
+          : processedConfig.headers['Content-Type'];
+      // Must be multipart: axios sets application/x-www-form-urlencoded for every
+      // POST after interceptors run, and React Native rejects that combination.
+      expect(contentType).toBe('multipart/form-data');
     }
 
     const res = await apiClient.post('/profile/upload-image', formData, {

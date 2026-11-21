@@ -29,7 +29,7 @@ const normalizeStoredString = (value: unknown): string | null => {
   return normalized;
 };
 
-const decodeJwtPayload = (token: string | null | undefined) => {
+export const decodeJwtPayload = (token: string | null | undefined) => {
   const normalizedToken = normalizeStoredString(token);
   if (!normalizedToken) {
     return null;
@@ -183,6 +183,37 @@ export const normalizeTextValue = (value: unknown): string | null => {
   return normalized;
 };
 
+/**
+ * Identity-scoped cache keys that must never survive a logout or an account
+ * switch (photos, phone, telegram, flags, tombstones...).
+ */
+const GLOBAL_USER_CACHE_KEYS = [
+  'onboardingImages',
+  'profileImage',
+  'deleted_image_uris',
+  '@local_onboarding_photos',
+];
+
+export const clearUserScopedCache = async (uid?: string | null) => {
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const clean = String(uid || '').trim();
+    const digits = clean.replace(/\D/g, '');
+    const suffixes = [clean, digits].filter(
+      (value, index, arr) => Boolean(value) && arr.indexOf(value) === index,
+    );
+
+    const staleKeys = allKeys.filter((key) => {
+      if (GLOBAL_USER_CACHE_KEYS.includes(key)) return true;
+      return suffixes.some((suffix) => key.endsWith(`_${suffix}`));
+    });
+
+    if (staleKeys.length > 0) {
+      await AsyncStorage.multiRemove(staleKeys);
+    }
+  } catch {}
+};
+
 export const clearAuthSession = async () => {
   const currentUid = (await AsyncStorage.getItem(STORAGE_KEYS.userId).catch(() => null)) || '';
 
@@ -232,6 +263,9 @@ export const clearAuthSession = async () => {
   }
 
   await AsyncStorage.multiRemove(keysToRemove).catch(() => {});
+  // Photos/tombstones/phone are keyed by userId; drop them so the next login
+  // never reuses another account's identity-scoped data.
+  await clearUserScopedCache(currentUid);
 
   try {
     await AsyncStorageService.clearToken();

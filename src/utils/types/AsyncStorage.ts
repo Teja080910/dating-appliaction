@@ -288,20 +288,44 @@ export const clearBlockedUsers = async (
 };
 
 const DELETED_ACCOUNTS_KEY = '@amara_deleted_accounts';
+const PENDING_DELETION_PREFIX = '@amara_pending_deletion_';
+const PENDING_DELETION_EMAIL_PREFIX = '@amara_pending_deletion_email_';
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const recordDeletedAccountLocally = async (
-  userId: string | number | null | undefined
+  userId: string | number | null | undefined,
+  email?: string | null | undefined
 ): Promise<void> => {
   if (!userId) return;
   try {
+    const idStr = String(userId).trim();
+    if (!idStr) return;
+
     const raw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
     const list: string[] = raw ? JSON.parse(raw) : [];
-    const idStr = String(userId).trim();
-    if (idStr && !list.includes(idStr)) {
+    if (!list.includes(idStr)) {
       list.push(idStr);
       await AsyncStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(list));
     }
-    // Also remove from @amara_registered_profiles so it never re-appears on this device
+
+    // Record pending deletion schedule with 30-day window
+    const now = Date.now();
+    const pendingInfo = {
+      userId: idStr,
+      scheduledAt: now,
+      expiresAt: now + THIRTY_DAYS_MS,
+      email: email ? String(email).trim().toLowerCase() : undefined,
+    };
+    await AsyncStorage.setItem(`${PENDING_DELETION_PREFIX}${idStr}`, JSON.stringify(pendingInfo));
+
+    if (email) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (cleanEmail) {
+        await AsyncStorage.setItem(`${PENDING_DELETION_EMAIL_PREFIX}${cleanEmail}`, idStr);
+      }
+    }
+
+    // Also remove from @amara_registered_profiles so it never re-appears in local discovery
     const rawReg = await AsyncStorage.getItem('@amara_registered_profiles');
     if (rawReg) {
       const regList = JSON.parse(rawReg);
@@ -315,6 +339,72 @@ export const recordDeletedAccountLocally = async (
     }
   } catch (e) {
     console.warn('Failed to record deleted account locally:', e);
+  }
+};
+
+export const removeDeletedAccountLocally = async (
+  userId: string | number | null | undefined,
+  email?: string | null | undefined
+): Promise<void> => {
+  if (!userId) return;
+  try {
+    const idStr = String(userId).trim();
+    if (!idStr) return;
+
+    const raw = await AsyncStorage.getItem(DELETED_ACCOUNTS_KEY);
+    if (raw) {
+      const list: string[] = JSON.parse(raw);
+      const filtered = list.filter((id) => id !== idStr);
+      await AsyncStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(filtered));
+    }
+
+    await AsyncStorage.removeItem(`${PENDING_DELETION_PREFIX}${idStr}`);
+
+    if (email) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (cleanEmail) {
+        await AsyncStorage.removeItem(`${PENDING_DELETION_EMAIL_PREFIX}${cleanEmail}`);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to remove deleted account locally:', e);
+  }
+};
+
+export const isAccountPendingDeletion = async (
+  userId: string | number | null | undefined
+): Promise<boolean> => {
+  if (!userId) return false;
+  try {
+    const idStr = String(userId).trim();
+    if (!idStr) return false;
+    const raw = await AsyncStorage.getItem(`${PENDING_DELETION_PREFIX}${idStr}`);
+    if (!raw) return false;
+    const info = JSON.parse(raw);
+    if (info?.expiresAt && Date.now() > info.expiresAt) {
+      // 30 days passed, expired
+      await removeDeletedAccountLocally(idStr, info?.email);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const getPendingDeletionUserIdByEmail = async (
+  email: string | null | undefined
+): Promise<string | null> => {
+  if (!email) return null;
+  try {
+    const cleanEmail = String(email).trim().toLowerCase();
+    const storedUid = await AsyncStorage.getItem(`${PENDING_DELETION_EMAIL_PREFIX}${cleanEmail}`);
+    if (!storedUid) return null;
+    const isPending = await isAccountPendingDeletion(storedUid);
+    if (!isPending) return null;
+    return storedUid;
+  } catch {
+    return null;
   }
 };
 

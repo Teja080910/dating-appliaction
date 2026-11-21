@@ -1,5 +1,6 @@
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {requestPermissions} from '../../utils/types/permission';
+import { UPLOAD_PHOTO_OPTIONS } from '../../api/useImages';
 import { useAlert } from '../AlertModal';
 
 import { t } from '../../i18n';
@@ -22,7 +23,7 @@ export const handleImagePick = async (
     return;
   }
 
-  const options = {mediaType: 'photo' as const, quality: 1 as const};
+  const options = UPLOAD_PHOTO_OPTIONS;
 
   try {
     const result =

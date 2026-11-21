@@ -316,7 +316,9 @@ const ProfileSettingsScreen = () => {
       return;
     }
 
-    const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || profileQuery.data?.id || '');
+    // Never fall back to profileQuery.data.id here: that is the numeric DB id,
+    // and the backend only accepts the alphanumeric user code (e.g. SA1000).
+    const currentUid = (await AsyncStorage.getItem('userId')) || String(profileQuery.data?.userId || '');
     const cleanCurrentUid = currentUid ? String(currentUid).trim() : '';
     const currentUidDigits = cleanCurrentUid.replace(/\D/g, '');
 
@@ -754,7 +756,7 @@ const ProfileSettingsScreen = () => {
 
         <ProfilePhotoGrid
           initialPhotos={profilePhotos}
-          userId={String(profileQuery.data?.userId || profileQuery.data?.id || storedUserId || '') || undefined}
+          userId={String(profileQuery.data?.userId || storedUserId || '') || undefined}
         />
 
         {/* Contact Details (WhatsApp & Telegram) */}

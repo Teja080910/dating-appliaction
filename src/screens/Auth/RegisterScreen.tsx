@@ -19,12 +19,13 @@ import {
   ActivityIndicator,
   ScrollView,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import AppContext from '../../context/CreateGlobalStateContext';
 import AttractiveLogo from '../../components/AttractiveLogo';
+import AppContext from '../../context/CreateGlobalStateContext';
 import LanguageSelectorHeader from '../../components/LanguageSelectorHeader';
 import { useAuth } from '../../api/useAuth';
 import { useAlert } from '../../components/AlertModal';
@@ -74,7 +75,97 @@ const RegisterScreen = ({ navigation }: any) => {
   const scrollRef = useRef<ScrollView>(null);
   const isSubmittingRef = useRef(false);
 
+  const [submitted, setSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [errorToastVisible, setErrorToastVisible] = useState(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(20)).current;
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showErrorToast = (msg: string) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setErrorMessage(msg);
+    setErrorToastVisible(true);
+    toastOpacity.setValue(0);
+    toastTranslateY.setValue(20);
+
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    toastTimerRef.current = setTimeout(() => {
+      dismissErrorToast();
+    }, 4500);
+  };
+
+  const dismissErrorToast = () => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 20,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+    }
+    hideTimerRef.current = setTimeout(() => {
+      setErrorToastVisible(false);
+      setErrorMessage('');
+    }, 220);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
   const passwordValidation = useMemo(() => validateStrongPassword(password), [password]);
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+  const cleanEmail = email.trim();
+  const isEmailFormatValid = cleanEmail.length > 0 && EMAIL_REGEX.test(cleanEmail);
+  const showEmailError =
+    (cleanEmail.length > 0 && !isEmailFormatValid) ||
+    (submitted && !isEmailFormatValid);
+
+  const isPasswordLengthValid = password.length >= 6;
+  const showPasswordError =
+    (password.length > 0 && !isPasswordLengthValid) ||
+    (submitted && !isPasswordLengthValid);
+
+  const showConfirmPasswordError =
+    (confirmPassword.length > 0 && confirmPassword !== password) ||
+    (submitted && confirmPassword !== password);
 
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -172,19 +263,20 @@ const RegisterScreen = ({ navigation }: any) => {
 
   const handleRegister = async () => {
     if (loading || isSubmittingRef.current) return;
+    setSubmitted(true);
 
     const cleanEmail = email.trim();
     if (!name.trim() || !cleanEmail || !password.trim()) {
       alert(t('auth.forgotpasswordscreen.missing_info'), t('auth.registerscreen.please_fill_all_required_fields'));
       return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      alert(t('auth.forgotpasswordscreen.invalid_email'), t('auth.forgotpasswordscreen.please_enter_a_valid_email_address'));
+    if (!isEmailFormatValid) {
+      return;
+    }
+    if (password.length < 6) {
       return;
     }
     if (password !== confirmPassword) {
-      alert(t('auth.registerscreen.passwords_mismatch'), t('auth.forgotpasswordscreen.passwords_do_not_match'));
       return;
     }
     if (!passwordValidation.isValid) {
@@ -249,21 +341,10 @@ const RegisterScreen = ({ navigation }: any) => {
           (code === 'DUPLICATE_ENTRY' && rawMsg.includes('email')));
 
       if (isActuallyRegistered) {
-        alert(
-          t('auth.otpscreen.account_ready', { defaultValue: 'Account Already Exists' }),
-          t('auth.otpscreen.your_account_is_already_registered_please_procee', {
-            defaultValue: `An account with ${cleanEmail} is already registered. Please log in with your password.`,
+        showErrorToast(
+          t('auth.registerscreen.email_already_registered_toast', {
+            defaultValue: 'This email is already registered. Please login instead.',
           }),
-          [
-            {
-              text: t('auth.otpscreen.go_to_login', { defaultValue: 'Go to Login' }),
-              onPress: () => navigation.navigate('Login', { email: cleanEmail }),
-            },
-            {
-              text: t('common.cancel', { defaultValue: 'Cancel' }),
-              style: 'cancel',
-            },
-          ]
         );
       } else {
         const serverMsg =
@@ -313,11 +394,8 @@ const RegisterScreen = ({ navigation }: any) => {
 
               {/* Main Content Area (Brand + Form unified) */}
               <View style={styles.mainContent}>
-                {/* Official Amara Brand Logo & Title */}
+                {/* Official Amara Brand Title */}
                 <View style={styles.brandContainer}>
-                  <View style={styles.logoHaloWrap}>
-                    <AttractiveLogo size={66} />
-                  </View>
                   <Text style={styles.brandTitle}>{t('home.homeheader.amara')}</Text>
                   <Text style={styles.pageHeading}>{t('auth.registerscreen.create_your_account')}</Text>
                 </View>
@@ -341,7 +419,7 @@ const RegisterScreen = ({ navigation }: any) => {
                   </View>
 
                   {/* Email Input Card */}
-                  <View style={styles.inputCard}>
+                  <View style={[styles.inputCard, showEmailError && styles.inputCardWithError]}>
                     <Text style={styles.inputLabel}>{t('auth.forgotpasswordscreen.email')}</Text>
                     <View style={styles.inputFieldRow}>
                       <Icon name="email-outline" size={20} color="#6B7280" style={styles.inputIcon} />
@@ -352,14 +430,22 @@ const RegisterScreen = ({ navigation }: any) => {
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
-                        onChangeText={setEmail}
+                        onChangeText={(val) => {
+                          setEmail(val);
+                          if (errorToastVisible) dismissErrorToast();
+                        }}
                         onFocus={() => scrollToInput(50)}
                       />
                     </View>
                   </View>
+                  {showEmailError && (
+                    <Text style={styles.validationErrorText}>
+                      {t('auth.loginscreen.invalid_email_address', { defaultValue: 'Invalid email address' })}
+                    </Text>
+                  )}
 
                   {/* Password Card */}
-                  <View style={styles.inputCard}>
+                  <View style={[styles.inputCard, showPasswordError && styles.inputCardWithError]}>
                     <Text style={styles.inputLabel}>{t('auth.loginscreen.password')}</Text>
                     <View style={styles.inputFieldRow}>
                       <Icon name="lock-outline" size={20} color="#6B7280" style={styles.inputIcon} />
@@ -369,7 +455,10 @@ const RegisterScreen = ({ navigation }: any) => {
                         placeholderTextColor="#9CA3AF"
                         secureTextEntry={!showPassword}
                         value={password}
-                        onChangeText={setPassword}
+                        onChangeText={(val) => {
+                          setPassword(val);
+                          if (errorToastVisible) dismissErrorToast();
+                        }}
                         onFocus={() => scrollToInput(140)}
                       />
                       <TouchableOpacity
@@ -384,6 +473,11 @@ const RegisterScreen = ({ navigation }: any) => {
                       </TouchableOpacity>
                     </View>
                   </View>
+                  {showPasswordError && (
+                    <Text style={styles.validationErrorText}>
+                      {t('auth.loginscreen.password_min_length', { defaultValue: 'Password must be at least 6 characters long' })}
+                    </Text>
+                  )}
 
                   {/* Password Requirements Checklist */}
                   {password.length > 0 && !passwordValidation.isValid && (
@@ -408,7 +502,7 @@ const RegisterScreen = ({ navigation }: any) => {
                   )}
 
                   {/* Confirm Password Card */}
-                  <View style={styles.inputCard}>
+                  <View style={[styles.inputCard, showConfirmPasswordError && styles.inputCardWithError]}>
                     <Text style={styles.inputLabel}>{t('auth.registerscreen.confirm_password')}</Text>
                     <View style={styles.inputFieldRow}>
                       <Icon name="lock-check-outline" size={20} color="#6B7280" style={styles.inputIcon} />
@@ -418,7 +512,10 @@ const RegisterScreen = ({ navigation }: any) => {
                         placeholderTextColor="#9CA3AF"
                         secureTextEntry={!showConfirmPassword}
                         value={confirmPassword}
-                        onChangeText={setConfirmPassword}
+                        onChangeText={(val) => {
+                          setConfirmPassword(val);
+                          if (errorToastVisible) dismissErrorToast();
+                        }}
                         onFocus={() => scrollToInput(210)}
                       />
                       <TouchableOpacity
@@ -433,6 +530,11 @@ const RegisterScreen = ({ navigation }: any) => {
                       </TouchableOpacity>
                     </View>
                   </View>
+                  {showConfirmPasswordError && (
+                    <Text style={styles.validationErrorText}>
+                      {t('auth.forgotpasswordscreen.passwords_do_not_match', { defaultValue: 'Passwords do not match.' })}
+                    </Text>
+                  )}
 
                   {/* Create Account Primary Button (White Pill Button as in Glambu) */}
                   <TouchableOpacity
@@ -477,6 +579,36 @@ const RegisterScreen = ({ navigation }: any) => {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </LinearGradient>
+
+      {/* Floating Bottom Toast with Small Amara Logo */}
+      {errorToastVisible && (
+        <Animated.View
+          style={[
+            styles.errorToastContainer,
+            {
+              opacity: toastOpacity,
+              transform: [{ translateY: toastTranslateY }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              dismissErrorToast();
+              navigation.navigate('Login', { email: email.trim() });
+            }}
+            style={styles.errorToastInner}
+          >
+            <View style={styles.toastLogoWrap}>
+              <AttractiveLogo size={26} />
+            </View>
+            <Text style={styles.errorToastText} numberOfLines={2}>
+              {errorMessage}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       {AlertComponent}
     </View>
   );
@@ -543,6 +675,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     marginBottom: 11,
+  },
+  inputCardWithError: {
+    marginBottom: 5,
+  },
+  validationErrorText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '400',
+    marginTop: -2,
+    marginBottom: 10,
+    marginLeft: 18,
+    letterSpacing: 0.2,
   },
   inputLabel: {
     fontSize: 11,
@@ -645,5 +789,50 @@ const styles = StyleSheet.create({
   reqChipTextMet: {
     color: '#10B981',
     fontWeight: '600',
+  },
+  errorToastContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'android' ? 54 : 66,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  errorToastInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#160E1A',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    maxWidth: '90%',
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+  },
+  toastLogoWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  errorToastText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 0.1,
+    lineHeight: 19,
+    textAlign: 'center',
+    flexShrink: 1,
   },
 });

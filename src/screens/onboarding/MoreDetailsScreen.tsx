@@ -26,12 +26,19 @@ import NetWorthSelector from '../../components/MoreInfoTabComponents/NetWorthSel
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Shadows, useTheme, type ThemeColors } from '../../theme';
 import { useProfile } from '../../api/useProfile';
-import { useUserImages, mapImagesToSlots } from '../../api/useImages';
+import {
+  useUserImages,
+  mapImagesToSlots,
+  getPhotoRejectionKind,
+  getPhotoRejectionCopy,
+  getUploadErrorMessage,
+} from '../../api/useImages';
 import apiClient from '../../api/apiClient';
 import { getAuthSession, completeOnboarding } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { mockStore } from '../../mock/mockStore';
 import { t, useTranslation } from '../../i18n';
+import { filterSupportedLanguages } from '../../utils/languageHelper';
 
 const MoreDetailsScreen = ({ navigation }: any) => {
   useTranslation();
@@ -269,7 +276,7 @@ const MoreDetailsScreen = ({ navigation }: any) => {
           'Hello, I am excited to meet new people here.',
         ),
         dob: safeDate.toISOString().split('T')[0],
-        language: normalizeJoinedValues(selectedLanguages, t('profile.userdetails.english')),
+        language: filterSupportedLanguages(selectedLanguages).join(', '),
         appearance: normalizeTextValue(selectedAppearance, t('profile.userdetails.attractive')),
         bodyType: normalizeTextValue(selectedBodyType, t('profile.userdetails.slim')),
         height: Number(height) || 165,
@@ -288,7 +295,7 @@ const MoreDetailsScreen = ({ navigation }: any) => {
 
       // 5. Build Details and Prefs Payloads
       const detailsPayload = {
-        language: normalizeJoinedValues(selectedLanguages, t('profile.userdetails.english')),
+        language: filterSupportedLanguages(selectedLanguages).join(', '),
         appearance: selectedAppearance || '',
         bodyType: selectedBodyType || '',
         height: Number(height) || 165,
@@ -376,15 +383,39 @@ const MoreDetailsScreen = ({ navigation }: any) => {
             (await AsyncStorage.getItem('userId')) ||
             (await mockStore.getCurrentUserId());
 
-          // Upload any local gallery images first so backend gallery count >= 3
+          // Upload any local gallery images first so backend gallery count >= 3.
+          // A rejected photo (no face / it isn't the verified person) must stop
+          // onboarding with an explanation instead of being silently dropped.
           if (uploadableImages.length > 0) {
-            await Promise.allSettled(
+            const uploadResults = await Promise.allSettled(
               uploadableImages.map((uri, i) =>
                 uploadImage.mutateAsync({
                   photo: { uri, name: `gallery_${i + 1}.jpg`, type: 'image/jpeg' },
                 }),
               ),
             );
+
+            const failedUpload = uploadResults.find(
+              (result): result is PromiseRejectedResult => result.status === 'rejected',
+            );
+
+            if (failedUpload) {
+              const uploadError = failedUpload.reason;
+              const rejectionKind = getPhotoRejectionKind(uploadError);
+              const copy = rejectionKind
+                ? getPhotoRejectionCopy(rejectionKind, t)
+                : {
+                    title: t('profile.profilephotogrid.upload_failed'),
+                    message:
+                      getUploadErrorMessage(uploadError) ||
+                      uploadError?.message ||
+                      t('profile.additionaluploadsection.failed_to_upload_image_to_server'),
+                  };
+
+              console.warn('[MoreDetails] Photo upload rejected:', copy.message);
+              alert(copy.title, copy.message, undefined, { force: true });
+              return;
+            }
           }
 
           // Persist via both combined setup and granular update endpoints

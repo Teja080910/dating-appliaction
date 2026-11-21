@@ -79,6 +79,8 @@ export const isDeletedPhotoUri = (
     filename.startsWith('image_') ||
     filename.startsWith('rn_image_picker');
 
+  const isRemoteUrl = (u: string) => /^https?:\/\//i.test(u.trim());
+
   return deletedList.some((d) => {
     if (!d) return false;
     const cleanD = String(d).trim();
@@ -87,7 +89,13 @@ export const isDeletedPhotoUri = (
     const dAbs = getAbsoluteUrlFn ? getAbsoluteUrlFn(cleanD) : cleanD;
     if (dAbs === abs || dAbs === clean) return true;
     const dFile = getFilenameFromUrl(cleanD).toLowerCase();
-    if (filename && dFile && !isGeneric && filename === dFile) return true;
+    if (filename && dFile && !isGeneric && filename === dFile) {
+      // Remote photos are identified by their full URL: the backend reuses
+      // names like /amara/SA1000/3.jpg, so a stale tombstone must not hide a
+      // freshly uploaded photo. Filename matching only applies to device-local
+      // URIs (file://, content://).
+      return !isRemoteUrl(clean);
+    }
     return false;
   });
 };

@@ -5,7 +5,16 @@ import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, useTheme, type ThemeColors } from '../../theme';
 import { requestPermissions } from '../../utils/types/permission';
-import { MAX_PROFILE_IMAGES, useUserImages } from '../../api/useImages';
+import {
+  MAX_PROFILE_IMAGES,
+  UPLOAD_PHOTO_OPTIONS,
+  useUserImages,
+  parseUploadResponse,
+  getUploadErrorMessage,
+  getPhotoRejectionKind,
+  getPhotoRejectionCopy,
+} from '../../api/useImages';
+import { verifySingleProfilePhoto } from '../../api/useFaceValidation';
 import { getAuthSession, isResolvedApiUserId } from '../../utils/session';
 import { getUserId } from '../../utils/sessionHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -74,8 +83,8 @@ const ModalAddPhoto = () => {
 
     const pickerResult =
       type === 'camera'
-        ? await launchCamera({ mediaType: 'photo', quality: 0.4, maxWidth: 720, maxHeight: 960 })
-        : await launchImageLibrary({ mediaType: 'photo', quality: 0.4, maxWidth: 720, maxHeight: 960 });
+        ? await launchCamera(UPLOAD_PHOTO_OPTIONS)
+        : await launchImageLibrary(UPLOAD_PHOTO_OPTIONS);
 
     const asset = pickerResult.assets?.[0];
     if (!asset?.uri) {
@@ -121,35 +130,28 @@ const ModalAddPhoto = () => {
     };
 
     try {
+      // Face-check before upload, for every account regardless of gender.
+      const verdict = await verifySingleProfilePhoto({
+        userId: userId ? String(userId) : undefined,
+        photoUri: asset.uri,
+        isFirstPhoto: !uploadedImageCount,
+      }).catch(() => null);
+
+      if (verdict) {
+        setIsModalVisible(false);
+        const copy = getPhotoRejectionCopy(verdict, t);
+        alert(copy.title, copy.message, undefined, { force: true });
+        return;
+      }
+
       const uploadResponse = await uploadImage.mutateAsync({
         uid: userId ? String(userId) : undefined,
         photo: asset,
       });
 
-      let uploadedUrl: string | null = null;
-      if (typeof uploadResponse === 'object' && uploadResponse !== null) {
-        uploadedUrl =
-          uploadResponse?.imageUrl ||
-          uploadResponse?.data?.imageUrl ||
-          uploadResponse?.url ||
-          uploadResponse?.data?.url ||
-          null;
-      } else if (typeof uploadResponse === 'string') {
-        const s = uploadResponse.trim();
-        if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/') || /\.(jpg|jpeg|png|webp|gif)/i.test(s)) {
-          uploadedUrl = s;
-        }
-      }
-      if (!uploadedUrl) {
-        uploadedUrl = asset.uri;
-      }
-
-      const uploadedImageId =
-        typeof uploadResponse?.id === 'number'
-          ? uploadResponse.id
-          : typeof uploadResponse?.data?.id === 'number'
-            ? uploadResponse.data.id
-            : null;
+      const uploaded = parseUploadResponse(uploadResponse);
+      const uploadedUrl = uploaded.imageUrl || asset.uri;
+      const uploadedImageId = uploaded.id;
 
       if ((selectedIndex === 0 || selectedIndex === null) && uploadedImageId && userId) {
         await setProfilePhoto.mutateAsync({
@@ -161,73 +163,100 @@ const ModalAddPhoto = () => {
       updateTargetSlot(uploadedUrl);
       setIsModalVisible(false);
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        t('profile.additionaluploadsection.failed_to_upload_image_to_server');
-
-      // Keep user's chosen local photo in the slot even if server call failed
-      updateTargetSlot(asset.uri);
       setIsModalVisible(false);
 
-      if (String(message).toLowerCase().includes('max 5 images allowed')) {
+      // A rejected photo is NOT kept in the slot: progression must only happen
+      // with photos the back end actually accepted.
+      const rejectionKind = getPhotoRejectionKind(error, {
+        isPrimary: !uploadedImageCount,
+      });
+      if (rejectionKind) {
+        const copy = getPhotoRejectionCopy(rejectionKind, t);
+        alert(copy.title, copy.message, undefined, { force: true });
+        return;
+      }
+
+      const serverMessage = getUploadErrorMessage(error);
+      if (serverMessage) {
+        const isLimitError = serverMessage.toLowerCase().includes('images allowed');
         alert(
-          t('profile.modaladdphoto.photo_limit_reached'),
-          t('profile.modaladdphoto.you_already_have_5_photos_saved_on_the_server_de')
+          isLimitError
+            ? t('profile.modaladdphoto.photo_limit_reached')
+            : t('profile.profilephotogrid.upload_failed'),
+          serverMessage,
+          undefined,
+          { force: true }
         );
         return;
       }
 
-      console.warn('Upload image warning:', message);
+      const fallbackMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        t('profile.additionaluploadsection.failed_to_upload_image_to_server');
+
+      // Expected rejections are surfaced in the alert above, not as a dev
+      // LogBox error/warning overlay.
+      console.log('Upload image failed:', fallbackMessage);
+      alert(
+        t('profile.profilephotogrid.upload_failed'),
+        String(fallbackMessage),
+        undefined,
+        { force: true }
+      );
     }
   };
 
   return (
-    <Modal visible={isModalVisible} transparent animationType="slide">
-      <TouchableOpacity
-        style={styles.modalContainer}
-        activeOpacity={1}
-        onPress={() => setIsModalVisible(false)}
-      >
-        <View style={styles.modalBox}>
-          <View style={styles.handle} />
-          <Text style={styles.modalTitle}>{t('profile.modaladdphoto.choose_photo_source')}</Text>
-          <Text style={styles.modalSubtitle}>{t('profile.modaladdphoto.upload_a_bright_clear_photo_that_looks_like_you')}</Text>
+    <>
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={() => setIsModalVisible(false)}
+        >
+          <View style={styles.modalBox}>
+            <View style={styles.handle} />
+            <Text style={styles.modalTitle}>{t('profile.modaladdphoto.choose_photo_source')}</Text>
+            <Text style={styles.modalSubtitle}>{t('profile.modaladdphoto.upload_a_bright_clear_photo_that_looks_like_you')}</Text>
 
-          <View style={styles.optionsRow}>
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => {
-                onPickImage('gallery').catch(() => null);
-              }}>
-              <View style={[styles.iconBox, styles.galleryIconBox]}>
-                <Icon name="image-multiple" size={30} color={Colors.primary} />
-              </View>
-              <Text style={styles.optionText}>{t('profile.modaladdphoto.gallery')}</Text>
-            </TouchableOpacity>
+            <View style={styles.optionsRow}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => {
+                  onPickImage('gallery').catch(() => null);
+                }}>
+                <View style={[styles.iconBox, styles.galleryIconBox]}>
+                  <Icon name="image-multiple" size={30} color={Colors.primary} />
+                </View>
+                <Text style={styles.optionText}>{t('profile.modaladdphoto.gallery')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => {
+                  onPickImage('camera').catch(() => null);
+                }}>
+                <View style={[styles.iconBox, styles.cameraIconBox]}>
+                  <Icon name="camera-plus" size={30} color={Colors.secondary} />
+                </View>
+                <Text style={styles.optionText}>{t('profile.modaladdphoto.camera')}</Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => {
-                onPickImage('camera').catch(() => null);
-              }}>
-              <View style={[styles.iconBox, styles.cameraIconBox]}>
-                <Icon name="camera-plus" size={30} color={Colors.secondary} />
-              </View>
-              <Text style={styles.optionText}>{t('profile.modaladdphoto.camera')}</Text>
+              style={styles.cancelButton}
+              onPress={() => setIsModalVisible(false)}
+            >
+              <Text style={styles.cancelText}>{t('profile.additionaluploadsection.cancel')}</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setIsModalVisible(false)}
-          >
-            <Text style={styles.cancelText}>{t('profile.additionaluploadsection.cancel')}</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+      {/* Rendered outside the picker modal so rejections are still visible
+          after the picker closes. */}
       {AlertComponent}
-    </Modal>
+    </>
   );
 };
 

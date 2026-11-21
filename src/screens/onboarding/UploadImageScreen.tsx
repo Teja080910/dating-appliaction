@@ -21,7 +21,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme, type ThemeColors } from '../../theme';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import { t, useTranslation } from '../../i18n';
-import { useFaceValidation, useSelfieVerificationUrl, isFaceServiceUnavailable } from '../../api/useFaceValidation';
+import { useFaceValidation, useSelfieVerificationUrl } from '../../api/useFaceValidation';
 import { getUserId } from '../../utils/sessionHelper';
 import { getAuthSession } from '../../utils/session';
 
@@ -40,17 +40,14 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     name,
     setIsModalVisible,
     setSelectedIndex,
-    verifiedSelfie,
   } = useContext(AppContext);
   const { uploadVerificationPhotos } = useFaceValidation();
   const { data: dynamicSelfieUrl } = useSelfieVerificationUrl();
   const [isCheckingPhotos, setIsCheckingPhotos] = useState(false);
 
-  const hasActiveAiUrl = Boolean(
-    dynamicSelfieUrl &&
-    !dynamicSelfieUrl.includes('ngrok-free.dev') &&
-    dynamicSelfieUrl.startsWith('http')
-  );
+  // Any URL the backend currently hands over is usable; short-lived tunnels
+  // (ngrok) are refreshed from the backend instead of being rejected by host.
+  const hasActiveAiUrl = Boolean(dynamicSelfieUrl && dynamicSelfieUrl.startsWith('http'));
 
   // We enforce 6 slots
   const slots = [0, 1, 2, 3, 4, 5];
@@ -153,20 +150,16 @@ const UploadPhotosScreen = ({ navigation }: any) => {
           }
         } catch (err: any) {
           const serverError = err?.response?.data?.error || err?.response?.data?.message;
-          const rawMessage = String(serverError || err?.message || '');
 
-          if (!isFaceServiceUnavailable(err)) {
-            // Face verification is active and explicitly rejected the photos: do NOT use fallback, block progression
-            setIsCheckingPhotos(false);
-            Alert.alert(
-              'Face Verification Required',
-              serverError || 'Uploaded photos must contain a clear human face matching your verified selfie. Please replace photos of other subjects.'
-            );
-            return;
-          }
-
-          // If AI service is not running/unreachable, allow fallback progression
-          console.warn('[FaceValidation] AI service offline, allowing fallback progression:', rawMessage);
+          // No fallback: a photo set that could not be face-verified must not
+          // be let through. The user has to replace the offending photos.
+          setIsCheckingPhotos(false);
+          Alert.alert(
+            'Face Verification Failed',
+            serverError ||
+              'We could not verify a face in your photos. Each photo must clearly show your face and match your verified selfie.',
+          );
+          return;
         }
       }
     } catch (e) {

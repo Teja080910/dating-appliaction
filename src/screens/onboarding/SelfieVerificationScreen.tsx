@@ -28,6 +28,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useProfile } from '../../api/useProfile';
+import { useUserImages, parseUploadResponse } from '../../api/useImages';
 import { useFaceValidation, useSelfieVerificationUrl, isFaceServiceUnavailable } from '../../api/useFaceValidation';
 import { useTheme, Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
@@ -107,14 +108,13 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const { verifySelfie, uploadSelfie } = useProfile();
+  const { uploadImage } = useUserImages();
   const { uploadLivePhoto } = useFaceValidation();
   const { data: dynamicSelfieUrl } = useSelfieVerificationUrl();
 
-  const hasActiveAiUrl = Boolean(
-    dynamicSelfieUrl &&
-    !dynamicSelfieUrl.includes('ngrok-free.dev') &&
-    dynamicSelfieUrl.startsWith('http')
-  );
+  // Any URL the backend currently hands over is usable; short-lived tunnels
+  // (ngrok) are refreshed from the backend instead of being rejected by host.
+  const hasActiveAiUrl = Boolean(dynamicSelfieUrl && dynamicSelfieUrl.startsWith('http'));
 
   // 1. Proactively check camera permission on mount and focus
   const checkCameraPermission = useCallback(async () => {
@@ -314,23 +314,16 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
       const rawMessage = String(serverError || err?.message || '');
 
       if (isFaceServiceUnavailable(err)) {
-        console.warn('[SelfieVerification] AI service unreachable over ngrok:', rawMessage);
+        // No "use this selfie anyway" escape hatch: an unverified selfie must
+        // not become the reference image for the account.
+        console.warn('[SelfieVerification] AI service unreachable:', rawMessage);
         alert(
-          'Verification Connection',
-          'Could not reach the AI face verification service right now. You can retry or proceed with this selfie.',
+          'Verification Unavailable',
+          'Could not reach the face verification service. Please check your connection and try again.',
           [
             {
               text: 'Retry',
               onPress: () => startFaceVerification(photoUri),
-            },
-            {
-              text: 'Use This Selfie',
-              onPress: () => {
-                setScanProgress(100);
-                setVerificationStageText('Selfie captured! ✓');
-                setIsVerifying(false);
-                setScanComplete(true);
-              },
             },
           ]
         );
@@ -442,26 +435,13 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
     setIsSubmitting(true);
     try {
-      // 1. Mark verified in storage and state
-      await AsyncStorage.setItem('@selfie_verified', 'true');
-      setVerifiedSelfie?.(true);
-
-      // 2. Pre-fill slot 0 in profile images so Step 4 (UploadImageScreen) has 1 verified face photo ready
-      const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
-      while (currentSlots.length < 6) currentSlots.push(null);
-      if (!currentSlots[0]) {
-        currentSlots[0] = capturedPhotoUri;
-        setImages?.(currentSlots);
-        setProfileImage?.(capturedPhotoUri);
-        setProfileImageUrl?.(capturedPhotoUri);
-        AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots)).catch(() => {});
-        AsyncStorage.setItem('profileImage', capturedPhotoUri).catch(() => {});
-      }
-
-      // 3. Sync to backend: upload selfie & set verification flag
       const authSession = await getAuthSession();
       const uid = authSession?.userId || (await getUserId().catch(() => null));
 
+      // 1. Upload the reference selfie, then have the backend verify it. This
+      //    MUST succeed before anything is marked verified: every later gallery
+      //    photo is matched against this selfie.
+      let spotPhotoUri = capturedPhotoUri;
       try {
         await uploadSelfie.mutateAsync({
           photo: {
@@ -471,11 +451,64 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
           },
           uid: uid ? String(uid) : undefined,
         });
-      } catch (upErr) {
-        console.warn('Selfie upload error:', upErr);
+
+        // The backend refuses to verify before the account has a profile photo
+        // ("Upload a profile photo first."), so the selfie also becomes the
+        // first gallery image. It is the user's face by definition.
+        const uploaded = parseUploadResponse(
+          await uploadImage.mutateAsync({
+            photo: {
+              uri: capturedPhotoUri,
+              name: `selfie_${Date.now()}.jpg`,
+              type: 'image/jpeg',
+            },
+          })
+        );
+        if (uploaded.imageUrl) {
+          spotPhotoUri = uploaded.imageUrl;
+        }
+
+        await verifySelfie.mutateAsync({
+          uid: uid ? String(uid) : undefined,
+        });
+      } catch (verifyErr: any) {
+        const message =
+          verifyErr?.response?.data?.message ||
+          verifyErr?.response?.data?.error ||
+          verifyErr?.message ||
+          t('onboarding.selfieverificationscreen.verification_failed_desc', {
+            defaultValue:
+              'We could not verify your selfie. Please retake it in good lighting and try again.',
+          });
+        console.warn('[SelfieVerification] upload/verify failed:', message);
+        alert(
+          t('onboarding.selfieverificationscreen.verification_failed_title', {
+            defaultValue: 'Verification Failed',
+          }),
+          String(message)
+        );
+        return;
       }
 
-      // Sync to external AI face validation service (ngrok)
+      // 2. Mark verified in storage and state only after the backend agreed
+      await AsyncStorage.setItem('@selfie_verified', 'true');
+      setVerifiedSelfie?.(true);
+
+      // 3. Pre-fill slot 0 in profile images so Step 4 (UploadImageScreen) has 1 verified face photo ready
+      const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
+      while (currentSlots.length < 6) currentSlots.push(null);
+      currentSlots[0] = spotPhotoUri;
+      setImages?.(currentSlots);
+      setProfileImage?.(spotPhotoUri);
+      setProfileImageUrl?.(spotPhotoUri);
+      AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots)).catch(() => {});
+      AsyncStorage.setItem('profileImage', spotPhotoUri).catch(() => {});
+      if (uid) {
+        AsyncStorage.setItem(`user_photos_${String(uid)}`, JSON.stringify(currentSlots)).catch(() => {});
+        AsyncStorage.setItem(`user_profile_photo_${String(uid)}`, spotPhotoUri).catch(() => {});
+      }
+
+      // 4. Mirror to the external AI face service (best effort, not blocking)
       try {
         await uploadLivePhoto.mutateAsync({
           userId: uid ? String(uid) : undefined,
@@ -485,15 +518,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
         console.warn('Face validation service live photo upload error:', faceErr);
       }
 
-      try {
-        await verifySelfie.mutateAsync({
-          uid: uid ? String(uid) : undefined,
-        });
-      } catch (verifyErr) {
-        console.warn('Biometric verify error:', verifyErr);
-      }
-
-      // 4. Navigate to Step 4: Photo Upload
+      // 5. Navigate to Step 4: Photo Upload
       if (navigation.canGoBack()) {
         navigation.navigate('UploadImage');
       } else {
@@ -501,11 +526,15 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
       }
     } catch (e) {
       console.error('Error confirming verification:', e);
-      if (navigation.canGoBack()) {
-        navigation.navigate('UploadImage');
-      } else {
-        navigation.replace('UploadImage');
-      }
+      alert(
+        t('onboarding.selfieverificationscreen.verification_failed_title', {
+          defaultValue: 'Verification Failed',
+        }),
+        t('onboarding.selfieverificationscreen.verification_failed_desc', {
+          defaultValue:
+            'We could not verify your selfie. Please retake it in good lighting and try again.',
+        })
+      );
     } finally {
       setIsSubmitting(false);
     }

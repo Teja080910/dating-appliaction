@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './apiClient';
 import { clearFullSession, hasSessionToken, saveAuthSession } from '../utils/session';
+import { clearUserScopedCache } from '../utils/sessionState';
 import { getUserId } from '../utils/sessionHelper';
 import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
 import { registerDeviceToken } from '../utils/pushNotificationHelper';
@@ -204,12 +205,25 @@ export const useAuth = () => {
       if (!effectiveMobile) {
         delete (payload as any).mobile;
       }
+      // Captured before the new session overwrites storage.
+      const previousUserId = (await AsyncStorage.getItem('userId').catch(() => null)) || '';
+
       const res = await apiClient.post('/login', payload);
       const normalizedResponse = normalizeAuthResponse(res.data, res.headers);
       const persisted = await persistSessionIfAvailable(normalizedResponse);
 
       // ✅ FIX: define here (global in function scope)
       const cleanUserId = extractUserId(persisted?.userId);
+
+      // A different account is signing in: drop the previous identity's cached
+      // photos/phone/tombstones so its userId is never reused for writes.
+      if (
+        previousUserId &&
+        cleanUserId &&
+        String(previousUserId).trim() !== String(cleanUserId).trim()
+      ) {
+        await clearUserScopedCache(previousUserId);
+      }
 
       if (persisted?.token) {
         const userEmail = String(payload.email || persisted?.user?.email || '').trim().toLowerCase();

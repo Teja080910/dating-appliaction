@@ -43,7 +43,7 @@ export const isDeletedUserRecord = (user: any): boolean => {
   if (user.deactivated === true || p.deactivated === true) return true;
   if (user.isActive === false || p.isActive === false) return true;
   const status = String(user.status || p.status || '').toUpperCase();
-  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(status)) {
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION', 'PENDING_DELETION'].includes(status)) {
     return true;
   }
   const accountStatus = String(user.accountStatus || p.accountStatus || '').toUpperCase();

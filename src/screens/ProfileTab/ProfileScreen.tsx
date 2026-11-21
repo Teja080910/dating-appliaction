@@ -14,7 +14,6 @@ import { Colors, Spacing, useTheme } from '../../theme';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useMyProfile } from '../../api/useProfile';
 import { useSubscription } from '../../api/useSubscription';
-import AttractiveLogo from '../../components/AttractiveLogo';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SUPPORT_EMAIL } from '../../environment/ApiConfig';
@@ -65,7 +64,7 @@ const ProfileScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender, isSubscribed, authUserId } =
     useContext(AppContext);
-  const { logout, deleteAccount } = useAuth();
+  const { logout, deactivateAccount } = useAuth();
   const { alert, AlertComponent } = useAlert();
   const { data: myProfile } = useMyProfile();
   const [userEmail, setUserEmail] = useState<string>('');
@@ -206,33 +205,48 @@ const ProfileScreen = () => {
     try {
       setIsDeleting(true);
       const resolvedUserId = (await getUserId()) || myProfile?.userId || myProfile?.id;
-      if (resolvedUserId) {
-        await recordDeletedAccountLocally(resolvedUserId);
+      if (!resolvedUserId) {
+        setIsDeleting(false);
+        setDeleteModalVisible(false);
+        alert(
+          t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
+          'Unable to identify account. Please try again.',
+        );
+        return;
       }
-      deleteAccount.mutate(resolvedUserId, {
+
+      deactivateAccount.mutate(resolvedUserId, {
         onSuccess: async () => {
           setDeleteModalVisible(false);
+          await recordDeletedAccountLocally(
+            resolvedUserId,
+            userEmail || myProfile?.email || contextEmail,
+          );
           await clearFullSession();
           setLogin?.(false);
           setAuthUserId?.(null);
           navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
         },
-        onError: async (error: any) => {
-          console.error('Delete error:', error);
+        onError: (error: any) => {
+          console.error('Deactivate account error:', error);
           setDeleteModalVisible(false);
-          await clearFullSession();
-          setLogin?.(false);
-          setAuthUserId?.(null);
-          navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+          const errorMsg =
+            error?.response?.data?.message ||
+            error?.message ||
+            'Failed to schedule account for deletion. Please try again.';
+          alert(
+            t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
+            String(errorMsg),
+          );
         },
       });
-    } catch (error) {
-      console.error('Delete error:', error);
+    } catch (error: any) {
+      console.error('Deactivate account catch error:', error);
       setDeleteModalVisible(false);
-      await clearFullSession();
-      setLogin?.(false);
-      setAuthUserId?.(null);
-      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+      alert(
+        t('profile.additionaluploadsection.error', { defaultValue: 'Error' }),
+        'Failed to schedule account for deletion. Please try again.',
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -247,10 +261,7 @@ const ProfileScreen = () => {
 
       {/* Brand Header */}
       <View style={styles.brandHeader}>
-        <View style={styles.logoRow}>
-          <AttractiveLogo size={28} />
-          <Text style={styles.logoText}>{t('home.homeheader.amara')}</Text>
-        </View>
+        <Text style={styles.logoText}>{t('home.homeheader.amara')}</Text>
       </View>
 
       <ScrollView
@@ -563,16 +574,11 @@ const createStyles = (colors: any) =>
       borderBottomColor: colors.divider,
       backgroundColor: colors.background,
     },
-    logoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
     logoText: {
       fontSize: 24,
       fontWeight: '800',
-      color: colors.primary,
+      color: '#FFFFFF',
       letterSpacing: 0.5,
-      marginLeft: 8,
     },
     scrollContent: {
       flexGrow: 1,

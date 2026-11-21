@@ -224,31 +224,9 @@ export const dispatchTelegramMatchNotification = async (
     } catch {}
   }
 
-  // 2. Direct Telegram Bot API fallback using token
-  const BOT_TOKEN = '8623345787:AAHbtum1TKbgW1xprMwKzOm510pmQiVTpNg';
-  try {
-    const storedChatId =
-      (await AsyncStorage.getItem(`@amara_tg_chat_id_${maleUserId}`).catch(() => null)) ||
-      (cleanMaleTg ? await AsyncStorage.getItem(`@amara_tg_chat_id_${cleanMaleTg.toLowerCase()}`).catch(() => null) : null);
-
-    if (storedChatId) {
-      const directRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: storedChatId,
-          text: messageText,
-          parse_mode: 'Markdown',
-        }),
-      });
-      if (directRes && directRes.ok) {
-        console.log('✅ [Telegram Notification] Sent directly via Telegram Bot API to chatId:', storedChatId);
-        return true;
-      }
-    }
-  } catch (err: any) {
-    console.warn('⚠️ [Telegram Notification] Direct Bot API error:', err?.message);
-  }
-
+  // No direct Telegram Bot API fallback: the bot token must never ship inside
+  // the app bundle. Notifications are delivered by the bot webhook above (or by
+  // the backend). A token embedded in the APK is extractable and gets the bot
+  // revoked by Telegram.
   return false;
 };

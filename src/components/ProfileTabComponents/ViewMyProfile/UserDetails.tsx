@@ -32,7 +32,7 @@ import { useAlert } from '../../../components/AlertModal';
 import { openTelegramChat } from '../../../utils/telegramHelper';
 import { useMyTelegramStatus } from '../../../api/useTelegram';
 import { openWhatsAppChat, shareWhatsAppContact, extractPhone, extractTelegram, isInvalidPhoneNumber, isInvalidTelegramHandle, formatDisplayPhone } from '../../../utils/whatsappHelper';
-import { getLanguageFlag } from '../../../utils/languageHelper';
+import { getLanguageFlag, filterSupportedLanguages } from '../../../utils/languageHelper';
 import { resolveProfileDistance } from '../../../utils/distanceHelper';
 import { getCurrentLocation } from '../../../utils/geolocation';
 import { t, useTranslation } from '../../../i18n';
@@ -700,15 +700,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     );
   };
 
-  const parsedLanguages = normalizeTextValue(resolvedProfile?.language || profile.language, '')
-    .split(',')
-    .map((lang) => lang.trim())
-    .filter((lang) => lang && !hiddenLanguages.has(lang.toLowerCase()));
+  const rawLangSource =
+    resolvedProfile?.language ||
+    profile?.language ||
+    (Array.isArray(selectedLanguages) && selectedLanguages.length > 0 ? selectedLanguages : null);
 
-  const resolvedLanguages =
-    parsedLanguages && parsedLanguages.length > 0
-      ? parsedLanguages
-      : (Array.isArray(selectedLanguages) && selectedLanguages.length > 0 ? selectedLanguages : []);
+  const resolvedLanguages = filterSupportedLanguages(rawLangSource);
   const visibleLookingFor = normalizeTextValue(
     resolvedProfile?.lookingFor || profile?.lookingFor,
     isOwnProfile
