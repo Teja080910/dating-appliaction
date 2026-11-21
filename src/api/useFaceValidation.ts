@@ -58,6 +58,26 @@ export const extractSelfieVerificationUrl = (payload: any): string | null => {
       payload.data?.verification_url,
       payload.data?.aiVerificationUrl,
       payload.data?.ai_verification_url,
+      payload.properties?.selfieVerification,
+      payload.properties?.selfie_verification,
+      payload.properties?.selfieVerificationUrl,
+      payload.properties?.selfie_verification_url,
+      payload.properties?.selfieUrl,
+      payload.properties?.selfie_url,
+      payload.properties?.faceValidationUrl,
+      payload.properties?.face_validation_url,
+      payload.properties?.verificationUrl,
+      payload.properties?.verification_url,
+      payload.data?.properties?.selfieVerification,
+      payload.data?.properties?.selfie_verification,
+      payload.data?.properties?.selfieVerificationUrl,
+      payload.data?.properties?.selfie_verification_url,
+      payload.data?.properties?.selfieUrl,
+      payload.data?.properties?.selfie_url,
+      payload.data?.properties?.faceValidationUrl,
+      payload.data?.properties?.face_validation_url,
+      payload.data?.properties?.verificationUrl,
+      payload.data?.properties?.verification_url,
       payload.user?.selfieVerification,
       payload.user?.selfie_verification,
       payload.user?.selfieVerificationUrl,
@@ -76,6 +96,30 @@ export const extractSelfieVerificationUrl = (payload: any): string | null => {
         }
       }
     }
+
+    // Dynamic recursive key search for any property containing 'selfie', 'face', or 'verification' with a valid URL
+    const searchKeys = (obj: any, depth = 0): string | null => {
+      if (!obj || typeof obj !== 'object' || depth > 3) return null;
+      for (const [key, val] of Object.entries(obj)) {
+        const lowerKey = key.toLowerCase();
+        if (
+          (lowerKey.includes('selfie') || lowerKey.includes('face') || lowerKey.includes('verification')) &&
+          typeof val === 'string'
+        ) {
+          const trimmed = val.trim();
+          if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            return trimmed.replace(/\/+$/, '');
+          }
+        }
+        if (typeof val === 'object' && val !== null) {
+          const nested = searchKeys(val, depth + 1);
+          if (nested) return nested;
+        }
+      }
+      return null;
+    };
+    const found = searchKeys(payload);
+    if (found) return found;
   }
   return null;
 };
@@ -134,41 +178,35 @@ export const getStoredSelfieVerificationUrl = async (): Promise<string | null> =
 };
 
 /**
- * Fetch dynamic selfie verification URL from backend endpoint or cached storage,
- * matching how fetchAmaraBotName works.
+ * Fetch selfie verification URL from stored API properties or live profile response.
+ * As confirmed by backend team, the URL is not on dedicated endpoints; it is delivered
+ * via API response properties once activated by backend.
  */
 export const fetchSelfieVerificationUrl = async (): Promise<string | null> => {
-  // 1. Try dedicated endpoints if the backend exposes one (e.g. /selfie/verification-url)
-  const candidateEndpoints = [
-    '/selfie/verification-url',
-    '/selfie-verification-url',
-    '/selfie/url',
-    '/verification/url',
-    '/profile/selfie/url',
-  ];
-  for (const ep of candidateEndpoints) {
-    try {
-      const res = await apiClient.get(ep);
-      const url = extractSelfieVerificationUrl(res?.data);
-      // A URL handed over by the backend right now is always accepted — even a
-      // short-lived ngrok tunnel. Only cached copies are treated as stale.
-      if (url) {
-        await saveSelfieVerificationUrl(url);
-        return url;
-      }
-    } catch {}
-  }
-
-  // 2. Cached value, as long as it has not exceeded its lifetime
+  // 1. Cached value from previously received API response properties
   const cached = await getStoredSelfieVerificationUrl();
   if (cached) {
     return cached;
   }
 
-  // 3. Fallback to the configured default
-  if (DEFAULT_SELFIE_VERIFICATION_URL) {
-    return DEFAULT_SELFIE_VERIFICATION_URL;
-  }
+  // 2. Query live profile/me API to extract the property if already active in backend
+  try {
+    const authSession = await getAuthSession();
+    const uid = authSession?.userId;
+    if (uid) {
+      const res = await apiClient
+        .get(`/profile/me/${uid}`)
+        .catch(() => apiClient.get('/profile/me'))
+        .catch(() => null);
+      if (res?.data) {
+        const url = extractSelfieVerificationUrl(res.data);
+        if (url) {
+          await saveSelfieVerificationUrl(url);
+          return url;
+        }
+      }
+    }
+  } catch {}
 
   return null;
 };

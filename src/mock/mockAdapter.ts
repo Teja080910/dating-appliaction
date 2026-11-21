@@ -164,9 +164,7 @@ export const handleMockRequest = async (
       message: `Registration initiated. Verification code sent to ${identifier}.`,
       otp, // Exposed in mock for automated testing
       sessionId,
-      selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
-      selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
-      data: { sessionId, email: isEmail ? identifier : undefined, mobile: !isEmail ? identifier : undefined, name, selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev', selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev' },
+      data: { sessionId, email: isEmail ? identifier : undefined, mobile: !isEmail ? identifier : undefined, name },
     });
   }
 
@@ -224,8 +222,6 @@ export const handleMockRequest = async (
       message: 'User registered successfully',
       token: `mock-jwt-token-${user.userId}`,
       userId: user.userId,
-      selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
-      selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
       user: {
         id: user.id,
         userId: user.userId,
@@ -747,9 +743,9 @@ export const handleMockRequest = async (
   if (method === 'GET' && (url.includes('/selfie/verification-url') || url.includes('/selfie-verification-url') || url.includes('/selfie/url'))) {
     return createMockResponse(config, 200, {
       status: 'success',
-      selfieVerification: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
-      selfieVerificationUrl: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
-      url: 'https://clutch-unashamed-lunacy.ngrok-free.dev',
+      selfieVerification: null,
+      selfieVerificationUrl: null,
+      url: null,
     });
   }
 

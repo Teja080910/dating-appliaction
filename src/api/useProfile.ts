@@ -8,6 +8,7 @@ import { getAuthSession, repairStoredSessionIdentity } from '../utils/session';
 import { t } from '../i18n';
 import { generateDeterministicMobile } from '../utils/authPayload';
 import { parseDobToLocalDate, formatDateToDobString, calculateAgeFromDob, isValidAdultDob } from '../utils/dateUtils';
+import { extractSelfieVerificationUrl, saveSelfieVerificationUrl } from './useFaceValidation';
 
 const allowedFields = [
   'name',
@@ -408,6 +409,10 @@ export const useMyProfile = (uid?: any) => {
           .catch(() => apiClient.get(`/profile/get/${resolvedUserId}`))
           .catch(() => apiClient.get('/profile/get', { params: { userId: resolvedUserId } }));
         if (!cancelled) {
+          const selfieUrl = extractSelfieVerificationUrl(res?.data);
+          if (selfieUrl) {
+            void saveSelfieVerificationUrl(selfieUrl);
+          }
           const norm = normalizeProfile(res.data);
           const isPhoneRemovedGlobal = (await AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null)) === 'true';
           const isPhoneRemovedUid = resolvedUserId
