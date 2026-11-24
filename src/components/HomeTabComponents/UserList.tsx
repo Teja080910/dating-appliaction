@@ -42,7 +42,6 @@ const hasActiveSearchFilters = (saved: any): boolean => {
     (Array.isArray(saved.englishLevel) && saved.englishLevel.length > 0) ||
     (Array.isArray(saved.ethnicity) && saved.ethnicity.length > 0) ||
     (Array.isArray(saved.lookingFor) && saved.lookingFor.length > 0) ||
-    (saved.smoke !== undefined && saved.smoke !== null && saved.smoke !== '') ||
     (saved.drink !== undefined && saved.drink !== null && saved.drink !== '') ||
     (saved.location &&
       saved.location.trim() !== '' &&
@@ -174,22 +173,7 @@ export const matchesSearchFilters = (
     }
   }
 
-  // 9. Smoke
-  if (savedFilters.smoke !== undefined && savedFilters.smoke !== null && savedFilters.smoke !== '') {
-    const rawSmoke = String(p.smoke ?? item.smoke ?? '').toLowerCase().trim();
-    const filterSmoke = String(savedFilters.smoke).toLowerCase().trim();
-    if (rawSmoke) {
-      if (filterSmoke === 'no') {
-        if (!['no', 'false', '0', 'never', 'non-smoker', 'non smoker'].includes(rawSmoke)) return false;
-      } else if (filterSmoke === 'yes') {
-        if (!['yes', 'true', '1', 'smoker'].includes(rawSmoke)) return false;
-      } else if (filterSmoke === 'sometimes') {
-        if (!['sometimes', 'occasionally'].includes(rawSmoke)) return false;
-      }
-    }
-  }
-
-  // 10. Drink
+  // 9. Drink
   if (savedFilters.drink !== undefined && savedFilters.drink !== null && savedFilters.drink !== '') {
     const rawDrink = String(p.drink ?? item.drink ?? '').toLowerCase().trim();
     const filterDrink = String(savedFilters.drink).toLowerCase().trim();
@@ -418,6 +402,17 @@ const isBlockedProfile = (item: any, blockedIds: string[]): boolean => {
     (Boolean(itemId) && blockedIds.includes(itemId)) ||
     (Boolean(itemUserId) && blockedIds.includes(itemUserId))
   );
+};
+
+const dedupeProfiles = (list: any[]): any[] => {
+  const seen = new Set<string>();
+  return list.filter((item) => {
+    const id = String(resolveProfileUserId(item) || item?.id || item?.userId || '').trim();
+    if (!id) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 };
 
 const UserList = ({
@@ -727,7 +722,7 @@ const UserList = ({
           : radiusFiltered;
 
         if (isMounted) {
-          setProfiles(finalItems);
+          setProfiles(dedupeProfiles(finalItems));
           setPage(0);
           setHasMore(finalItems.length >= 10);
           setLoadingMore(false);
@@ -831,7 +826,9 @@ const UserList = ({
         } else {
           setProfiles((prev) => {
             const existingIds = new Set(prev.map((p) => String(resolveProfileUserId(p) || p.id)));
-            const uniqueNew = finalItems.filter((p) => !existingIds.has(String(resolveProfileUserId(p) || p.id)));
+            const uniqueNew = dedupeProfiles(
+              finalItems.filter((p) => !existingIds.has(String(resolveProfileUserId(p) || p.id)))
+            );
             return [...prev, ...uniqueNew];
           });
           setPage(nextPage);
@@ -869,7 +866,12 @@ const UserList = ({
       key={`userlist-cols-${columns}`}
       data={profiles}
       numColumns={columns}
-      keyExtractor={(item, index) => item?.userId || item?.id?.toString() || index.toString()}
+      keyExtractor={(item, index) => {
+        const id = resolveProfileUserId(item) || item?.userId || item?.id;
+        return id !== undefined && id !== null && String(id).trim() !== ''
+          ? `profile-${String(id)}`
+          : `profile-row-${index}`;
+      }}
       columnWrapperStyle={columns > 1 ? styles.row : undefined}
       contentContainerStyle={[
         styles.container,

@@ -8,6 +8,9 @@ import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 import { mockStore } from '../mock/mockStore';
 import { isInvalidPhoneNumber } from '../utils/whatsappHelper';
 import { dispatchTelegramMatchNotification } from '../utils/telegramHelper';
+import { dedupeConnections } from '../utils/connectionList';
+
+export { dedupeConnections };
 
 export interface ConnectionRequest {
   id: number | string;
@@ -428,7 +431,10 @@ export const useConnection = (userId?: string | number) => {
       } catch {}
 
       if (reqIdStr.startsWith('notif_')) {
-        await apiClient.put(`/notification/read/${reqIdStr}`).catch(() => {});
+        const notifId = reqIdStr.slice('notif_'.length);
+        if (notifId) {
+          await apiClient.put(`/notification/read/${notifId}`).catch(() => {});
+        }
         return {
           status: 'success',
           message: 'Connection approved',
@@ -676,7 +682,10 @@ export const useConnection = (userId?: string | number) => {
       } catch {}
 
       if (reqIdStr.startsWith('notif_')) {
-        await apiClient.put(`/notification/read/${reqIdStr}`).catch(() => {});
+        const notifId = reqIdStr.slice('notif_'.length);
+        if (notifId) {
+          await apiClient.put(`/notification/read/${notifId}`).catch(() => {});
+        }
         return { status: 'success', message: 'Invitation declined', data: { id: reqIdStr, status: 'DECLINED' } };
       }
 
@@ -787,7 +796,7 @@ export const useConnection = (userId?: string | number) => {
       const res = await apiClient.get('/connections/list', {
         params: { userId: resolvedUserId, targetUserId: resolvedUserId },
       });
-      return normalizeConnections(res.data);
+      return dedupeConnections(normalizeConnections(res.data));
     },
     refetchInterval: 2000,
     refetchIntervalInBackground: true,
@@ -881,7 +890,7 @@ export const useConnection = (userId?: string | number) => {
         }
       }
 
-      return finalized;
+      return dedupeConnections(finalized);
     },
     refetchInterval: 2000,
     refetchIntervalInBackground: true,
@@ -962,7 +971,9 @@ export const useConnection = (userId?: string | number) => {
 
           if (isInvite) {
             const notifIdStr = String(n.id);
-            const isDeclined = (await AsyncStorage.getItem(`declined_conn_${notifIdStr}`).catch(() => null)) === 'true';
+            const isDeclined =
+              (await AsyncStorage.getItem(`declined_conn_notif_${notifIdStr}`).catch(() => null)) === 'true' ||
+              (await AsyncStorage.getItem(`declined_conn_${notifIdStr}`).catch(() => null)) === 'true';
             if (isDeclined) {
               continue;
             }
@@ -979,9 +990,11 @@ export const useConnection = (userId?: string | number) => {
             if (!existingSenders.has(cleanName)) {
               existingSenders.add(cleanName);
               const avatar = maleAvatars[idx % maleAvatars.length];
-              const isAccepted = (await AsyncStorage.getItem(`accepted_conn_${notifIdStr}`).catch(() => null)) === 'true';
+              const isAccepted =
+                (await AsyncStorage.getItem(`accepted_conn_notif_${notifIdStr}`).catch(() => null)) === 'true' ||
+                (await AsyncStorage.getItem(`accepted_conn_${notifIdStr}`).catch(() => null)) === 'true';
               syntheticConnections.push({
-                id: n.id,
+                id: `notif_${notifIdStr}`,
                 status: isAccepted ? 'ACCEPTED' : 'PENDING',
                 createdAt: n.createdAt || null,
                 updatedAt: n.createdAt || null,
@@ -1064,9 +1077,9 @@ export const useConnection = (userId?: string | number) => {
           ).catch(() => {});
         }
 
-        return [...syntheticConnections, ...updatedBackendConnections];
+        return dedupeConnections([...syntheticConnections, ...updatedBackendConnections]);
       } catch {
-        return backendConnections;
+        return dedupeConnections(backendConnections);
       }
     },
     refetchInterval: 2000,

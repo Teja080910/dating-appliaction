@@ -28,6 +28,19 @@ import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
 import { getAgeFromDob } from '../../utils/dateUtils';
 
+// Backend + local caches can return the same invitation/chat more than once.
+// Duplicate ids break React keys and render repeated rows, so keep first only.
+const dedupeById = <T extends { id?: any; requestId?: any }>(items: T[]): T[] => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const id = String(item?.id ?? item?.requestId ?? '').trim();
+    if (!id) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+};
+
 export default function MessageScreen() {
   useTranslation();
   const { themeColors, isDark } = useTheme();
@@ -165,27 +178,31 @@ export default function MessageScreen() {
 
   const sentInvites = useMemo(() => {
     const items = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
-    return items
-      .map((item: any) => normalizeInvite(item, 'sent'))
-      .filter((item: any) => {
-        const status = String(item?.status || 'PENDING').trim().toUpperCase();
-        return status === 'PENDING';
-      });
+    return dedupeById(
+      items
+        .map((item: any) => normalizeInvite(item, 'sent'))
+        .filter((item: any) => {
+          const status = String(item?.status || 'PENDING').trim().toUpperCase();
+          return status === 'PENDING';
+        })
+    );
   }, [connection.sentList.data, normalizeInvite]);
 
   const receivedInvites = useMemo(() => {
     const items = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
-    return items
-      .map((item: any) => normalizeInvite(item, 'received'))
-      .filter((item: any) => {
-        const status = String(item?.status || 'PENDING').trim().toUpperCase();
-        return status === 'PENDING';
-      });
+    return dedupeById(
+      items
+        .map((item: any) => normalizeInvite(item, 'received'))
+        .filter((item: any) => {
+          const status = String(item?.status || 'PENDING').trim().toUpperCase();
+          return status === 'PENDING';
+        })
+    );
   }, [connection.receivedList.data, normalizeInvite]);
 
   const connectionChats = useMemo(() => {
     const items = Array.isArray(connection.connectionList.data) ? connection.connectionList.data : [];
-    return items.map((item: any) => normalizeChat(item));
+    return dedupeById(items.map((item: any) => normalizeChat(item)));
   }, [connection.connectionList.data, normalizeChat]);
 
   const sentLoading = Boolean(userId) && (connection.sentList.isLoading || connection.sentList.isRefetching);
@@ -358,7 +375,7 @@ export default function MessageScreen() {
               <FlatList
                 data={activeInviteTab === 'Sent' ? displaySentInvites : displayReceivedInvites}
                 renderItem={renderInviteItem}
-                keyExtractor={item => item.id?.toString() || Math.random().toString()}
+                keyExtractor={(item, index) => `invite-${String(item?.id ?? item?.requestId ?? index)}`}
                 contentContainerStyle={styles.listContainer}
                 showsVerticalScrollIndicator={false}
               />
@@ -386,7 +403,7 @@ export default function MessageScreen() {
               <FlatList
                 data={filteredChats}
                 renderItem={renderChatItem}
-                keyExtractor={item => String(item.id)}
+                keyExtractor={(item, index) => `chat-${String(item?.id ?? index)}`}
                 contentContainerStyle={styles.listContainer}
                 showsVerticalScrollIndicator={false}
               />

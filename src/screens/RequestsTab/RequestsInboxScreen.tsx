@@ -23,6 +23,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import NotificationBanner from '../../components/NotificationBanner';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
+import { dedupeConnections, isConnectionAccountDeleted } from '../../utils/connectionList';
+import { getLocalDeletedAccounts } from '../../utils/types/AsyncStorage';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing, useTheme } from '../../theme';
 import { getAbsoluteUrl } from '../../api/apiClient';
@@ -67,6 +69,7 @@ const RequestsInboxScreen: React.FC = () => {
   const { receivedList, accept, reject, refreshAll } = useConnection();
 
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [deletedAccountIds, setDeletedAccountIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -81,6 +84,9 @@ const RequestsInboxScreen: React.FC = () => {
             setHiddenIds(new Set(parsed.map(String)));
           }
         }
+      } catch {}
+      try {
+        setDeletedAccountIds(await getLocalDeletedAccounts());
       } catch {}
     })();
   }, []);
@@ -119,6 +125,9 @@ const RequestsInboxScreen: React.FC = () => {
         setActiveTab(route.params.initialTab);
       }
       refreshAllRef.current();
+      getLocalDeletedAccounts()
+        .then((ids) => setDeletedAccountIds(ids))
+        .catch(() => {});
     }, [route?.params?.initialTab])
   );
 
@@ -141,23 +150,40 @@ const RequestsInboxScreen: React.FC = () => {
     );
   };
 
+  // Hide invitations from deleted/deactivated accounts. If the account is
+  // restored (logs in within 30 days), it becomes visible again automatically.
+  const visibleRequests = useMemo(
+    () =>
+      requests.filter((r) => {
+        const sender: any = r.sender || {};
+        if (isConnectionAccountDeleted(sender)) return false;
+        const uid = String(
+          sender.userId || sender.id || (r as any).senderId || ''
+        ).trim();
+        return !uid || !deletedAccountIds.includes(uid);
+      }),
+    [requests, deletedAccountIds]
+  );
+
   // Split into accepted vs pending (excluding deleted items)
   const acceptedRequests = useMemo(
-    () => requests.filter((r) => !hiddenIds.has(String(r.id)) && isAcceptedStatus(r.status)),
-    [requests, hiddenIds]
+    () => dedupeConnections(visibleRequests.filter((r) => !hiddenIds.has(String(r.id)) && isAcceptedStatus(r.status))),
+    [visibleRequests, hiddenIds]
   );
 
   const pendingRequests = useMemo(
     () =>
-      requests.filter(
-        (r) =>
-          !hiddenIds.has(String(r.id)) &&
-          !isAcceptedStatus(r.status) &&
-          r.status !== 'DECLINED' &&
-          r.status !== 'CANCELLED' &&
-          r.status !== 'REJECTED'
+      dedupeConnections(
+        visibleRequests.filter(
+          (r) =>
+            !hiddenIds.has(String(r.id)) &&
+            !isAcceptedStatus(r.status) &&
+            r.status !== 'DECLINED' &&
+            r.status !== 'CANCELLED' &&
+            r.status !== 'REJECTED'
+        )
       ),
-    [requests, hiddenIds]
+    [visibleRequests, hiddenIds]
   );
 
   const currentList = activeTab === 'accepted' ? acceptedRequests : pendingRequests;
@@ -592,7 +618,18 @@ const RequestsInboxScreen: React.FC = () => {
         <FlatList
           style={styles.list}
           data={filteredRequests}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item, index) => {
+            const id = (item as any)?.id;
+            if (id !== undefined && id !== null && String(id).trim() !== '') {
+              return `request-${String(id)}`;
+            }
+            const senderId =
+              (item as any)?.sender?.id ??
+              (item as any)?.sender?.userId ??
+              (item as any)?.senderId ??
+              'unknown';
+            return `request-${String(senderId)}-${index}`;
+          }}
           renderItem={renderCard}
           contentContainerStyle={[
             styles.listContent,

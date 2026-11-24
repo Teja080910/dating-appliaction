@@ -28,9 +28,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
 import RazorpayCheckout from 'react-native-razorpay';
-import RazorpayMock from './RazorpayMock';
 import { useAlert } from './AlertModal';
-import { USE_MOCK, SUPPORT_EMAIL } from '../environment/ApiConfig';
+import { SUPPORT_EMAIL } from '../environment/ApiConfig';
 import { Colors, useTheme } from '../theme';
 import { t, useTranslation } from '../i18n';
 
@@ -453,7 +452,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const {
     createOrder,
     verifyPayment,
-    activateSubscription,
     subscriptionStatus,
     refetchStatus,
   } = subHook;
@@ -470,8 +468,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   const [selectedPaymentMode, setSelectedPaymentMode] =
     useState<SupportedPaymentMode | 'all'>('all');
   const [activeSlide, setActiveSlide] = useState(0);
-  const [showMockRazorpay, setShowMockRazorpay] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<any>(null);
   const [isWoman, setIsWoman] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
@@ -616,23 +612,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     try {
       setLoading(true);
       const backendPlan = toBackendPlanName(planId);
-      try {
-        await verifyPayment.mutateAsync({
-          orderId,
-          paymentId,
-          signature,
-          plan: backendPlan,
-        });
-      } catch (verifyErr) {
-        console.warn('[Subscription] verifyPayment failed, attempting direct activation fallback:', verifyErr);
-        try {
-          await activateSubscription.mutateAsync({
-            plan: backendPlan,
-          });
-        } catch (actErr) {
-          console.warn('[Subscription] Direct activation fallback also failed:', actErr);
-        }
-      }
+
+      // The backend is the single source of truth. Never grant premium locally
+      // if the payment signature could not be verified.
+      await verifyPayment.mutateAsync({
+        orderId,
+        paymentId,
+        signature,
+        plan: backendPlan,
+      });
 
       setIsSubscribed(true);
       await AsyncStorage.setItem('isSubscribed', 'true');
@@ -647,26 +635,16 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       setActiveEndDate(endDate);
       refetchStatus?.();
 
-      setShowMockRazorpay(false);
       onClose();
     } catch (err: any) {
-      console.warn('Verification Error, activating locally:', err);
-      const backendPlan = toBackendPlanName(planId);
-      setIsSubscribed(true);
-      await AsyncStorage.setItem('isSubscribed', 'true');
-      await AsyncStorage.setItem('@subscription_plan', backendPlan);
-      const activatedPlan = plans.find((plan) => plan.id === planId) || plans[0] || getPlans()[0];
-      const durationDays = activatedPlan?.durationDays || 120;
-      const endDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-      await AsyncStorage.setItem('@subscription_endDate', endDate);
-      await AsyncStorage.setItem('@subscription_remainingDays', String(durationDays));
-      setActivePlan(backendPlan);
-      setActiveDaysLeft(durationDays);
-      setActiveEndDate(endDate);
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        t('common.subscriptionmodal.payment_verification_failed');
+      console.warn('[Subscription] Payment verification failed:', message);
+      alert(t('common.subscriptionmodal.payment_failed'), String(message));
       refetchStatus?.();
-
-      setShowMockRazorpay(false);
-      onClose();
     } finally {
       setLoading(false);
     }
@@ -712,26 +690,22 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         });
         normalizedOrder = normalizeOrderResponse(orderData);
       } catch (orderErr: any) {
-        console.warn('[SubscriptionModal] Live create-order failed, falling back to test checkout sheet:', orderErr);
-        const planObj = plans.find((p) => p.id === selectedPlanId) || plans[0] || getPlans()[0];
-        normalizedOrder = {
-          key: 'rzp_test_1DP5mmOlF5G5ag',
-          orderId: `order_local_${Date.now()}`,
-          amount: (planObj.amount || 1) * 100,
-          currency: 'INR',
-          name: 'Amara Dating',
-          description: `Amara ${planObj.name} Membership`,
-          theme: { color: Colors.primary },
-          prefill: {},
-        };
+        console.warn('[SubscriptionModal] Create order failed:', orderErr);
+        alert(
+          t('common.subscriptionmodal.payment_failed'),
+          orderErr?.response?.data?.message ||
+            orderErr?.message ||
+            t('common.subscriptionmodal.something_went_wrong')
+        );
+        return;
       }
 
-      if (!normalizedOrder?.orderId || !normalizedOrder?.amount) {
-        throw new Error('Invalid Razorpay order response from server.');
-      }
-
-      if (!normalizedOrder.key) {
-        normalizedOrder.key = 'rzp_test_1DP5mmOlF5G5ag';
+      if (!normalizedOrder?.orderId || !normalizedOrder?.amount || !normalizedOrder?.key) {
+        alert(
+          t('common.subscriptionmodal.payment_failed'),
+          t('common.subscriptionmodal.something_went_wrong')
+        );
+        return;
       }
 
       const prefillName =
@@ -785,24 +759,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         },
       };
 
-      if (USE_MOCK) {
-        setCurrentOrder(normalizedOrder);
-        setLoading(false);
-        setShowMockRazorpay(true);
-        return;
-      }
-
-      let paymentData: RazorpayCheckoutResponse;
-      try {
-        paymentData = await RazorpayCheckout.open(options);
-      } catch (nativeErr: any) {
-        // If native module fails (e.g. missing native linking or test device error), fallback gracefully to RazorpayMock UI
-        console.warn('Native Razorpay failed, falling back to mock sheet:', nativeErr);
-        setCurrentOrder(normalizedOrder);
-        setLoading(false);
-        setShowMockRazorpay(true);
-        return;
-      }
+      const paymentData: RazorpayCheckoutResponse = await RazorpayCheckout.open(options);
 
       await completePaymentVerification(
         paymentData.razorpay_order_id,
@@ -821,8 +778,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       if (
         error?.code === 0 ||
         error?.code === 2 ||
-        /cancelled/i.test(backendMessage) ||
-        /failed.*checkout/i.test(backendMessage)
+        /cancelled|canceled/i.test(backendMessage)
       ) {
         alert(t('common.subscriptionmodal.cancelled'), t('common.subscriptionmodal.payment_cancelled'));
         return;
@@ -1114,27 +1070,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       </SafeAreaView>
 
       {/* Razorpay Interactive Payment Sheet */}
-      <RazorpayMock
-        visible={showMockRazorpay}
-        amount={
-          currentOrder?.amount
-            ? String(Math.round(currentOrder.amount / 100))
-            : String(
-                plans.find((p) => p.id === selectedPlanId)?.amount || '2'
-              )
-        }
-        onSuccess={() => {
-          const fakeOrderId = currentOrder?.orderId || `order_rzp_${Date.now()}`;
-          const fakePaymentId = `pay_mock_${Date.now()}`;
-          const fakeSignature = `sig_mock_${Date.now()}`;
-          completePaymentVerification(fakeOrderId, fakePaymentId, fakeSignature, selectedPlanId);
-        }}
-        onCancel={() => {
-          setShowMockRazorpay(false);
-          setLoading(false);
-        }}
-      />
-
       {AlertComponent}
     </Modal>
   );

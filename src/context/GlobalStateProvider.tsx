@@ -102,7 +102,6 @@ const GlobalStateProvider = ({ children }: any) => {
   const [ethnicity, setEthnicity] = useState<string[]>([]);
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [smoke, setSmoke] = useState<string[]>([]);
-  const [smokeFilter, setSmokeFilter] = useState<string | boolean | undefined>(undefined);
   const [drinkFilter, setDrinkFilter] = useState<string | boolean | undefined>(undefined);
   const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | 'both' | null>(null);
 
@@ -595,7 +594,6 @@ const GlobalStateProvider = ({ children }: any) => {
           else if (hasMale) setShowMe('straight_man');
           else setShowMe('straight_woman');
         }
-        if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
         if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
         if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
         if (savedFilters.location) setLocation(savedFilters.location);
@@ -618,7 +616,6 @@ const GlobalStateProvider = ({ children }: any) => {
       setEnglishProficiency([]);
       setEthnicity([]);
       setLookingFor([]);
-      setSmokeFilter(undefined);
       setDrinkFilter(undefined);
       setIsChecked(false);
       setLocation('');
@@ -644,7 +641,6 @@ const GlobalStateProvider = ({ children }: any) => {
       englishLevel: englishProficiency,
       ethnicity: ethnicity,
       lookingFor: lookingFor,
-      smoke: smokeFilter,
       drink: drinkFilter,
     });
   }, [
@@ -659,7 +655,6 @@ const GlobalStateProvider = ({ children }: any) => {
     englishProficiency,
     ethnicity,
     lookingFor,
-    smokeFilter,
     drinkFilter,
   ]);
 
@@ -775,7 +770,6 @@ const GlobalStateProvider = ({ children }: any) => {
         ethnicity, setEthnicity,
         lookingFor, setLookingFor,
         smoke, setSmoke,
-        smokeFilter, setSmokeFilter,
         drinkFilter, setDrinkFilter,
         showMe, setShowMe,
 

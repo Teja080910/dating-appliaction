@@ -126,6 +126,17 @@ class MockStore {
     return Boolean(na && nb && na === nb);
   }
 
+  private isHiddenUser(user?: any): boolean {
+    if (!user) return true;
+    const status = String(user.status || '').toUpperCase();
+    return Boolean(
+      user.isActive === false ||
+      user.isDeactivated === true ||
+      user.isDeleted === true ||
+      ['PENDING_DELETION', 'DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED'].includes(status)
+    );
+  }
+
   public async init() {
     if (this.initialized) return;
 
@@ -637,13 +648,23 @@ class MockStore {
   // --- Profiles ---
   public async getProfiles(genderFilter?: string, currentUserId?: string): Promise<MockProfile[]> {
     await this.init();
-    let list = this.profiles.filter((p) => !isTestUserOrProfile(p));
+    const isProfileOwnerHidden = (profile: any): boolean => {
+      const owner = this.users.find(
+        (user) =>
+          this.matchUserId(user.userId, profile?.userId) ||
+          this.matchUserId(user.id, profile?.id) ||
+          this.matchUserId(user.userId, profile?.id)
+      );
+      return this.isHiddenUser(owner);
+    };
+
+    let list = this.profiles.filter((p) => !isTestUserOrProfile(p) && !isProfileOwnerHidden(p));
     if (genderFilter) {
       const target = genderFilter.toLowerCase();
       if (target.includes('woman') || target.includes('female')) {
-        list = this.profiles.filter((p) => p.gender === 'woman');
+        list = list.filter((p) => p.gender === 'woman');
       } else if (target.includes('man') || target.includes('male')) {
-        list = this.profiles.filter((p) => p.gender === 'man');
+        list = list.filter((p) => p.gender === 'man');
       }
     }
 
@@ -1178,6 +1199,12 @@ class MockStore {
     const hasActiveSub = isWoman || (subscription && subscription.status === 'ACTIVE');
 
     return this.requests
+      .filter((r) => {
+        const receiver = this.users.find(
+          (u) => this.matchUserId(u.userId, r.receiverId) || this.matchUserId(u.id, r.receiverId)
+        );
+        return !this.isHiddenUser(receiver);
+      })
       .filter((r) => this.matchUserId(r.senderId, userId) || this.matchUserId(r.sender?.id, userId) || this.matchUserId(r.sender?.userId, userId))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((r) => {
@@ -1258,6 +1285,12 @@ class MockStore {
   public async getReceivedRequests(userId: string): Promise<MockRequest[]> {
     await this.init();
     return this.requests
+      .filter((r) => {
+        const sender = this.users.find(
+          (u) => this.matchUserId(u.userId, r.senderId) || this.matchUserId(u.id, r.senderId)
+        );
+        return !this.isHiddenUser(sender);
+      })
       .filter((r) => this.matchUserId(r.receiverId, userId) || this.matchUserId(r.receiver?.id, userId) || this.matchUserId(r.receiver?.userId, userId))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((r) => {

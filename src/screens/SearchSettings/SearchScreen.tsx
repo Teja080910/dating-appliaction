@@ -17,7 +17,6 @@ import Appearance from '../../components/SearchSettingsComponents/Appearance';
 import Languages from '../../components/SearchSettingsComponents/Languages';
 import EnglishProficiency from '../../components/SearchSettingsComponents/EnglishProficiency';
 import Ethnicity from '../../components/SearchSettingsComponents/Ethnicity';
-import Smoke from '../../components/SearchSettingsComponents/Smoke';
 import Drinking from '../../components/SearchSettingsComponents/Drinking';
 import LookingFor from '../../components/SearchSettingsComponents/LookingFor';
 import ShowMe from '../../components/SearchSettingsComponents/ShowMe';
@@ -76,8 +75,6 @@ const SearchScreen = ({ navigation }: any) => {
     setEthnicity,
     lookingFor,
     setLookingFor,
-    smokeFilter,
-    setSmokeFilter,
     drinkFilter,
     setDrinkFilter,
     selectedOptions,
@@ -108,7 +105,6 @@ const SearchScreen = ({ navigation }: any) => {
     englishLevel: englishProficiency || [],
     ethnicity: ethnicity || [],
     lookingFor: lookingFor || [],
-    smoke: smokeFilter,
     drink: drinkFilter,
     onlyOnline: false,
     page: 0,
@@ -149,7 +145,6 @@ const SearchScreen = ({ navigation }: any) => {
           if (saved.englishLevel) setEnglishProficiency(saved.englishLevel);
           if (saved.ethnicity) setEthnicity(saved.ethnicity);
           if (saved.lookingFor) setLookingFor(saved.lookingFor);
-          if (saved.smoke !== undefined) setSmokeFilter(saved.smoke);
           if (saved.drink !== undefined) setDrinkFilter(saved.drink);
           if (saved.showMe) setShowMe(saved.showMe);
 
@@ -198,7 +193,6 @@ const SearchScreen = ({ navigation }: any) => {
         englishLevel: filters.englishLevel,
         ethnicity: filters.ethnicity,
         lookingFor: filters.lookingFor,
-        smoke: filters.smoke,
         drink: filters.drink,
         maxDistanceKm: filters.maxDistanceKm,
         searchRadius: filters.maxDistanceKm,
@@ -231,7 +225,6 @@ const SearchScreen = ({ navigation }: any) => {
         englishLevel: filters.englishLevel,
         ethnicity: filters.ethnicity,
         lookingFor: filters.lookingFor,
-        smoke: filters.smoke,
         drink: filters.drink,
         gender: filters.gender,
         showMe: showMe,
@@ -318,7 +311,6 @@ const SearchScreen = ({ navigation }: any) => {
       englishLevel: [],
       ethnicity: [],
       lookingFor: [],
-      smoke: undefined,
       drink: undefined,
       onlyOnline: false,
       page: 0,
@@ -333,7 +325,6 @@ const SearchScreen = ({ navigation }: any) => {
     setEnglishProficiency([]);
     setEthnicity([]);
     setLookingFor([]);
-    setSmokeFilter(undefined);
     setDrinkFilter(undefined);
     setShowMe('straight_woman');
     setFilters((prev: any) => ({ ...prev, gender: [t('home.userlist.female')] }));
@@ -459,13 +450,7 @@ const SearchScreen = ({ navigation }: any) => {
           {/* 9. Race/ethnicity */}
           <Ethnicity onChange={(value) => setFilters((prev: any) => ({ ...prev, ethnicity: value }))} />
 
-          {/* 10. Smoker */}
-          <Smoke
-            value={filters.smoke}
-            onChange={(value) => setFilters((prev: any) => ({ ...prev, smoke: value }))}
-          />
-
-          {/* 10b. Drinking */}
+          {/* 10. Drinking */}
           <Drinking
             value={filters.drink}
             onChange={(value) => setFilters((prev: any) => ({ ...prev, drink: value }))}

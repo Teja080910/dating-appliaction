@@ -26,8 +26,18 @@ const BlockedUsersScreen = () => {
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const { alert, AlertComponent } = useAlert();
   const { useBlockedUsers, unblock } = useReport();
-  const { data: blockedUsers = [], isLoading, isRefetching, refetch } = useBlockedUsers();
+  const { data: rawBlockedUsers = [], isLoading, isRefetching, refetch } = useBlockedUsers();
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const blockedUsers = useMemo(() => {
+    const seen = new Set<string>();
+    return (rawBlockedUsers as BlockedUserItem[]).filter((item) => {
+      const id = String(item?.userId ?? '').trim();
+      if (!id) return true;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [rawBlockedUsers]);
 
   const handleUnblock = (user: BlockedUserItem) => {
     Alert.alert(
@@ -150,7 +160,11 @@ const BlockedUsersScreen = () => {
       ) : (
         <FlatList
           data={blockedUsers}
-          keyExtractor={(item) => String(item.userId)}
+          keyExtractor={(item, index) =>
+            item?.userId !== undefined && item?.userId !== null && String(item.userId).trim() !== ''
+              ? `blocked-${String(item.userId)}`
+              : `blocked-row-${index}`
+          }
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           onRefresh={refetch}

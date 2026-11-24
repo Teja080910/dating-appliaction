@@ -21,6 +21,8 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useConnection, ConnectionRequest } from '../../api/useConnection';
+import { dedupeConnections, isConnectionAccountDeleted } from '../../utils/connectionList';
+import { getLocalDeletedAccounts } from '../../utils/types/AsyncStorage';
 import { useSubscription } from '../../api/useSubscription';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, Spacing, useTheme } from '../../theme';
@@ -92,6 +94,7 @@ const SentRequestsScreen: React.FC = () => {
   }, []);
 
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [deletedAccountIds, setDeletedAccountIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -106,6 +109,9 @@ const SentRequestsScreen: React.FC = () => {
             setHiddenIds(new Set(parsed.map(String)));
           }
         }
+      } catch {}
+      try {
+        setDeletedAccountIds(await getLocalDeletedAccounts());
       } catch {}
     })();
   }, []);
@@ -151,6 +157,9 @@ const SentRequestsScreen: React.FC = () => {
         setActiveTab(route.params.initialTab);
       }
       refreshAllRef.current();
+      getLocalDeletedAccounts()
+        .then((ids) => setDeletedAccountIds(ids))
+        .catch(() => {});
     }, [route?.params?.initialTab])
   );
 
@@ -175,23 +184,43 @@ const SentRequestsScreen: React.FC = () => {
     );
   };
 
+  // Hide invitations whose recipient account is deleted/deactivated. If that
+  // user restores their account (logs in within 30 days), they reappear.
+  const visibleRequests = useMemo(
+    () =>
+      requests.filter((r) => {
+        const receiver: any = r.receiver || {};
+        if (isConnectionAccountDeleted(receiver)) return false;
+        const uid = String(
+          receiver.userId || receiver.id || (r as any).receiverId || ''
+        ).trim();
+        return !uid || !deletedAccountIds.includes(uid);
+      }),
+    [requests, deletedAccountIds]
+  );
+
   // Group requests into pending vs accepted (excluding deleted items)
   const pendingRequests = useMemo(
     () =>
-      requests.filter(
-        (r) =>
-          !hiddenIds.has(String(r.id)) &&
-          !isAcceptedStatus(r.status) &&
-          r.status !== 'CANCELLED' &&
-          r.status !== 'DECLINED' &&
-          r.status !== 'REJECTED'
+      dedupeConnections(
+        visibleRequests.filter(
+          (r) =>
+            !hiddenIds.has(String(r.id)) &&
+            !isAcceptedStatus(r.status) &&
+            r.status !== 'CANCELLED' &&
+            r.status !== 'DECLINED' &&
+            r.status !== 'REJECTED'
+        )
       ),
-    [requests, hiddenIds]
+    [visibleRequests, hiddenIds]
   );
 
   const acceptedRequests = useMemo(
-    () => requests.filter((r) => !hiddenIds.has(String(r.id)) && isAcceptedStatus(r.status)),
-    [requests, hiddenIds]
+    () =>
+      dedupeConnections(
+        visibleRequests.filter((r) => !hiddenIds.has(String(r.id)) && isAcceptedStatus(r.status))
+      ),
+    [visibleRequests, hiddenIds]
   );
 
   const currentList = activeTab === 'pending' ? pendingRequests : acceptedRequests;
@@ -539,7 +568,7 @@ const SentRequestsScreen: React.FC = () => {
     );
   };
 
-  const hasAnyInvitations = requests.some((r) => !hiddenIds.has(String(r.id)));
+  const hasAnyInvitations = visibleRequests.some((r) => !hiddenIds.has(String(r.id)));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -723,7 +752,12 @@ const SentRequestsScreen: React.FC = () => {
             <FlatList
               style={styles.list}
               data={filteredRequests}
-              keyExtractor={(item) => String(item.id)}
+              keyExtractor={(item, index) => {
+                const id = (item as any)?.id;
+                return id !== undefined && id !== null && String(id).trim() !== ''
+                  ? `sent-${String(id)}`
+                  : `sent-row-${index}`;
+              }}
               renderItem={renderCard}
               contentContainerStyle={[
                 styles.listContent,

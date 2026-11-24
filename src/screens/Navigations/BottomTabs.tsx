@@ -13,6 +13,7 @@ import RequestsInboxScreen from '../RequestsTab/RequestsInboxScreen';
 import ConnectTelegramScreen from '../onboarding/ConnectTelegramScreen';
 import MoreInfoScreen from '../MoreInfoTab/MoreInfoScreen';
 import { getGender } from '../../utils/types/AsyncStorage';
+import { isConnectionAccountDeleted } from '../../utils/connectionList';
 import { Colors, Spacing, Shadows, useTheme } from '../../theme';
 import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
 import { getUserId } from '../../utils/sessionHelper';
@@ -196,11 +197,12 @@ const MaleCustomTabBar: React.FC<MaleCustomTabBarProps> = ({
       !isAcceptedStatus(r.status) &&
       r.status !== 'CANCELLED' &&
       r.status !== 'DECLINED' &&
-      r.status !== 'REJECTED'
+      r.status !== 'REJECTED' &&
+      !isConnectionAccountDeleted(r.sender || {})
   ).length;
 
   const acceptedSentCount = (sentList?.data || []).filter(
-    (r: any) => isAcceptedStatus(r.status)
+    (r: any) => isAcceptedStatus(r.status) && !isConnectionAccountDeleted(r.receiver || {})
   ).length;
 
   return (

@@ -170,13 +170,14 @@ describe('Search Filter Field Match Test', () => {
       })
     ).toBe(false);
 
-    // Should reject if smoke is different
+    // The Smoker filter was removed from Search Settings, so a legacy `smoke`
+    // value must be ignored instead of hiding profiles.
     expect(
       matchesSearchFilters(profile, {
         isFilterActive: true,
         smoke: 'Yes',
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('filterByRadius handles distance calculation and preserves unknown distance profiles', () => {

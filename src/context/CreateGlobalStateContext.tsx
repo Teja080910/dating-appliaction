@@ -87,8 +87,6 @@ interface AppContextType {
   setLookingFor: Dispatch<SetStateAction<string[]>>;
   smoke: string[];
   setSmoke: Dispatch<SetStateAction<string[]>>;
-  smokeFilter?: string | boolean | undefined;
-  setSmokeFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
   drinkFilter?: string | boolean | undefined;
   setDrinkFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
   showMe: 'straight_man' | 'straight_woman' | 'both' | null;
