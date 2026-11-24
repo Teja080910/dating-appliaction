@@ -1412,36 +1412,40 @@ const ViewMyProfileScreen = () => {
                         style={styles.image}
                         resizeMode="cover"
                       />
+
+                      {/* Upgrade card travels with its own photo so the blurred
+                          backdrop always matches the image it sits on. */}
+                      {!isViewingSelf && !effectiveIsSubscribed && !isViewerWoman && (
+                        <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
+                          <View
+                            style={styles.blurCardOverlay}
+                            {...cardPanResponder.panHandlers}
+                          >
+                            <View style={styles.blurCardImage} pointerEvents="none">
+                              <Image
+                                source={source}
+                                style={StyleSheet.absoluteFill}
+                                blurRadius={26}
+                                resizeMode="cover"
+                              />
+                            </View>
+                            <View style={styles.blurCardTint} pointerEvents="none" />
+                            <TouchableOpacity
+                              style={styles.upgradePillBtn}
+                              activeOpacity={0.85}
+                              onPress={openSubscriptionPlans}
+                              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                            >
+                              <MaterialCommunityIcons name="crown" size={20} color="#FF4D6D" style={styles.crownIcon} />
+                              <Text style={styles.upgradePillText}>{t('profile.viewmyprofilescreen.upgrade_to_premium')}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
                     </Pressable>
                   );
                 })}
               </ScrollView>
-
-              {/* Upgrade to premium card overlay in middle of photo (men only when viewing another user and not subscribed) */}
-              {!isViewingSelf && !effectiveIsSubscribed && !isViewerWoman && (
-                <View style={styles.blurCardOverlayWrapper} pointerEvents="box-none">
-                  <View
-                    style={styles.blurCardOverlay}
-                    {...cardPanResponder.panHandlers}
-                  >
-                    <View style={styles.cardCrownBadge}>
-                      <MaterialCommunityIcons name="crown" size={30} color="#FFD700" />
-                    </View>
-                    <Text style={styles.cardTitle}>
-                      {t('profile.profilescreen.premium_membership', { defaultValue: 'Premium Membership' })}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.upgradePillBtn}
-                      activeOpacity={0.85}
-                      onPress={openSubscriptionPlans}
-                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    >
-                      <MaterialCommunityIcons name="crown" size={18} color="#FF4D6D" style={styles.crownIcon} />
-                      <Text style={styles.upgradePillText}>{t('profile.viewmyprofilescreen.upgrade_to_premium')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
 
               {/* Dots Indicator */}
               {sliderImages.length > 1 && (
@@ -1669,64 +1673,49 @@ const createStyles = (colors: any, isDark: boolean = true, cardWidth: number = 3
       elevation: 10,
     },
     blurCardOverlay: {
-      width: Math.min(260, Math.max(cardWidth - 48, 200)),
-      paddingVertical: 20,
-      paddingHorizontal: 16,
-      borderRadius: 24,
-      backgroundColor: isDark ? 'rgba(24, 18, 34, 0.72)' : 'rgba(255, 255, 255, 0.78)',
-      borderWidth: 1.5,
-      borderColor: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.65)',
+      width: Math.min(Math.max(cardWidth * 0.85, 260), 340),
+      aspectRatio: 1,
+      borderRadius: 30,
+      overflow: 'hidden',
+      backgroundColor: isDark ? '#1A1622' : '#F3E9EC',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.4)',
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.35,
-      shadowRadius: 12,
-      elevation: 10,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 16,
+      elevation: 12,
     },
-    cardCrownBadge: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      backgroundColor: isDark ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255, 215, 0, 0.22)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 10,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 215, 0, 0.3)',
+    blurCardImage: {
+      ...StyleSheet.absoluteFillObject,
     },
-    cardTitle: {
-      color: isDark ? '#FFFFFF' : '#1E1924',
-      fontSize: 16,
-      fontWeight: '800',
-      letterSpacing: 0.3,
-      textAlign: 'center',
-      marginBottom: 14,
-      textShadowColor: isDark ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
-      textShadowOffset: { width: 0, height: 1 },
-      textShadowRadius: 3,
+    blurCardTint: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: isDark ? 'rgba(28, 22, 34, 0.36)' : 'rgba(255, 255, 255, 0.2)',
     },
     upgradePillBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#1E1924',
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 25,
+      backgroundColor: '#2A2230',
+      paddingVertical: 15,
+      paddingHorizontal: 28,
+      borderRadius: 30,
       elevation: 6,
       shadowColor: '#000',
       shadowOpacity: 0.35,
       shadowRadius: 6,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.15)',
+      borderColor: 'rgba(255, 255, 255, 0.12)',
     },
     crownIcon: {
-      marginRight: 8,
+      marginRight: 9,
     },
     upgradePillText: {
       color: '#FFFFFF',
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '700',
     },
     stickyBottomBar: {

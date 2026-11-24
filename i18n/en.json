@@ -242,6 +242,7 @@
   "profile.modaladdphoto.upload_a_bright_clear_photo_that_looks_like_you": "Upload a bright, clear photo that looks like you.",
   "profile.modaladdphoto.gallery": "Gallery",
   "profile.modaladdphoto.camera": "Camera",
+  "profile.modaladdphoto.uploading": "Uploading...",
   "profile.uploadimage.delete": "Delete",
   "profile.uploadimage.unable_to_load_your_uploaded_images": "Unable to load your uploaded images.",
   "profile.uploadimage.failed_to_delete_image_from_server": "Failed to delete image from server.",

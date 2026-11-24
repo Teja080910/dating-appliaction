@@ -1,5 +1,5 @@
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import React, { useContext, useMemo } from 'react';
+import { Modal, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import React, { useContext, useMemo, useState } from 'react';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -39,6 +39,7 @@ const ModalAddPhoto = () => {
   } = useContext(AppContext);
 
   const { uploadImage, setProfilePhoto } = useUserImages();
+  const [isUploading, setIsUploading] = useState(false);
   const uploadedImageCount = Array.isArray(images)
     ? images.filter((image) => Boolean(image)).length
     : 0;
@@ -130,6 +131,7 @@ const ModalAddPhoto = () => {
     };
 
     try {
+      setIsUploading(true);
       // Face-check before upload, for every account regardless of gender.
       const verdict = await verifySingleProfilePhoto({
         userId: userId ? String(userId) : undefined,
@@ -204,6 +206,8 @@ const ModalAddPhoto = () => {
         undefined,
         { force: true }
       );
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -213,7 +217,9 @@ const ModalAddPhoto = () => {
         <TouchableOpacity
           style={styles.modalContainer}
           activeOpacity={1}
-          onPress={() => setIsModalVisible(false)}
+          onPress={() => {
+            if (!isUploading) setIsModalVisible(false);
+          }}
         >
           <View style={styles.modalBox}>
             <View style={styles.handle} />
@@ -222,7 +228,8 @@ const ModalAddPhoto = () => {
 
             <View style={styles.optionsRow}>
               <TouchableOpacity
-                style={styles.modalOption}
+                style={[styles.modalOption, isUploading && styles.modalOptionDisabled]}
+                disabled={isUploading}
                 onPress={() => {
                   onPickImage('gallery').catch(() => null);
                 }}>
@@ -233,7 +240,8 @@ const ModalAddPhoto = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.modalOption}
+                style={[styles.modalOption, isUploading && styles.modalOptionDisabled]}
+                disabled={isUploading}
                 onPress={() => {
                   onPickImage('camera').catch(() => null);
                 }}>
@@ -245,11 +253,25 @@ const ModalAddPhoto = () => {
             </View>
 
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.cancelButton, isUploading && styles.modalOptionDisabled]}
               onPress={() => setIsModalVisible(false)}
+              disabled={isUploading}
             >
               <Text style={styles.cancelText}>{t('profile.additionaluploadsection.cancel')}</Text>
             </TouchableOpacity>
+
+            {isUploading && (
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => {}}
+                style={styles.uploadingOverlay}
+              >
+                <ActivityIndicator size="small" color={themeColors.primary} />
+                <Text style={styles.uploadingText}>
+                  {t('profile.modaladdphoto.uploading', { defaultValue: 'Uploading...' })}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -307,6 +329,9 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
       alignItems: 'center',
       gap: Spacing.sm + 2,
     },
+    modalOptionDisabled: {
+      opacity: 0.45,
+    },
     iconBox: {
       width: 70,
       height: 70,
@@ -327,6 +352,20 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
     optionText: {
       fontSize: 14,
       fontWeight: '700',
+      color: themeColors.textSecondary,
+    },
+    uploadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      borderTopLeftRadius: Spacing.radiusXxl,
+      borderTopRightRadius: Spacing.radiusXxl,
+      backgroundColor: isDark ? 'rgba(26, 23, 48, 0.96)' : 'rgba(255, 255, 255, 0.97)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    uploadingText: {
+      marginTop: Spacing.sm,
+      fontSize: 14,
+      fontWeight: '600',
       color: themeColors.textSecondary,
     },
     cancelButton: {

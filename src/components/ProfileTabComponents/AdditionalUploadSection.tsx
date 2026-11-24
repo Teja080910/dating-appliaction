@@ -352,6 +352,11 @@ const AdditionalUploadSection = () => {
                       setFailedImages((prev) => ({ ...prev, [i]: true }));
                     }}
                   />
+                  {isSlotUploading && (
+                    <View style={styles.uploadingOverlay}>
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    </View>
+                  )}
                   <TouchableOpacity
                     style={styles.deleteBadge}
                     onPress={() => onPressImage(i)}
@@ -416,6 +421,13 @@ const styles = StyleSheet.create({
   uploadedImage: {
     width: '100%',
     height: '100%',
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
   },
   deleteBadge: {
     position: 'absolute',

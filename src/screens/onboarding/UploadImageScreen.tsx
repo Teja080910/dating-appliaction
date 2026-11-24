@@ -1,6 +1,5 @@
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   BackHandler,
   Dimensions,
@@ -21,9 +20,6 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme, type ThemeColors } from '../../theme';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import { t, useTranslation } from '../../i18n';
-import { useFaceValidation, useSelfieVerificationUrl } from '../../api/useFaceValidation';
-import { getUserId } from '../../utils/sessionHelper';
-import { getAuthSession } from '../../utils/session';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TOTAL_STEPS = 8;
@@ -41,13 +37,6 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     setIsModalVisible,
     setSelectedIndex,
   } = useContext(AppContext);
-  const { uploadVerificationPhotos } = useFaceValidation();
-  const { data: dynamicSelfieUrl } = useSelfieVerificationUrl();
-  const [isCheckingPhotos, setIsCheckingPhotos] = useState(false);
-
-  // Any URL the backend currently hands over is usable; short-lived tunnels
-  // (ngrok) are refreshed from the backend instead of being rejected by host.
-  const hasActiveAiUrl = Boolean(dynamicSelfieUrl && dynamicSelfieUrl.startsWith('http'));
 
   // We enforce 6 slots
   const slots = [0, 1, 2, 3, 4, 5];
@@ -56,7 +45,7 @@ const UploadPhotosScreen = ({ navigation }: any) => {
   const validImages = Array.isArray(images) ? images.filter(Boolean) : [];
   const uploadedCount = validImages.length;
 
-  // Next is enabled if at least 3 photos are uploaded (Selfie verification bypassed for now)
+  // Next is enabled if at least 3 photos are uploaded
   const isNextEnabled = uploadedCount >= 3;
 
   useFocusEffect(
@@ -95,80 +84,12 @@ const UploadPhotosScreen = ({ navigation }: any) => {
       );
       return;
     }
-    if (isCheckingPhotos) return;
+
     const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
     await AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots));
 
-    setIsCheckingPhotos(true);
-    try {
-      const authSession = await getAuthSession();
-      const uid = authSession?.userId || (await getUserId().catch(() => null));
-      let photoUrisToSync = currentSlots.filter(
-        (u): u is string => typeof u === 'string' && u.length > 0
-      );
-
-      // Prefer device local URIs saved during photo selection for FormData upload
-      try {
-        const rawLocal = await AsyncStorage.getItem('@local_onboarding_photos');
-        if (rawLocal) {
-          const locals = JSON.parse(rawLocal);
-          if (Array.isArray(locals)) {
-            const validLocals = locals.filter(
-              (u): u is string => typeof u === 'string' && u.length > 0
-            );
-            if (validLocals.length > 0) {
-              photoUrisToSync = validLocals;
-            }
-          }
-        }
-      } catch {}
-
-      if (hasActiveAiUrl && photoUrisToSync.length > 0) {
-        try {
-          const syncRes = await uploadVerificationPhotos.mutateAsync({
-            userId: uid ? String(uid) : undefined,
-            photoUris: photoUrisToSync,
-          });
-
-          // When face verification is active, strictly validate that uploaded photos contain matching human faces
-          if (syncRes?.results && Array.isArray(syncRes.results) && syncRes.results.length > 0) {
-            const invalidPhotos = syncRes.results.filter(
-              (r: any) =>
-                r.reason === 'No face detected' ||
-                r.face_detected === false ||
-                (r.match_found === false && (r.similarity === undefined || Number(r.similarity || 0) < 0.35))
-            );
-
-            if (invalidPhotos.length > 0) {
-              setIsCheckingPhotos(false);
-              Alert.alert(
-                'Face Required in Photos',
-                'Each uploaded photo must clearly show your face and match your verified selfie. Please replace photos of other subjects or without a clear face.'
-              );
-              return;
-            }
-          }
-        } catch (err: any) {
-          const serverError = err?.response?.data?.error || err?.response?.data?.message;
-
-          // No fallback: a photo set that could not be face-verified must not
-          // be let through. The user has to replace the offending photos.
-          setIsCheckingPhotos(false);
-          Alert.alert(
-            'Face Verification Failed',
-            serverError ||
-              'We could not verify a face in your photos. Each photo must clearly show your face and match your verified selfie.',
-          );
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[FaceValidation] Failed to trigger background photo sync:', e);
-    } finally {
-      setIsCheckingPhotos(false);
-    }
-
-    // Navigate to Step 5: ConnectTelegram
+    // Photo and selfie verification are handled by the backend during upload
+    // and /profile/selfie/verify. The client does not call the AI service.
     navigation.navigate('ConnectTelegram');
   };
 
@@ -264,27 +185,21 @@ const UploadPhotosScreen = ({ navigation }: any) => {
           <TouchableOpacity
             style={[
               styles.nextBtn,
-              isNextEnabled && !isCheckingPhotos
-                ? { backgroundColor: colors.primary }
-                : styles.nextBtnDisabled,
+              isNextEnabled ? { backgroundColor: colors.primary } : styles.nextBtnDisabled,
             ]}
             onPress={handleNext}
             activeOpacity={0.85}
           >
-            {isCheckingPhotos ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text
-                style={[
-                  styles.nextBtnText,
-                  !isNextEnabled && styles.nextBtnTextDisabled,
-                ]}
-              >
-                {uploadedCount < 3
-                  ? `${t('onboarding.aboutprofilescreen.next', { defaultValue: 'Next' })} (${uploadedCount}/3)`
-                  : t('onboarding.aboutprofilescreen.next', { defaultValue: 'Next' })}
-              </Text>
-            )}
+            <Text
+              style={[
+                styles.nextBtnText,
+                !isNextEnabled && styles.nextBtnTextDisabled,
+              ]}
+            >
+              {uploadedCount < 3
+                ? `${t('onboarding.aboutprofilescreen.next', { defaultValue: 'Next' })} (${uploadedCount}/3)`
+                : t('onboarding.aboutprofilescreen.next', { defaultValue: 'Next' })}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

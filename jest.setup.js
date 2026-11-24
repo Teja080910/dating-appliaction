@@ -18,6 +18,11 @@ jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn(),
 }));
 
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn(async (uri) => ({ uri, width: 1080, height: 1440 })),
+  SaveFormat: { JPEG: 'jpeg', PNG: 'png' },
+}));
+
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'MaterialCommunityIcons');
 jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('react-native-vector-icons/Feather', () => 'Feather');

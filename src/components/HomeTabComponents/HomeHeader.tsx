@@ -296,7 +296,7 @@ const createStyles = (colors: any) =>
     logoText: {
       fontSize: 24,
       fontWeight: '800',
-      color: '#FFFFFF',
+      color: colors.text,
       letterSpacing: 0.5,
     },
     controlsRow: {

@@ -22,13 +22,15 @@ import {
   useCameraPermission,
 } from 'react-native-vision-camera';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useProfile } from '../../api/useProfile';
-import { useUserImages, parseUploadResponse } from '../../api/useImages';
+import { useUserImages, parseUploadResponse, getPhotoRejectionKind, getPhotoRejectionCopy } from '../../api/useImages';
+import AttractiveLogo from '../../components/AttractiveLogo';
 import { useTheme, Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
@@ -42,6 +44,8 @@ const CURRENT_STEP = 3; // Step 3 of 8 (Active dash)
 // Oval viewfinder geometry (Golden portrait ratio ~ 1:1.38)
 const OVAL_WIDTH = Math.min(SCREEN_WIDTH * 0.68, 248);
 const OVAL_HEIGHT = OVAL_WIDTH * 1.38;
+const OVAL_SCALE_Y = OVAL_HEIGHT / OVAL_WIDTH;
+const OVAL_CONTENT_TOP = (OVAL_WIDTH - OVAL_HEIGHT) / 2;
 
 // Fallback device definition to immediately bind Android Front Camera (#1) if async enumeration is delayed
 const DEFAULT_FRONT_DEVICE: CameraDevice = {
@@ -78,6 +82,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   const isScreenFocused = useIsFocused();
 
   const cameraRef = useRef<Camera>(null);
+  const initStartedAtRef = useRef<number>(Date.now());
 
   // Vision Camera hooks
   const { hasPermission: visionHasPermission, requestPermission } = useCameraPermission();
@@ -87,6 +92,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
   // Resolved camera device & permission states
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean>(false);
+  const [permissionResolved, setPermissionResolved] = useState<boolean>(false);
   const [activeDevice, setActiveDevice] = useState<CameraDevice>(
     hookFrontDevice ?? hookBackDevice ?? DEFAULT_FRONT_DEVICE
   );
@@ -95,16 +101,28 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   const [screenMode, setScreenMode] = useState<ScreenMode>('camera');
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
 
+  // Face verification initialization loader (camera/SDK warm-up)
+  const [showInitLoader, setShowInitLoader] = useState<boolean>(true);
+  const [initProgress, setInitProgress] = useState<number>(0);
+  const [verifyProgress, setVerifyProgress] = useState<number>(0);
+
   // Biometric verification scanning states
   const [scanProgress, setScanProgress] = useState(0);
   const [verificationStageText, setVerificationStageText] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Bottom-middle toast, same style as the registration screens.
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(20)).current;
+  const toastTimerRef = useRef<any>(null);
 
   const scanIntervalRef = useRef<any>(null);
   const scanLineAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const { verifySelfie, uploadSelfie } = useProfile();
   const { uploadImage } = useUserImages();
@@ -123,12 +141,65 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
       }
     }
     setHasCameraPermission(granted);
+    setPermissionResolved(true);
     return granted;
   }, [visionHasPermission]);
 
   useEffect(() => {
     checkCameraPermission();
   }, [checkCameraPermission]);
+
+  // Animate the initialization percentage while the camera warms up. The value
+  // is capped at 95% until the camera actually reports it is ready.
+  useEffect(() => {
+    if (!showInitLoader) return;
+    const interval = setInterval(() => {
+      setInitProgress((prev) => {
+        if (prev >= 95) return 95;
+        const step = prev < 40 ? 7 : prev < 70 ? 4 : 2;
+        return Math.min(95, prev + step);
+      });
+    }, 140);
+    return () => clearInterval(interval);
+  }, [showInitLoader]);
+
+  // Finish the loader when the camera is ready (or permission was denied).
+  useEffect(() => {
+    if (!showInitLoader) return;
+    const cameraReady = hasCameraPermission && cameraInitialized;
+    const permissionDenied = permissionResolved && !hasCameraPermission;
+    if (!cameraReady && !permissionDenied) return;
+
+    setInitProgress(100);
+    const elapsed = Date.now() - initStartedAtRef.current;
+    const minimumVisibleMs = cameraReady ? 1800 : 0;
+    const hideDelay = Math.max(450, minimumVisibleMs - elapsed);
+    const timer = setTimeout(() => setShowInitLoader(false), hideDelay);
+    return () => clearTimeout(timer);
+  }, [showInitLoader, hasCameraPermission, cameraInitialized, permissionResolved]);
+
+  // Safety net: never trap the user behind the initializing overlay.
+  useEffect(() => {
+    if (!showInitLoader) return;
+    const timer = setTimeout(() => {
+      setInitProgress(100);
+      setTimeout(() => setShowInitLoader(false), 350);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [showInitLoader]);
+
+  // Progress feedback while the captured selfie is uploaded and verified.
+  useEffect(() => {
+    if (!isSubmitting) {
+      setVerifyProgress(0);
+      return;
+    }
+    setVerifyProgress(8);
+    const interval = setInterval(() => {
+      setVerifyProgress((prev) => (prev < 95 ? Math.min(95, prev + 4) : 95));
+    }, 200);
+    return () => clearInterval(interval);
+  }, [isSubmitting]);
 
   // 2. Request permission explicitly when user interacts
   const handleRequestPermission = async () => {
@@ -169,30 +240,15 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
       } catch (e) {}
     }
 
-    setActiveDevice(candidate ?? DEFAULT_FRONT_DEVICE);
+    const resolved = candidate ?? DEFAULT_FRONT_DEVICE;
+    // VisionCamera hooks can return a new device object on each render. Only
+    // update state when the device actually changes, otherwise this effect
+    // triggers an endless render loop ("Maximum update depth exceeded").
+    setActiveDevice((prev) => {
+      if (prev && String(prev.id) === String(resolved.id)) return prev;
+      return resolved;
+    });
   }, [hookFrontDevice, hookBackDevice, allDevices]);
-
-  // Animated pulse for oval border while camera is active
-  useEffect(() => {
-    if (screenMode === 'camera') {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.03,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    }
-  }, [screenMode, pulseAnim]);
 
   // Animated scan beam for review biometric scanning
   useEffect(() => {
@@ -222,6 +278,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
   useEffect(() => {
     return () => {
       if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
 
@@ -289,9 +346,26 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
         ? photo.path
         : `file://${photo.path}`;
 
+      // Full-resolution camera captures are several MB. Compress before upload:
+      // the backend rejects oversized selfies and large multipart bodies can
+      // also fail with "Network Error / Stream Closed" on mobile data.
+      let uploadUri = formattedUri;
+      try {
+        const compressed = await ImageManipulator.manipulateAsync(
+          formattedUri,
+          [{ resize: { width: 1080 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        if (compressed?.uri) {
+          uploadUri = compressed.uri;
+        }
+      } catch (compressErr) {
+        console.warn('Selfie compression failed, using original file:', compressErr);
+      }
+
       // Run face detection validation:
       Image.getSize(
-        formattedUri,
+        uploadUri,
         (w, h) => {
           if (w < 100 || h < 100) {
             alert(
@@ -301,14 +375,14 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
             setIsCapturing(false);
             return;
           }
-          setCapturedPhotoUri(formattedUri);
-          AsyncStorage.setItem('@selfie_uri', formattedUri).catch(() => {});
-          startFaceVerification(formattedUri);
+          setCapturedPhotoUri(uploadUri);
+          AsyncStorage.setItem('@selfie_uri', uploadUri).catch(() => {});
+          startFaceVerification(uploadUri);
           setIsCapturing(false);
         },
         () => {
-          setCapturedPhotoUri(formattedUri);
-          startFaceVerification(formattedUri);
+          setCapturedPhotoUri(uploadUri);
+          startFaceVerification(uploadUri);
           setIsCapturing(false);
         }
       );
@@ -327,10 +401,56 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
     setCapturedPhotoUri(null);
     setScanProgress(0);
     setScanComplete(false);
+    setIsVerified(false);
     setIsVerifying(false);
     setVerificationStageText('');
     setScreenMode('camera');
   };
+
+  const dismissBottomToast = useCallback(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 20,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setToastVisible(false));
+  }, [toastOpacity, toastTranslateY]);
+
+  const showBottomToast = useCallback(
+    (message: string) => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      setToastMessage(message);
+      setToastVisible(true);
+      toastOpacity.setValue(0);
+      toastTranslateY.setValue(20);
+      Animated.parallel([
+        Animated.timing(toastOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(toastTranslateY, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      toastTimerRef.current = setTimeout(() => {
+        dismissBottomToast();
+      }, 4500);
+    },
+    [dismissBottomToast, toastOpacity, toastTranslateY],
+  );
 
   // 7. Confirm & Sync to Backend + Pre-fill Slot 0 for Step 4
   const handleConfirmVerification = async () => {
@@ -374,21 +494,54 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
         await verifySelfie.mutateAsync({
           uid: uid ? String(uid) : undefined,
         });
+
+        // Show the verified state briefly before navigating.
+        setIsVerified(true);
+        await new Promise((resolve) => setTimeout(resolve, 800));
       } catch (verifyErr: any) {
-        const message =
+        const serverMessage = String(
           verifyErr?.response?.data?.message ||
           verifyErr?.response?.data?.error ||
+          (typeof verifyErr?.response?.data === 'string' ? verifyErr.response.data : '') ||
           verifyErr?.message ||
-          t('onboarding.selfieverificationscreen.verification_failed_desc', {
-            defaultValue:
-              'We could not verify your selfie. Please retake it in good lighting and try again.',
-          });
-        console.warn('[SelfieVerification] upload/verify failed:', message);
-        alert(
-          t('onboarding.selfieverificationscreen.verification_failed_title', {
+          ''
+        ).trim();
+        const details = String(
+          verifyErr?.response?.data?.details ||
+          verifyErr?.response?.data?.reason ||
+          ''
+        ).trim();
+
+        console.warn('[SelfieVerification] upload/verify failed:', serverMessage || verifyErr);
+
+        const rejectionKind = getPhotoRejectionKind(verifyErr, { isPrimary: true });
+        const isGenericRejection =
+          /^photo rejected\.?$/i.test(serverMessage) || /^invalid image\.?$/i.test(serverMessage);
+
+        if (isGenericRejection) {
+          showBottomToast(
+            'Selfie rejected: our face check could not confirm a clear human face. Please retake it with your face fully visible, in good lighting, and without filters, sunglasses or hats.'
+          );
+          return;
+        }
+
+        if (rejectionKind) {
+          const copy = getPhotoRejectionCopy(rejectionKind, t);
+          showBottomToast(`${copy.title}: ${copy.message}`);
+          return;
+        }
+
+        showBottomToast(
+          `${t('onboarding.selfieverificationscreen.verification_failed_title', {
             defaultValue: 'Verification Failed',
-          }),
-          String(message)
+          })}: ${
+            details ||
+            serverMessage ||
+            t('onboarding.selfieverificationscreen.verification_failed_desc', {
+              defaultValue:
+                'We could not verify your selfie. Please retake it in good lighting and try again.',
+            })
+          }`
         );
         return;
       }
@@ -490,35 +643,66 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
               },
             ]}
           >
-            {/* Title & Instructions */}
-            <Text style={[styles.cardInstructionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
-              {screenMode === 'review'
-                ? 'Selfie Captured! ✓'
-                : t('onboarding.selfieverificationscreen.center_your_face_and_click_start')}
-            </Text>
-            <Text style={[styles.cardSubinstructionText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              {screenMode === 'review'
-                ? 'Look good? Tap "Use This Selfie" below to proceed.'
-                : 'Make sure your face is clearly visible inside the oval frame.'}
-            </Text>
+            <View style={styles.cardHeader}>
+              {/* Start button at the top of the camera (like the reference) */}
+              {screenMode === 'camera' && (
+                <TouchableOpacity
+                  style={[
+                    styles.startButton,
+                    (!hasCameraPermission || isCapturing) && styles.startButtonDisabled,
+                  ]}
+                  onPress={handleCapturePhoto}
+                  disabled={isCapturing}
+                  activeOpacity={0.85}
+                >
+                  {isCapturing ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.startButtonText}>
+                      {t('onboarding.selfieverificationscreen.start')}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Title & Instructions */}
+              <Text style={[styles.cardInstructionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                {screenMode === 'review'
+                  ? isVerified
+                    ? 'Face Verified! ✓'
+                    : 'Selfie Captured! ✓'
+                  : t('onboarding.selfieverificationscreen.center_your_face_and_click_start')}
+              </Text>
+              <Text style={[styles.cardSubinstructionText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
+                {screenMode === 'review'
+                  ? isVerified
+                    ? 'Verification successful. Taking you to the next step…'
+                    : 'Tap "Use This Selfie" to verify and continue.'
+                  : 'Make sure your face is clearly visible inside the oval frame.'}
+              </Text>
+            </View>
 
             {/* OVAL VIEWFINDER - Live Camera & Biometric Scan Frame */}
-            <Animated.View
-              style={[
-                styles.ovalViewfinder,
-                {
-                  borderColor:
-                    screenMode === 'review' && scanComplete
-                      ? '#10B981'
-                      : isVerifying
-                      ? Colors.primary
-                      : isDark
-                      ? 'rgba(255, 255, 255, 0.25)'
-                      : '#D1D5DB',
-                  transform: [{ scale: screenMode === 'camera' ? pulseAnim : 1 }],
-                },
-              ]}
-            >
+            <View style={styles.ovalFrameWrapper}>
+              <Animated.View
+                style={[
+                  styles.ovalViewfinder,
+                  {
+                    borderColor:
+                      screenMode === 'review' && scanComplete
+                        ? '#10B981'
+                        : isVerifying
+                        ? Colors.primary
+                        : isDark
+                        ? 'rgba(255, 255, 255, 0.25)'
+                        : '#D1D5DB',
+                    transform: [
+                      { scaleY: OVAL_SCALE_Y },
+                    ],
+                  },
+                ]}
+              >
+                <View style={styles.ovalContent}>
               {screenMode === 'review' && capturedPhotoUri ? (
                 // 1. Captured Photo Frozen in Oval for Review & Verification
                 <>
@@ -548,7 +732,9 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                   {scanComplete && (
                     <View style={styles.verifiedBadgeOverlay}>
                       <Icon name="check-decagram" size={18} color="#FFFFFF" />
-                      <Text style={styles.verifiedBadgeText}>CAPTURED</Text>
+                      <Text style={styles.verifiedBadgeText}>
+                        {isVerified ? 'VERIFIED' : 'CAPTURED'}
+                      </Text>
                     </View>
                   )}
                 </>
@@ -561,6 +747,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                     device={activeDevice}
                     isActive={isScreenFocused && screenMode === 'camera'}
                     photo={true}
+                    androidPreviewViewType="texture-view"
                     onInitialized={() => setCameraInitialized(true)}
                     onError={(e) => {
                       console.warn('VisionCamera error:', e);
@@ -606,7 +793,9 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                   </TouchableOpacity>
                 </View>
               )}
-            </Animated.View>
+                </View>
+              </Animated.View>
+            </View>
 
             {/* Controls Section directly under the Oval Viewfinder */}
             {screenMode === 'review' ? (
@@ -648,36 +837,60 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
               </View>
             ) : (
-              // Camera Controls: Shutter Button
-              <View style={styles.captureControls}>
-                <TouchableOpacity
-                  style={[
-                    styles.captureShutterBtn,
-                    { borderColor: Colors.primary },
-                    isCapturing && { opacity: 0.5 },
-                  ]}
-                  onPress={handleCapturePhoto}
-                  disabled={isCapturing}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.captureShutterInner, { backgroundColor: Colors.primary }]}>
-                    {isCapturing ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Icon name="camera" size={26} color="#FFFFFF" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-                <Text style={[styles.captureBtnLabel, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-                  {!hasCameraPermission
-                    ? 'Tap to allow camera access'
-                    : 'Tap to capture face'}
-                </Text>
-              </View>
+              // Keep the oval vertically balanced in camera mode now that the
+              // bottom shutter is gone and "Start" is the only capture action.
+              <View style={styles.captureControlsSpacer} />
             )}
           </View>
+
+          {(showInitLoader || isSubmitting) && (
+            <View
+              style={[
+                styles.initializingOverlay,
+                { backgroundColor: isDark ? '#0F0D1A' : '#FFFFFF' },
+              ]}
+            >
+              <ActivityIndicator
+                size="large"
+                color={Colors.primary}
+                style={styles.initializingSpinner}
+              />
+              <Text style={[styles.initializingText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
+                {t('onboarding.selfieverificationscreen.initializing_face_verification', {
+                  scanProgress: showInitLoader ? initProgress : verifyProgress,
+                })}
+              </Text>
+            </View>
+          )}
         </View>
       </SafeAreaView>
+
+      {/* Bottom-middle toast, same style used by the registration screens */}
+      {toastVisible ? (
+        <Animated.View
+          style={[
+            styles.bottomToastContainer,
+            {
+              opacity: toastOpacity,
+              transform: [{ translateY: toastTranslateY }],
+            },
+          ]}
+        >
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={dismissBottomToast}
+            style={styles.bottomToastInner}
+          >
+            <View style={styles.bottomToastLogoWrap}>
+              <AttractiveLogo size={26} />
+            </View>
+            <Text style={styles.bottomToastText} numberOfLines={3}>
+              {toastMessage}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+      ) : null}
+
       {AlertComponent}
     </View>
   );
@@ -730,6 +943,25 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     justifyContent: 'center',
   },
+  initializingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    zIndex: 100,
+    elevation: 100,
+  },
+  initializingSpinner: {
+    marginBottom: 28,
+    transform: [{ scale: 1.5 }],
+  },
+  initializingText: {
+    fontSize: 20,
+    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 28,
+    letterSpacing: -0.2,
+  },
   card: {
     flex: 1,
     borderRadius: 24,
@@ -743,6 +975,34 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
+  },
+  startButton: {
+    minWidth: 156,
+    height: 46,
+    paddingHorizontal: 38,
+    borderRadius: 23,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  startButtonDisabled: {
+    opacity: 0.5,
+  },
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  cardHeader: {
+    width: '100%',
+    alignItems: 'center',
   },
   cardInstructionText: {
     fontSize: 21,
@@ -761,15 +1021,32 @@ const styles = StyleSheet.create({
   },
 
   // OVAL VIEWFINDER
-  ovalViewfinder: {
+  ovalFrameWrapper: {
     width: OVAL_WIDTH,
     height: OVAL_HEIGHT,
-    borderRadius: OVAL_WIDTH / 2, // Perfect oval shape
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ovalViewfinder: {
+    width: OVAL_WIDTH,
+    height: OVAL_WIDTH,
+    borderRadius: OVAL_WIDTH / 2,
     borderWidth: 2.5,
     overflow: 'hidden',
     alignSelf: 'center',
     position: 'relative',
     backgroundColor: '#000000',
+  },
+  ovalContent: {
+    position: 'absolute',
+    top: OVAL_CONTENT_TOP,
+    left: 0,
+    width: OVAL_WIDTH,
+    height: OVAL_HEIGHT,
+    // Counter-scale the content so the elliptical mask never distorts the
+    // camera preview / captured photo.
+    transform: [{ scaleY: 1 / OVAL_SCALE_Y }],
   },
   faceGuideFrame: {
     ...StyleSheet.absoluteFillObject,
@@ -870,31 +1147,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
 
-  // Shutter Controls Below Oval
-  captureControls: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  captureShutterBtn: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 3,
-  },
-  captureShutterInner: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  captureBtnLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 8,
+  // Spacer keeps the oval vertically balanced now that "Start" is the only
+  // capture control (no bottom shutter).
+  captureControlsSpacer: {
+    height: 94,
   },
 
   // Review Buttons Below Oval
@@ -934,5 +1190,50 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  bottomToastContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'android' ? 104 : 118,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    elevation: 20,
+  },
+  bottomToastInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#160E1A',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    maxWidth: '90%',
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+  },
+  bottomToastLogoWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  bottomToastText: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 0.1,
+    lineHeight: 19,
   },
 });
