@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { DeviceEventEmitter } from 'react-native';
+import { AppState, DeviceEventEmitter } from 'react-native';
 import apiClient from './apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserId } from '../utils/sessionHelper';
-import { getAuthSession, repairStoredSessionIdentity } from '../utils/session';
+import { getAuthSession, repairStoredSessionIdentity, isSameUserId } from '../utils/session';
 import { t } from '../i18n';
 import { generateDeterministicMobile } from '../utils/authPayload';
-import { parseDobToLocalDate, formatDateToDobString, calculateAgeFromDob, isValidAdultDob } from '../utils/dateUtils';
+import { formatDateToDobString, calculateAgeFromDob, getAgeFromDob, isValidAdultDob } from '../utils/dateUtils';
 import { extractSelfieVerificationUrl, saveSelfieVerificationUrl } from './useFaceValidation';
 
 const allowedFields = [
@@ -214,11 +214,15 @@ const normalizeProfile = (payload: any) => {
   ].find((v) => v !== undefined && v !== null && String(v).trim() !== '');
 
   const resolvedDob = rawDob ? formatDateToDobString(rawDob) : null;
-  const computedAgeFromDob = resolvedDob ? calculateAgeFromDob(resolvedDob) : null;
+  // A valid DOB is the single source of truth for age; only fall back to the
+  // server-provided age when no usable DOB is available.
+  const computedAgeFromDob = resolvedDob ? getAgeFromDob(resolvedDob) : null;
 
-  const resolvedAge = source?.age !== undefined && source?.age !== null && source?.age !== '' && Number(source.age) > 0
-    ? numberOrZero(source.age)
-    : (computedAgeFromDob || null);
+  const resolvedAge = computedAgeFromDob ?? (
+    source?.age !== undefined && source?.age !== null && source?.age !== '' && Number(source.age) > 0
+      ? numberOrZero(source.age)
+      : null
+  );
 
   const isExplicitlyClearedTelegram =
     source?.telegramUsername === '' ||
@@ -335,6 +339,160 @@ const resolveNumericUserId = async (candidate?: any) => {
   return cleaned;
 };
 
+type ProfileFetchResult = { data: any | null; error: string | null };
+
+// Multiple screens can keep a `useMyProfile` instance mounted at the same time.
+// Share in-flight requests per user so a focus/event/foreground refresh only
+// hits the network once and every subscriber receives the same result.
+const profileFetchesInFlight = new Map<string, Promise<ProfileFetchResult>>();
+
+const fetchNormalizedProfile = async (
+  resolvedUserId: string,
+  requestUid: any,
+): Promise<ProfileFetchResult> => {
+  try {
+    const res = await apiClient
+      .get(`/profile/me/${resolvedUserId}`)
+      .catch(() => apiClient.post('/profile/me', null, { params: { userId: resolvedUserId } }))
+      .catch(() => apiClient.get('/profile/me', { params: { userId: resolvedUserId } }))
+      .catch(() => apiClient.post('/profile/me', { userId: resolvedUserId }))
+      .catch(() => apiClient.get(`/profile/get/${resolvedUserId}`))
+      .catch(() => apiClient.get('/profile/get', { params: { userId: resolvedUserId } }));
+
+    const selfieUrl = extractSelfieVerificationUrl(res?.data);
+    if (selfieUrl) {
+      void saveSelfieVerificationUrl(selfieUrl);
+    }
+    const norm = normalizeProfile(res.data);
+    const isPhoneRemovedGlobal =
+      (await AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null)) === 'true';
+    const isPhoneRemovedUid = resolvedUserId
+      ? (await AsyncStorage.getItem(`@amara_phone_removed_${resolvedUserId}`).catch(() => null)) === 'true'
+      : false;
+    const isPhoneExplicitlyRemoved = isPhoneRemovedGlobal || isPhoneRemovedUid;
+
+    if (isPhoneExplicitlyRemoved) {
+      norm.mobile = '';
+      norm.phone = '';
+      norm.phoneNumber = '';
+      norm.mobileNumber = '';
+    } else if (!norm.mobile && !norm.phoneNumber) {
+      const scopedP = resolvedUserId
+        ? await AsyncStorage.getItem(`user_phone_${resolvedUserId}`).catch(() => null)
+        : null;
+      if (scopedP) {
+        norm.mobile = scopedP;
+        norm.phone = scopedP;
+        norm.phoneNumber = scopedP;
+        norm.mobileNumber = scopedP;
+      }
+    }
+
+    // Only hydrate the DOB/age from device storage for the signed-in user's
+    // own profile. For other users (e.g. opened from Discover) the local
+    // `userDob` key belongs to the viewer, so using it here used to show
+    // the viewer's birthday/age on someone else's profile.
+    //
+    // The server value is authoritative whenever it returns a DOB. Local
+    // storage is only an offline fallback when the server response has no
+    // usable DOB (e.g. network/legacy response), so a birthday changed on
+    // another device is no longer masked by a stale local copy.
+    const loggedInUserId = await getUserId().catch(() => null);
+    const isOwnProfileRequest = !requestUid || (loggedInUserId ? isSameUserId(loggedInUserId, resolvedUserId) : true);
+
+    if (norm.dob) {
+      norm.dob = formatDateToDobString(norm.dob);
+      if (!norm.age) {
+        const serverAge = getAgeFromDob(norm.dob);
+        if (serverAge !== null) norm.age = serverAge;
+      }
+    }
+
+    if (isOwnProfileRequest && !norm.dob) {
+      const [storedDobGlobal, storedDobScoped] = await Promise.all([
+        AsyncStorage.getItem('userDob').catch(() => null),
+        resolvedUserId ? AsyncStorage.getItem(`user_dob_${resolvedUserId}`).catch(() => null) : null,
+      ]);
+      const localStoredDob = storedDobScoped || storedDobGlobal || null;
+      if (localStoredDob) {
+        norm.dob = formatDateToDobString(localStoredDob);
+        const localAge = getAgeFromDob(norm.dob);
+        if (localAge !== null) norm.age = localAge;
+      }
+    }
+
+    // Also fetch live authoritative images from /users/{resolvedUserId}/images
+    let livePhotos: string[] = [];
+    try {
+      const imgRes = await apiClient.get(`/users/${resolvedUserId}/images`);
+      const rawList = Array.isArray(imgRes?.data)
+        ? imgRes.data
+        : Array.isArray(imgRes?.data?.images)
+        ? imgRes.data.images
+        : [];
+      livePhotos = rawList
+        .map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null))
+        .filter((u: any): u is string => {
+          if (typeof u !== 'string') return false;
+          const trimmed = u.trim();
+          if (!trimmed) return false;
+          const lower = trimmed.toLowerCase();
+          if (lower.includes('success') || lower.includes('done') || lower.includes('error')) return false;
+          return trimmed.startsWith('http') || trimmed.startsWith('/') || /\.(jpg|jpeg|png|webp|gif)/i.test(trimmed);
+        });
+    } catch {}
+
+    // Also retain locally uploaded photos from user_photos_${resolvedUserId}
+    const storedPhotosRaw = resolvedUserId
+      ? await AsyncStorage.getItem(`user_photos_${resolvedUserId}`).catch(() => null)
+      : null;
+    let storedPhotos: string[] = [];
+    if (storedPhotosRaw) {
+      try {
+        const parsedP = JSON.parse(storedPhotosRaw);
+        if (Array.isArray(parsedP) && parsedP.some(Boolean)) {
+          storedPhotos = parsedP.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+        }
+      } catch {}
+    }
+
+    const combinedPhotos = livePhotos.length > 0 ? livePhotos : storedPhotos;
+    if (combinedPhotos.length > 0) {
+      norm.photos = combinedPhotos;
+      norm.images = combinedPhotos;
+      if (combinedPhotos[0]) {
+        norm.profileImageUrl = combinedPhotos[0];
+      }
+      if (livePhotos.length > 0) {
+        const slots: (string | null)[] = [...livePhotos];
+        while (slots.length < 6) slots.push(null);
+        AsyncStorage.setItem(`user_photos_${resolvedUserId}`, JSON.stringify(slots)).catch(() => {});
+      }
+    }
+
+    return { data: norm, error: null };
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      (typeof err?.message === 'string' ? err.message : 'Failed to load profile');
+    return { data: null, error: message };
+  }
+};
+
+const getSharedProfileResult = (
+  resolvedUserId: string,
+  requestUid: any,
+): Promise<ProfileFetchResult> => {
+  const inFlight = profileFetchesInFlight.get(resolvedUserId);
+  if (inFlight) return inFlight;
+
+  const promise = fetchNormalizedProfile(resolvedUserId, requestUid).finally(() => {
+    profileFetchesInFlight.delete(resolvedUserId);
+  });
+  profileFetchesInFlight.set(resolvedUserId, promise);
+  return promise;
+};
+
 export const useMyProfile = (uid?: any) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -358,13 +516,17 @@ export const useMyProfile = (uid?: any) => {
     };
   }, [refetch]);
 
+  // Refresh when the app returns to the foreground instead of polling every
+  // 15s. The shared in-flight cache collapses refreshes from multiple mounted
+  // screens into a single network request.
   useEffect(() => {
-    if (!resolvedUserId || process.env.NODE_ENV === 'test') return;
-    const interval = setInterval(() => {
-      refetch();
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [resolvedUserId, refetch]);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refetch();
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [refetch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -399,119 +561,21 @@ export const useMyProfile = (uid?: any) => {
     }
     setError(null);
     let cancelled = false;
-    const fetch = async () => {
-      try {
-        const res = await apiClient
-          .get(`/profile/me/${resolvedUserId}`)
-          .catch(() => apiClient.post('/profile/me', null, { params: { userId: resolvedUserId } }))
-          .catch(() => apiClient.get('/profile/me', { params: { userId: resolvedUserId } }))
-          .catch(() => apiClient.post('/profile/me', { userId: resolvedUserId }))
-          .catch(() => apiClient.get(`/profile/get/${resolvedUserId}`))
-          .catch(() => apiClient.get('/profile/get', { params: { userId: resolvedUserId } }));
-        if (!cancelled) {
-          const selfieUrl = extractSelfieVerificationUrl(res?.data);
-          if (selfieUrl) {
-            void saveSelfieVerificationUrl(selfieUrl);
-          }
-          const norm = normalizeProfile(res.data);
-          const isPhoneRemovedGlobal = (await AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null)) === 'true';
-          const isPhoneRemovedUid = resolvedUserId
-            ? (await AsyncStorage.getItem(`@amara_phone_removed_${resolvedUserId}`).catch(() => null)) === 'true'
-            : false;
-          const isPhoneExplicitlyRemoved = isPhoneRemovedGlobal || isPhoneRemovedUid;
 
-          if (isPhoneExplicitlyRemoved) {
-            norm.mobile = '';
-            norm.phone = '';
-            norm.phoneNumber = '';
-            norm.mobileNumber = '';
-          } else if (!norm.mobile && !norm.phoneNumber) {
-            const scopedP = resolvedUserId ? await AsyncStorage.getItem(`user_phone_${resolvedUserId}`).catch(() => null) : null;
-            if (scopedP) {
-              norm.mobile = scopedP;
-              norm.phone = scopedP;
-              norm.phoneNumber = scopedP;
-              norm.mobileNumber = scopedP;
-            }
-          }
-          const [storedDobGlobal, storedDobScoped] = await Promise.all([
-            AsyncStorage.getItem('userDob').catch(() => null),
-            resolvedUserId ? AsyncStorage.getItem(`user_dob_${resolvedUserId}`).catch(() => null) : null,
-          ]);
-          const localStoredDob = storedDobScoped || storedDobGlobal || null;
-          if (localStoredDob) {
-            norm.dob = formatDateToDobString(localStoredDob);
-            norm.age = calculateAgeFromDob(localStoredDob);
-          } else if (norm.dob) {
-            norm.dob = formatDateToDobString(norm.dob);
-            if (!norm.age) {
-              norm.age = calculateAgeFromDob(norm.dob);
-            }
-          }
-
-          // Also fetch live authoritative images from /users/{resolvedUserId}/images
-          let livePhotos: string[] = [];
-          try {
-            const imgRes = await apiClient.get(`/users/${resolvedUserId}/images`);
-            const rawList = Array.isArray(imgRes?.data)
-              ? imgRes.data
-              : Array.isArray(imgRes?.data?.images)
-              ? imgRes.data.images
-              : [];
-            livePhotos = rawList
-              .map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null))
-              .filter((u: any): u is string => {
-                if (typeof u !== 'string') return false;
-                const trimmed = u.trim();
-                if (!trimmed) return false;
-                const lower = trimmed.toLowerCase();
-                if (lower.includes('success') || lower.includes('done') || lower.includes('error')) return false;
-                return trimmed.startsWith('http') || trimmed.startsWith('/') || /\.(jpg|jpeg|png|webp|gif)/i.test(trimmed);
-              });
-          } catch {}
-
-          // Also retain locally uploaded photos from user_photos_${resolvedUserId}
-          const storedPhotosRaw = resolvedUserId ? await AsyncStorage.getItem(`user_photos_${resolvedUserId}`).catch(() => null) : null;
-          let storedPhotos: string[] = [];
-          if (storedPhotosRaw) {
-            try {
-              const parsedP = JSON.parse(storedPhotosRaw);
-              if (Array.isArray(parsedP) && parsedP.some(Boolean)) {
-                storedPhotos = parsedP.filter((u: any) => typeof u === 'string' && u.trim().length > 0);
-              }
-            } catch {}
-          }
-
-          const combinedPhotos = livePhotos.length > 0 ? livePhotos : storedPhotos;
-          if (combinedPhotos.length > 0) {
-            norm.photos = combinedPhotos;
-            norm.images = combinedPhotos;
-            if (combinedPhotos[0]) {
-              norm.profileImageUrl = combinedPhotos[0];
-            }
-            if (livePhotos.length > 0) {
-              const slots: (string | null)[] = [...livePhotos];
-              while (slots.length < 6) slots.push(null);
-              AsyncStorage.setItem(`user_photos_${resolvedUserId}`, JSON.stringify(slots)).catch(() => {});
-            }
-          }
-          setData(norm);
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setData(null);
-          const message =
-            err?.response?.data?.message ||
-            (typeof err?.message === 'string' ? err.message : 'Failed to load profile');
-          setError(message);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+    void (async () => {
+      const result = await getSharedProfileResult(resolvedUserId, uid);
+      if (cancelled) return;
+      if (result.error) {
+        setData(null);
+        setError(result.error);
+      } else {
+        setData(result.data);
       }
-    };
-    fetch();
+      setLoading(false);
+    })();
+
     return () => { cancelled = true; };
-  }, [resolvedUserId, refreshKey]);
+  }, [resolvedUserId, refreshKey, uid]);
 
   return useMemo(
     () => ({ data, isLoading: loading, error, refetch }),
@@ -578,6 +642,25 @@ export const useProfile = () => {
   const setupProfile = useMutation<any, Error, SetupProfileInput>({
     mutationFn: async ({uid, dto, photo}) => {
       const normalizedDto = sanitizeProfileDto(dto);
+
+      // Defense-in-depth: block under-18 profile creation even if a caller
+      // bypasses the onboarding screen-level validation. `isValidAdultDob`
+      // already covers missing/invalid DOB values.
+      const requestedDob = normalizedDto.dob;
+      const requestedAge = normalizedDto.age;
+      if (requestedDob !== undefined) {
+        if (!isValidAdultDob(requestedDob)) {
+          throw new Error('You must be at least 18 years old.');
+        }
+        const ageFromDob = getAgeFromDob(requestedDob);
+        if (ageFromDob !== null) normalizedDto.age = ageFromDob;
+      }
+      if (requestedAge !== undefined) {
+        const numericAge = Number(requestedAge);
+        if (!Number.isFinite(numericAge) || numericAge < 18) {
+          throw new Error('You must be at least 18 years old.');
+        }
+      }
 
       let resolvedName = normalizedDto.name || normalizedDto.displayName;
       if (!resolvedName) {
@@ -689,9 +772,9 @@ export const useProfile = () => {
 
   type UpdatePreferencesInput = {
     userId?: any;
-    lookingFor: string;
-    smoke: string;
-    drink: string;
+    lookingFor?: string;
+    smoke?: string;
+    drink?: string;
     ethnicity?: string;
   };
 
@@ -699,32 +782,57 @@ export const useProfile = () => {
     mutationFn: async data => {
       const resolvedUserId = await resolveNumericUserId(data.userId);
 
-      const payload = {
-        userId: resolvedUserId,
-        lookingFor: data.lookingFor,
-        smoke: data.smoke,
-        drink: data.drink,
-        ethnicity: data.ethnicity || '',
-      };
+      const payload: Record<string, any> = { userId: resolvedUserId };
+      if (data.lookingFor !== undefined) payload.lookingFor = data.lookingFor;
+      if (data.smoke !== undefined) payload.smoke = data.smoke;
+      if (data.drink !== undefined) payload.drink = data.drink;
+      if (data.ethnicity !== undefined) payload.ethnicity = data.ethnicity || '';
 
-      const res = await apiClient
-        .put('/profile/update-preferences', payload)
-        .catch(async () => {
-          const [name, dName, bio, dob] = await Promise.all([
-            AsyncStorage.getItem('userName'),
-            AsyncStorage.getItem('displayName'),
-            AsyncStorage.getItem('userBio'),
-            AsyncStorage.getItem('userDob'),
-          ]);
-          return apiClient.put('/profile/update', {
-            ...payload,
-            name: name || dName || 'User',
-            displayName: dName || name || 'User',
-            bio: bio || '',
-            dob: dob || '1998-01-01',
-          });
+      const [name, dName, bio, dob] = await Promise.all([
+        AsyncStorage.getItem('userName'),
+        AsyncStorage.getItem('displayName'),
+        AsyncStorage.getItem('userBio'),
+        AsyncStorage.getItem('userDob'),
+      ]);
+
+      // Some backend builds accept /profile/update-preferences but do not
+      // persist lookingFor/smoke. Mirror the same values through the
+      // comprehensive /profile/update endpoint as well. Only include basic
+      // fields we actually have, so we never overwrite them with placeholders.
+      const mirrorBasics: Record<string, any> = {};
+      if (name || dName) {
+        mirrorBasics.name = name || dName;
+        mirrorBasics.displayName = dName || name;
+      }
+      if (bio !== null && bio !== undefined) {
+        mirrorBasics.bio = bio;
+      }
+      if (dob) {
+        mirrorBasics.dob = dob;
+      }
+
+      const mirrorToProfileUpdate = () =>
+        apiClient.put('/profile/update', {
+          ...payload,
+          ...mirrorBasics,
         });
-      return res.data;
+
+      let primaryResponse: any = null;
+      let primaryError: any = null;
+      try {
+        primaryResponse = await apiClient.put('/profile/update-preferences', payload);
+      } catch (err) {
+        primaryError = err;
+      }
+
+      try {
+        const mirrorResponse = await mirrorToProfileUpdate();
+        return mirrorResponse.data;
+      } catch (mirrorError) {
+        console.warn('[updatePreferences] /profile/update mirror failed:', mirrorError);
+        if (primaryResponse) return primaryResponse.data;
+        throw primaryError || mirrorError;
+      }
     },
     onSuccess: async () => {
       await invalidateProfile();
@@ -944,7 +1052,7 @@ export const useProfile = () => {
       // check fail with 403 PROFILE_OWNERSHIP_VIOLATION.
       const computedAgeToSave = cleanPayload.age
         ? Number(cleanPayload.age)
-        : (cleanPayload.dob ? calculateAgeFromDob(cleanPayload.dob) : 21);
+        : (cleanPayload.dob ? (getAgeFromDob(cleanPayload.dob) ?? 21) : 21);
 
       const basicPayload: {
         userId: string;
@@ -1209,13 +1317,13 @@ export const useProfile = () => {
 
       if (variables?.dob) {
         const cleanDob = formatDateToDobString(variables.dob);
-        const computedAge = calculateAgeFromDob(cleanDob);
+        const computedAge = getAgeFromDob(cleanDob);
         queryClient.setQueriesData({ queryKey: ['myProfile'] }, (old: any) => {
           if (!old) return old;
           return {
             ...old,
             dob: cleanDob,
-            age: variables.age || computedAge,
+            age: variables.age || computedAge || old.age,
           };
         });
         queryClient.setQueriesData({ queryKey: ['profile-me'] }, (old: any) => {
@@ -1223,7 +1331,7 @@ export const useProfile = () => {
           return {
             ...old,
             dob: cleanDob,
-            age: variables.age || computedAge,
+            age: variables.age || computedAge || old.age,
           };
         });
         await AsyncStorage.setItem('userDob', cleanDob);
@@ -1333,6 +1441,36 @@ export const useProfile = () => {
       }
 
       const res = await apiClient.put(`/profile/selfie/verify/${resolvedUserId}`);
+      const body: any = res.data ?? {};
+      const nested: any = body?.data ?? {};
+      const rawStatus = String(body?.status ?? nested?.status ?? '').toLowerCase();
+      const messageText = String(
+        body?.message || nested?.message || body?.error || nested?.error || ''
+      );
+      const messageLooksFailed = /no face|not detected|mismatch|not match|failed|invalid|not verified/i.test(
+        messageText
+      );
+      const isExplicitFailure =
+        body?.success === false ||
+        nested?.success === false ||
+        body?.verified === false ||
+        nested?.verified === false ||
+        body?.photoVerified === false ||
+        nested?.photoVerified === false ||
+        body?.verifiedSelfie === false ||
+        nested?.verifiedSelfie === false ||
+        rawStatus === 'error' ||
+        rawStatus === 'failed' ||
+        messageLooksFailed;
+      if (isExplicitFailure) {
+        throw new Error(
+          body?.message ||
+            nested?.message ||
+            body?.error ||
+            nested?.error ||
+            'Selfie verification failed on the server.'
+        );
+      }
       return res.data;
     },
     onSuccess: async (_, variables) => {

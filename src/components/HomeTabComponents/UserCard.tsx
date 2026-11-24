@@ -82,7 +82,11 @@ const UserCard = ({
   const [authToken, setAuthToken] = useState<string | null>(null);
 
   const safeName = (name ? String(name).replace(/,\s*\d+$/, '').trim() : '') || t('home.usercard.user');
-  const safeAge = age || 'N/A';
+  // Never invent an age: leave it blank when the profile has no usable age.
+  const safeAge =
+    age !== undefined && age !== null && String(age).trim() !== ''
+      ? String(age)
+      : null;
   const normalizedImage =
     typeof image === 'string' && SUPPORTED_IMAGE_URI_REGEX.test(image.trim())
       ? image.trim()
@@ -222,7 +226,7 @@ const UserCard = ({
           >
             <View style={styles.infoContainer}>
               <Text style={styles.name} numberOfLines={1}>
-                {safeName}, {safeAge}
+                {safeName}{safeAge ? `, ${safeAge}` : ''}
               </Text>
 
               <View style={styles.distanceRow}>

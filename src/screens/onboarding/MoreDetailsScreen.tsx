@@ -39,6 +39,7 @@ import { useAlert } from '../../components/AlertModal';
 import { mockStore } from '../../mock/mockStore';
 import { t, useTranslation } from '../../i18n';
 import { filterSupportedLanguages } from '../../utils/languageHelper';
+import { formatDateToDobString } from '../../utils/dateUtils';
 
 const MoreDetailsScreen = ({ navigation }: any) => {
   useTranslation();
@@ -275,7 +276,9 @@ const MoreDetailsScreen = ({ navigation }: any) => {
           storedBio,
           'Hello, I am excited to meet new people here.',
         ),
-        dob: safeDate.toISOString().split('T')[0],
+        // Use local Y-M-D formatting. `toISOString()` converts to UTC and shifts
+        // the birthday one day earlier for users in timezones ahead of UTC.
+        dob: formatDateToDobString(safeDate),
         language: filterSupportedLanguages(selectedLanguages).join(', '),
         appearance: normalizeTextValue(selectedAppearance, t('profile.userdetails.attractive')),
         bodyType: normalizeTextValue(selectedBodyType, t('profile.userdetails.slim')),
@@ -313,7 +316,12 @@ const MoreDetailsScreen = ({ navigation }: any) => {
       };
 
       // 6. Save persistent locals and mockStore
-      await AsyncStorage.multiSet([
+      const onboardingUid =
+        authSession?.userId ||
+        (await AsyncStorage.getItem('userId')) ||
+        (await mockStore.getCurrentUserId());
+
+      const localEntries: [string, string][] = [
         ['name', effectiveName],
         ['displayName', effectiveName],
         ['bio', profileData.bio],
@@ -330,13 +338,18 @@ const MoreDetailsScreen = ({ navigation }: any) => {
         ['@amara_english_level', String(englishSkillLevel || 0)],
         ['@amara_kid_count', selectedKids || ''],
         ['@amara_net_worth', selectedNetWorth || ''],
-      ]);
+      ];
+
+      // Keep the user-scoped DOB in sync with the global one so account
+      // switching/offline reads never diverge (Edit Profile writes both).
+      if (onboardingUid) {
+        localEntries.push([`user_dob_${onboardingUid}`, profileData.dob]);
+      }
+
+      await AsyncStorage.multiSet(localEntries);
 
       try {
-        const uid =
-          authSession?.userId ||
-          (await AsyncStorage.getItem('userId')) ||
-          (await mockStore.getCurrentUserId());
+        const uid = onboardingUid;
         if (uid) {
           await mockStore.saveProfile({
             userId: uid,

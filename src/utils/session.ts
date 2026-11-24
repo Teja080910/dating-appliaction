@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AsyncStorageService } from './types/AsyncStorage';
 import { APIURL, USE_MOCK } from '../environment/ApiConfig';
 import { handleMockRequest } from '../mock/mockAdapter';
+import { getAgeFromDob } from './dateUtils';
 import { decode as atob } from 'base-64';
 
 const sessionHttpClient = axios.create({
@@ -482,13 +483,26 @@ const syncStoredSessionState = async (session: {
       ...(Array.isArray(profile?.images) ? profile.images : []),
       ...(Array.isArray(profile?.photos) ? profile.photos : []),
     ].filter(Boolean);
+    const rawProfileDob =
+      profile?.dob ||
+      profile?.dateOfBirth ||
+      profile?.data?.dob ||
+      profile?.data?.dateOfBirth ||
+      profile?.profile?.dob ||
+      profile?.profile?.dateOfBirth;
+    // Never treat a server profile as "complete" if its DOB is invalid or
+    // under 18; otherwise login could bypass the onboarding age gate.
+    const profileAge = rawProfileDob ? getAgeFromDob(rawProfileDob) : null;
+    const isAdultProfile = !rawProfileDob || (profileAge !== null && profileAge >= 18);
+
     const hasRequiredPhotos = profileImages.length >= 2;
     const looksComplete =
-      (Number.isFinite(completionValue) && completionValue >= 100) ||
-      (Boolean(profile?.displayName) &&
-        Boolean(profile?.dob) &&
-        Boolean(profile?.gender) &&
-        hasRequiredPhotos);
+      isAdultProfile &&
+      ((Number.isFinite(completionValue) && completionValue >= 100) ||
+        (Boolean(profile?.displayName) &&
+          Boolean(profile?.dob) &&
+          Boolean(profile?.gender) &&
+          hasRequiredPhotos));
 
     if (looksComplete) {
       await AsyncStorage.setItem(STORAGE_KEYS.entryHomeScreen, 'true');

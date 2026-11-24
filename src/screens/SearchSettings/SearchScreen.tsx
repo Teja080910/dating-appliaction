@@ -269,17 +269,7 @@ const SearchScreen = ({ navigation }: any) => {
       }
 
       if (!profiles || profiles.length === 0) {
-        try {
-          const { handleMockRequest } = require('../../mock/mockAdapter');
-          const mockRes = await handleMockRequest({
-            method: 'POST',
-            url: '/search',
-            data: payload,
-          });
-          profiles = mockRes?.data?.content || [];
-        } catch (mockErr) {
-          console.warn('[SearchScreen] Local mock search fallback failed:', mockErr);
-        }
+        profiles = [];
       }
 
       const deletedAccountIds = await getLocalDeletedAccounts();

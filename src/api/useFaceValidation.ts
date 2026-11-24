@@ -29,6 +29,13 @@ export const extractSelfieVerificationUrl = (payload: any): string | null => {
     }
   }
   if (typeof payload === 'object') {
+    // Some backends wrap the URL as a plain string: { data: "https://..." }
+    const wrappedString = [payload.data, payload.result, payload.value, payload.payload]
+      .find((value) => typeof value === 'string' && /^https?:\/\//i.test(value.trim()));
+    if (wrappedString) {
+      return wrappedString.trim().replace(/\/+$/, '');
+    }
+
     const candidates = [
       payload.selfieVerification,
       payload.selfie_verification,
@@ -44,6 +51,14 @@ export const extractSelfieVerificationUrl = (payload: any): string | null => {
       payload.verification_url,
       payload.aiVerificationUrl,
       payload.ai_verification_url,
+      payload.ngrokUrl,
+      payload.ngrok_url,
+      payload.aiUrl,
+      payload.ai_url,
+      payload.baseUrl,
+      payload.base_url,
+      payload.serviceUrl,
+      payload.service_url,
       payload.data?.selfieVerification,
       payload.data?.selfie_verification,
       payload.data?.selfieVerificationUrl,
@@ -58,6 +73,14 @@ export const extractSelfieVerificationUrl = (payload: any): string | null => {
       payload.data?.verification_url,
       payload.data?.aiVerificationUrl,
       payload.data?.ai_verification_url,
+      payload.data?.ngrokUrl,
+      payload.data?.ngrok_url,
+      payload.data?.aiUrl,
+      payload.data?.ai_url,
+      payload.data?.baseUrl,
+      payload.data?.base_url,
+      payload.data?.serviceUrl,
+      payload.data?.service_url,
       payload.properties?.selfieVerification,
       payload.properties?.selfie_verification,
       payload.properties?.selfieVerificationUrl,
@@ -189,7 +212,34 @@ export const fetchSelfieVerificationUrl = async (): Promise<string | null> => {
     return cached;
   }
 
-  // 2. Query live profile/me API to extract the property if already active in backend
+  // 2. Dedicated endpoint, if the backend exposes the AI service URL there
+  //    (e.g. GET /selfie/verification-url -> { selfieVerification: "https://..." }).
+  try {
+    const res = await apiClient
+      .get('/selfie/verification-url')
+      .catch(() => apiClient.get('/profile/selfie/verification-url'))
+      .catch(() => apiClient.get('/profile/selfie-verification-url'))
+      .catch(() => apiClient.get('/selfie-verification-url'))
+      .catch(() => apiClient.get('/selfie/url'))
+      .catch(() => apiClient.get('/profile/selfie/url'))
+      .catch(() => null);
+    if (res?.data) {
+      // Dedicated endpoints often return a plain `url` field.
+      const plainUrl = [
+        res.data?.url,
+        res.data?.data?.url,
+        res.data?.properties?.url,
+        res.data?.config?.url,
+      ].find((value) => typeof value === 'string' && /^https?:\/\//i.test(value.trim()));
+      const url = extractSelfieVerificationUrl(res.data) || plainUrl;
+      if (url) {
+        await saveSelfieVerificationUrl(url);
+        return url;
+      }
+    }
+  } catch {}
+
+  // 3. Query live profile/me API to extract the property if already active in backend
   try {
     const authSession = await getAuthSession();
     const uid = authSession?.userId;
@@ -209,6 +259,21 @@ export const fetchSelfieVerificationUrl = async (): Promise<string | null> => {
   } catch {}
 
   return null;
+};
+
+/**
+ * Drop the cached AI URL and ask the backend for a fresh one. Used when the
+ * stored URL points at a dead tunnel (ngrok URLs rotate), otherwise the user
+ * would be stuck retrying the same unreachable host until the cache expires.
+ */
+export const refreshSelfieVerificationUrl = async (): Promise<string | null> => {
+  await AsyncStorage.multiRemove([
+    SELFIE_VERIFICATION_URL_STORAGE_KEY,
+    SELFIE_VERIFICATION_URL_SAVED_AT_KEY,
+  ]).catch(() => {});
+  activeFaceValidationUrl = DEFAULT_SELFIE_VERIFICATION_URL;
+  faceValidationClient.defaults.baseURL = DEFAULT_SELFIE_VERIFICATION_URL;
+  return fetchSelfieVerificationUrl();
 };
 
 /**

@@ -48,7 +48,7 @@ import { getAuthToken, getUserId } from "../../utils/sessionHelper";
 import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/userFriendlyMessages";
 import { RootParamList } from "../../utils/types/navigation.types";
 import { t, useTranslation } from '../../i18n';
-import { calculateAgeFromDob } from '../../utils/dateUtils';
+import { calculateAgeFromDob, getAgeFromDob } from '../../utils/dateUtils';
 
 const normalizeTextValue = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -874,12 +874,18 @@ const ViewMyProfileScreen = () => {
   };
 
   const ownAge = useMemo(() => {
+    // Server DOB is authoritative when available so a birthday changed on
+    // another device appears here. The local context date is only the offline
+    // fallback.
+    const fetchedDob = (fetchedProfile as any)?.dob;
+    const ageFromFetchedDob = fetchedDob ? getAgeFromDob(fetchedDob) : null;
+    if (ageFromFetchedDob) return ageFromFetchedDob;
     if (date) {
       const calc = calculateAgeFromDob(date);
       if (calc > 0) return calc;
     }
     return fetchedProfile?.age || null;
-  }, [date, fetchedProfile?.age]);
+  }, [date, fetchedProfile?.age, fetchedProfile?.dob]);
 
   const isTargetUserFetched = useMemo(() => {
     if (isViewingSelf || !numericTargetId || !fetchedProfile) return false;

@@ -156,6 +156,13 @@ const hybridAdapter = async (config: any) => {
         throw backendError;
       }
 
+      // Discover/Search data must come from the database. Falling back to the
+      // local mock here shows fake profiles and hides real backend failures.
+      if (url.includes('/dashboard/') || url.includes('/search') || url.includes('/home/')) {
+        console.warn('[ApiClient] Discovery request failed, not falling back to mock:', url, backendError?.message);
+        throw backendError;
+      }
+
       console.warn('[ApiClient] Backend request failed, falling back to mock data:', url, backendError?.message);
       return handleMockRequest(config);
     }

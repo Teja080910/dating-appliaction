@@ -160,7 +160,7 @@ const Location = () => {
   const { addLocation, getLocationErrorMessage } = useLocation();
 
   // State
-  const [activeLocationType, setActiveLocationType] = useState<"gps" | "custom">("custom");
+  const [activeLocationType, setActiveLocationType] = useState<"gps" | "custom">("gps");
   const [savedLocations, setSavedLocations] = useState<SavedLocationItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
@@ -190,22 +190,24 @@ const Location = () => {
       if (storedType === "gps" || storedType === "custom") {
         setActiveLocationType(storedType);
       } else {
-        if (!location || location === t('search.location.my_current_location') || location.includes("Current location")) {
-          setActiveLocationType("gps");
-        } else {
-          setActiveLocationType("custom");
-        }
+        // Default to "Search near me" until the user explicitly picks a custom location.
+        setActiveLocationType("gps");
       }
     } catch {
       // ignore
     }
   };
 
+  // Reset back to "Search near me" when the location is cleared (e.g. Reset filters).
   useEffect(() => {
-    if (!location || location === t('search.location.my_current_location') || location.includes("Current location")) {
+    if (
+      !location ||
+      location === t('search.location.my_current_location') ||
+      location === t('search.location.search_near_me') ||
+      location.includes("Current location")
+    ) {
       setActiveLocationType("gps");
-    } else {
-      setActiveLocationType("custom");
+      AsyncStorage.setItem(STORAGE_ACTIVE_LOCATION_TYPE, "gps").catch(() => {});
     }
   }, [location]);
 
@@ -430,53 +432,79 @@ const Location = () => {
     });
   };
 
-  const displayTitle = useMemo(() => {
-    if (activeLocationType === "gps") {
-      return location && location !== t('search.location.my_current_location') ? location : t('search.location.my_current_location');
-    }
-    return location || t('search.location.hyderabad');
-  }, [activeLocationType, location]);
+  const isCurrentLocation = useMemo(() => {
+    return (
+      !location ||
+      location === t('search.location.my_current_location') ||
+      location === t('search.location.search_near_me') ||
+      location.includes("Current location")
+    );
+  }, [location]);
 
-  const displaySubtitle = useMemo(() => {
-    if (activeLocationType === "gps") {
-      return t('search.location.using_gps_location');
-    }
-    return "Custom location";
-  }, [activeLocationType]);
+  const isCustomActive = activeLocationType === "custom" && !isCurrentLocation;
 
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{t('search.location.search_location')}</Text>
 
-      {/* Main Search Location Card (matching media_1791822690914.png) */}
+      {/* Search near me (hidden once a custom location is active) */}
+      {!isCustomActive && (
+        <TouchableOpacity
+          style={styles.nearMeWrapper}
+          activeOpacity={0.85}
+          onPress={handleSelectGps}
+          disabled={isResolvingGps}
+        >
+          <LinearGradient
+            colors={[themeColors.primary, themeColors.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.nearMeGradient}
+          >
+            {isResolvingGps ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons
+                  name="location-outline"
+                  size={22}
+                  color="#FFFFFF"
+                  style={{ marginRight: 12 }}
+                />
+                <Text style={styles.nearMeText}>
+                  {t('search.location.search_near_me')}
+                </Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+
+      {/* Custom location */}
       <TouchableOpacity
-        style={styles.locationCard}
+        style={styles.customLocationCard}
         activeOpacity={0.8}
         onPress={() => setLocationModalVisible(true)}
       >
-        <View style={styles.locationCardLeft}>
-          <Ionicons
-            name="location-outline"
-            size={22}
-            color={themeColors.primary}
-            style={{ marginRight: 12 }}
-          />
-          <View>
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {displayTitle}
+        <Ionicons
+          name="globe-outline"
+          size={22}
+          color={themeColors.text}
+          style={{ marginRight: 12 }}
+        />
+        <View style={styles.customLocationBody}>
+          <Text style={styles.customLocationTitle} numberOfLines={1}>
+            {isCustomActive && location
+              ? location
+              : t('search.location.custom_location')}
+          </Text>
+          {isCustomActive && location ? (
+            <Text style={styles.customLocationSubtitle}>
+              {t('search.location.custom_location')}
             </Text>
-            <Text style={styles.cardSubtitle}>
-              {displaySubtitle}
-            </Text>
-          </View>
+          ) : null}
         </View>
-
-        <TouchableOpacity
-          onPress={() => setLocationModalVisible(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.changeBtnText}>{t('search.location.change')}</Text>
-        </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
       </TouchableOpacity>
 
       {/* Modal: Change Location */}
@@ -807,37 +835,53 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
       color: themeColors.text,
       letterSpacing: -0.1,
     },
-    locationCard: {
+    nearMeWrapper: {
+      borderRadius: 14,
+      overflow: "hidden",
+      marginBottom: 12,
+      shadowColor: themeColors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    nearMeGradient: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
+      justifyContent: "center",
+      height: 56,
+      paddingHorizontal: 16,
+      borderRadius: 14,
+    },
+    nearMeText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    customLocationCard: {
+      flexDirection: "row",
+      alignItems: "center",
       backgroundColor: themeColors.surface,
       borderRadius: 14,
       paddingHorizontal: 16,
       paddingVertical: 14,
+      minHeight: 56,
       borderWidth: 1,
       borderColor: themeColors.borderLight,
     },
-    locationCardLeft: {
-      flexDirection: "row",
-      alignItems: "center",
+    customLocationBody: {
       flex: 1,
-      marginRight: 12,
+      marginRight: 10,
     },
-    cardTitle: {
+    customLocationTitle: {
       fontSize: 16,
       fontWeight: "600",
       color: themeColors.text,
     },
-    cardSubtitle: {
+    customLocationSubtitle: {
       fontSize: 13,
       color: themeColors.textSecondary,
       marginTop: 2,
-    },
-    changeBtnText: {
-      color: themeColors.primaryLight || themeColors.primary,
-      fontSize: 14,
-      fontWeight: "600",
     },
 
     // Modal

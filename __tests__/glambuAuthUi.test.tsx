@@ -39,6 +39,10 @@ jest.mock('../src/api/useFaceValidation', () => ({
   }),
   useSelfieVerificationUrl: () => ({ data: null }),
   checkFaceValidationHealth: jest.fn(() => Promise.resolve({ status: 'healthy' })),
+  isFaceServiceUnavailable: jest.fn(() => false),
+  refreshSelfieVerificationUrl: jest.fn(async () => null),
+  getStoredSelfieVerificationUrl: jest.fn(async () => null),
+  fetchSelfieVerificationUrl: jest.fn(async () => null),
 }));
 jest.mock('react-native-vision-camera', () => ({
   Camera: 'Camera',

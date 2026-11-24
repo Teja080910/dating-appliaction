@@ -29,7 +29,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
 import { useProfile } from '../../api/useProfile';
 import { useUserImages, parseUploadResponse } from '../../api/useImages';
-import { useFaceValidation, useSelfieVerificationUrl, isFaceServiceUnavailable } from '../../api/useFaceValidation';
 import { useTheme, Colors } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
@@ -109,12 +108,6 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
   const { verifySelfie, uploadSelfie } = useProfile();
   const { uploadImage } = useUserImages();
-  const { uploadLivePhoto } = useFaceValidation();
-  const { data: dynamicSelfieUrl } = useSelfieVerificationUrl();
-
-  // Any URL the backend currently hands over is usable; short-lived tunnels
-  // (ngrok) are refreshed from the backend instead of being rejected by host.
-  const hasActiveAiUrl = Boolean(dynamicSelfieUrl && dynamicSelfieUrl.startsWith('http'));
 
   // 1. Proactively check camera permission on mount and focus
   const checkCameraPermission = useCallback(async () => {
@@ -250,105 +243,15 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
     }, [navigation, screenMode])
   );
 
-  // 5. Biometric Verification & Face Recognition Process
-  const startFaceVerification = async (photoUri: string) => {
-    setScreenMode('review');
-
-    // If no active AI verification URL came from the backend API, keep direct fallback "Use this selfie"
-    if (!hasActiveAiUrl) {
-      console.log('[SelfieVerification] No active AI verification URL from API, keeping direct "Use this selfie" flow.');
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-      setScanProgress(100);
-      setVerificationStageText('Selfie captured! ✓');
-      setIsVerifying(false);
-      setScanComplete(true);
-      return;
-    }
-
-    setIsVerifying(true);
-    setScanComplete(false);
-    setScanProgress(15);
-    setVerificationStageText('Detecting face with AI...');
-
-    let progress = 15;
+  // 5. Review the captured selfie. The backend performs the actual AI face
+  // verification when the user confirms, via /profile/selfie/verify.
+  const startFaceVerification = (_photoUri: string) => {
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-
-    // Smooth biometric scanning progress while the AI verifies the live face
-    scanIntervalRef.current = setInterval(() => {
-      progress += Math.floor(Math.random() * 5) + 3;
-      if (progress < 85) {
-        setScanProgress(progress);
-        if (progress > 30 && progress <= 55) {
-          setVerificationStageText('Analyzing facial landmarks & lighting...');
-        } else if (progress > 55 && progress <= 80) {
-          setVerificationStageText('Verifying biometric liveness & head pose...');
-        }
-      }
-    }, 120);
-
-    try {
-      const authSession = await getAuthSession();
-      const uid = authSession?.userId || (await getUserId().catch(() => null));
-
-      console.log('[SelfieVerification] Sending photo to face recognition engine...');
-      const result = await uploadLivePhoto.mutateAsync({
-        userId: uid ? String(uid) : undefined,
-        photoUri,
-      });
-
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-
-      if (result?.success === false || result?.error) {
-        throw new Error(result.error || result.message || 'Face detection failed');
-      }
-
-      setScanProgress(100);
-      setVerificationStageText('Face verified successfully! ✓');
-      setIsVerifying(false);
-      setScanComplete(true);
-    } catch (err: any) {
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-      setIsVerifying(false);
-
-      const serverError = err?.response?.data?.error || err?.response?.data?.message;
-      const rawMessage = String(serverError || err?.message || '');
-
-      if (isFaceServiceUnavailable(err)) {
-        // No "use this selfie anyway" escape hatch: an unverified selfie must
-        // not become the reference image for the account.
-        console.warn('[SelfieVerification] AI service unreachable:', rawMessage);
-        alert(
-          'Verification Unavailable',
-          'Could not reach the face verification service. Please check your connection and try again.',
-          [
-            {
-              text: 'Retry',
-              onPress: () => startFaceVerification(photoUri),
-            },
-          ]
-        );
-        return;
-      }
-
-      setScanComplete(false);
-      setScanProgress(0);
-      setVerificationStageText('No face detected ✕');
-
-      const message =
-        serverError ||
-        'No valid human face was detected. Please ensure your face is well-lit, clearly visible inside the oval frame, and not blurry.';
-
-      alert(
-        'Face Required',
-        String(message),
-        [
-          {
-            text: 'Retake Photo',
-            onPress: handleRetake,
-          },
-        ]
-      );
-    }
+    setScreenMode('review');
+    setScanProgress(100);
+    setVerificationStageText('Selfie captured');
+    setIsVerifying(false);
+    setScanComplete(true);
   };
 
   // 6. In-App Oval Camera Capture (Never opens stock phone camera app)
@@ -508,17 +411,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
         AsyncStorage.setItem(`user_profile_photo_${String(uid)}`, spotPhotoUri).catch(() => {});
       }
 
-      // 4. Mirror to the external AI face service (best effort, not blocking)
-      try {
-        await uploadLivePhoto.mutateAsync({
-          userId: uid ? String(uid) : undefined,
-          photoUri: capturedPhotoUri,
-        });
-      } catch (faceErr) {
-        console.warn('Face validation service live photo upload error:', faceErr);
-      }
-
-      // 5. Navigate to Step 4: Photo Upload
+      // 4. Navigate to Step 4: Photo Upload
       if (navigation.canGoBack()) {
         navigation.navigate('UploadImage');
       } else {
@@ -600,18 +493,12 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
             {/* Title & Instructions */}
             <Text style={[styles.cardInstructionText, { color: isDark ? '#FFFFFF' : '#111827' }]}>
               {screenMode === 'review'
-                ? scanComplete
-                  ? (hasActiveAiUrl ? 'Face Verified! ✓' : 'Selfie Captured! ✓')
-                  : 'Verifying Face...'
+                ? 'Selfie Captured! ✓'
                 : t('onboarding.selfieverificationscreen.center_your_face_and_click_start')}
             </Text>
             <Text style={[styles.cardSubinstructionText, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
               {screenMode === 'review'
-                ? scanComplete
-                  ? (hasActiveAiUrl
-                      ? 'Biometric face scan completed. Confirm below to proceed.'
-                      : 'Look good? Tap "Use This Selfie" below to proceed.')
-                  : verificationStageText || 'Analyzing facial landmarks...'
+                ? 'Look good? Tap "Use This Selfie" below to proceed.'
                 : 'Make sure your face is clearly visible inside the oval frame.'}
             </Text>
 
@@ -661,7 +548,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                   {scanComplete && (
                     <View style={styles.verifiedBadgeOverlay}>
                       <Icon name="check-decagram" size={18} color="#FFFFFF" />
-                      <Text style={styles.verifiedBadgeText}>VERIFIED</Text>
+                      <Text style={styles.verifiedBadgeText}>CAPTURED</Text>
                     </View>
                   )}
                 </>
@@ -767,7 +654,7 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
                   style={[
                     styles.captureShutterBtn,
                     { borderColor: Colors.primary },
-                    isCapturing && { opacity: 0.6 },
+                    isCapturing && { opacity: 0.5 },
                   ]}
                   onPress={handleCapturePhoto}
                   disabled={isCapturing}

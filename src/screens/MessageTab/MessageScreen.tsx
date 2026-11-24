@@ -26,6 +26,7 @@ import { getAbsoluteUrl } from '../../api/apiClient';
 import { Colors, Spacing, Shadows, Typography, useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
+import { getAgeFromDob } from '../../utils/dateUtils';
 
 export default function MessageScreen() {
   useTranslation();
@@ -95,24 +96,17 @@ export default function MessageScreen() {
   };
 
   const resolveUserAge = (profile: any, targetUser: any) => {
+    // DOB is the source of truth when present so chat and profile agree.
+    const dob = profile?.dob || targetUser?.dob;
+    if (dob) {
+      const calculatedAge = getAgeFromDob(dob);
+      if (calculatedAge !== null && calculatedAge > 0 && calculatedAge < 120) return calculatedAge;
+    }
     if (profile?.age != null && profile?.age !== '' && Number(profile.age) > 0) {
       return profile.age;
     }
     if (targetUser?.age != null && targetUser?.age !== '' && Number(targetUser.age) > 0) {
       return targetUser.age;
-    }
-    const dob = profile?.dob || targetUser?.dob;
-    if (dob) {
-      const dobDate = new Date(dob);
-      if (!isNaN(dobDate.getTime())) {
-        const today = new Date();
-        let calculatedAge = today.getFullYear() - dobDate.getFullYear();
-        const m = today.getMonth() - dobDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
-          calculatedAge--;
-        }
-        if (calculatedAge > 0 && calculatedAge < 120) return calculatedAge;
-      }
     }
     return '';
   };

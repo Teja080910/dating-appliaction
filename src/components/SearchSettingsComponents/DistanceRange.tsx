@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, LayoutChangeEvent, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent, useWindowDimensions } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import Feather from 'react-native-vector-icons/Feather';
 import AppContext from '../../context/CreateGlobalStateContext';
@@ -15,7 +15,7 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideTo
   useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
-  const { distanceRange, setDistanceRange, isChecked, setIsChecked, isSubscribed, setPaywallVisible } = useContext(AppContext);
+  const { distanceRange, setDistanceRange, isChecked, setIsChecked } = useContext(AppContext);
   const { width: windowWidth } = useWindowDimensions();
   const computeSliderWidth = (w: number) => Math.max(180, Math.round(w - 32 - 24));
   const [sliderWidth, setSliderWidth] = useState(() => computeSliderWidth(windowWidth));
@@ -34,16 +34,6 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideTo
       if (onWorldwideToggle) onWorldwideToggle(false);
     }
     if (onChange) onChange(rounded);
-  };
-
-  const handleToggleWorldwide = () => {
-    if (!isSubscribed) {
-      setPaywallVisible(true);
-      return;
-    }
-    const newVal = !isChecked;
-    setIsChecked(newVal);
-    if (onWorldwideToggle) onWorldwideToggle(newVal);
   };
 
   const handleLayout = (event: LayoutChangeEvent) => {
@@ -91,19 +81,15 @@ const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideTo
       {/* Footer Row: "5 km" on left, "🌐 Worldwide" on right */}
       <View style={styles.footerRow}>
         <Text style={styles.minLabel}>{t('search.distancerange.5_km')}</Text>
-        <TouchableOpacity
-          style={[styles.worldwideBtn, isChecked && styles.worldwideBtnActive]}
-          onPress={handleToggleWorldwide}
-          activeOpacity={0.7}
-        >
+        <View style={styles.worldwideBtn}>
           <Feather
             name="globe"
             size={14}
-            color={isChecked ? themeColors.primary : themeColors.textSecondary}
+            color={themeColors.textSecondary}
             style={{ marginRight: 6 }}
           />
-          <Text style={[styles.worldwideText, isChecked && styles.worldwideTextActive]}>{t('search.distancerange.worldwide')}</Text>
-        </TouchableOpacity>
+          <Text style={styles.worldwideText}>{t('search.distancerange.worldwide')}</Text>
+        </View>
       </View>
     </View>
   );
@@ -193,17 +179,10 @@ const createStyles = (themeColors: ThemeColors) =>
       paddingHorizontal: 8,
       borderRadius: 12,
     },
-    worldwideBtnActive: {
-      backgroundColor: 'rgba(124, 58, 237, 0.15)',
-    },
     worldwideText: {
       fontSize: 13,
       color: themeColors.textSecondary,
       fontWeight: '500',
-    },
-    worldwideTextActive: {
-      color: themeColors.primary,
-      fontWeight: '700',
     },
   });
 

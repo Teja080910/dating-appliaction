@@ -15,6 +15,7 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { useMyProfile } from '../../api/useProfile';
 import { useSubscription } from '../../api/useSubscription';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SUPPORT_EMAIL } from '../../environment/ApiConfig';
 import { t, useTranslation } from '../../i18n';
@@ -25,6 +26,7 @@ interface SettingsRowProps {
   onPress: () => void;
   isDestructive?: boolean;
   iconSize?: number;
+  iconFamily?: 'materialCommunity' | 'ionicons';
   themeColors: any;
   styles: any;
 }
@@ -35,26 +37,31 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
   onPress,
   isDestructive = false,
   iconSize = 22,
+  iconFamily = 'materialCommunity',
   themeColors,
   styles,
-}) => (
-  <TouchableOpacity
-    style={styles.menuRow}
-    onPress={onPress}
-    activeOpacity={0.65}
-  >
-    <View style={styles.iconContainer}>
-      <Icon
-        name={icon}
-        size={iconSize}
-        color={isDestructive ? themeColors.error : themeColors.text}
-      />
-    </View>
-    <Text style={[styles.menuLabel, isDestructive && styles.destructiveLabel]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
+}) => {
+  const iconColor = isDestructive ? themeColors.error : themeColors.text;
+
+  return (
+    <TouchableOpacity
+      style={styles.menuRow}
+      onPress={onPress}
+      activeOpacity={0.65}
+    >
+      <View style={styles.iconContainer}>
+        {iconFamily === 'ionicons' ? (
+          <Ionicons name={icon} size={iconSize} color={iconColor} />
+        ) : (
+          <Icon name={icon} size={iconSize} color={iconColor} />
+        )}
+      </View>
+      <Text style={[styles.menuLabel, isDestructive && styles.destructiveLabel]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 
 const ProfileScreen = () => {
@@ -336,7 +343,8 @@ const ProfileScreen = () => {
             </>
           )}
           <SettingsRow
-            icon="send-outline"
+            icon="paper-plane-outline"
+            iconFamily="ionicons"
             label={t('nav.bottomtabs.telegram')}
             themeColors={themeColors}
             styles={styles}
@@ -349,13 +357,15 @@ const ProfileScreen = () => {
             styles={styles}
             onPress={() => navigation.navigate('PreferencesScreen')}
           />
-          <SettingsRow
-            icon="map-marker-outline"
-            label={t('profile.resetlocationscreen.reset_location')}
-            themeColors={themeColors}
-            styles={styles}
-            onPress={() => navigation.navigate('ResetLocationScreen')}
-          />
+          {!isWoman && (
+            <SettingsRow
+              icon="map-marker-outline"
+              label={t('profile.resetlocationscreen.reset_location')}
+              themeColors={themeColors}
+              styles={styles}
+              onPress={() => navigation.navigate('ResetLocationScreen')}
+            />
+          )}
         </View>
 
         <View style={styles.divider} />

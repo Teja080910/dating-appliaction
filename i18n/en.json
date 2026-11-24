@@ -183,6 +183,8 @@
   "search.englishproficiency.english_level": "English level",
   "search.ethnicity.race_ethnicity": "Race/ethnicity",
   "search.location.search_location": "Search location",
+  "search.location.search_near_me": "Search near me",
+  "search.location.custom_location": "Custom location",
   "search.location.change": "Change",
   "search.location.no_locations_found": "No locations found",
   "search.location.using_gps_location": "Using GPS location",

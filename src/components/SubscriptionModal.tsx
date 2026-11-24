@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../context/CreateGlobalStateContext';
 import {
@@ -127,30 +128,56 @@ const getPlans = (): ClientSubscriptionPlan[] => {
   return FALLBACK_DEFAULT_PLANS;
 };
 
-const getBenefitSlides = () => [
+type BenefitSlide = {
+  id: string;
+  icon: string;
+  iconFamily?: 'mci' | 'ionicons';
+  iconColor: string;
+  badgeBackground?: string;
+  badgeBorderColor?: string;
+  title: string;
+  subtitle: string;
+};
+
+const getBenefitSlides = (colors: any): BenefitSlide[] => [
   {
     id: '1',
     icon: 'heart-outline',
-    iconColor: '#FF4D67',
-    iconBg: 'rgba(255, 77, 103, 0.14)',
+    iconColor: colors.primary,
     title: t('common.subscriptionmodal.become_a_premium_member'),
-    subtitle: t('common.subscriptionmodal.connect_daily_members', { defaultValue: 'Send daily connection requests to members.' }),
+    subtitle: t('common.subscriptionmodal.connect_daily_members', {
+      defaultValue: 'Send daily connection requests to members.',
+    }),
   },
   {
     id: '2',
     icon: 'star-outline',
-    iconColor: '#FFB800',
-    iconBg: 'rgba(255, 184, 0, 0.14)',
+    iconColor: colors.secondary,
     title: t('common.subscriptionmodal.premium_profile'),
-    subtitle: t('common.subscriptionmodal.stand_out_with_a_premium_badge_and_priority_placement_in_search'),
+    subtitle: t(
+      'common.subscriptionmodal.stand_out_with_a_premium_badge_and_priority_placement_in_search'
+    ),
   },
   {
     id: '3',
+    icon: 'globe-outline',
+    iconFamily: 'ionicons',
+    iconColor: colors.info,
+    badgeBackground: 'rgba(59, 130, 246, 0.14)',
+    badgeBorderColor: 'rgba(59, 130, 246, 0.30)',
+    title: t('common.subscriptionmodal.worldwide_search'),
+    subtitle: t(
+      'common.subscriptionmodal.find_matches_anywhere_in_the_world_not_just_your_local_area'
+    ),
+  },
+  {
+    id: '4',
     icon: 'shield-check-outline',
-    iconColor: '#27AE60',
-    iconBg: 'rgba(39, 174, 96, 0.14)',
+    iconColor: colors.success,
     title: t('common.subscriptionmodal.verified_safe'),
-    subtitle: t('common.subscriptionmodal.all_members_are_verified_enjoy_a_safer_higher_quality_experience'),
+    subtitle: t(
+      'common.subscriptionmodal.all_members_are_verified_enjoy_a_safer_higher_quality_experience'
+    ),
   },
 ];
 
@@ -418,7 +445,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
-  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth } = useWindowDimensions();
   const { alert, AlertComponent } = useAlert();
   const { setIsSubscribed, isSubscribed, displayName, name, email, phoneNumber, gender, authUserId } =
     useContext(AppContext);
@@ -547,10 +574,10 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   }, [visible, isWoman, isSubscribed, subscriptionStatus?.active, subscriptionStatus?.plan]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || isWoman) return;
     const interval = setInterval(() => {
       setActiveSlide((prev) => {
-        const next = (prev + 1) % getBenefitSlides().length;
+        const next = (prev + 1) % getBenefitSlides(themeColors).length;
         try {
           flatListRef.current?.scrollToIndex({ index: next, animated: true });
         } catch {
@@ -560,12 +587,16 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       });
     }, 4000);
     return () => clearInterval(interval);
-  }, [visible]);
+  }, [visible, isWoman, themeColors]);
 
   const handleScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / screenWidth);
-    if (index >= 0 && index < getBenefitSlides().length && index !== activeSlide) {
+    if (
+      index >= 0 &&
+      index < getBenefitSlides(themeColors).length &&
+      index !== activeSlide
+    ) {
       setActiveSlide(index);
     }
   };
@@ -850,47 +881,66 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Benefits Carousel */}
+          {/* Benefit Slides */}
           <View style={styles.carouselSection}>
             <FlatList
               ref={flatListRef}
-              data={getBenefitSlides()}
+              data={getBenefitSlides(themeColors)}
               keyExtractor={(item) => item.id}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={handleScroll}
-              renderItem={({ item }) => (
-                <View style={[styles.slideItem, { width: screenWidth }]}>
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: item.iconBg },
-                    ]}
-                  >
-                    <Icon name={item.icon} size={38} color={item.iconColor} />
+              renderItem={({ item }) => {
+                const slideIcon =
+                  item.iconFamily === 'ionicons' ? (
+                    <Ionicons name={item.icon} size={50} color={item.iconColor} />
+                  ) : (
+                    <Icon name={item.icon} size={50} color={item.iconColor} />
+                  );
+                return (
+                  <View style={[styles.slideItem, { width: screenWidth }]}>
+                    {item.badgeBackground ? (
+                      <View
+                        style={[
+                          styles.heroBadge,
+                          {
+                            backgroundColor: item.badgeBackground,
+                            borderColor: item.badgeBorderColor || item.badgeBackground,
+                          },
+                        ]}
+                      >
+                        {slideIcon}
+                      </View>
+                    ) : (
+                      <LinearGradient
+                        colors={[...themeColors.gradientCard]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.heroBadge}
+                      >
+                        {slideIcon}
+                      </LinearGradient>
+                    )}
+                    <Text style={styles.heroTitle}>{item.title}</Text>
+                    <Text style={styles.heroSubtitle}>{item.subtitle}</Text>
                   </View>
-                  <Text style={styles.slideTitle}>{item.title}</Text>
-                  <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
-                </View>
-              )}
+                );
+              }}
             />
-
-            {/* Pagination Dots */}
-            <View style={styles.paginationDots}>
-              {getBenefitSlides().map((_, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.dot,
-                    activeSlide === idx ? styles.activeDot : styles.inactiveDot,
-                  ]}
-                />
-              ))}
-            </View>
           </View>
 
-          {/* 3 Plans Side-by-Side */}
+          {/* Plans Heading */}
+          <View style={styles.plansSection}>
+            <Text style={styles.sectionTitle}>
+              {t('common.subscriptionmodal.get_amara_premium')}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              {t('common.subscriptionmodal.choose_your_plan')}
+            </Text>
+          </View>
+
+          {/* Plan Cards */}
           <View style={styles.plansRow}>
             {plans.map((plan) => {
               const isSelected = selectedPlanId === plan.id;
@@ -907,13 +957,25 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   activeOpacity={0.85}
                 >
                   {isActivePlan ? (
-                    <View style={styles.activeCardBadge}>
-                      <Icon name="check" size={10} color="#FFFFFF" style={{ marginRight: 2 }} />
-                      <Text style={styles.activeCardBadgeText}>ACTIVE PLAN</Text>
+                    <View style={[styles.badgeContainer, styles.activeCardBadge]}>
+                      <Icon name="check" size={11} color="#FFFFFF" style={{ marginRight: 3 }} />
+                      <Text style={styles.badgeText}>ACTIVE PLAN</Text>
                     </View>
                   ) : plan.badge ? (
-                    <View style={styles.badgeContainer}>
-                      <Text style={styles.badgeText}>{plan.badge}</Text>
+                    <View
+                      style={[
+                        styles.badgeContainer,
+                        isSelected ? styles.badgeSelected : styles.badgeUnselected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.badgeText,
+                          isSelected && styles.badgeTextSelected,
+                        ]}
+                      >
+                        {plan.badge}
+                      </Text>
                     </View>
                   ) : null}
 
@@ -928,6 +990,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
                   <View style={styles.priceContainer}>
                     <Text
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
                       style={[
                         styles.planPrice,
                         isSelected && styles.selectedPlanPrice,
@@ -942,7 +1006,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                           isSelected && styles.selectedPlanUnit,
                         ]}
                       >
-                        {plan.unit}
+                        /{plan.unit}
                       </Text>
                     ) : null}
                   </View>
@@ -979,7 +1043,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             })}
           </View>
 
-          {/* Plan feature note / disclaimer */}
+          {/* Plan note / disclaimer */}
           <Text style={styles.disclaimerText}>
             {isSelectedActive
               ? t('common.subscriptionmodal.plan_active_days_remaining', {
@@ -995,58 +1059,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                     : t('common.subscriptionmodal.standard_plan_desc', { defaultValue: 'Standard Plan: 10 daily connection requests for 120 days.' })
                 )}
           </Text>
-
-          {/* Selected Plan Feature Highlights */}
-          <View style={styles.featuresContainer}>
-            {Boolean(selectedPlan.tagline) && (
-              <View style={styles.featureItem}>
-                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-                <Text style={styles.featureItemText}>
-                  {selectedPlan.tagline}
-                </Text>
-              </View>
-            )}
-            {Boolean(selectedPlan.limitLabel) && (
-              <View style={styles.featureItem}>
-                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-                <Text style={styles.featureItemText}>
-                  {selectedPlan.limitLabel}
-                </Text>
-              </View>
-            )}
-            {Boolean(selectedPlan.durationDays) && (
-              <View style={styles.featureItem}>
-                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-                <Text style={styles.featureItemText}>
-                  {`${selectedPlan.durationDays} Days validity`}
-                </Text>
-              </View>
-            )}
-            {Boolean(selectedPlan.worldwideSearch) && (
-              <View style={styles.featureItem}>
-                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-                <Text style={styles.featureItemText}>
-                  Worldwide Search
-                </Text>
-              </View>
-            )}
-            {Boolean(selectedPlan.priorityHandoff) && (
-              <View style={styles.featureItem}>
-                <Icon name="check-circle" size={16} color="#10B981" style={{ marginRight: 8 }} />
-                <Text style={styles.featureItemText}>
-                  Priority Telegram Handoff
-                </Text>
-              </View>
-            )}
-            {Boolean(selectedPlan.eliteBadge) && (
-              <View style={styles.featureItem}>
-                <Icon name="shield-star" size={16} color="#F59E0B" style={{ marginRight: 8 }} />
-                <Text style={styles.featureItemText}>
-                  VIP Elite Profile Badge
-                </Text>
-              </View>
-            )}
-          </View>
 
           {/* Subscribe CTA */}
           <TouchableOpacity
@@ -1078,13 +1090,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                           plan: selectedPlan?.label,
                           defaultValue: `Active Plan (${selectedPlan?.label})`,
                         })
-                      : activePlan
-                      ? t('common.subscriptionmodal.upgrade_to_plan', {
-                          plan: selectedPlan?.label,
-                          price: selectedPlan?.price,
-                          defaultValue: `Upgrade to ${selectedPlan?.label} (${selectedPlan?.price})`,
-                        })
-                      : `${t('common.subscriptionmodal.subscribe')} (${selectedPlan?.price})`}
+                      : t('common.subscriptionmodal.subscribe')}
                   </Text>
                 </View>
               )}
@@ -1097,7 +1103,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
             activeOpacity={0.7}
           >
-            <Text style={styles.supportFooterText}>{t('common.subscriptionmodal.need_help')}{' '}
+            <Text style={styles.supportFooterText}>
+              {t('common.subscriptionmodal.need_help')}{' '}
               <Text style={styles.supportFooterLink}>
                 Chat with us {SUPPORT_EMAIL}
               </Text>
@@ -1155,122 +1162,114 @@ function createStyles(colors: any, isDark: boolean = true) {
       alignItems: 'flex-start',
     },
     headerTitle: {
-      fontSize: 17,
+      fontSize: 19,
       fontWeight: '700',
       color: colors.text,
+      letterSpacing: -0.2,
     },
     headerPlaceholder: {
       width: 40,
     },
     scrollContent: {
-      paddingBottom: 20,
+      paddingBottom: 28,
     },
     carouselSection: {
-      marginTop: 14,
+      marginTop: 32,
       alignItems: 'center',
     },
     slideItem: {
       alignItems: 'center',
-      paddingHorizontal: 30,
+      justifyContent: 'flex-start',
+      paddingHorizontal: 32,
     },
-    iconContainer: {
-      width: 76,
-      height: 76,
-      borderRadius: 24,
+    heroBadge: {
+      width: 104,
+      height: 104,
+      borderRadius: 30,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(124, 58, 237, 0.12)',
     },
-    slideTitle: {
-      fontSize: 22,
-      fontWeight: '700',
+    heroTitle: {
+      fontSize: 26,
+      fontWeight: '800',
       color: colors.text,
       textAlign: 'center',
-      marginBottom: 8,
+      letterSpacing: -0.3,
+      marginBottom: 12,
     },
-    slideSubtitle: {
-      fontSize: 14,
+    heroSubtitle: {
+      fontSize: 15,
       color: colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
-      paddingHorizontal: 10,
+      lineHeight: 22,
     },
-    paginationDots: {
-      flexDirection: 'row',
-      justifyContent: 'center',
+    plansSection: {
       alignItems: 'center',
-      marginTop: 16,
-      gap: 6,
+      paddingHorizontal: 24,
+      marginTop: 36,
     },
-    dot: {
-      height: 6,
-      borderRadius: 3,
+    sectionTitle: {
+      fontSize: 26,
+      fontWeight: '800',
+      color: colors.text,
+      textAlign: 'center',
+      letterSpacing: -0.3,
     },
-    activeDot: {
-      width: 22,
-      backgroundColor: colors.primary,
-    },
-    inactiveDot: {
-      width: 6,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.15)',
+    sectionSubtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 6,
     },
     plansRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingHorizontal: 12,
-      marginTop: 22,
-      gap: 8,
+      justifyContent: 'center',
+      alignItems: 'stretch',
+      alignSelf: 'center',
+      width: '100%',
+      maxWidth: 480,
+      paddingHorizontal: 20,
+      marginTop: 30,
+      gap: 12,
     },
     planCard: {
       flex: 1,
       backgroundColor: isDark ? colors.surface : '#FFFFFF',
-      borderRadius: 14,
-      paddingVertical: 14,
-      paddingHorizontal: 4,
+      borderRadius: 18,
+      paddingTop: 26,
+      paddingBottom: 20,
+      paddingHorizontal: 6,
       alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 146,
+      justifyContent: 'flex-start',
+      minHeight: 178,
       borderWidth: 1.5,
       borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E5E7EB',
       position: 'relative',
+      overflow: 'visible',
     },
     selectedPlanCard: {
       borderColor: colors.primary,
       backgroundColor: colors.primary,
       shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      elevation: 5,
     },
     activePlanCardBorder: {
       borderColor: '#10B981',
       borderWidth: 2,
     },
-    activePlanSelectedCard: {
-      borderWidth: 2.5,
-      borderColor: '#10B981',
-    },
     activeCardBadge: {
-      position: 'absolute',
-      top: -10,
-      alignSelf: 'center',
       backgroundColor: '#10B981',
-      paddingHorizontal: 7,
-      paddingVertical: 2,
-      borderRadius: 10,
-      zIndex: 2,
       flexDirection: 'row',
       alignItems: 'center',
     },
-    activeCardBadgeText: {
-      color: '#FFFFFF',
-      fontSize: 8.5,
-      fontWeight: '800',
-      letterSpacing: 0.3,
-    },
     activeStatusPill: {
-      marginTop: 6,
+      marginTop: 8,
       paddingHorizontal: 8,
       paddingVertical: 2,
       borderRadius: 8,
@@ -1289,27 +1288,34 @@ function createStyles(colors: any, isDark: boolean = true) {
     },
     badgeContainer: {
       position: 'absolute',
-      top: -10,
+      top: -11,
       alignSelf: 'center',
-      backgroundColor: '#C53047',
-      paddingHorizontal: 7,
-      paddingVertical: 2,
-      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
       zIndex: 2,
+    },
+    badgeUnselected: {
+      backgroundColor: colors.secondary || colors.primary,
+    },
+    badgeSelected: {
+      backgroundColor: '#FFFFFF',
     },
     badgeText: {
       color: '#FFFFFF',
-      fontSize: 8.5,
+      fontSize: 9.5,
       fontWeight: '800',
-      letterSpacing: 0.3,
+      letterSpacing: 0.4,
+    },
+    badgeTextSelected: {
+      color: colors.primary,
     },
     planLabel: {
-      fontSize: 11,
+      fontSize: 11.5,
       fontWeight: '700',
       color: colors.textSecondary,
       textTransform: 'uppercase',
-      letterSpacing: 0.3,
-      marginTop: 2,
+      letterSpacing: 0.4,
     },
     selectedPlanLabel: {
       color: 'rgba(255, 255, 255, 0.95)',
@@ -1318,18 +1324,20 @@ function createStyles(colors: any, isDark: boolean = true) {
       flexDirection: 'row',
       alignItems: 'baseline',
       justifyContent: 'center',
-      marginTop: 6,
+      marginTop: 10,
+      width: '100%',
     },
     planPrice: {
       fontSize: 20,
       fontWeight: '800',
       color: colors.text,
+      maxWidth: '100%',
     },
     selectedPlanPrice: {
       color: '#FFFFFF',
     },
     planUnit: {
-      fontSize: 12.5,
+      fontSize: 12,
       fontWeight: '600',
       color: colors.textSecondary,
       marginLeft: 2,
@@ -1339,61 +1347,36 @@ function createStyles(colors: any, isDark: boolean = true) {
     },
     planSubText: {
       fontSize: 11.5,
-      fontWeight: '700',
+      fontWeight: '600',
       color: colors.text,
-      marginTop: 6,
+      marginTop: 10,
       textAlign: 'center',
     },
     selectedPlanSubText: {
       color: '#FFFFFF',
     },
     planBilledText: {
-      fontSize: 10.5,
+      fontSize: 11,
       color: colors.textSecondary,
-      marginTop: 4,
+      marginTop: 5,
       textAlign: 'center',
     },
     selectedPlanBilledText: {
       color: 'rgba(255, 255, 255, 0.85)',
     },
     disclaimerText: {
-      fontSize: 11.5,
+      fontSize: 13.5,
       color: colors.textSecondary,
       textAlign: 'center',
-      lineHeight: 16,
-      marginTop: 20,
-      paddingHorizontal: 24,
-    },
-    featuresContainer: {
-      marginTop: 14,
-      marginHorizontal: 20,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F9FAFB',
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E5E7EB',
-      gap: 8,
-    },
-    featureItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    featureItemText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.text,
-      flex: 1,
-    },
-    featureItemDisabled: {
-      color: colors.textSecondary,
-      opacity: 0.6,
-      textDecorationLine: 'line-through',
+      lineHeight: 20,
+      marginTop: 26,
+      paddingHorizontal: 28,
     },
     subscribeButton: {
-      marginHorizontal: 16,
-      marginTop: 16,
-      borderRadius: 23,
+      marginHorizontal: 20,
+      marginTop: 26,
+      height: 56,
+      borderRadius: 28,
       overflow: 'hidden',
       elevation: 4,
       shadowColor: colors.primary,
@@ -1402,30 +1385,31 @@ function createStyles(colors: any, isDark: boolean = true) {
       shadowRadius: 8,
     },
     subscribeGradient: {
-      height: 46,
+      flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
     },
     subscribeButtonText: {
       color: '#FFFFFF',
-      fontSize: 15,
+      fontSize: 17,
       fontWeight: '700',
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
     },
     supportFooter: {
-      marginTop: 18,
-      marginBottom: 12,
+      marginTop: 22,
+      marginBottom: 24,
       alignItems: 'center',
-      paddingHorizontal: 16,
+      paddingHorizontal: 24,
     },
     supportFooterText: {
-      fontSize: 12,
+      fontSize: 14,
       color: colors.textSecondary,
       textAlign: 'center',
+      lineHeight: 20,
     },
     supportFooterLink: {
       color: colors.primaryLight || colors.primary,
-      textDecorationLine: 'underline',
+      fontWeight: '600',
     },
   });
 }

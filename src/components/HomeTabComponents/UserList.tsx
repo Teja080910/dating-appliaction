@@ -14,7 +14,7 @@ import { getSavedSearchFilters, getLocalBlockedUsers, getLocalDeletedAccounts } 
 import { Colors, Spacing, useTheme } from '../../theme';
 import { useResponsive } from '../../utils/responsive';
 import { resolveProfileDistance, filterByRadius } from '../../utils/distanceHelper';
-import { calculateAgeFromDob } from '../../utils/dateUtils';
+import { getAgeFromDob } from '../../utils/dateUtils';
 import { t, useTranslation } from '../../i18n';
 
 
@@ -66,10 +66,33 @@ export const matchesSearchFilters = (
   if (!item || !savedFilters || savedFilters.isFilterActive === false) return true;
   const p = item?.profile || item;
 
-  // 1. Age
-  const pAge = Number(p.age ?? item.age ?? 24);
-  if (Number.isFinite(Number(savedFilters.minAge)) && pAge < Number(savedFilters.minAge)) return false;
-  if (Number.isFinite(Number(savedFilters.maxAge)) && pAge > Number(savedFilters.maxAge)) return false;
+  // 1. Age — derive from DOB when possible; never assume a missing age is 24.
+  const dobForAge = p.dob ?? item.dob ?? p.dateOfBirth ?? item.dateOfBirth;
+  const dobAge = dobForAge ? getAgeFromDob(dobForAge) : null;
+  const rawAge = p.age ?? item.age;
+  const numericAge =
+    rawAge !== undefined && rawAge !== null && String(rawAge).trim() !== ''
+      ? Number(rawAge)
+      : NaN;
+  const pAge =
+    dobAge !== null && dobAge > 0
+      ? dobAge
+      : Number.isFinite(numericAge) && numericAge > 0
+      ? numericAge
+      : null;
+
+  const rawMinAge = savedFilters.minAge;
+  const rawMaxAge = savedFilters.maxAge;
+  const hasMinAge = rawMinAge !== undefined && rawMinAge !== null && rawMinAge !== '' && Number.isFinite(Number(rawMinAge));
+  const hasMaxAge = rawMaxAge !== undefined && rawMaxAge !== null && rawMaxAge !== '' && Number.isFinite(Number(rawMaxAge));
+
+  // If an age filter is active, profiles with no known age can't be verified to
+  // match it, so exclude them rather than guessing an age.
+  if ((hasMinAge || hasMaxAge) && pAge === null) return false;
+  if (pAge !== null) {
+    if (hasMinAge && pAge < Number(rawMinAge)) return false;
+    if (hasMaxAge && pAge > Number(rawMaxAge)) return false;
+  }
 
   // 2. Height
   const pHeight = Number(p.height ?? item.height);
@@ -340,16 +363,8 @@ const keepInvitableProfiles = (items: any[]) =>
     const rawAge = item?.age ?? item?.profile?.age ?? item?.user?.age;
     const dob = item?.dob ?? item?.profile?.dob ?? item?.user?.dob;
     if (dob) {
-      const d = new Date(dob);
-      if (!isNaN(d.getTime())) {
-        const today = new Date();
-        let calcAge = today.getFullYear() - d.getFullYear();
-        const m = today.getMonth() - d.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
-          calcAge -= 1;
-        }
-        if (calcAge < 18) return false;
-      }
+      const dobAge = getAgeFromDob(dob);
+      if (dobAge !== null && dobAge < 18) return false;
     }
     if (rawAge !== undefined && rawAge !== null && Number(rawAge) < 18) {
       return false;
@@ -529,19 +544,6 @@ const UserList = ({
             };
             const searchRes = await filterUsersMutationRef.current(searchPayload);
             items = parseUserCollection(searchRes);
-
-            // If backend search returned empty, fallback to local mock search with payload
-            if (!items || items.length === 0) {
-              try {
-                const { handleMockRequest } = require('../../mock/mockAdapter');
-                const mockRes = await handleMockRequest({
-                  method: 'POST',
-                  url: '/search',
-                  data: searchPayload,
-                });
-                items = mockRes?.data?.content || [];
-              } catch {}
-            }
           } else if (mode === 'online') {
             try {
               const res = await apiClient.get('/dashboard/online', {
@@ -647,59 +649,15 @@ const UserList = ({
             }
           }
         } catch (err) {
-          console.warn('[UserList] All APIs failed');
+          console.warn('[UserList] Discovery API failed (no mock fallback):', err);
           items = [];
         }
 
-        // Demo / fallback safeguard: if empty, load from mock store and apply active filters
-        if (!items || items.length === 0) {
-          try {
-            const { mockStore } = require('../../mock/mockStore');
-            const targetGender = selectedGender === 'straight_man' ? 'man' : 'woman';
-            const baseProfiles = await mockStore.getProfiles(targetGender);
-
-            if (hasFilters && savedFilters) {
-              let filtered = [...baseProfiles];
-              if (Number.isFinite(Number(savedFilters.minAge))) {
-                filtered = filtered.filter((p: any) => (p.age || 24) >= Number(savedFilters.minAge));
-              }
-              if (Number.isFinite(Number(savedFilters.maxAge))) {
-                filtered = filtered.filter((p: any) => (p.age || 24) <= Number(savedFilters.maxAge));
-              }
-              if (Number.isFinite(Number(savedFilters.minHeight))) {
-                filtered = filtered.filter((p: any) => (p.height || 165) >= Number(savedFilters.minHeight));
-              }
-              if (Number.isFinite(Number(savedFilters.maxHeight))) {
-                filtered = filtered.filter((p: any) => (p.height || 165) <= Number(savedFilters.maxHeight));
-              }
-              if (Array.isArray(savedFilters.bodyType) && savedFilters.bodyType.length > 0) {
-                filtered = filtered.filter((p: any) =>
-                  !p.bodyType || savedFilters.bodyType?.some((bt: string) => String(p.bodyType).toLowerCase().includes(bt.toLowerCase()))
-                );
-              }
-              if (Array.isArray(savedFilters.appearance) && savedFilters.appearance.length > 0) {
-                filtered = filtered.filter((p: any) =>
-                  !p.appearance || savedFilters.appearance?.some((app: string) => String(p.appearance).toLowerCase().includes(app.toLowerCase()))
-                );
-              }
-              if (Array.isArray(savedFilters.language) && savedFilters.language.length > 0) {
-                filtered = filtered.filter((p: any) =>
-                  !p.language || savedFilters.language?.some((lang: string) => String(p.language).toLowerCase().includes(lang.toLowerCase()))
-                );
-              }
-              if (Array.isArray(savedFilters.ethnicity) && savedFilters.ethnicity.length > 0) {
-                filtered = filtered.filter((p: any) =>
-                  !p.ethnicity || savedFilters.ethnicity?.some((eth: string) => String(p.ethnicity).toLowerCase().includes(eth.toLowerCase()))
-                );
-              }
-              if (savedFilters.onlyOnline) {
-                filtered = filtered.filter((p: any) => p.online === true);
-              }
-              items = filtered.length > 0 ? filtered : baseProfiles;
-            } else {
-              items = baseProfiles;
-            }
-          } catch {}
+        // Discover only shows real database profiles. If the API returns nothing
+        // (or fails), the list stays empty so errors are visible instead of
+        // being replaced by demo/mock profiles.
+        if (!items) {
+          items = [];
         }
 
         // Merge any locally registered profiles on this device so newly created accounts appear immediately
@@ -944,15 +902,17 @@ const UserList = ({
         );
         const cleanName = rawName.replace(/,\s*\d+$/, '').trim();
         const dobCandidate = profile?.dob || item?.dob || profile?.dateOfBirth || item?.dateOfBirth;
-        const computedAgeVal = dobCandidate ? calculateAgeFromDob(dobCandidate) : null;
+        const computedAgeVal = dobCandidate ? getAgeFromDob(dobCandidate) : null;
+        // Prefer the DOB-derived age so the card and the profile detail screen
+        // always agree; fall back to the server age only when no DOB exists.
         const safeAge =
-          profile?.age && Number(profile.age) > 0
+          computedAgeVal !== null && computedAgeVal > 0
+            ? String(computedAgeVal)
+            : profile?.age && Number(profile.age) > 0
             ? String(profile.age)
             : item?.age && Number(item.age) > 0
             ? String(item.age)
-            : computedAgeVal && computedAgeVal > 0
-            ? String(computedAgeVal)
-            : '24';
+            : undefined;
         return (
           <UserCard
             id={resolveProfileUserId(item) ?? item.id}

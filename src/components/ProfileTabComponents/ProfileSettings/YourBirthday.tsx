@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import DatePicker from 'react-native-date-picker';
-import { Colors, useTheme } from '../../../theme';
+import { useTheme } from '../../../theme';
 import { t, useTranslation } from '../../../i18n';
-import { parseDobToLocalDate, formatDateToDobString, calculateAgeFromDob } from '../../../utils/dateUtils';
+import { tryParseDobToLocalDate, formatDateToDobString, calculateAgeFromDob } from '../../../utils/dateUtils';
 
 interface YourBirthdayProps {
   value: string;
@@ -18,35 +18,33 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
   const maxSelectableDate = useMemo(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 18);
+    d.setHours(0, 0, 0, 0);
     return d;
   }, []);
 
   const minSelectableDate = useMemo(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 100);
+    d.setHours(0, 0, 0, 0);
     return d;
   }, []);
 
-  const { day, month, year, safeDate } = useMemo(() => {
-    const parsed = parseDobToLocalDate(value);
-    const validDate = isNaN(parsed.getTime()) || parsed > maxSelectableDate ? maxSelectableDate : parsed;
-
-    if (value && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
-      const parts = value.trim().split('-');
-      return {
-        day: String(parseInt(parts[2], 10)),
-        month: String(parseInt(parts[1], 10)),
-        year: String(parseInt(parts[0], 10)),
-        safeDate: validDate,
-      };
-    }
+  const { day, month, year, safeDate, isOutOfRange, isUnderage } = useMemo(() => {
+    const parsed = tryParseDobToLocalDate(value);
+    const inRange = Boolean(parsed && parsed >= minSelectableDate && parsed <= maxSelectableDate);
+    // Keep the displayed boxes and the picker in sync: when the stored value is
+    // outside the selectable range (under 18, future, or invalid), show the same
+    // clamped date the picker opens on instead of a date the user can't pick.
+    const clamped = inRange && parsed ? parsed : maxSelectableDate;
     return {
-      day: String(validDate.getDate()),
-      month: String(validDate.getMonth() + 1),
-      year: String(validDate.getFullYear()),
-      safeDate: validDate,
+      day: String(clamped.getDate()),
+      month: String(clamped.getMonth() + 1),
+      year: String(clamped.getFullYear()),
+      safeDate: clamped,
+      isOutOfRange: Boolean(value && value.trim() && !inRange),
+      isUnderage: Boolean(parsed && parsed > maxSelectableDate),
     };
-  }, [value, maxSelectableDate]);
+  }, [value, maxSelectableDate, minSelectableDate]);
 
   const handleConfirm = (date: Date) => {
     setOpen(false);
@@ -100,6 +98,18 @@ const YourBirthday: React.FC<YourBirthdayProps> = ({ value, onChange }) => {
         </TouchableOpacity>
       </View>
 
+      {isOutOfRange ? (
+        <Text style={[styles.warning, { color: themeColors.error || '#EF4444' }]}>
+          {isUnderage
+            ? t('onboarding.dobscreen.you_must_be_at_least_18_years_old_to_register', {
+                defaultValue: 'You must be at least 18 years old.',
+              })
+            : t('onboarding.dobscreen.valid_birthday_required', {
+                defaultValue: 'Please choose a valid birthday.',
+              })}
+        </Text>
+      ) : null}
+
       <DatePicker
         modal
         open={open}
@@ -130,6 +140,11 @@ const styles = StyleSheet.create({
   boxesRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  warning: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '500',
   },
   box: {
     minWidth: 56,

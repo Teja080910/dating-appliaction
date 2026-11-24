@@ -8,21 +8,20 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import apiClient, { getAbsoluteUrl } from '../../api/apiClient';
+import { getAbsoluteUrl } from '../../api/apiClient';
 import { useProfile, extractSessionIdFromResponse } from '../../api/useProfile';
 import Description from '../../components/ProfileTabComponents/ProfileSettings/Description';
 import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/DisplayName';
 import ProfileSettingsHeader from '../../components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader';
 import ProfilePhotoGrid from '../../components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid';
 import YourBirthday from '../../components/ProfileTabComponents/ProfileSettings/YourBirthday';
-import ContactDetails, { COUNTRIES_LIST, getDefaultCountryForLanguage, parsePhoneNumberAndCountry } from '../../components/ProfileTabComponents/ProfileSettings/ContactDetails';
+import ContactDetails, { getDefaultCountryForLanguage, parsePhoneNumberAndCountry } from '../../components/ProfileTabComponents/ProfileSettings/ContactDetails';
 import PhoneOtpModal from '../../components/ProfileTabComponents/ProfileSettings/PhoneOtpModal';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
 import { getAuthSession } from '../../utils/session';
 import { useAlert } from '../../components/AlertModal';
 import { getUserFriendlyMessage } from '../../utils/userFriendlyMessages';
@@ -33,7 +32,7 @@ import { t, useTranslation } from '../../i18n';
 const ProfileSettingsScreen = () => {
   const { language } = useTranslation();
   const defaultCountry = getDefaultCountryForLanguage(language);
-  const { themeColors, isDark } = useTheme();
+  const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
@@ -62,6 +61,11 @@ const ProfileSettingsScreen = () => {
   const hasUserEditedPhoneRef = useRef(false);
   const userExplicitlyRemovedPhoneRef = useRef(false);
   const lastSavedPhoneRef = useRef<string | null>(null);
+  // Track fields the user is actively editing so background profile refreshes
+  // (15s polling, photo upload events, focus refetch) never wipe their input.
+  const hasUserEditedNameRef = useRef(false);
+  const hasUserEditedDescriptionRef = useRef(false);
+  const hasUserEditedDobRef = useRef(false);
 
   // Contact details state (defaults to primary app language country)
   const [countryCode, setCountryCode] = useState(defaultCountry.code);
@@ -78,13 +82,14 @@ const ProfileSettingsScreen = () => {
     return /\d/.test(str);
   };
 
-  const { updateBasic, updateProfile, useMyProfile, sendWhatsappOtp, verifyWhatsappOtp } = useProfile();
+  const { updateProfile, useMyProfile, sendWhatsappOtp, verifyWhatsappOtp } = useProfile();
   const profileQuery = useMyProfile(undefined);
   const { alert, AlertComponent } = useAlert();
 
   const [otpModalVisible, setOtpModalVisible] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const [pendingPhone, setPendingPhone] = useState<string>('');
   const [pendingSessionId, setPendingSessionId] = useState<string>('');
   const [isPhoneVerified, setIsPhoneVerified] = useState<boolean>(true);
@@ -112,12 +117,16 @@ const ProfileSettingsScreen = () => {
 
         const storedBio = await AsyncStorage.getItem('bio');
         if (storedBio !== null) {
-          setLocalDescription(storedBio);
+          if (!hasUserEditedDescriptionRef.current) {
+            setLocalDescription(storedBio);
+          }
           setProfileText(storedBio);
         } else {
           const onboardingBio = await AsyncStorage.getItem('@onboarding_bio');
           if (onboardingBio) {
-            setLocalDescription(onboardingBio);
+            if (!hasUserEditedDescriptionRef.current) {
+              setLocalDescription(onboardingBio);
+            }
             setProfileText(onboardingBio);
           }
         }
@@ -126,7 +135,7 @@ const ProfileSettingsScreen = () => {
         if (uid) setStoredUserId(uid);
         const userScopedDob = uid ? await AsyncStorage.getItem(`user_dob_${uid}`) : null;
         const storedDob = userScopedDob || (await AsyncStorage.getItem('userDob'));
-        if (storedDob) {
+        if (storedDob && !hasUserEditedDobRef.current) {
           const cleanDob = formatDateToDobString(storedDob);
           setLocalDob(cleanDob);
           setDate(parseDobToLocalDate(cleanDob));
@@ -203,19 +212,25 @@ const ProfileSettingsScreen = () => {
 
     const nextName = profile.displayName || profile.name;
     if (nextName) {
-      setLocalDisplayName(nextName);
+      if (!hasUserEditedNameRef.current) {
+        setLocalDisplayName(nextName);
+      }
       setDisplayName(nextName);
       setName(nextName);
     }
 
     if (profile.bio !== undefined && profile.bio !== null) {
-      setLocalDescription(profile.bio);
+      if (!hasUserEditedDescriptionRef.current) {
+        setLocalDescription(profile.bio);
+      }
       setProfileText(profile.bio);
     }
 
     if (profile.dob) {
       const cleanDob = formatDateToDobString(profile.dob);
-      if (lastSavedDobRef.current && lastSavedDobRef.current !== cleanDob) {
+      if (hasUserEditedDobRef.current) {
+        // User has picked a new birthday in this session; keep it.
+      } else if (lastSavedDobRef.current && lastSavedDobRef.current !== cleanDob) {
         // Retain the user's freshly saved birthday instead of reverting to stale server response
       } else {
         setLocalDob(cleanDob);
@@ -575,7 +590,8 @@ const ProfileSettingsScreen = () => {
             }
           }
 
-          // Always save locally and return smoothly without disruptive popups
+          // Keep the user's edits on the device so nothing is lost, but make the
+          // failed server sync explicit instead of silently going back.
           const userPhotosRaw = currentUid ? await AsyncStorage.getItem(`user_photos_${currentUid}`).catch(() => null) : null;
           let currentPhotos: string[] | undefined = undefined;
           if (userPhotosRaw) {
@@ -587,17 +603,52 @@ const ProfileSettingsScreen = () => {
             } catch {}
           }
           await persistLocalState();
-          await profileQuery.refetch();
           DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED', {
             uid: currentUid,
             ...(currentPhotos ? { photos: currentPhotos, photo: currentPhotos[0] || '' } : {}),
           });
-          navigation.goBack();
+          alert(
+            t('profile.profilesettingsscreen.save_failed_title', {
+              defaultValue: "Couldn't Save Changes",
+            }),
+            getUserFriendlyMessage(
+              error,
+              t('profile.profilesettingsscreen.save_failed_desc', {
+                defaultValue:
+                  'We could not sync your changes to the server. Your edits are kept on this device — please check your connection and try again.',
+              })
+            ),
+            [
+              {
+                text: t('profile.profilesettingsscreen.go_back', { defaultValue: 'Go Back' }),
+                style: 'cancel',
+                onPress: () => navigation.goBack(),
+              },
+              {
+                text: t('profile.profilesettingsscreen.try_again', { defaultValue: 'Try Again' }),
+                onPress: () => {
+                  void executePersist(cleanName, cleanBio, fullPhone, ageToSave);
+                },
+              },
+            ]
+          );
         },
         onSettled: () => setLoading(false),
       }
     );
   };
+
+  const extractOtpSessionId = (data: any): string =>
+    extractSessionIdFromResponse(data) ||
+    data?.sessionId ||
+    data?.data?.sessionId ||
+    data?.session_id ||
+    data?.data?.session_id ||
+    data?.otpSessionId ||
+    data?.data?.otpSessionId ||
+    data?.id ||
+    data?.data?.id ||
+    '';
 
   const handleVerifyOtp = async (enteredOtp: string) => {
     if (!pendingPhone) return;
@@ -614,6 +665,7 @@ const ProfileSettingsScreen = () => {
       setOtpModalVisible(false);
       if (pendingSaveDataRef.current) {
         const { cleanName, cleanBio, fullPhone, computedAge: ageVal } = pendingSaveDataRef.current;
+        pendingSaveDataRef.current = null;
         void executePersist(cleanName, cleanBio, fullPhone, ageVal);
       }
     } catch (err: any) {
@@ -639,17 +691,7 @@ const ProfileSettingsScreen = () => {
     setOtpError(null);
     try {
       const data = await sendWhatsappOtp.mutateAsync({ mobile: pendingPhone });
-      const sessId =
-        extractSessionIdFromResponse(data) ||
-        data?.sessionId ||
-        data?.data?.sessionId ||
-        data?.session_id ||
-        data?.data?.session_id ||
-        data?.otpSessionId ||
-        data?.data?.otpSessionId ||
-        data?.id ||
-        data?.data?.id ||
-        '';
+      const sessId = extractOtpSessionId(data);
       if (sessId) setPendingSessionId(sessId);
     } catch (err: any) {
       const rawMsg = String(
@@ -667,7 +709,41 @@ const ProfileSettingsScreen = () => {
     }
   };
 
-  const handleSave = () => {
+  /**
+   * Sends a WhatsApp verification code for a newly entered / changed number
+   * and opens the OTP modal. The profile is only persisted after verification
+   * succeeds (see handleVerifyOtp -> executePersist).
+   */
+  const requestPhoneVerification = async (phone: string) => {
+    setOtpError(null);
+    setPendingPhone(phone);
+    setPendingSessionId('');
+    setSendingOtp(true);
+    try {
+      const data = await sendWhatsappOtp.mutateAsync({ mobile: phone });
+      const sessId = extractOtpSessionId(data);
+      if (sessId) setPendingSessionId(sessId);
+      setOtpModalVisible(true);
+    } catch (err: any) {
+      const rawMsg = String(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        ''
+      );
+      alert(
+        t('profile.phone_otp.send_failed_title', { defaultValue: "Couldn't Send Code" }),
+        rawMsg ||
+          t('profile.phone_otp.send_failed_desc', {
+            defaultValue: 'Could not send verification code to this WhatsApp number. Please check the number and try again.',
+          })
+      );
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleSave = async () => {
     if (isNaN(computedAge) || computedAge < 18) {
       alert(
         t('onboarding.dobscreen.age_restriction', { defaultValue: 'Age Restriction' }),
@@ -730,6 +806,14 @@ const ProfileSettingsScreen = () => {
       computedAge,
     };
 
+    // A newly entered / changed WhatsApp number has to be verified before the
+    // profile is saved. Numbers that were already verified (inline flow) or are
+    // unchanged save directly.
+    if (fullPhone && isPhoneChanged && !isPhoneVerified) {
+      await requestPhoneVerification(fullPhone);
+      return;
+    }
+
     // Persist profile changes directly to the database via PUT /profile/update
     void executePersist(cleanName, cleanBio, fullPhone, computedAge);
   };
@@ -748,11 +832,29 @@ const ProfileSettingsScreen = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <DisplayName value={localDisplayName} onChange={setLocalDisplayName} />
+        <DisplayName
+          value={localDisplayName}
+          onChange={(val: string) => {
+            hasUserEditedNameRef.current = true;
+            setLocalDisplayName(val);
+          }}
+        />
 
-        <YourBirthday value={localDob} onChange={setLocalDob} />
+        <YourBirthday
+          value={localDob}
+          onChange={(val: string) => {
+            hasUserEditedDobRef.current = true;
+            setLocalDob(val);
+          }}
+        />
 
-        <Description value={localDescription} onChange={setLocalDescription} />
+        <Description
+          value={localDescription}
+          onChange={(val: string) => {
+            hasUserEditedDescriptionRef.current = true;
+            setLocalDescription(val);
+          }}
+        />
 
         <ProfilePhotoGrid
           initialPhotos={profilePhotos}
@@ -798,10 +900,10 @@ const ProfileSettingsScreen = () => {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleSave}
-          disabled={loading}
-          style={[styles.saveBtn, loading && { opacity: 0.7 }]}
+          disabled={loading || sendingOtp}
+          style={[styles.saveBtn, (loading || sendingOtp) && { opacity: 0.7 }]}
         >
-          {loading ? (
+          {loading || sendingOtp ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <Text style={styles.saveBtnText}>{t('more_info.savebutton.save')}</Text>

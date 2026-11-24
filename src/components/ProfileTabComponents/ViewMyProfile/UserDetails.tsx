@@ -39,6 +39,7 @@ import { t, useTranslation } from '../../../i18n';
 import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
 import { mockStore } from '../../../mock/mockStore';
 import apiClient from '../../../api/apiClient';
+import { getAgeFromDob } from '../../../utils/dateUtils';
 
 const getReportReasons = () => [
   'Scam / Fraud',
@@ -76,7 +77,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 }) => {
   useTranslation();
   const hiddenLanguages = new Set(['telugu']);
-  const hiddenLookingForValues = new Set([t('profile.userdetails.long_term_relationship')]);
+  const hiddenLookingForValues = new Set([t('profile.userdetails.long_term_relationship'), 'friendship']);
   const capitalizeLabel = (value: string) =>
     value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
   const navigation = useNavigation<any>();
@@ -350,17 +351,28 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     return fallback;
   };
 
+  const profileDobForAge = (resolvedProfile as any)?.dob || (profile as any)?.dob;
+  const profileAgeForAge = Number((resolvedProfile as any)?.age ?? (profile as any)?.age);
+
   const myAge = useMemo(() => {
+    // Prefer the fetched profile DOB/age (server-authoritative) so a birthday
+    // changed on another device is reflected. The local context date is only
+    // the offline fallback.
+    const ageFromProfileDob = profileDobForAge ? getAgeFromDob(profileDobForAge) : null;
+    if (ageFromProfileDob) return ageFromProfileDob;
+
+    if (Number.isFinite(profileAgeForAge) && profileAgeForAge > 0) return profileAgeForAge;
+
     const safeDate = date ? new Date(date) : null;
-    if (!safeDate || Number.isNaN(safeDate.getTime())) return 25;
+    if (!safeDate || Number.isNaN(safeDate.getTime())) return null;
     const today = new Date();
     let age = today.getFullYear() - safeDate.getFullYear();
     const m = today.getMonth() - safeDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < safeDate.getDate())) {
       age -= 1;
     }
-    return Math.max(age, 18);
-  }, [date]);
+    return age > 0 ? age : null;
+  }, [date, profileDobForAge, profileAgeForAge]);
   const resolveNumericIdentifier = (...values: unknown[]) => {
     for (const value of values) {
       const normalized = String(value ?? '').trim();
@@ -444,9 +456,19 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         )
   ).replace(/,\s*\d+$/, '').trim() || t('home.usercard.user');
 
+  const pickAge = (...values: any[]): string => {
+    for (const value of values) {
+      if (value === undefined || value === null || String(value).trim() === '') continue;
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric > 0) return String(numeric);
+    }
+    return '';
+  };
+
+  // Never fabricate an age; just omit it when the profile doesn't have one.
   const displayAge = isOwnProfile
-    ? normalizeTextValue(String(myAge || resolvedProfile?.age || profile.age || 25), '25')
-    : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, '24');
+    ? pickAge(myAge, resolvedProfile?.age, profile?.age)
+    : pickAge(resolvedProfile?.age, profile?.age, cardUserAge);
 
   const isSameId = (a: any, b: any) => {
     const sa = String(a || '').trim().toLowerCase();
@@ -871,13 +893,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       }
     }
 
-    const inviteData = {
-        receiverId: resolvedTargetUserId,
-        name: finalDisplayName || t('profile.userdetails.guest'),
-        age: displayAge || 25,
-        image: selectedUserImage || '',
-    };
-
     // Use the verified identity resolved above instead of the hook's initial
     // `currentUserId`, which may be stale after session repair.
     connection.send.mutate({
@@ -1050,7 +1065,10 @@ const UserDetails: React.FC<UserDetailsProps> = ({
       {/* Header Info */}
       <View style={styles.headerArea}>
         <View style={styles.nameRow}>
-          <Text style={styles.nameText}>{finalDisplayName || t('home.usercard.user')}, {displayAge}</Text>
+          <Text style={styles.nameText}>
+            {finalDisplayName || t('home.usercard.user')}
+            {displayAge ? `, ${displayAge}` : ''}
+          </Text>
           {isOwnProfile ? (
             <View style={styles.verifiedBadge}>
               <Icon name="check-decagram-outline" size={16} color={themeColors.primary || Colors.primary} style={styles.verifiedIcon} />

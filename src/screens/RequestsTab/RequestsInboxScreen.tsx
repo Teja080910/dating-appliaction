@@ -298,7 +298,8 @@ const RequestsInboxScreen: React.FC = () => {
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800';
 
     setCardUserName?.(cleanDisplayName(sender.displayName || sender.name));
-    setCardUserAge?.(String(sender.age || '26'));
+    const senderAge = Number(sender.age);
+    setCardUserAge?.(Number.isFinite(senderAge) && senderAge > 0 ? String(senderAge) : '');
     setViewMyProfile?.(false);
     setSelectedUserImage?.(photoUrl);
 

@@ -8,7 +8,6 @@ import { useProfile, useMyProfile } from '../../api/useProfile';
 import AppearanceSelector from '../../components/MoreInfoTabComponents/AppearanceSelector';
 import BodyTypeSelector from '../../components/MoreInfoTabComponents/BodyTypeSelector';
 import DoYouSmokeSelector from '../../components/MoreInfoTabComponents/DoYouSmokeSelector';
-import DrinkingSelector from '../../components/MoreInfoTabComponents/DrinkingSelector';
 import EnglishSkillSelector from '../../components/MoreInfoTabComponents/EnglishSkillSelector';
 import EthnicitySelector from '../../components/MoreInfoTabComponents/EthnicitySelector';
 import Header from '../../components/MoreInfoTabComponents/Header';
@@ -27,7 +26,7 @@ import { t, useTranslation } from '../../i18n';
 import { filterSupportedLanguages } from '../../utils/languageHelper';
 
 const HIDDEN_PROFILE_LANGUAGES = new Set(['telugu']);
-const HIDDEN_LOOKING_FOR_VALUES = new Set(['long-term relationship']);
+const HIDDEN_LOOKING_FOR_VALUES = new Set(['long-term relationship', 'friendship']);
 
 const MoreInfoScreen = () => {
   useTranslation();
@@ -72,8 +71,6 @@ const MoreInfoScreen = () => {
     setSelectedEthinicity,
     selectedSmoking,
     setSelectedSmoking,
-    selectedDrinking,
-    setSelectedDrinking,
     selectedLookingFor,
     setSelectedLookingFor,
     selectedKids,
@@ -104,7 +101,6 @@ const MoreInfoScreen = () => {
       '@amara_body_type',
       '@amara_ethnicity',
       '@amara_smoking',
-      '@amara_drinking',
       '@amara_looking_for',
       '@amara_languages',
       '@amara_english_level',
@@ -129,7 +125,6 @@ const MoreInfoScreen = () => {
           if (key === '@amara_body_type') setSelectedBodyType(val);
           if (key === '@amara_ethnicity') setSelectedEthinicity(val);
           if (key === '@amara_smoking') setSelectedSmoking(val);
-          if (key === '@amara_drinking') setSelectedDrinking(val);
           if (key === '@amara_english_level') {
             const lvl = Number(val);
             if (Number.isFinite(lvl) && lvl >= 0 && lvl <= 3) {
@@ -137,14 +132,20 @@ const MoreInfoScreen = () => {
             }
           }
           if (key === '@amara_looking_for') {
+            const keepVisible = (values: string[]) =>
+              values.filter(
+                (item) => item && !HIDDEN_LOOKING_FOR_VALUES.has(String(item).trim().toLowerCase())
+              );
             try {
               const parsed = JSON.parse(val);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                setSelectedLookingFor(parsed);
+                const filtered = keepVisible(parsed);
+                if (filtered.length > 0) setSelectedLookingFor(filtered);
               }
             } catch {
               const split = val.split(',').map((s) => s.trim()).filter(Boolean);
-              if (split.length > 0) setSelectedLookingFor(split);
+              const filtered = keepVisible(split);
+              if (filtered.length > 0) setSelectedLookingFor(filtered);
             }
           }
           if (key === '@amara_languages') {
@@ -186,7 +187,6 @@ const MoreInfoScreen = () => {
       language: profile.language,
       ethnicity: profile.ethnicity,
       smoke: profile.smoke,
-      drink: profile.drink,
       lookingFor: profile.lookingFor,
       kidCount: profile.kidCount,
       kids: profile.kids,
@@ -250,9 +250,6 @@ const MoreInfoScreen = () => {
     if (profile.smoke) {
       setSelectedSmoking(profile.smoke);
     }
-    if (profile.drink) {
-      setSelectedDrinking(profile.drink);
-    }
     if (visibleLookingFor.length > 0) {
       setSelectedLookingFor(visibleLookingFor);
     }
@@ -283,7 +280,6 @@ const MoreInfoScreen = () => {
     if (profile.bodyType) storageUpdates.push(['@amara_body_type', profile.bodyType]);
     if (profile.ethnicity) storageUpdates.push(['@amara_ethnicity', profile.ethnicity]);
     if (profile.smoke) storageUpdates.push(['@amara_smoking', profile.smoke]);
-    if (profile.drink) storageUpdates.push(['@amara_drinking', profile.drink]);
     if (visibleLookingFor.length > 0) storageUpdates.push(['@amara_looking_for', JSON.stringify(visibleLookingFor)]);
     if (visibleLanguages.length > 0) storageUpdates.push(['@amara_languages', JSON.stringify(visibleLanguages)]);
     if (englishIndex >= 0) storageUpdates.push(['@amara_english_level', String(englishIndex)]);
@@ -311,7 +307,9 @@ const MoreInfoScreen = () => {
       const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
       const englishLevelStr = englishLevels[Number(englishSkillLevel)] || 'Basic';
       const languageStr = filterSupportedLanguages(selectedLanguages).join(', ');
-      const lookingForStr = Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : '';
+      const lookingForStr = (Array.isArray(selectedLookingFor) ? selectedLookingFor : [])
+        .filter((item) => item && !HIDDEN_LOOKING_FOR_VALUES.has(String(item).trim().toLowerCase()))
+        .join(', ');
 
       const detailsPayload = {
         language: languageStr,
@@ -327,7 +325,6 @@ const MoreInfoScreen = () => {
       const prefsPayload = {
         lookingFor: lookingForStr,
         smoke: selectedSmoking || '',
-        drink: selectedDrinking || '',
         ethnicity: selectedEthinicity || '',
       };
 
@@ -338,7 +335,6 @@ const MoreInfoScreen = () => {
         ['@amara_body_type', selectedBodyType || ''],
         ['@amara_ethnicity', selectedEthinicity || ''],
         ['@amara_smoking', selectedSmoking || ''],
-        ['@amara_drinking', selectedDrinking || ''],
         ['@amara_looking_for', JSON.stringify(selectedLookingFor || [])],
         ['@amara_languages', JSON.stringify(selectedLanguages || [])],
         ['@amara_english_level', String(englishSkillLevel ?? 0)],
@@ -347,10 +343,31 @@ const MoreInfoScreen = () => {
       ]);
 
       // 2. Sync to backend API
-      await Promise.allSettled([
+      const saveResults = await Promise.allSettled([
         updateDetails.mutateAsync(detailsPayload),
         updatePreferences.mutateAsync(prefsPayload),
       ]);
+      const failedSave = saveResults.find(
+        (result): result is PromiseRejectedResult => result.status === 'rejected',
+      );
+      if (failedSave) {
+        console.warn('[MoreInfo] Save failed:', failedSave.reason);
+        DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
+        void profileQuery.refetch();
+        alert(
+          t('more_info.moreinfoscreen.save_failed_title', {
+            defaultValue: "Couldn't Save Changes",
+          }),
+          getUserFriendlyMessage(
+            failedSave.reason,
+            t('more_info.moreinfoscreen.save_failed_desc', {
+              defaultValue:
+                'Some of your details could not be saved to the server. Please check your connection and try again.',
+            })
+          )
+        );
+        return;
+      }
 
       DeviceEventEmitter.emit('AMARA_PROFILE_UPDATED');
       void profileQuery.refetch();
@@ -452,7 +469,6 @@ const MoreInfoScreen = () => {
           <EnglishSkillSelector />
           <EthnicitySelector />
           <DoYouSmokeSelector />
-          <DrinkingSelector />
           <KidsSelector />
           <LookingForSelector />
           <NetWorthSelector />
