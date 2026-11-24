@@ -1,0 +1,148 @@
+{
+  "plans": [
+    {
+      "id": "STANDARD",
+      "name": "Standard",
+      "durationDays": 120,
+      "durationMonths": 4,
+      "price": 1,
+      "amount": 1,
+      "contactView": "10",
+      "tagline": "Standard plan with 10 daily connection requests.",
+      "popular": false,
+      "features": [
+        "10 connection requests per day",
+        "Browse all verified profiles",
+        "Standard Telegram handoff upon approval",
+        "120 Days duration"
+      ],
+      "gradient": ["#6366F1", "#8B5CF6"]
+    },
+    {
+      "id": "PREMIUM",
+      "name": "Premium",
+      "durationDays": 180,
+      "durationMonths": 6,
+      "price": 2,
+      "amount": 2,
+      "contactView": "20",
+      "tagline": "Premium plan with 20 daily connection requests.",
+      "popular": true,
+      "features": [
+        "20 connection requests per day",
+        "Browse all verified profiles",
+        "Priority Telegram handoff",
+        "180 Days duration",
+        "Dedicated customer support"
+      ],
+      "gradient": ["#7C3AED", "#EC4899"]
+    },
+    {
+      "id": "ELITE",
+      "name": "Elite",
+      "durationDays": 365,
+      "durationMonths": 12,
+      "price": 3,
+      "amount": 3,
+      "contactView": "UNLIMITED",
+      "tagline": "Elite plan with unlimited daily connection requests.",
+      "popular": false,
+      "features": [
+        "Unlimited connection requests",
+        "VIP Elite Profile Badge",
+        "Top placement on discovery feed",
+        "Instant priority handoff",
+        "365 Days duration"
+      ],
+      "gradient": ["#F59E0B", "#EF4444"]
+    },
+    {
+      "id": "MONTHLY",
+      "name": "Monthly",
+      "durationMonths": 1,
+      "price": 1199,
+      "tagline": "Billed monthly",
+      "popular": false,
+      "features": [
+        "Invite up to 30 members per day",
+        "Browse all verified profiles",
+        "Telegram handoff upon approval",
+        "Direct messaging & chat"
+      ],
+      "gradient": ["#C53047", "#E11D48"]
+    },
+    {
+      "id": "YEARLY",
+      "name": "Yearly",
+      "durationMonths": 12,
+      "price": 6999,
+      "tagline": "Save 51% annually",
+      "popular": true,
+      "features": [
+        "Invite up to 30 members per day",
+        "Browse all verified profiles",
+        "Priority Telegram handoff",
+        "Save 51% annually (~₹583.25/mo)",
+        "Dedicated customer support"
+      ],
+      "gradient": ["#7C3AED", "#EC4899"]
+    },
+    {
+      "id": "BASIC",
+      "name": "Standard",
+      "durationMonths": 1,
+      "price": 99,
+      "tagline": "Start Connecting",
+      "popular": false,
+      "features": [
+        "10 Dating Requests per day",
+        "Browse all verified women profiles",
+        "Standard Telegram handoff upon approval",
+        "Basic search filters"
+      ],
+      "gradient": ["#6366F1", "#8B5CF6"]
+    },
+    {
+      "id": "GOLD",
+      "name": "Premium",
+      "durationMonths": 3,
+      "price": 199,
+      "tagline": "Most Popular",
+      "popular": true,
+      "features": [
+        "Unlimited Dating Requests",
+        "Priority Telegram handoff",
+        "See who liked your profile first",
+        "Ad-free premium experience",
+        "Dedicated customer support"
+      ],
+      "gradient": ["#7C3AED", "#EC4899"]
+    }
+  ],
+  "userSubscriptions": {
+    "usr_man_101": {
+      "id": "sub_101_01",
+      "userId": "usr_man_101",
+      "plan": "GOLD",
+      "status": "ACTIVE",
+      "startDate": "2026-09-01T00:00:00Z",
+      "endDate": "2026-12-01T00:00:00Z",
+      "orderId": "order_mock_101",
+      "paymentId": "pay_mock_101",
+      "amount": 199,
+      "createdAt": "2026-09-01T00:00:00Z"
+    },
+    "usr_woman_201": {
+      "id": "sub_201_01",
+      "userId": "usr_woman_201",
+      "plan": "PREMIUM",
+      "status": "ACTIVE",
+      "startDate": "2026-09-01T00:00:00Z",
+      "endDate": "2026-12-01T00:00:00Z",
+      "orderId": "order_mock_201",
+      "paymentId": "pay_mock_201",
+      "amount": 499,
+      "createdAt": "2026-09-01T00:00:00Z"
+    }
+  }
+}

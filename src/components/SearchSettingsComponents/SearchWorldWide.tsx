@@ -1,14 +1,18 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CheckBox } from 'react-native-elements';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface SearchWorldWideProps {
   onToggle?: (val: boolean) => void;
 }
 
 const SearchWorldWide: React.FC<SearchWorldWideProps> = ({ onToggle }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { isChecked, setIsChecked, isSubscribed, setPaywallVisible } = useContext(AppContext);
 
   const handleToggle = () => {
@@ -27,39 +31,42 @@ const SearchWorldWide: React.FC<SearchWorldWideProps> = ({ onToggle }) => {
         <CheckBox
           checked={isChecked}
           onPress={handleToggle}
-          checkedColor={Colors.primary}
+          checkedColor={themeColors.primary}
           containerStyle={styles.checkboxContainer}
         />
-        <Text style={styles.label}>Search World Wide</Text>
+        <Text style={styles.label}>{t('search.searchworldwide.search_world_wide')}</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkboxContainer: {
-    padding: 0,
-    margin: 0,
-    marginRight: Spacing.sm,
-  },
-  label: {
-    fontSize: 16,
-    color: Colors.text,
-    fontWeight: '500',
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      padding: Spacing.xl,
+      backgroundColor: themeColors.surface,
+      marginHorizontal: Spacing.screenPaddingHorizontal,
+      marginTop: Spacing.lg,
+      borderRadius: Spacing.radiusXl,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+    },
+    checkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    checkboxContainer: {
+      padding: 0,
+      margin: 0,
+      marginRight: Spacing.sm,
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+    },
+    label: {
+      fontSize: 16,
+      color: themeColors.text,
+      fontWeight: '500',
+    },
+  });
 
 export default SearchWorldWide;

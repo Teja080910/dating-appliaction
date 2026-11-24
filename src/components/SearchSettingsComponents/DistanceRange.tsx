@@ -1,69 +1,189 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Slider from '@react-native-community/slider';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent, useWindowDimensions } from 'react-native';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
+import Feather from 'react-native-vector-icons/Feather';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface DistanceSliderProps {
   onChange?: (val: number) => void;
+  onWorldwideToggle?: (val: boolean) => void;
 }
 
-const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange }) => {
-  const { distanceRange } = useContext(AppContext);
-  const [localDistanceRange, setLocalDistanceRange] = useState(distanceRange || 50);
+const DistanceSlider: React.FC<DistanceSliderProps> = ({ onChange, onWorldwideToggle }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const { distanceRange, setDistanceRange, isChecked, setIsChecked } = useContext(AppContext);
+  const { width: windowWidth } = useWindowDimensions();
+  const computeSliderWidth = (w: number) => Math.max(180, Math.round(w - 32 - 24));
+  const [sliderWidth, setSliderWidth] = useState(() => computeSliderWidth(windowWidth));
 
-  const handleValueChange = (val: number) => {
-    setLocalDistanceRange(val);
-    if (onChange) onChange(val);
+  useEffect(() => {
+    setSliderWidth(computeSliderWidth(windowWidth));
+  }, [windowWidth]);
+
+  const currentDistance = Math.min(Math.max(Number(distanceRange) || 50, 5), 200);
+
+  const handleValueChange = (values: number[]) => {
+    const rounded = Math.round(values[0]);
+    setDistanceRange(rounded);
+    if (isChecked) {
+      setIsChecked(false);
+      if (onWorldwideToggle) onWorldwideToggle(false);
+    }
+    if (onChange) onChange(rounded);
+  };
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const availableWidth = event.nativeEvent.layout.width;
+    if (availableWidth > 60) {
+      setSliderWidth(Math.max(180, Math.round(availableWidth - 24)));
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>
-        Distance Range: <Text style={styles.value}>{localDistanceRange} km</Text>
-      </Text>
+      {/* Header Row: "Search radius" on left, "200 km" or "Worldwide" on right */}
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{t('search.distancerange.search_radius')}</Text>
+        <Text style={styles.valueText}>
+          {isChecked ? t('search.distancerange.worldwide') : t('search.distancerange.km', { currentDistance })}
+        </Text>
+      </View>
 
-      <Slider
-        style={styles.slider}
-        minimumValue={5}
-        maximumValue={2000}
-        step={5}
-        value={localDistanceRange}
-        onValueChange={handleValueChange}
-        minimumTrackTintColor={Colors.primary}
-        maximumTrackTintColor={Colors.surfaceLight}
-        thumbTintColor={Colors.primary}
-      />
+      {/* MultiSlider container */}
+      <View style={styles.sliderWrapper} onLayout={handleLayout}>
+        <MultiSlider
+          values={[currentDistance]}
+          sliderLength={sliderWidth}
+          min={5}
+          max={200}
+          step={1}
+          onValuesChange={handleValueChange}
+          snapped
+          touchDimensions={{
+            height: 50,
+            width: 50,
+            borderRadius: 25,
+            slipDisplacement: 200,
+          }}
+          selectedStyle={styles.selectedTrack}
+          unselectedStyle={styles.unselectedTrack}
+          markerStyle={styles.marker}
+          pressedMarkerStyle={styles.markerPressed}
+          containerStyle={styles.sliderContainer}
+          trackStyle={styles.track}
+        />
+      </View>
+
+      {/* Footer Row: "5 km" on left, "🌐 Worldwide" on right */}
+      <View style={styles.footerRow}>
+        <Text style={styles.minLabel}>{t('search.distancerange.5_km')}</Text>
+        <View style={styles.worldwideBtn}>
+          <Feather
+            name="globe"
+            size={14}
+            color={themeColors.textSecondary}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={styles.worldwideText}>{t('search.distancerange.worldwide')}</Text>
+        </View>
+      </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.xxl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontSize: 15,
-    marginBottom: Spacing.lg,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  value: {
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-    marginLeft: -10,
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginTop: 20,
+      padding: 0,
+      backgroundColor: 'transparent',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: themeColors.text,
+      letterSpacing: -0.1,
+    },
+    valueText: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: themeColors.textSecondary,
+    },
+    sliderWrapper: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: 4,
+    },
+    selectedTrack: {
+      backgroundColor: themeColors.primary,
+    },
+    unselectedTrack: {
+      backgroundColor: themeColors.surfaceLight,
+    },
+    marker: {
+      height: 24,
+      width: 24,
+      borderRadius: 12,
+      borderWidth: 3,
+      borderColor: themeColors.primary,
+      backgroundColor: '#FFFFFF',
+      ...Platform.select({
+        ios: {
+          shadowColor: themeColors.primary,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.35,
+          shadowRadius: 3,
+        },
+        android: { elevation: 3 },
+      }),
+    },
+    markerPressed: {
+      height: 28,
+      width: 28,
+      borderRadius: 14,
+    },
+    sliderContainer: {
+      height: 40,
+      justifyContent: 'center',
+    },
+    track: {
+      height: 4,
+      borderRadius: 2,
+    },
+    footerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    minLabel: {
+      fontSize: 13,
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+    worldwideBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+    },
+    worldwideText: {
+      fontSize: 13,
+      color: themeColors.textSecondary,
+      fontWeight: '500',
+    },
+  });
 
 export default DistanceSlider;

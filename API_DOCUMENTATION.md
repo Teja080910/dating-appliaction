@@ -8,28 +8,60 @@ This document provides a comprehensive overview of all API endpoints integrated 
 
 ## 🔐 1. Authentication & Account Management
 
+### 💡 OTP Delivery & Backend SMTP Architecture
+
+| Requirement / Component | Needed for OTPs? | Notes |
+| :--- | :---: | :--- |
+| **Backend SMTP Configuration** | ✅ **Yes** | The backend simply needs standard Gmail SMTP credentials to send the verification email. |
+| **Push Notifications (FCM / APNs)** | ❌ **No** | Push notifications are not used for sending OTPs. |
+| **In-App Notification Preferences** | ❌ **No** | User notification settings only apply to date and match alerts. OTPs are mandatory security verifications and must always be delivered. |
+| **Client Auto-Read / SMS Retriever** | ❌ **No** | Mobile operating systems sandbox email; users enter the 6-digit code manually or via clipboard paste. |
+
+#### Backend SMTP Configuration (Gmail SMTP)
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-amara-service-account@gmail.com
+SMTP_PASS=your-16-char-google-app-password
+SMTP_FROM="AMARA Dating <no-reply@amara-app.com>"
+```
+
+### 🔑 Pre-Configured Test Credentials & QA Accounts
+
+| Account Type | Flow / Purpose | Email Address | Password | Static Test OTP |
+| :--- | :--- | :--- | :--- | :---: |
+| **👨 Male User** | Discovery Feed, Browse Profiles & Send Invitations | `rahul@amara.com` *(or `sailakshmiborra45@gmail.com`)* | `Password@123` | **`123456`** |
+| **👩 Female User** | Invitations Inbox, Approve & Decline Dates | `ananya.roy@amara.com` | `Password@123` | **`123456`** |
+| **👨 Male User (Alt)** | Secondary Discovery User | `arjun.kapoor@amara.com` | `Password@123` | **`123456`** |
+| **👩 Female User (Alt)** | Secondary Inbox User | `priya.sen@amara.com` | `Password@123` | **`123456`** |
+
+> **Note on Static OTP**: When verifying OTP for registration, login, or password reset in development, use **`123456`**.
+
+---
+
 ### Register User
 *   **Endpoint**: `POST /register`
-*   **Request Body**: `RegisterRequest` (name, mobile, password, confirmPassword, otp)
+*   **Request Body**: `RegisterRequest` (name, email, password, confirmPassword, otp?)
 
 ### Verify OTP (Registration)
 *   **Endpoint**: `POST /verify-register/otp`
-*   **Request Body**: JSON object `{ mobile, otp }`
+*   **Request Body**: JSON object `{ email, otp, sessionId? }`
 
 ### Login User
 *   **Endpoint**: `POST /login`
-*   **Request Body**: `LoginRequest` (mobile, password)
+*   **Request Body**: `LoginRequest` (email, password)
 
 ### Send/Verify OTP (Auth)
 *   **Endpoints**:
-    - `POST /auth/send-otp` (mobile, otp)
-    - `POST /auth/verify-otp` (userId, mobile, otp)
+    - `POST /auth/send-otp` (email)
+    - `POST /auth/verify-otp` (userId, email, otp)
 
 ### Password Management
 *   **Endpoints**:
     - `POST /setting/change-password` (query: userId, oldPassword, newPassword)
-    - `POST /forgot-password/send-otp` (mobile)
-    - `POST /forgot-password/reset` (mobile, otp, newPassword)
+    - `POST /forgot-password/send-otp` (email)
+    - `POST /forgot-password/reset` (email, otp, newPassword)
 
 ### Account Actions
 *   **Endpoints**:

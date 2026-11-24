@@ -5,7 +5,8 @@
 export interface User {
   id: number;
   name: string;
-  mobile: string;
+  email: string;
+  mobile?: string;
   password?: string;
   role?: string;
   isDeleted?: boolean;
@@ -43,6 +44,11 @@ export interface UserProfile {
   online?: boolean;
   lastSeen?: string; // format: date-time
   createdAt?: string; // format: date-time
+  phoneNumber?: string;
+  mobile?: string;
+  phone?: string;
+  mobileNumber?: string;
+  telegramUsername?: string;
 }
 
 export interface UserFilterRequest {
@@ -80,15 +86,35 @@ export interface SearchFilterRequest {
 
 export interface RegisterRequest {
   name: string;
-  mobile: string;
+  email: string;
   password: string;
   confirmPassword: string;
-  otp: string;
+  otp?: string;
+  mobile?: string;
+}
+
+export interface RegisterResponseDTO {
+  status?: string;
+  message?: string;
+  token?: string;
+  userId?: string | number;
+  selfieVerification?: string;
+  selfieVerificationUrl?: string;
+  sessionId?: string;
+  otp?: string;
+  data?: {
+    selfieVerification?: string;
+    selfieVerificationUrl?: string;
+    sessionId?: string;
+    [key: string]: any;
+  };
+  user?: User;
 }
 
 export interface LoginRequest {
-  mobile: string;
+  email: string;
   password: string;
+  mobile?: string;
 }
 
 export interface ProfileRequestDTO {
@@ -113,7 +139,7 @@ export interface ConnectionRequest {
   id: number;
   sender: User;
   receiver: User;
-  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED';
   createdAt: string;
   updatedAt: string;
 }

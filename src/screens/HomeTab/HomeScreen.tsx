@@ -6,21 +6,185 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { getGender } from '../../utils/types/AsyncStorage';
 import UserList from '../../components/HomeTabComponents/UserList';
 import HomeHeader from '../../components/HomeTabComponents/HomeHeader';
-import { Colors, Spacing } from '../../theme';
+import { Colors, useTheme } from '../../theme';
+import { getCurrentLocation } from '../../utils/geolocation';
+import RequestsInboxScreen from '../RequestsTab/RequestsInboxScreen';
+import apiClient from '../../api/apiClient';
+import { getUserId } from '../../utils/sessionHelper';
 
 const HomeScreen = () => {
-  const { oppositeGender, setOppositeGender, filter, setFilter } = useContext(AppContext);
-  const [userLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const { themeColors } = useTheme();
+  const {
+    oppositeGender,
+
+    setOppositeGender,
+    filter,
+    setFilter,
+    filteredProfiles,
+    setFilteredProfiles,
+    setShowMe,
+    hydrateSavedFilters,
+  } = useContext(AppContext);
+  const [currentUserGender, setCurrentUserGender] = useState<'man' | 'woman' | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
+    hydrateSavedFilters().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
     const fetchGender = async () => {
-      const gender = await getGender();
-      if (gender === 'straight_woman') setOppositeGender('straight_man');
-      else if (gender === 'straight_man') setOppositeGender('straight_woman');
-      else setOppositeGender('lgbtqia');
+      try {
+        const uid = await getUserId();
+        const userScopedGender = uid ? await AsyncStorage.getItem(`user_gender_${uid}`).catch(() => null) : null;
+
+        const [storedSelectedGender, storedUserGender, storedUser, storedUserData] = await Promise.all([
+          getGender(),
+          AsyncStorage.getItem('userGender'),
+          AsyncStorage.getItem('user'),
+          AsyncStorage.getItem('userData'),
+        ]);
+
+        let raw = userScopedGender || storedSelectedGender || storedUserGender || '';
+
+        // If not explicit, check stored user objects
+        if (!raw || raw === 'lgbtqia') {
+          for (const jsonStr of [storedUser, storedUserData]) {
+            if (jsonStr) {
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const candidate =
+                  parsed?.gender ||
+                  parsed?.user?.gender ||
+                  parsed?.profile?.gender ||
+                  parsed?.data?.gender ||
+                  parsed?.data?.user?.gender;
+                if (candidate) {
+                  raw = String(candidate);
+                  break;
+                }
+              } catch {}
+            }
+          }
+        }
+
+        // If still not definitively known or from another account, check live API profile
+        if (!userScopedGender && uid) {
+          try {
+            const res = await apiClient
+              .get(`/profile/me/${uid}`)
+              .catch(() => apiClient.post('/profile/me', null, { params: { userId: uid } }))
+              .catch(() => apiClient.get('/profile/me', { params: { userId: uid } }))
+              .catch(() => apiClient.post('/profile/me', { userId: uid }))
+              .catch(() => apiClient.get(`/profile/get/${uid}`))
+              .catch(() => apiClient.get('/profile/get', { params: { userId: uid } }))
+              .catch(() => apiClient.get(`/users/${uid}`))
+              .catch(() => null);
+            const apiGender =
+              res?.data?.gender ||
+              res?.data?.profile?.gender ||
+              res?.data?.user?.gender ||
+              res?.data?.data?.gender;
+            if (apiGender) {
+              raw = String(apiGender);
+            }
+          } catch {
+            // fallback
+          }
+        }
+
+        const clean = String(raw).toLowerCase();
+        const isWomanUser = clean.includes('woman') || clean.includes('female');
+        const isManUser = clean.includes('man') || clean.includes('male');
+
+        if (isMounted) {
+          if (isWomanUser) {
+            setCurrentUserGender('woman');
+            setOppositeGender('straight_man');
+            setShowMe('straight_man');
+            await AsyncStorage.setItem('selectedGender', 'straight_woman');
+            await AsyncStorage.setItem('userGender', 'straight_woman');
+            if (uid) {
+              await AsyncStorage.setItem(`user_gender_${uid}`, 'straight_woman');
+            }
+          } else if (isManUser) {
+            setCurrentUserGender('man');
+            setOppositeGender('straight_woman');
+            setShowMe('straight_woman');
+            await AsyncStorage.setItem('selectedGender', 'straight_man');
+            await AsyncStorage.setItem('userGender', 'straight_man');
+            if (uid) {
+              await AsyncStorage.setItem(`user_gender_${uid}`, 'straight_man');
+            }
+          } else {
+            const fallback =
+              (await AsyncStorage.getItem('userGender')) ||
+              (await AsyncStorage.getItem('selectedGender')) ||
+              'straight_woman';
+            if (fallback.includes('woman') || fallback.includes('female')) {
+              setCurrentUserGender('woman');
+              setOppositeGender('straight_man');
+              setShowMe('straight_man');
+            } else {
+              setCurrentUserGender('man');
+              setOppositeGender('straight_woman');
+              setShowMe('straight_woman');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error resolving user gender:', err);
+        if (isMounted) {
+          const fallback =
+            (await AsyncStorage.getItem('userGender')) ||
+            (await AsyncStorage.getItem('selectedGender')) ||
+            'straight_woman';
+          if (fallback.includes('woman') || fallback.includes('female')) {
+            setCurrentUserGender('woman');
+            setOppositeGender('straight_man');
+            setShowMe('straight_man');
+          } else {
+            setCurrentUserGender('man');
+            setOppositeGender('straight_woman');
+            setShowMe('straight_woman');
+          }
+        }
+      }
     };
     fetchGender();
+    return () => {
+      isMounted = false;
+    };
   }, [setOppositeGender]);
+
+  useEffect(() => {
+    const fetchLocation = async () => {
+      try {
+        const location = await getCurrentLocation();
+        setUserLocation(location);
+        if (location?.latitude && location?.longitude) {
+          const uid = await getUserId();
+          if (uid) {
+            apiClient.post(
+              '/location/add',
+              {
+                userId: uid,
+                latitude: location.latitude,
+                longitude: location.longitude,
+                lat: location.latitude,
+                lng: location.longitude,
+              },
+              { params: { userId: uid } }
+            ).catch(() => null);
+          }
+        }
+      } catch {
+        // Location permission denied or unavailable
+      }
+    };
+    fetchLocation();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,25 +202,47 @@ const HomeScreen = () => {
     console.log('Menu pressed');
   };
 
+  const handleFilterChange = (nextFilter: 'online' | 'newest') => {
+    setFilter(nextFilter);
+  };
+
+  // While resolving gender, show loading to prevent flashing browse screen to women
+  if (currentUserGender === null) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <ActivityIndicator size="large" color={themeColors.primary} />
+      </View>
+    );
+  }
+
+  // PRD FR-16: The home screen for women shall not include browsing.
+  // PRD FR-21: A woman's home screen shall show the requests she received, newest first.
+  if (currentUserGender === 'woman') {
+    return <RequestsInboxScreen />;
+  }
+
+  // PRD FR-12: The home screen for men shall show a list/grid of women's profiles only.
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <HomeHeader
         selectedFilter={filter}
-        onFilterChange={setFilter}
+        onFilterChange={handleFilterChange}
         onMenuPress={handleMenuPress}
       />
       {oppositeGender ? (
         <UserList
           filterByGender={oppositeGender}
           mode={filter}
+          filteredProfiles={filteredProfiles}
           userLocation={userLocation}
         />
       ) : (
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={themeColors.primary} />
       )}
     </View>
   );
 };
+
 
 export default HomeScreen;
 
@@ -64,5 +250,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

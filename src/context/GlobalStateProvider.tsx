@@ -1,11 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, Dispatch, SetStateAction } from "react";
+import { useColorScheme, DeviceEventEmitter } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import AppContext from "./CreateGlobalStateContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserId } from '../utils/sessionHelper';
 import { clearFullSession } from '../utils/session';
 import { MAX_PROFILE_IMAGES } from '../api/useImages';
+import { getSavedSearchFilters, clearSavedSearchFilters, getActiveFilterCount } from '../utils/types/AsyncStorage';
+import { getThemeColors, Colors } from '../theme/colors';
+import { mockStore } from '../mock/mockStore';
+import { USE_MOCK } from '../environment/ApiConfig';
+import apiClient, { getAbsoluteUrl } from '../api/apiClient';
+import { parseDobToLocalDate } from '../utils/dateUtils';
 
 const GlobalStateProvider = ({ children }: any) => {
+  const queryClient = useQueryClient();
+  const systemColorScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState<'light' | 'system' | 'dark'>('dark');
+  const themeColors = useMemo(() => getThemeColors(themeMode, systemColorScheme), [themeMode, systemColorScheme]);
+
+  useEffect(() => {
+    Object.assign(Colors, themeColors);
+  }, [themeColors]);
+
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@app_appearance_theme');
+        if (saved === 'light' || saved === 'dark' || saved === 'system') {
+          setThemeMode(saved);
+        }
+      } catch (e) {
+        console.warn('Failed to load appearance theme preference:', e);
+      }
+    };
+    void loadThemePreference();
+  }, []);
+
+  const updateThemeMode: Dispatch<SetStateAction<'light' | 'system' | 'dark'>> = (value) => {
+    setThemeMode((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      AsyncStorage.setItem('@app_appearance_theme', next).catch((e) =>
+        console.warn('Failed to save appearance theme preference:', e)
+      );
+      return next;
+    });
+  };
+
 
   // ================= BASIC USER =================
   const [initialScreen, setInitialScreen] = useState<string | null>(null);
@@ -31,8 +72,8 @@ const GlobalStateProvider = ({ children }: any) => {
   const [selectedEthnicity, setSelectedEthnicity] = useState<string | null>(null);
   const [selectedSmoking, setSelectedSmoking] = useState<string | null>(null);
   const [selectedDrinking, setSelectedDrinking] = useState<string | null>(null);
-  const [selectedKidCount, setSelectedKidCount] = useState<string | null>(null);
   const [selectedLookingFor, setSelectedLookingFor] = useState<string[]>([]);
+  const [selectedKids, setSelectedKids] = useState<string | null>(null);
   const [selectedNetWorth, setSelectedNetWorth] = useState<string | null>(null);
   const [englishSkillLevel, setEnglishSkillLevel] = useState(0);
 
@@ -47,10 +88,13 @@ const GlobalStateProvider = ({ children }: any) => {
   // ================= DISCOVERY =================
   const [filter, setFilter] = useState<'online' | 'newest'>('online');
   const [oppositeGender, setOppositeGender] = useState<string | null>(null);
+  // Results from the Search Settings screen. They are cleared when the user
+  // switches back to one of the dashboard feeds.
+  const [filteredProfiles, setFilteredProfiles] = useState<any[] | null>(null);
 
   // ================= SEARCH FILTER =================
   const [ageRange, setAgeRange] = useState([18, 55]);
-  const [distanceRange, setDistanceRange] = useState(1000);
+  const [distanceRange, setDistanceRange] = useState(50);
   const [bodyHeight, setBodyHeight] = useState([120, 200]);
 
   const [searchLanguages, setSearchLanguages] = useState<string[]>([]);
@@ -58,7 +102,9 @@ const GlobalStateProvider = ({ children }: any) => {
   const [ethnicity, setEthnicity] = useState<string[]>([]);
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [smoke, setSmoke] = useState<string[]>([]);
-  const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | null>(null);
+  const [smokeFilter, setSmokeFilter] = useState<string | boolean | undefined>(undefined);
+  const [drinkFilter, setDrinkFilter] = useState<string | boolean | undefined>(undefined);
+  const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | 'both' | null>(null);
 
   // Missing properties from components
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -97,8 +143,298 @@ const GlobalStateProvider = ({ children }: any) => {
         const id = await getUserId();
         if (id) setAuthUserId(id);
 
-        const subStatus = await AsyncStorage.getItem('isSubscribed');
-        if (subStatus === 'true') setIsSubscribed(true);
+        const [
+          storedName,
+          storedDisplayName,
+          storedGender,
+          storedUserGender,
+          storedImages,
+          storedProfileImage,
+          storedIsLoggedIn,
+          storedTheme,
+          storedBio,
+          storedDob,
+          userScopedDob,
+          userScopedImages,
+          userScopedProfileImage,
+          deletedRaw,
+          userScopedGender,
+        ] = await Promise.all([
+          AsyncStorage.getItem('name'),
+          AsyncStorage.getItem('displayName'),
+          AsyncStorage.getItem('selectedGender'),
+          AsyncStorage.getItem('userGender'),
+          AsyncStorage.getItem('onboardingImages'),
+          AsyncStorage.getItem('profileImage'),
+          AsyncStorage.getItem('isLoggedIn'),
+          AsyncStorage.getItem('@app_appearance_theme'),
+          AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
+          AsyncStorage.getItem('userDob'),
+          id ? AsyncStorage.getItem(`user_dob_${id}`).catch(() => null) : Promise.resolve(null),
+          id ? AsyncStorage.getItem(`user_photos_${id}`).catch(() => null) : Promise.resolve(null),
+          id ? AsyncStorage.getItem(`user_profile_photo_${id}`).catch(() => null) : Promise.resolve(null),
+          id ? AsyncStorage.getItem(`deleted_photos_${id}`).catch(() => null) : Promise.resolve(null),
+          id ? AsyncStorage.getItem(`user_gender_${id}`).catch(() => null) : Promise.resolve(null),
+        ]);
+        if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
+          setThemeMode(storedTheme);
+        } else {
+          setThemeMode('dark');
+        }
+        // Generic name/profile keys belong to the active account only. During
+        // a fresh registration they may still be present briefly while the
+        // previous session is being cleared, so never hydrate them as a draft.
+        if (storedIsLoggedIn === 'true') {
+          if (storedName) setName(storedName);
+          if (storedDisplayName) setDisplayName(storedDisplayName);
+          if (storedBio) setProfileText(storedBio);
+          const effectiveDob = userScopedDob || storedDob;
+          if (effectiveDob) {
+            try {
+              setDate(parseDobToLocalDate(effectiveDob));
+            } catch {}
+          }
+          const resolvedGender = userScopedGender || storedGender || storedUserGender;
+          if (resolvedGender) {
+            setGender(resolvedGender);
+            setSelected(resolvedGender);
+          }
+
+          const [storedPhone, userMobile, userScopedPhone, phoneRemovedUid, phoneRemovedGlobal] = await Promise.all([
+            AsyncStorage.getItem('phoneNumber'),
+            AsyncStorage.getItem('userMobile'),
+            id ? AsyncStorage.getItem(`user_phone_${id}`).catch(() => null) : Promise.resolve(null),
+            id ? AsyncStorage.getItem(`@amara_phone_removed_${id}`).catch(() => null) : Promise.resolve(null),
+            AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
+          ]);
+          if (phoneRemovedUid === 'true' || phoneRemovedGlobal === 'true') {
+            setPhoneNumber('');
+          } else {
+            const effectivePhone = userScopedPhone || storedPhone || userMobile;
+            if (effectivePhone) setPhoneNumber(effectivePhone);
+          }
+
+          // Prioritize user-scoped images, falling back to onboardingImages if user-scoped images are not yet set
+          let effectiveImages = userScopedImages;
+          if (!effectiveImages && storedImages) {
+            try {
+              const parsedStored = JSON.parse(storedImages);
+              if (Array.isArray(parsedStored) && parsedStored.some(Boolean)) {
+                effectiveImages = storedImages;
+                if (id) {
+                  AsyncStorage.setItem(`user_photos_${id}`, storedImages).catch(() => {});
+                }
+              }
+            } catch {}
+          }
+
+          if (effectiveImages) {
+            try {
+              const parsed = JSON.parse(effectiveImages);
+              if (Array.isArray(parsed) && parsed.some(Boolean)) {
+                const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+                const filtered = parsed.map((u) => (u && deletedList.includes(u) ? null : u));
+                while (filtered.length < MAX_PROFILE_IMAGES) filtered.push(null);
+                setImages(filtered);
+              } else {
+                setImages(emptyImageSlots());
+              }
+            } catch (e) {
+              setImages(emptyImageSlots());
+            }
+          } else {
+            setImages(emptyImageSlots());
+          }
+
+          let effectiveProfilePhoto = userScopedProfileImage;
+          if (!effectiveProfilePhoto && storedProfileImage) {
+            effectiveProfilePhoto = storedProfileImage;
+            if (id) {
+              AsyncStorage.setItem(`user_profile_photo_${id}`, storedProfileImage).catch(() => {});
+            }
+          }
+          if (effectiveProfilePhoto) {
+            try {
+              const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+              if (!deletedList.includes(effectiveProfilePhoto)) {
+                setProfileImage(effectiveProfilePhoto);
+                setProfileImageUrl(effectiveProfilePhoto);
+              } else {
+                setProfileImage(null);
+                setProfileImageUrl(null);
+              }
+            } catch {
+              setProfileImage(effectiveProfilePhoto);
+              setProfileImageUrl(effectiveProfilePhoto);
+            }
+          } else {
+            setProfileImage(null);
+            setProfileImageUrl(null);
+          }
+
+          const [
+            storedHeight,
+            storedAppearance,
+            storedBodyType,
+            storedEthnicity,
+            storedSmoking,
+            storedDrinking,
+            storedLookingFor,
+            storedLanguages,
+            storedEnglishLevel,
+            storedKids,
+            storedNetWorth,
+          ] = await Promise.all([
+            AsyncStorage.getItem('@amara_height'),
+            AsyncStorage.getItem('@amara_appearance'),
+            AsyncStorage.getItem('@amara_body_type'),
+            AsyncStorage.getItem('@amara_ethnicity'),
+            AsyncStorage.getItem('@amara_smoking'),
+            AsyncStorage.getItem('@amara_drinking'),
+            AsyncStorage.getItem('@amara_looking_for'),
+            AsyncStorage.getItem('@amara_languages'),
+            AsyncStorage.getItem('@amara_english_level'),
+            AsyncStorage.getItem('@amara_kid_count'),
+            AsyncStorage.getItem('@amara_net_worth'),
+          ]);
+
+          if (storedHeight) {
+            const h = Number(storedHeight);
+            if (Number.isFinite(h) && h > 0) {
+              setHeight(h);
+              setTempHeight(h);
+            }
+          }
+          if (storedAppearance) setSelectedAppearance(storedAppearance);
+          if (storedBodyType) setSelectedBodyType(storedBodyType);
+          if (storedEthnicity) setSelectedEthnicity(storedEthnicity);
+          if (storedSmoking) setSelectedSmoking(storedSmoking);
+          if (storedDrinking) setSelectedDrinking(storedDrinking);
+          if (storedKids) setSelectedKids(storedKids);
+          if (storedNetWorth) setSelectedNetWorth(storedNetWorth);
+          if (storedEnglishLevel !== null && storedEnglishLevel !== undefined && storedEnglishLevel !== '') {
+            setEnglishSkillLevel(Number(storedEnglishLevel));
+          }
+          if (storedLookingFor) {
+            try {
+              const parsed = JSON.parse(storedLookingFor);
+              if (Array.isArray(parsed) && parsed.length > 0) setSelectedLookingFor(parsed);
+            } catch {}
+          }
+          if (storedLanguages) {
+            try {
+              const parsed = JSON.parse(storedLanguages);
+              if (Array.isArray(parsed) && parsed.length > 0) setSelectedLanguages(parsed);
+            } catch {}
+          }
+
+          // Live server synchronization for profile photos to prevent stale local cache
+          if (id) {
+            try {
+              apiClient.get(`/users/${id}/images`).then((res) => {
+                const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
+                if (list.length > 0) {
+                  const liveUrls = list.map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null)).filter(Boolean);
+                  if (liveUrls.length > 0) {
+                    const slots = [...liveUrls];
+                    while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+                    setImages(slots);
+                    setProfileImage(slots[0]);
+                    setProfileImageUrl(slots[0]);
+                    AsyncStorage.setItem(`user_photos_${id}`, JSON.stringify(slots)).catch(() => {});
+                  }
+                }
+              }).catch(() => {});
+            } catch {}
+          }
+        } else {
+          setImages(emptyImageSlots());
+          setProfileImage(null);
+          setProfileImageUrl(null);
+        }
+
+        const effectiveGender = storedGender || storedUserGender;
+        const isWoman =
+          effectiveGender === 'straight_woman' ||
+          effectiveGender === 'woman';
+        let activeSub = false;
+        if (isWoman) {
+          activeSub = true;
+        } else if (id) {
+          try {
+            let isActive = false;
+            let planName = 'STANDARD';
+            let endDateStr: string | null = null;
+
+            try {
+              const res = await apiClient.get('/subscriber/status', { params: { userId: id } });
+              const d = res.data;
+              if (d?.active || d?.isActive || d?.status === 'ACTIVE') {
+                isActive = true;
+                planName = d.plan || d.planType || 'STANDARD';
+                endDateStr = d.endDate || null;
+              }
+            } catch {}
+
+            if (!isActive && USE_MOCK) {
+              const sub = await mockStore.getSubscriptionStatus(String(id)).catch(() => null);
+              if (sub && sub.status === 'ACTIVE') {
+                isActive = true;
+                planName = sub.plan || 'STANDARD';
+                endDateStr = sub.endDate || null;
+              }
+            }
+
+            if (isActive) {
+              activeSub = true;
+              await AsyncStorage.setItem('isSubscribed', 'true');
+              await AsyncStorage.setItem(`isSubscribed_${id}`, 'true');
+              await AsyncStorage.setItem('@subscription_plan', planName);
+              await AsyncStorage.setItem(`@subscription_plan_${id}`, planName);
+              if (endDateStr) {
+                await AsyncStorage.setItem('@subscription_endDate', endDateStr);
+                await AsyncStorage.setItem(`@subscription_endDate_${id}`, endDateStr);
+              }
+            } else {
+              // Check user-scoped local storage only if this specific user has a paid plan
+              const userScopedSub = await AsyncStorage.getItem(`isSubscribed_${id}`);
+              const userScopedEnd = await AsyncStorage.getItem(`@subscription_endDate_${id}`);
+              if (userScopedSub === 'true' && (!userScopedEnd || new Date(userScopedEnd).getTime() > Date.now())) {
+                activeSub = true;
+              } else {
+                activeSub = false;
+                await AsyncStorage.multiRemove([
+                  'isSubscribed',
+                  '@subscription_plan',
+                  '@subscription_endDate',
+                  '@subscription_remainingDays',
+                  `isSubscribed_${id}`,
+                  `@subscription_plan_${id}`,
+                  `@subscription_endDate_${id}`,
+                  `@subscription_remainingDays_${id}`,
+                ]);
+              }
+            }
+          } catch {
+            const userScopedSub = await AsyncStorage.getItem(`isSubscribed_${id}`);
+            const userScopedEnd = await AsyncStorage.getItem(`@subscription_endDate_${id}`);
+            if (userScopedSub === 'true' && (!userScopedEnd || new Date(userScopedEnd).getTime() > Date.now())) {
+              activeSub = true;
+            } else {
+              activeSub = false;
+            }
+          }
+        } else {
+          await AsyncStorage.multiRemove([
+            'isSubscribed',
+            '@subscription_plan',
+            '@subscription_endDate',
+            '@subscription_remainingDays',
+          ]);
+        }
+        setIsSubscribed(activeSub);
+
+        await hydrateSavedFilters(id);
       } catch (e) {
         console.error('Init Error:', e);
       }
@@ -106,6 +442,226 @@ const GlobalStateProvider = ({ children }: any) => {
 
     initializeApp();
   }, []);
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', async (event?: any) => {
+      const activeId = event?.uid || (await getUserId().catch(() => null));
+      try {
+        const [
+          storedName,
+          storedDisplayName,
+          storedBio,
+          storedDob,
+          userScopedDob,
+          storedPhone,
+          userMobile,
+          userScopedPhone,
+          userScopedPhotos,
+          userScopedProfilePhoto,
+          phoneRemovedUid,
+          phoneRemovedGlobal,
+        ] = await Promise.all([
+          AsyncStorage.getItem('name'),
+          AsyncStorage.getItem('displayName'),
+          AsyncStorage.getItem('bio').then((b) => b || AsyncStorage.getItem('@onboarding_bio')),
+          AsyncStorage.getItem('userDob'),
+          activeId ? AsyncStorage.getItem(`user_dob_${activeId}`).catch(() => null) : Promise.resolve(null),
+          AsyncStorage.getItem('phoneNumber'),
+          AsyncStorage.getItem('userMobile'),
+          activeId ? AsyncStorage.getItem(`user_phone_${activeId}`).catch(() => null) : Promise.resolve(null),
+          activeId ? AsyncStorage.getItem(`user_photos_${activeId}`).catch(() => null) : Promise.resolve(null),
+          activeId ? AsyncStorage.getItem(`user_profile_photo_${activeId}`).catch(() => null) : Promise.resolve(null),
+          activeId ? AsyncStorage.getItem(`@amara_phone_removed_${activeId}`).catch(() => null) : Promise.resolve(null),
+          AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
+        ]);
+
+        if (storedDisplayName) setDisplayName(storedDisplayName);
+        if (storedName || storedDisplayName) setName(storedDisplayName || storedName || '');
+        if (storedBio) setProfileText(storedBio);
+        const effectiveDob = userScopedDob || storedDob;
+        if (effectiveDob) {
+          try {
+            setDate(parseDobToLocalDate(effectiveDob));
+          } catch {}
+        }
+        if (event?.phoneNumber === '' || phoneRemovedUid === 'true' || phoneRemovedGlobal === 'true') {
+          setPhoneNumber('');
+        } else {
+          const effectivePhone = event?.phoneNumber || userScopedPhone || storedPhone || userMobile;
+          if (effectivePhone) setPhoneNumber(effectivePhone);
+        }
+
+        // If explicit photos are emitted in the event, adopt them immediately without clobbering
+        if (event?.photos && Array.isArray(event.photos) && event.photos.some(Boolean)) {
+          const slots = [...event.photos];
+          while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+          setImages(slots);
+          const pImg = event.photo || slots[0] || null;
+          if (pImg) {
+            setProfileImage(pImg);
+            setProfileImageUrl(pImg);
+          }
+          if (activeId) {
+            AsyncStorage.setItem(`user_photos_${activeId}`, JSON.stringify(slots)).catch(() => {});
+          }
+          return;
+        }
+
+        // Synchronize photos from local scoped storage first
+        let hasScopedPhotos = false;
+        if (userScopedPhotos) {
+          try {
+            const parsed = JSON.parse(userScopedPhotos);
+            if (Array.isArray(parsed) && parsed.some(Boolean)) {
+              hasScopedPhotos = true;
+              const slots = [...parsed];
+              while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+              setImages(slots);
+              const pImg = slots[0] || userScopedProfilePhoto || null;
+              setProfileImage(pImg);
+              setProfileImageUrl(pImg);
+            }
+          } catch {}
+        }
+
+        // Live server synchronization for profile photos (avoid overwriting local scoped updates or resurrecting deleted photos)
+        if (activeId) {
+          try {
+            const [rawDelUser, rawDelGlobal] = await Promise.all([
+              AsyncStorage.getItem(`deleted_photos_${activeId}`).catch(() => null),
+              AsyncStorage.getItem('deleted_image_uris').catch(() => null),
+            ]);
+            const deletedList = [
+              ...(rawDelUser ? JSON.parse(rawDelUser) : []),
+              ...(rawDelGlobal ? JSON.parse(rawDelGlobal) : []),
+            ].map(String);
+
+            const isDeleted = (url: string) => {
+              if (!url || deletedList.length === 0) return false;
+              const abs = getAbsoluteUrl(url) || url;
+              return deletedList.some((d) => d === url || d === abs);
+            };
+
+            const res = await apiClient.get(`/users/${activeId}/images`).catch(() => null);
+            const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
+            if (list.length > 0) {
+              const liveUrls = list
+                .map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null))
+                .filter(Boolean)
+                .filter((u: string) => !isDeleted(u));
+              if (liveUrls.length > 0 && !hasScopedPhotos) {
+                const slots = [...liveUrls];
+                while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+                setImages(slots);
+                setProfileImage(slots[0]);
+                setProfileImageUrl(slots[0]);
+                AsyncStorage.setItem(`user_photos_${activeId}`, JSON.stringify(slots)).catch(() => {});
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+    });
+    return () => sub.remove();
+  }, []);
+
+  const hydrateSavedFilters = async (customUserId?: string | number | null) => {
+    try {
+      const targetId = customUserId ?? authUserId ?? (await getUserId());
+      const savedFilters = await getSavedSearchFilters(targetId);
+      if (savedFilters) {
+        if (savedFilters.minAge !== undefined && savedFilters.maxAge !== undefined) {
+          setAgeRange([savedFilters.minAge, savedFilters.maxAge]);
+        }
+        if (savedFilters.maxDistanceKm !== undefined) {
+          const rawDist = Number(savedFilters.maxDistanceKm);
+          setDistanceRange(Number.isFinite(rawDist) ? Math.min(Math.max(rawDist, 5), 200) : 50);
+        }
+        if (savedFilters.minHeight !== undefined && savedFilters.maxHeight !== undefined) {
+          setBodyHeight([savedFilters.minHeight, savedFilters.maxHeight]);
+        }
+        if (savedFilters.bodyType) setSelectBodyTypes(savedFilters.bodyType);
+        if (savedFilters.appearance) setSelectedOptions(savedFilters.appearance);
+        if (savedFilters.language) setSearchLanguages(savedFilters.language);
+        if (savedFilters.englishLevel) setEnglishProficiency(savedFilters.englishLevel);
+        if (savedFilters.ethnicity) setEthnicity(savedFilters.ethnicity);
+        if (savedFilters.lookingFor) setLookingFor(savedFilters.lookingFor);
+        if (savedFilters.showMe !== undefined) {
+          setShowMe(savedFilters.showMe);
+        } else if (savedFilters.gender?.length) {
+          const hasMale = savedFilters.gender.includes('Male');
+          const hasFemale = savedFilters.gender.includes('Female');
+          if (hasMale && hasFemale) setShowMe('both');
+          else if (hasMale) setShowMe('straight_man');
+          else setShowMe('straight_woman');
+        }
+        if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
+        if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
+        if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
+        if (savedFilters.location) setLocation(savedFilters.location);
+      }
+    } catch (e) {
+      console.error('Error hydrating saved search filters:', e);
+    }
+  };
+
+  const resetSearchFilters = async () => {
+    try {
+      const targetId = authUserId ?? (await getUserId());
+      await clearSavedSearchFilters(targetId);
+      setAgeRange([18, 40]);
+      setDistanceRange(50);
+      setBodyHeight([120, 200]);
+      setSelectBodyTypes([]);
+      setSelectedOptions([]);
+      setSearchLanguages([]);
+      setEnglishProficiency([]);
+      setEthnicity([]);
+      setLookingFor([]);
+      setSmokeFilter(undefined);
+      setDrinkFilter(undefined);
+      setIsChecked(false);
+      setLocation('');
+      setShowMe('straight_woman');
+      setFilteredProfiles(null);
+    } catch (e) {
+      console.error('Error resetting search filters:', e);
+    }
+  };
+
+  const activeFilterCount = useMemo(() => {
+    return getActiveFilterCount({
+      minAge: ageRange?.[0],
+      maxAge: ageRange?.[1],
+      maxDistanceKm: Number(distanceRange),
+      worldwide: isChecked,
+      minHeight: bodyHeight?.[0],
+      maxHeight: bodyHeight?.[1],
+      location: location,
+      bodyType: selectBodyTypes,
+      appearance: selectedOptions,
+      language: searchLanguages,
+      englishLevel: englishProficiency,
+      ethnicity: ethnicity,
+      lookingFor: lookingFor,
+      smoke: smokeFilter,
+      drink: drinkFilter,
+    });
+  }, [
+    ageRange,
+    distanceRange,
+    isChecked,
+    bodyHeight,
+    location,
+    selectBodyTypes,
+    selectedOptions,
+    searchLanguages,
+    englishProficiency,
+    ethnicity,
+    lookingFor,
+    smokeFilter,
+    drinkFilter,
+  ]);
 
   // ================= ACTIONS =================
   const logout = async () => {
@@ -120,7 +676,6 @@ const GlobalStateProvider = ({ children }: any) => {
     if (prefs.englishSkill !== undefined) setEnglishSkillLevel(prefs.englishSkill);
     if (prefs.ethnicity) setSelectedEthnicity(prefs.ethnicity);
     if (prefs.height) setHeight(prefs.height);
-    if (prefs.kidCount) setSelectedKidCount(prefs.kidCount);
     if (prefs.languages) setSelectedLanguages(prefs.languages);
     if (prefs.lookingFor) setSelectedLookingFor(prefs.lookingFor);
   };
@@ -128,13 +683,37 @@ const GlobalStateProvider = ({ children }: any) => {
   const resetApp = async () => {
     try {
       await clearFullSession();
+      queryClient.clear();
 
       setName('');
+      setDisplayName('');
       setEmail('');
       setPassword('');
       setUsername('');
       setPhoneNumber('');
+      setDate(new Date());
+      setProfileText('');
+      setGender(null);
+      setSelected(null);
+      setSelectedAppearance(null);
+      setSelectedBodyType(null);
+      setSelectedLanguages([]);
+      setSelectedEthnicity(null);
+      setSelectedSmoking(null);
+      setSelectedDrinking(null);
+      setSelectedLookingFor([]);
+      setSelectedKids(null);
+      setSelectedNetWorth(null);
+      setEnglishSkillLevel(0);
+      setVerifiedSelfie(false);
+      setOppositeGender(null);
+      setShowMe(null);
+      // Preserved across logout/login per user requirement
       setImages(emptyImageSlots());
+      setProfileImage(null);
+      setProfileImageUrl(null);
+      setSelectedUserImage(null);
+      AsyncStorage.multiRemove(['onboardingImages', 'profileImage']).catch(() => {});
       setLogin(false);
       setIsSubscribed(false);
       setInvitations([]);
@@ -172,8 +751,8 @@ const GlobalStateProvider = ({ children }: any) => {
         selectedEthnicity, setSelectedEthnicity,
         selectedSmoking, setSelectedSmoking,
         selectedDrinking, setSelectedDrinking,
-        selectedKidCount, setSelectedKidCount,
         selectedLookingFor, setSelectedLookingFor,
+        selectedKids, setSelectedKids,
         selectedNetWorth, setSelectedNetWorth,
         englishSkillLevel, setEnglishSkillLevel,
         profileText, setProfileText,
@@ -185,6 +764,7 @@ const GlobalStateProvider = ({ children }: any) => {
         // discovery
         filter, setFilter,
         oppositeGender, setOppositeGender,
+        filteredProfiles, setFilteredProfiles,
 
         // search
         ageRange, setAgeRange,
@@ -195,6 +775,8 @@ const GlobalStateProvider = ({ children }: any) => {
         ethnicity, setEthnicity,
         lookingFor, setLookingFor,
         smoke, setSmoke,
+        smokeFilter, setSmokeFilter,
+        drinkFilter, setDrinkFilter,
         showMe, setShowMe,
 
         selectedOptions, setSelectedOptions,
@@ -230,16 +812,19 @@ const GlobalStateProvider = ({ children }: any) => {
         resetApp,
         logout,
         setProfilePreferences,
+        activeFilterCount,
+        hydrateSavedFilters,
+        resetSearchFilters,
 
         // Aliases for misspelled versions used in codebase
         selectedEthinicity: selectedEthnicity,
         setSelectedEthinicity: setSelectedEthnicity,
 
-        // Aliases for shorter names
-        kidsCount: selectedKidCount || '',
-        setKidsCount: setSelectedKidCount,
-        netWorth: selectedNetWorth || '',
-        setNetWorth: setSelectedNetWorth,
+        // theme & appearance
+        themeMode,
+        setThemeMode: updateThemeMode,
+        themeColors,
+
       }}
     >
       {children}

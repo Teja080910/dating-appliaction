@@ -1,14 +1,21 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './apiClient';
 import { clearFullSession, hasSessionToken, saveAuthSession } from '../utils/session';
+import { clearUserScopedCache } from '../utils/sessionState';
 import { getUserId } from '../utils/sessionHelper';
 import { LoginRequest, RegisterRequest } from '../utils/types/api.types';
+import { registerDeviceToken } from '../utils/pushNotificationHelper';
+import { generateDeterministicMobile } from '../utils/authPayload';
+import { extractSelfieVerificationUrl, saveSelfieVerificationUrl } from './useFaceValidation';
 
 type VerifyRegisterOtpRequest = {
-  mobile: string;
+  email?: string;
+  name?: string;
+  password?: string;
   otp: string;
-  sessionId: string;
+  mobile?: string;
+  sessionId?: string;
 };
 
 type InitRegisterRequest = Omit<RegisterRequest, 'otp'> & {
@@ -18,21 +25,28 @@ type CompleteRegisterRequest = RegisterRequest & {
   sessionId?: string;
 };
 type VerifyOtpRequest = {
-  userId?: number | string;
-  mobile: string;
+  email: string;
   otp: string;
+  mobile?: string;
+  userId?: number | string;
+  sessionId?: string;
 };
 type SendOtpRequest = {
-  mobile: string;
+  email: string;
+  mobile?: string;
   otp?: string;
 };
 type ForgotPasswordSendOtpRequest = {
-  mobile: string;
+  email: string;
+  mobile?: string;
 };
 type ForgotPasswordResetRequest = {
-  mobile: string;
+  email: string;
   otp: string;
   newPassword: string;
+  confirmPassword?: string;
+  sessionId?: string;
+  mobile?: string;
 };
 
 const normalizePlainApiResponse = (payload: unknown) => {
@@ -75,6 +89,11 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
       ? payload.data
       : null;
 
+  const selfieUrl = extractSelfieVerificationUrl(payload) || extractSelfieVerificationUrl(nestedData);
+  if (selfieUrl) {
+    void saveSelfieVerificationUrl(selfieUrl);
+  }
+
   return {
     ...payload,
     ...(nestedData || {}),
@@ -86,21 +105,34 @@ const normalizeAuthResponse = (data: any, headers?: any) => {
     sessionId:
       payload?.sessionId ||
       nestedData?.sessionId ||
+      payload?.session_id ||
+      nestedData?.session_id ||
       payload?.verificationSessionId ||
       nestedData?.verificationSessionId ||
+      payload?.verification_session_id ||
+      nestedData?.verification_session_id ||
       null,
+    selfieVerificationUrl: selfieUrl || null,
   };
 };
 
 export const useAuth = () => {
+  const queryClient = useQueryClient();
   const persistSessionIfAvailable = async (data: any) => {
-    // 🔍 DEBUG: Log the FULL response from login/register to understand its structure
     if (__DEV__) {
-      console.log('🔍 [AUTH] Raw response from server:', JSON.stringify(data, null, 2));
+      console.log('[AUTH] Server response received.');
+    }
+
+    const selfieUrl = extractSelfieVerificationUrl(data);
+    if (selfieUrl) {
+      await saveSelfieVerificationUrl(selfieUrl);
     }
 
     if (hasSessionToken(data)) {
       const session = await saveAuthSession(data);
+      if (session?.userId) {
+        registerDeviceToken(session.userId).catch(() => null);
+      }
 
       if (__DEV__) {
         console.log('🔍 [AUTH] Extracted session:', {
@@ -135,6 +167,10 @@ export const useAuth = () => {
         otp: String(data.otp ?? '').trim(),
       };
       const res = await apiClient.post('/register', payload);
+      const selfieUrl = extractSelfieVerificationUrl(res?.data);
+      if (selfieUrl) {
+        await saveSelfieVerificationUrl(selfieUrl);
+      }
       return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
     },
   });
@@ -143,6 +179,10 @@ export const useAuth = () => {
   const register = useMutation({
     mutationFn: async (data: CompleteRegisterRequest) => {
       const res = await apiClient.post('/register', data);
+      const selfieUrl = extractSelfieVerificationUrl(res?.data);
+      if (selfieUrl) {
+        await saveSelfieVerificationUrl(selfieUrl);
+      }
       return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
     },
   });
@@ -150,30 +190,88 @@ export const useAuth = () => {
   // 🔹 LOGIN
   const login = useMutation({
     mutationFn: async (data: LoginRequest) => {
-      const res = await apiClient.post('/login', data);
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const cleanEmail = email ? email.toLowerCase().trim() : undefined;
+      const effectiveMobile =
+        data.mobile && !data.mobile.includes('@')
+          ? data.mobile
+          : undefined;
+
+      const payload = {
+        ...data,
+        ...(cleanEmail ? { email: cleanEmail } : {}),
+        ...(effectiveMobile ? { mobile: effectiveMobile } : {}),
+      };
+      if (!effectiveMobile) {
+        delete (payload as any).mobile;
+      }
+      // Captured before the new session overwrites storage.
+      const previousUserId = (await AsyncStorage.getItem('userId').catch(() => null)) || '';
+
+      const res = await apiClient.post('/login', payload);
       const normalizedResponse = normalizeAuthResponse(res.data, res.headers);
       const persisted = await persistSessionIfAvailable(normalizedResponse);
 
       // ✅ FIX: define here (global in function scope)
       const cleanUserId = extractUserId(persisted?.userId);
 
+      // A different account is signing in: drop the previous identity's cached
+      // photos/phone/tombstones so its userId is never reused for writes.
+      if (
+        previousUserId &&
+        cleanUserId &&
+        String(previousUserId).trim() !== String(cleanUserId).trim()
+      ) {
+        await clearUserScopedCache(previousUserId);
+      }
+
       if (persisted?.token) {
-        await AsyncStorage.multiSet([
+        const userEmail = String(payload.email || persisted?.user?.email || '').trim().toLowerCase();
+        const rawSavedMobile = String(persisted?.user?.mobile || data?.mobile || '').trim();
+        const fakeHash = cleanEmail ? generateDeterministicMobile(cleanEmail) : '';
+        const isFakeMobile = Boolean(fakeHash && rawSavedMobile.replace(/\D/g, '') === fakeHash);
+        const validMobile = !isFakeMobile && rawSavedMobile && !rawSavedMobile.includes('@') && rawSavedMobile.length >= 7 ? rawSavedMobile : '';
+
+        // If user already saved a real phone number in storage on this device, restore it!
+        let storedUserPhone = '';
+        if (cleanUserId) {
+          storedUserPhone = (await AsyncStorage.getItem(`user_phone_${cleanUserId}`)) || '';
+        }
+        if (!storedUserPhone) {
+          storedUserPhone = (await AsyncStorage.getItem('phoneNumber')) || '';
+        }
+        const finalPhone = validMobile || storedUserPhone;
+
+        const storagePairs: [string, string][] = [
           ['userToken', persisted.token],
-          ['userMobile', String(data?.mobile ?? '').trim()],
+          ['userEmail', userEmail],
+          ['email', userEmail],
           ['userId', String(cleanUserId ?? '')],
           ['sessionId', String(persisted?.sessionId ?? '')],
           ['username', String(persisted?.username ?? '')],
-        ]);
+        ];
+        if (finalPhone) {
+          storagePairs.push(['userMobile', finalPhone]);
+          storagePairs.push(['phoneNumber', finalPhone]);
+          if (cleanUserId) {
+            storagePairs.push([`user_phone_${cleanUserId}`, finalPhone]);
+          }
+        }
+        await AsyncStorage.multiSet(storagePairs);
 
         if (__DEV__) {
           console.log('✅ Stored session:', {
             token: persisted.token,
+            email: userEmail,
             rawUserId: persisted.userId,
             cleanUserId: cleanUserId, // 🔥 important debug
             sessionId: persisted.sessionId,
             username: persisted.username,
+            mobile: finalPhone,
           });
+        }
+        if (cleanUserId) {
+          registerDeviceToken(cleanUserId).catch(() => null);
         }
       }
 
@@ -188,38 +286,88 @@ export const useAuth = () => {
   // 🔹 VERIFY REGISTER OTP (Legacy alias or if needed)
   const verifyRegisterOtp = useMutation({
     mutationFn: async (data: VerifyRegisterOtpRequest) => {
-      const payload = {
-        mobile: data.mobile,
-        otp: data.otp,
-        ...(String(data.sessionId ?? '').trim() ? { sessionId: String(data.sessionId).trim() } : {}),
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const cleanEmail = email ? email.toLowerCase().trim() : undefined;
+      const cleanSessionId = String(data.sessionId ?? '').trim();
+      const cleanOtp = String(data.otp ?? '').trim();
+      const effectiveMobile =
+        data.mobile && !data.mobile.includes('@')
+          ? data.mobile
+          : undefined;
+
+      // Canonical payload matching Postman collection & API specification:
+      // Includes email, unique mobile identifier, otp, and sessionId.
+      // NOTE: Do NOT send name or password here because /register already recorded them;
+      // sending name/password in verify-register/otp causes the backend to attempt duplicate insertion!
+      const payload: Record<string, any> = {
+        otp: cleanOtp,
       };
-      const res = await apiClient.post('/verify-register/otp', payload);
-      return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
+      if (cleanEmail) payload.email = cleanEmail;
+      if (effectiveMobile) payload.mobile = effectiveMobile;
+      if (cleanSessionId) payload.sessionId = cleanSessionId;
+
+      try {
+        const res = await apiClient.post('/verify-register/otp', payload);
+        const selfieUrl = extractSelfieVerificationUrl(res?.data);
+        if (selfieUrl) {
+          await saveSelfieVerificationUrl(selfieUrl);
+        }
+        return persistSessionIfAvailable(normalizeAuthResponse(res.data, res.headers));
+      } catch (err: any) {
+        const status = Number(err?.response?.status || err?.status);
+        console.warn(`[AUTH] /verify-register/otp returned status ${status}. Attempting fallback to /auth/verify-otp...`);
+
+        // If /verify-register/otp failed with 404, 400, or 409, try fallback to /auth/verify-otp
+        try {
+          const fallbackRes = await apiClient.post('/auth/verify-otp', payload);
+          const selfieUrl = extractSelfieVerificationUrl(fallbackRes?.data);
+          if (selfieUrl) {
+            await saveSelfieVerificationUrl(selfieUrl);
+          }
+          return persistSessionIfAvailable(normalizeAuthResponse(fallbackRes.data, fallbackRes.headers));
+        } catch (fallbackErr) {
+          // If fallback also fails, re-throw original error
+          throw err;
+        }
+      }
     },
   });
 
-
-  // 🔹 SEND OTP (Generic)
+  // 🔹 SEND OTP (Generic Email OTP)
   const sendOtp = useMutation({
     mutationFn: async (data: SendOtpRequest) => {
-      const res = await apiClient.post('/auth/send-otp', data);
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
+      const payload = {
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
+        ...(data.otp ? { otp: String(data.otp).trim() } : {}),
+      };
+      if (!payload.email && !payload.mobile) {
+        throw new Error('Email is required');
+      }
+      const res = await apiClient.post('/auth/send-otp', payload);
       return res.data;
     },
   });
 
-  // 🔹 VERIFY OTP (Generic)
+  // 🔹 VERIFY OTP (Generic Email OTP)
   const verifyOtp = useMutation({
     mutationFn: async (data: VerifyOtpRequest) => {
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
       const payload = {
-        mobile: String(data.mobile ?? '').trim(),
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
         otp: String(data.otp ?? '').trim(),
+        ...(data.sessionId ? { sessionId: String(data.sessionId).trim() } : {}),
         ...(data.userId === '' || data.userId == null
           ? {}
           : { userId: Number.isFinite(Number(data.userId)) ? Number(data.userId) : data.userId }),
       };
 
-      if (!payload.mobile || !payload.otp) {
-        throw new Error('Mobile and OTP are required');
+      if ((!payload.email && !payload.mobile) || !payload.otp) {
+        throw new Error('Email and OTP are required');
       }
 
       const res = await apiClient.post('/auth/verify-otp', payload);
@@ -230,33 +378,41 @@ export const useAuth = () => {
   // 🔹 FORGOT PASSWORD - SEND OTP
   const forgotPasswordSendOtp = useMutation({
     mutationFn: async (data: ForgotPasswordSendOtpRequest) => {
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
       const payload = {
-        mobile: String(data.mobile ?? '').trim(),
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
       };
-      if (!payload.mobile) {
-        throw new Error('Mobile is required');
+      if (!payload.email && !payload.mobile) {
+        throw new Error('Email is required');
       }
 
       const res = await apiClient.post('/forgot-password/send-otp', payload);
-      return normalizePlainApiResponse(res.data);
+      return res.data;
     },
   });
 
   // 🔹 FORGOT PASSWORD - RESET
   const forgotPasswordReset = useMutation({
     mutationFn: async (data: ForgotPasswordResetRequest) => {
+      const email = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : undefined);
+      const mobile = data.mobile && !data.mobile.includes('@') ? data.mobile : undefined;
       const payload = {
-        mobile: String(data.mobile ?? '').trim(),
+        ...(email ? { email: email.toLowerCase().trim() } : {}),
+        ...(mobile ? { mobile: mobile.trim() } : {}),
         otp: String(data.otp ?? '').trim(),
         newPassword: String(data.newPassword ?? '').trim(),
+        confirmPassword: String(data.confirmPassword ?? data.newPassword ?? '').trim(),
+        ...(data.sessionId ? { sessionId: String(data.sessionId).trim() } : {}),
       };
 
-      if (!payload.mobile || !payload.otp || !payload.newPassword) {
-        throw new Error('Mobile, OTP, and new password are required');
+      if ((!payload.email && !payload.mobile) || !payload.otp || !payload.newPassword) {
+        throw new Error('Email, OTP, and new password are required');
       }
 
       const res = await apiClient.post('/forgot-password/reset', payload);
-      return normalizePlainApiResponse(res.data);
+      return res.data;
     },
   });
 
@@ -300,6 +456,7 @@ export const useAuth = () => {
     },
     onSuccess: async () => {
       await clearFullSession();
+      queryClient.clear();
     },
   });
 
@@ -329,12 +486,14 @@ export const useAuth = () => {
     },
     onSuccess: async () => {
       await clearFullSession();
+      queryClient.clear();
     },
   });
 
   // 🔹 LOGOUT (ONLY LOCAL)
   const logout = async () => {
     await clearFullSession();
+    queryClient.clear();
   };
 
   return {

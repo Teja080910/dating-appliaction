@@ -3,13 +3,15 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 import Icon from 'react-native-vector-icons/Feather';
+import { t, useTranslation } from '../../../i18n';
 
 const ChangeLocation = ({ onPress }: any) => {
+  useTranslation();
   return (
     <TouchableOpacity style={styles.row} onPress={onPress}>
       <View style={styles.left}>
         <FontAwesome5 name="globe-europe" size={20} style={styles.icon} />
-        <Text style={styles.text}>Change location</Text>
+        <Text style={styles.text}>{t('profile.changelocation.change_location')}</Text>
       </View>
       {/* <Feather name="chevron-right" size={20} color="#c4c4c4" /> */}
       <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />

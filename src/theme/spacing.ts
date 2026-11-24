@@ -27,11 +27,11 @@ export const Spacing = {
   radiusFull: 9999,
 
   // Heights
-  buttonHeight: scale(52),
-  buttonHeightSmall: scale(42),
-  inputHeight: scale(52),
-  tabBarHeight: PlatformSelect(85, 70),
-  headerHeight: PlatformSelect(56, 52),
+  buttonHeight: scale(46),
+  buttonHeightSmall: scale(38),
+  inputHeight: scale(48),
+  tabBarHeight: PlatformSelect(80, 66),
+  headerHeight: PlatformSelect(50, 46),
 
   // Icon sizes
   iconXs: scale(16),

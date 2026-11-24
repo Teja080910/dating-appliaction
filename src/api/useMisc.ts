@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from './apiClient';
+import apiClient, { toApiUserId } from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
 
 /**
@@ -162,7 +162,10 @@ export const useServices = (userId?: string) => {
     useQuery({
       queryKey: notificationsQueryKey,
       queryFn: async () => {
-        const res = await apiClient.get('/notification');
+        const resolvedUserId = await resolveBackendUserId();
+        const res = await apiClient.get('/notification', {
+          params: { userId: toApiUserId(resolvedUserId) },
+        });
         return normalizeNotifications(res.data);
       },
     });
@@ -170,7 +173,9 @@ export const useServices = (userId?: string) => {
   // Mark notification read
   const markNotificationRead = useMutation({
     mutationFn: async (notificationId: number) => {
-      const res = await apiClient.put(`/notification/read/${notificationId}`);
+      const res = await apiClient.put(`/notification/read/${notificationId}`, null, {
+        params: { notificationId },
+      });
       return res.data;
     },
     onSuccess: async () => {

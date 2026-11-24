@@ -1,0 +1,597 @@
+{
+  "info": {
+    "name": "AMARA Dating Application - API Collection",
+    "_postman_id": "amara-api-collection-v1",
+    "description": "Complete endpoint collection for the AMARA dating application covering all 10 feature modules.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.amara.com/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "usr_man_101",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication & Account Lifecycle",
+      "item": [
+        {
+          "name": "Send OTP (Email)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/auth/send-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "send-otp"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"arjun@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arjun Sharma\",\n  \"email\": \"arjun@example.com\",\n  \"password\": \"Password@123\",\n  \"confirmPassword\": \"Password@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Verify Register OTP",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/verify-register/otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["verify-register", "otp"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"arjun@example.com\",\n  \"otp\": \"123456\",\n  \"sessionId\": \"sess_reg_arjun_123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "User Login",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"arjun@example.com\",\n  \"password\": \"Password@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Forgot Password - Send OTP",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/forgot-password/send-otp",
+              "host": ["{{baseUrl}}"],
+              "path": ["forgot-password", "send-otp"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"arjun@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Forgot Password - Reset",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/forgot-password/reset",
+              "host": ["{{baseUrl}}"],
+              "path": ["forgot-password", "reset"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"arjun@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Deactivate Account",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/account/deactivate?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["account", "deactivate"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Activate Account",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/account/activate?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["account", "activate"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Delete Account Permanently",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/account/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["account", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Onboarding & Profile Setup",
+      "item": [
+        {
+          "name": "Step 1: Gender Orientation",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/profile/gender-orientation",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "gender-orientation"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"gender\": \"man\",\n  \"orientation\": \"straight\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Step 3: Biometric Selfie Verification",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/profile/selfie/verify/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "selfie", "verify", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "Step 4: Upload Image",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/profile/upload-image",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "upload-image"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "userId", "value": "{{userId}}", "type": "text" },
+                { "key": "photo", "type": "file", "src": [] }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Complete Profile Setup",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/profile/{{userId}}/setup",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "{{userId}}", "setup"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arjun Sharma\",\n  \"displayName\": \"Arjun\",\n  \"gender\": \"man\",\n  \"orientation\": \"straight\",\n  \"age\": 24,\n  \"dob\": \"2002-05-14\",\n  \"bio\": \"Software engineer in Bangalore.\",\n  \"language\": \"English, Hindi\",\n  \"appearance\": \"Athletic\",\n  \"bodyType\": \"Fit\",\n  \"height\": 178,\n  \"englishLevel\": \"Advanced\",\n  \"ethnicity\": \"Indian\",\n  \"lookingFor\": \"Relationship\",\n  \"smoke\": \"No\",\n  \"drink\": \"Socially\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Profile Completion Percentage",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/profile/completion?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "completion"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Profile Management & Settings",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/profile/me?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/profile/update",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "update"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"bio\": \"Updated bio details\",\n  \"height\": 180,\n  \"language\": \"English, Hindi, German\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get User Gallery Images",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/images",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}", "images"]
+            }
+          }
+        },
+        {
+          "name": "Set Primary Profile Photo",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/profile-photo/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}", "profile-photo", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Gallery Photo",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}/images/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{userId}}", "images", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Discovery, Home Feed & Search",
+      "item": [
+        {
+          "name": "Online Profiles Feed",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/online?page=0&size=20&gender=woman",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "online"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "gender", "value": "woman" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recent Profiles Feed",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/recent?page=0&size=20&gender=woman",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard", "recent"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "gender", "value": "woman" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Advanced Search Filter",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/search",
+              "host": ["{{baseUrl}}"],
+              "path": ["search"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minAge\": 20,\n  \"maxAge\": 30,\n  \"gender\": [\"Female\"],\n  \"distance\": 50,\n  \"page\": 0,\n  \"size\": 10\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Dating Requests & Connections",
+      "item": [
+        {
+          "name": "Send Connection Request",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/connections/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["connections", "send"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"{{userId}}\",\n  \"receiverId\": \"usr_woman_201\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Sent Requests",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/connections/sent?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["connections", "sent"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get Received Requests",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/connections/received?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["connections", "received"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Accept Connection Request",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/connections/accept",
+              "host": ["{{baseUrl}}"],
+              "path": ["connections", "accept"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"req_101_201\",\n  \"receiverId\": \"{{userId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Connection Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/connections/status?senderId={{userId}}&receiverId=usr_woman_201",
+              "host": ["{{baseUrl}}"],
+              "path": ["connections", "status"],
+              "query": [
+                { "key": "senderId", "value": "{{userId}}" },
+                { "key": "receiverId", "value": "usr_woman_201" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Telegram Integration",
+      "item": [
+        {
+          "name": "Connect Telegram Username",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/telegram/connect",
+              "host": ["{{baseUrl}}"],
+              "path": ["telegram", "connect"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"username\": \"arjun_telegram\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Telegram Direct Link",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/telegram/link?userId={{userId}}&targetUserId=usr_woman_201",
+              "host": ["{{baseUrl}}"],
+              "path": ["telegram", "link"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" },
+                { "key": "targetUserId", "value": "usr_woman_201" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Disconnect Telegram",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/telegram/disconnect?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["telegram", "disconnect"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Subscriptions & Payments (Razorpay)",
+      "item": [
+        {
+          "name": "Create Razorpay Order",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/razorpay/create-order?userId={{userId}}&plan=GOLD",
+              "host": ["{{baseUrl}}"],
+              "path": ["razorpay", "create-order"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" },
+                { "key": "plan", "value": "GOLD" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Razorpay Payment",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/razorpay/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["razorpay", "verify"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"order_test_123\",\n  \"paymentId\": \"pay_test_123\",\n  \"signature\": \"sig_mock_123\",\n  \"plan\": \"GOLD\",\n  \"userId\": \"{{userId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Get Subscription Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscriber/status?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriber", "status"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get Remaining Days",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscriber/remaining-days?userId={{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriber", "remaining-days"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Location & Support & Safety",
+      "item": [
+        {
+          "name": "Add Location",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/location/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["location", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"country\": \"India\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Create Support Ticket",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/support/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["support", "create"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"subject\": \"Verification help\",\n  \"message\": \"Please assist with my account.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        },
+        {
+          "name": "Report a User",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/reports/report",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "report"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reporterUserId\": \"{{userId}}\",\n  \"reportedUserId\": \"usr_woman_207\",\n  \"reason\": \"SPAM_SCAM\",\n  \"details\": \"Sent inappropriate links.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

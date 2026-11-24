@@ -1,15 +1,26 @@
+import './src/theme/globalFontScaler';
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Routes from './src/screens/Navigations/Routes';
 import GlobalStateProvider from './src/context/GlobalStateProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform, PermissionsAndroid, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import Toast from 'react-native-toast-message';
 import AppContext from './src/context/CreateGlobalStateContext';
 import { getUserId } from './src/utils/sessionHelper';
+import { initLanguage } from './src/i18n';
 import { useServices } from './src/api/useMisc';
 import { useSubscription } from './src/api/useSubscription';
+import { useConnection } from './src/api/useConnection';
+import {
+  registerDeviceToken,
+  setupPushNotificationListeners,
+  handleNotificationNavigation,
+  showForegroundNotificationToast,
+} from './src/utils/pushNotificationHelper';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from './src/components/AmaraToast';
 
 const ServerSync = () => {
   const { setIsSubscribed } = useContext(AppContext);
@@ -18,7 +29,8 @@ const ServerSync = () => {
   const setOnlineRef = useRef<() => void>(() => undefined);
   const setOfflineRef = useRef<() => void>(() => undefined);
   const { setOnline, setOffline } = useServices(userId || undefined);
-  const { subscriptionStatus } = useSubscription(userId);
+  const { subscriptionStatus, statusError } = useSubscription(userId);
+  const { refreshAll } = useConnection(userId || undefined);
 
   useEffect(() => {
     setOnlineRef.current = () => setOnline.mutate();
@@ -26,13 +38,34 @@ const ServerSync = () => {
   }, [setOffline, setOnline]);
 
   useEffect(() => {
-    getUserId()
-      .then((id) => {
-        if (id) {
-          setUserId(String(id));
+    let isMounted = true;
+    const checkUser = async () => {
+      try {
+        const id = await getUserId();
+        if (isMounted && id) {
+          const idStr = String(id);
+          setUserId((prev) => (prev !== idStr ? idStr : prev));
+        } else if (isMounted && !id) {
+          setUserId(null);
         }
-      })
-      .catch(() => null);
+      } catch {
+        // ignore
+      }
+    };
+
+    checkUser();
+    const interval = setInterval(checkUser, 2500);
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        checkUser();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      appStateSub.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -40,6 +73,7 @@ const ServerSync = () => {
       return;
     }
 
+    registerDeviceToken(userId).catch(() => null);
     setOnlineRef.current();
 
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -60,14 +94,46 @@ const ServerSync = () => {
   }, [userId]);
 
   useEffect(() => {
-    if (!subscriptionStatus) {
-      return;
+    if (subscriptionStatus) {
+      const active = Boolean(subscriptionStatus.active);
+      setIsSubscribed(active);
+      if (active) {
+        AsyncStorage.setItem('isSubscribed', 'true').catch(() => null);
+      }
     }
-
-    setIsSubscribed(Boolean(subscriptionStatus.active));
-    AsyncStorage.setItem('isSubscribed', subscriptionStatus.active ? 'true' : 'false')
-      .catch(() => null);
   }, [setIsSubscribed, subscriptionStatus]);
+
+  // Fast poll for updates every 5 seconds while app is active
+  useEffect(() => {
+    if (!userId) return;
+
+    // Immediate refresh on mount or account switch
+    refreshAll();
+
+    const interval = setInterval(() => {
+      if (appStateRef.current === 'active') {
+        refreshAll();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [userId, refreshAll]);
+
+  // Push notification listeners: Live FCM messages update data and display heads-up banner in foreground
+  useEffect(() => {
+    const unsubscribePush = setupPushNotificationListeners((remoteMessage: any) => {
+      // Instantly refresh requests and notifications
+      refreshAll();
+
+      if (remoteMessage) {
+        showForegroundNotificationToast(remoteMessage);
+      }
+    });
+
+    return () => {
+      unsubscribePush();
+    };
+  }, [refreshAll]);
 
   return null;
 };
@@ -75,14 +141,26 @@ const ServerSync = () => {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
 
+  useEffect(() => {
+    initLanguage();
+
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      ).catch(() => null);
+    }
+  }, []);
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <GlobalStateProvider>
-        <ServerSync />
-        <Routes />
-        <Toast />
-      </GlobalStateProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <GlobalStateProvider>
+          <ServerSync />
+          <Routes />
+          <Toast config={toastConfig} />
+        </GlobalStateProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 };
 

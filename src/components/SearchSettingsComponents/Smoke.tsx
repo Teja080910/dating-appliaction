@@ -1,90 +1,113 @@
-import React, { useContext } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const options = ['Yes', 'No', 'Sometimes'];
+const values = ['Yes', 'No', 'Sometimes'];
+const valueLabel = (val: string) =>
+  val === 'Yes' ? t('profile.userdetails.yes')
+  : val === 'No' ? t('profile.userdetails.no')
+  : val === 'Sometimes' ? t('search.drinking.sometimes')
+  : val;
 
 interface SmokeProps {
-  onChange?: (val: boolean) => void;
+  value?: string | boolean;
+  onChange?: (val: string | undefined) => void;
 }
 
-const Smoke: React.FC<SmokeProps> = ({ onChange }) => {
-  const { smoke, setSmoke } = useContext(AppContext);
+const isOptionSelected = (currentVal: string | boolean | undefined, optionVal: string) => {
+  if (currentVal === undefined || currentVal === null) return false;
+  if (typeof currentVal === 'boolean') {
+    if (optionVal === 'Yes') return currentVal === true;
+    if (optionVal === 'No') return currentVal === false;
+    return false;
+  }
+  const clean = String(currentVal).toLowerCase().trim();
+  const opt = optionVal.toLowerCase().trim();
+  if (clean === opt) return true;
+  if (opt === 'sometimes' && (clean === 'occasionally')) return true;
+  if (opt === 'no' && (clean === 'never' || clean === 'non-smoker' || clean === 'non smoker')) return true;
+  if (opt === 'yes' && (clean === 'smoker')) return true;
+  return false;
+};
 
-  const toggleOption = (option: string) => {
-    const nextSmoke = smoke.includes(option)
-      ? smoke.filter((item: string) => item !== option)
-      : [...smoke, option];
-    setSmoke(nextSmoke);
-    if (onChange) {
-      onChange(nextSmoke.includes('Yes') || nextSmoke.includes('Sometimes'));
+const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
+  const handlePress = (optVal: string) => {
+    if (isOptionSelected(value, optVal)) {
+      onChange?.(undefined);
+    } else {
+      onChange?.(optVal);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Smoker?</Text>
+      <Text style={styles.label}>{t('search.smoke.smoker')}</Text>
       <View style={styles.optionsWrapper}>
-        {options.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.option, smoke.includes(item) && styles.optionSelected]}
-            onPress={() => toggleOption(item)}
-          >
-            <Text style={[styles.optionText, smoke.includes(item) && styles.optionTextSelected]}>
-              {item}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {values.map((item) => {
+          const selected = isOptionSelected(value, item);
+          return (
+            <TouchableOpacity
+              key={item}
+              style={[styles.option, selected && styles.optionSelected]}
+              onPress={() => handlePress(item)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                {valueLabel(item)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
-  },
-  optionsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  option: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
-  },
-  optionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  optionText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  optionTextSelected: {
-    color: Colors.white,
-    fontWeight: '600',
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginTop: 24,
+      padding: 0,
+      backgroundColor: 'transparent',
+    },
+    label: {
+      fontWeight: '600',
+      fontSize: 16,
+      marginBottom: 12,
+      color: themeColors.text,
+      letterSpacing: -0.1,
+    },
+    optionsWrapper: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    option: {
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: 9999,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    optionSelected: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    optionText: {
+      fontSize: 14,
+      color: themeColors.text,
+      fontWeight: '500',
+    },
+    optionTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+  });
 
 export default Smoke;

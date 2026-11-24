@@ -1,12 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import apiClient from './apiClient';
-import { toApiUserId } from './apiClient';
-import { isResolvedApiUserId } from '../utils/sessionState';
 import { getUserId } from '../utils/sessionHelper';
 
 const normalizeArrayFilter = (value: unknown) => {
   if (Array.isArray(value)) {
-    return value.filter((item) => item !== null && item !== undefined && String(item).trim() !== '');
+    const items = value.filter((item) => item !== null && item !== undefined && String(item).trim() !== '');
+    return items.length > 0 ? items : undefined;
   }
 
   if (value === null || value === undefined || String(value).trim() === '') {
@@ -36,12 +35,37 @@ const normalizeBooleanFilter = (value: unknown) => {
 
 const SENSITIVE_USER_FIELDS = ['mobile', 'password'];
 
+export const isDeletedUserRecord = (user: any): boolean => {
+  if (!user || typeof user !== 'object') return false;
+  const p = user?.profile || {};
+  if (user.isDeleted === true || p.isDeleted === true) return true;
+  if (user.deleted === true || p.deleted === true) return true;
+  if (user.deactivated === true || p.deactivated === true) return true;
+  if (user.isActive === false || p.isActive === false) return true;
+  const status = String(user.status || p.status || '').toUpperCase();
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION', 'PENDING_DELETION'].includes(status)) {
+    return true;
+  }
+  const accountStatus = String(user.accountStatus || p.accountStatus || '').toUpperCase();
+  if (['DELETED', 'DEACTIVATED', 'INACTIVE', 'SUSPENDED', 'SCHEDULED_FOR_DELETION'].includes(accountStatus)) {
+    return true;
+  }
+  return false;
+};
+
 const sanitizeUserRecord = (user: any): any => {
   if (!user || typeof user !== 'object') {
     return user;
   }
 
   const copy = { ...user };
+  const resolvedUserId = copy.userId ?? copy.uid ?? copy.profile?.userId ?? copy.id;
+  copy.userId = resolvedUserId !== undefined && resolvedUserId !== null
+    ? String(resolvedUserId)
+    : '';
+  if (!Object.prototype.hasOwnProperty.call(copy, 'telegramUsername')) {
+    copy.telegramUsername = '';
+  }
   SENSITIVE_USER_FIELDS.forEach((field) => {
     delete copy[field];
     if (copy.profile && typeof copy.profile === 'object') {
@@ -63,7 +87,9 @@ const normalizePagedUsersResponse = (payload: any) => {
     (Array.isArray(base.data) ? base.data : null) ||
     (Array.isArray(payload) ? payload : []);
 
-  const sanitized = content.map(sanitizeUserRecord);
+  const sanitized = content
+    .filter((u: any) => !isDeletedUserRecord(u))
+    .map(sanitizeUserRecord);
 
   return {
     totalPages: Number(base.totalPages ?? 0),
@@ -80,50 +106,143 @@ const normalizePagedUsersResponse = (payload: any) => {
   };
 };
 
-const normalizeSearchRequest = (data: any) => ({
-  minAge: Number.isFinite(Number(data?.minAge)) ? Number(data.minAge) : undefined,
-  maxAge: Number.isFinite(Number(data?.maxAge)) ? Number(data.maxAge) : undefined,
-  language:
-    typeof data?.language === 'string'
-      ? data.language.trim()
-      : Array.isArray(data?.language) && data.language.length > 0
-        ? String(data.language[0]).trim()
-        : undefined,
-  ethnicity:
-    typeof data?.ethnicity === 'string'
-      ? data.ethnicity.trim()
-      : Array.isArray(data?.ethnicity) && data.ethnicity.length > 0
-        ? String(data.ethnicity[0]).trim()
-        : undefined,
-  smoke:
-    typeof data?.smoke === 'string'
-      ? data.smoke.trim()
-      : typeof data?.smoke === 'boolean'
-        ? String(data.smoke)
-        : undefined,
-  drink:
-    typeof data?.drink === 'string'
-      ? data.drink.trim()
-      : typeof data?.drink === 'boolean'
-        ? String(data.drink)
-        : undefined,
-  sortBy: typeof data?.sortBy === 'string' ? data.sortBy.trim() : undefined,
-});
+const CORE_SEARCH_KEYS = [
+  'name',
+  'gender',
+  'minAge',
+  'maxAge',
+  'language',
+  'ethnicity',
+  'smoke',
+  'drink',
+  'sortBy',
+];
+
+const extractCore9Fields = (payload: Record<string, any>) => {
+  const core: Record<string, any> = {};
+  CORE_SEARCH_KEYS.forEach((key) => {
+    if (payload[key] !== undefined) {
+      core[key] = payload[key];
+    }
+  });
+  return core;
+};
+
+const normalizeSmokeDrink = (val: unknown) => {
+  if (typeof val === 'string' && val.trim() !== '') return val.trim();
+  if (val === true) return 'Yes';
+  if (val === false) return 'No';
+  return undefined;
+};
+
+const isMaleGender = (g: string) => {
+  const s = String(g).toLowerCase().trim();
+  return s === 'male' || s === 'man' || s === 'straight_man' || (s.includes('male') && !s.includes('female')) || (s.includes('man') && !s.includes('woman'));
+};
+
+const isFemaleGender = (g: string) => {
+  const s = String(g).toLowerCase().trim();
+  return s === 'female' || s === 'woman' || s === 'straight_woman' || s.includes('female') || s.includes('woman');
+};
+
+const normalizeSearchRequest = (data: any) => {
+  let resolvedGender: string | undefined = undefined;
+  if (Array.isArray(data?.gender) && data.gender.length > 0) {
+    const hasWoman = data.gender.some((g: any) => isFemaleGender(String(g)));
+    const hasMan = data.gender.some((g: any) => isMaleGender(String(g)));
+    if (hasWoman && hasMan) {
+      resolvedGender = 'both';
+    } else if (hasMan) {
+      resolvedGender = 'man';
+    } else if (hasWoman) {
+      resolvedGender = 'woman';
+    } else {
+      resolvedGender = String(data.gender[0]);
+    }
+  } else if (data?.showMe || data?.gender) {
+    const rawGender = String(data?.gender || data?.showMe).toLowerCase();
+    if (rawGender === 'both') {
+      resolvedGender = 'both';
+    } else if (isFemaleGender(rawGender)) {
+      resolvedGender = 'woman';
+    } else if (isMaleGender(rawGender)) {
+      resolvedGender = 'man';
+    } else {
+      resolvedGender = String(data?.gender || data?.showMe);
+    }
+  }
+
+  return {
+    // === Core 9 Backend-supported fields ===
+    name: data?.name || data?.search || undefined,
+    gender: resolvedGender,
+    minAge: Number.isFinite(Number(data?.minAge)) ? Number(data.minAge) : undefined,
+    maxAge: Number.isFinite(Number(data?.maxAge)) ? Number(data.maxAge) : undefined,
+    language:
+      typeof data?.language === 'string'
+        ? data.language.trim()
+        : Array.isArray(data?.language) && data.language.length > 0
+          ? String(data.language[0]).trim()
+          : undefined,
+    ethnicity:
+      typeof data?.ethnicity === 'string'
+        ? data.ethnicity.trim()
+        : Array.isArray(data?.ethnicity) && data.ethnicity.length > 0
+          ? String(data.ethnicity[0]).trim()
+          : undefined,
+    smoke: normalizeSmokeDrink(data?.smoke),
+    drink: normalizeSmokeDrink(data?.drink),
+    sortBy: typeof data?.sortBy === 'string' ? data.sortBy.trim() : 'createdAt',
+
+    // === Extra filter fields ready for backend ===
+    minHeight: Number.isFinite(Number(data?.minHeight)) ? Number(data.minHeight) : undefined,
+    maxHeight: Number.isFinite(Number(data?.maxHeight)) ? Number(data.maxHeight) : undefined,
+    bodyType: normalizeArrayFilter(data?.bodyType),
+    appearance: normalizeArrayFilter(data?.appearance),
+    englishLevel: normalizeArrayFilter(data?.englishLevel),
+    lookingFor: normalizeArrayFilter(data?.lookingFor),
+    searchRadius: Number.isFinite(Number(data?.searchRadius ?? data?.maxDistanceKm ?? data?.radius))
+      ? Number(data.searchRadius ?? data.maxDistanceKm ?? data.radius)
+      : undefined,
+    maxDistanceKm: Number.isFinite(Number(data?.maxDistanceKm ?? data?.searchRadius ?? data?.radius))
+      ? Number(data.maxDistanceKm ?? data.searchRadius ?? data.radius)
+      : undefined,
+    radius: Number.isFinite(Number(data?.radius ?? data?.searchRadius ?? data?.maxDistanceKm))
+      ? Number(data.radius ?? data.searchRadius ?? data.maxDistanceKm)
+      : undefined,
+    latitude: Number.isFinite(Number(data?.latitude)) ? Number(data.latitude) : undefined,
+    longitude: Number.isFinite(Number(data?.longitude)) ? Number(data.longitude) : undefined,
+    worldwide: typeof data?.worldwide === 'boolean' ? data.worldwide : undefined,
+    city:
+      typeof data?.city === 'string' &&
+      data.city.trim() !== '' &&
+      data.city.trim() !== 'Mumbai, India' &&
+      data.city.trim() !== 'My current location'
+        ? data.city.trim()
+        : typeof data?.location === 'string' &&
+          data.location.trim() !== '' &&
+          data.location.trim() !== 'Mumbai, India' &&
+          data.location.trim() !== 'My current location'
+          ? data.location.trim()
+          : undefined,
+    onlyOnline: data?.onlyOnline === true ? true : undefined,
+  };
+};
 
 const normalizeSearchUsersResponse = (payload: any) => {
   if (Array.isArray(payload)) {
-    return payload;
+    return payload.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
   }
 
   if (payload && typeof payload === 'object') {
     if (Array.isArray(payload.data)) {
-      return payload.data;
+      return payload.data.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.content)) {
-      return payload.content;
+      return payload.content.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
     }
     if (Array.isArray(payload.users)) {
-      return payload.users;
+      return payload.users.filter((u: any) => !isDeletedUserRecord(u)).map(sanitizeUserRecord);
     }
   }
 
@@ -152,29 +271,28 @@ export const useDiscovery = (userId?: any) => {
   // =========================
   const filterUsers = useMutation({
     mutationFn: async (data: any) => {
-      const payload: Record<string, any> = {
-        userId: data.userId ? String(data.userId) : undefined,
-        search: data.search,
-        gender: normalizeArrayFilter(data.gender),
-        bodyType: normalizeArrayFilter(data.bodyType),
-        appearance: normalizeArrayFilter(data.appearance),
-        language: normalizeArrayFilter(data.language),
-        englishLevel: normalizeArrayFilter(data.englishLevel),
-        ethnicity: normalizeArrayFilter(data.ethnicity),
-        lookingFor: normalizeArrayFilter(data.lookingFor),
-        smoke: normalizeBooleanFilter(data.smoke),
-        drink: normalizeBooleanFilter(data.drink),
-        maxDistanceKm: Number.isFinite(Number(data?.maxDistanceKm)) ? Number(data.maxDistanceKm) : undefined,
-        worldwide: typeof data?.worldwide === 'boolean' ? data.worldwide : undefined,
-        page: Number.isFinite(Number(data?.page)) ? Number(data.page) : 0,
-        size: Number.isFinite(Number(data?.size)) ? Number(data.size) : 20,
-      };
+      const searchPayload = normalizeSearchRequest(data);
+      Object.keys(searchPayload).forEach(
+        (k) => (searchPayload as any)[k] === undefined && delete (searchPayload as any)[k]
+      );
 
-      // Remove undefined keys
-      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
-
-      const res = await apiClient.post('/users/filter', payload);
-      return normalizePagedUsersResponse(res.data);
+      try {
+        const res = await apiClient.post('/search', searchPayload);
+        return normalizePagedUsersResponse(res.data);
+      } catch (searchError: any) {
+        // If backend fails due to unrecognized extra properties, gracefully retry with core 9 fields
+        if (searchError?.response?.status === 400) {
+          try {
+            console.log('[useDiscovery] POST /search 400 -> retrying with core 9 fields');
+            const corePayload = extractCore9Fields(searchPayload);
+            const coreRes = await apiClient.post('/search', corePayload);
+            return normalizePagedUsersResponse(coreRes.data);
+          } catch (retryError) {
+            console.warn('[useDiscovery] Retry with core 9 fields failed', retryError);
+          }
+        }
+        throw searchError;
+      }
     },
   });
 
@@ -183,8 +301,26 @@ export const useDiscovery = (userId?: any) => {
   // =========================
   const searchUsers = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiClient.post('/search', normalizeSearchRequest(data));
-      return normalizeSearchUsersResponse(res.data);
+      const searchPayload = normalizeSearchRequest(data);
+      Object.keys(searchPayload).forEach(
+        (k) => (searchPayload as any)[k] === undefined && delete (searchPayload as any)[k]
+      );
+
+      try {
+        const res = await apiClient.post('/search', searchPayload);
+        return normalizeSearchUsersResponse(res.data);
+      } catch (searchError: any) {
+        if (searchError?.response?.status === 400) {
+          try {
+            const corePayload = extractCore9Fields(searchPayload);
+            const coreRes = await apiClient.post('/search', corePayload);
+            return normalizeSearchUsersResponse(coreRes.data);
+          } catch (retryError) {
+            console.warn('[useDiscovery] searchUsers retry failed', retryError);
+          }
+        }
+        throw searchError;
+      }
     },
   });
 

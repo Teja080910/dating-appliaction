@@ -9,6 +9,21 @@ import App from '../App';
 jest.mock('../src/components/SubscriptionModal', () => 'SubscriptionModal');
 jest.mock('../src/screens/Navigations/Routes', () => 'Routes');
 jest.mock('react-native-toast-message', () => 'Toast');
+jest.mock('../src/api/useMisc', () => ({
+  useServices: () => ({
+    setOnline: { mutate: jest.fn() },
+    setOffline: { mutate: jest.fn() },
+  }),
+}));
+jest.mock('../src/api/useSubscription', () => ({
+  useSubscription: () => ({
+    subscriptionStatus: null,
+    statusError: null,
+  }),
+}));
+jest.mock('../src/utils/sessionHelper', () => ({
+  getUserId: jest.fn(() => Promise.resolve(null)),
+}));
 jest.mock('../src/context/GlobalStateProvider', () => {
   const React = require('react');
   const AppContext = require('../src/context/CreateGlobalStateContext').default;
@@ -27,7 +42,12 @@ jest.mock('../src/context/GlobalStateProvider', () => {
 });
 
 test('renders correctly', async () => {
-  await ReactTestRenderer.act(() => {
-    ReactTestRenderer.create(<App />);
+  let renderer: ReactTestRenderer.ReactTestRenderer | null = null;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+  expect(renderer).toBeDefined();
+  await ReactTestRenderer.act(async () => {
+    renderer?.unmount();
   });
 });

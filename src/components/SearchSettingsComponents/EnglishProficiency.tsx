@@ -1,15 +1,23 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const englishLevels = ['Bad', 'Medium', 'Good', 'Very good'];
+const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
+const englishLevelLabel = (val: string) =>
+  val === 'Basic' ? t('onboarding.moredetailsscreen.basic')
+  : val === 'Medium' ? t('profile.userdetails.medium')
+  : val;
 
 interface EnglishProficiencyProps {
   onChange?: (val: string[]) => void;
 }
 
 const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { englishProficiency, setEnglishProficiency } = useContext(AppContext);
 
   const toggleOption = (option: string) => {
@@ -22,16 +30,17 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>How good is English?</Text>
+      <Text style={styles.label}>{t('search.englishproficiency.english_level')}</Text>
       <View style={styles.optionsWrapper}>
         {englishLevels.map((level, index) => (
           <TouchableOpacity
             key={index}
             style={[styles.option, englishProficiency.includes(level) && styles.optionSelected]}
             onPress={() => toggleOption(level)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.optionText, englishProficiency.includes(level) && styles.optionTextSelected]}>
-              {level}
+              {englishLevelLabel(level)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -40,49 +49,46 @@ const EnglishProficiency: React.FC<EnglishProficiencyProps> = ({ onChange }) => 
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
-  },
-  optionsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  option: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
-  },
-  optionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  optionText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  optionTextSelected: {
-    color: Colors.white,
-    fontWeight: '600',
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginTop: 24,
+      padding: 0,
+      backgroundColor: 'transparent',
+    },
+    label: {
+      fontWeight: '600',
+      fontSize: 16,
+      marginBottom: 12,
+      color: themeColors.text,
+      letterSpacing: -0.1,
+    },
+    optionsWrapper: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    option: {
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: 9999,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    optionSelected: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    optionText: {
+      fontSize: 14,
+      color: themeColors.text,
+      fontWeight: '500',
+    },
+    optionTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+  });
 
 export default EnglishProficiency;

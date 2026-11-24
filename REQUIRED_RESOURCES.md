@@ -3,8 +3,8 @@
 To complete the full integration of the application, we require the following resources and API keys:
 
 ## 1. Google Maps Platform Keys
-*   **API Key**: Required for the **Location Picker** and **Search Settings** (World Map).
-*   **APIs to Enable**: 
+*   **API Key**: Optional. The location picker now uses keyless OpenStreetMap tiles, so the app works without a Google Maps key. A key is only needed if you want to switch the picker back to the native Google Map.
+*   **APIs to Enable** (only if using the native Google map):
     - Maps SDK for Android
     - Maps SDK for iOS (if applicable)
     - Places API (for location search autocomplete)

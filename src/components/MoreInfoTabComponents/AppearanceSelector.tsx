@@ -1,15 +1,21 @@
 import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
-const appearances = ['Very attractive', 'Attractive', 'Average', 'Below Average'];
+const appearances = ['Very attractive', 'Attractive', 'Average', 'Below average'];
+const appearanceLabel = (val: string) =>
+  val === 'Attractive' ? t('profile.userdetails.attractive') : val;
 
 const AppearanceSelector = () => {
+  useTranslation();
+  const { themeColors } = useTheme();
   const { selectedAppearance, setSelectedAppearance } = useContext(AppContext);
 
   const toggleAppearance = (appearance: string) => {
-    if (selectedAppearance === appearance) {
+    if (selectedAppearance?.toLowerCase() === appearance.toLowerCase()) {
       setSelectedAppearance(null);
     } else {
       setSelectedAppearance(appearance);
@@ -18,19 +24,39 @@ const AppearanceSelector = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Your appearance</Text>
-      <View style={styles.optionsContainer}>
-        {appearances.map((appearance) => (
-          <TouchableOpacity
-            key={appearance}
-            style={[styles.option, selectedAppearance === appearance && styles.optionSelected]}
-            onPress={() => toggleAppearance(appearance)}
-          >
-            <Text style={[styles.optionText, selectedAppearance === appearance && styles.optionTextSelected]}>
-              {appearance}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.headerRow}>
+        <Icon name="emoticon-happy-outline" size={22} color={themeColors.text} style={styles.headerIcon} />
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('more_info.appearanceselector.your_appearance')}</Text>
+      </View>
+      <View style={styles.optionsWrap}>
+        {appearances.map((appearance) => {
+          const isSelected = selectedAppearance?.toLowerCase() === appearance.toLowerCase();
+          return isSelected ? (
+            <TouchableOpacity
+              key={appearance}
+              activeOpacity={0.8}
+              onPress={() => toggleAppearance(appearance)}
+              style={[styles.pillActive, { backgroundColor: themeColors.primary }]}
+            >
+              <Text style={styles.pillTextActive}>{appearanceLabel(appearance)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={appearance}
+              activeOpacity={0.7}
+              onPress={() => toggleAppearance(appearance)}
+              style={[
+                styles.pillInactive,
+                {
+                  backgroundColor: themeColors.surfaceLight,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.pillTextInactive, { color: themeColors.text }]}>{appearanceLabel(appearance)}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -40,45 +66,48 @@ export default AppearanceSelector;
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
+    paddingHorizontal: 20,
+    marginTop: 22,
   },
-  label: {
-    fontWeight: '600',
-    fontSize: 15,
-    marginBottom: Spacing.md,
-    color: Colors.textSecondary,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  optionsContainer: {
+  headerIcon: {
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    gap: 8,
   },
-  option: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderRadius: Spacing.radiusFull,
+  pillInactive: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    backgroundColor: Colors.inputBackground,
-    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  optionSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  optionText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+  pillTextInactive: {
+    fontSize: 14.5,
     fontWeight: '500',
   },
-  optionTextSelected: {
-    color: Colors.white,
+  pillActive: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillTextActive: {
+    fontSize: 14.5,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

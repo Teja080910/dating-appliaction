@@ -29,7 +29,7 @@ const normalizeStoredString = (value: unknown): string | null => {
   return normalized;
 };
 
-const decodeJwtPayload = (token: string | null | undefined) => {
+export const decodeJwtPayload = (token: string | null | undefined) => {
   const normalizedToken = normalizeStoredString(token);
   if (!normalizedToken) {
     return null;
@@ -60,7 +60,7 @@ const decodeJwtPayload = (token: string | null | undefined) => {
 
 export const resolveStoredSessionSubject = async (): Promise<string | null> => {
   try {
-    const token = await AsyncStorage.getItem(STORAGE_KEYS.token);
+    const token = await getAuthToken();
     const payload = decodeJwtPayload(token);
     return normalizeStoredString(payload?.sub || payload?.subject || null);
   } catch (error) {
@@ -134,14 +134,32 @@ export const initVerifiedIdentityCache = async () => {
   } catch (e) {}
 };
 
+export const isSameUserId = (a: unknown, b: unknown): boolean => {
+  if (!a || !b) return false;
+  const sA = String(a).toLowerCase().trim();
+  const sB = String(b).toLowerCase().trim();
+  if (sA === sB) return true;
+  const numA = sA.replace(/\D/g, '');
+  const numB = sB.replace(/\D/g, '');
+  if (numA && numB && numA === numB) return true;
+  if ((sA.length >= 3 && sB.endsWith(sA)) || (sB.length >= 3 && sA.endsWith(sB))) return true;
+  return false;
+};
+
 export const isResolvedApiUserId = (value: unknown): boolean => {
   const normalized = String(value || '').trim();
-  if (!normalized || normalized === '0' || normalized === 'null' || normalized === 'undefined') {
+  if (
+    !normalized ||
+    normalized === '0' ||
+    normalized.toLowerCase() === 'null' ||
+    normalized.toLowerCase() === 'undefined' ||
+    normalized.toLowerCase() === 'nan'
+  ) {
     return false;
   }
 
-  // Backend userIds are alphanumeric strings (e.g. SA1000). Accept them as-is.
-  if (/^[A-Za-z]+\d+$/.test(normalized)) {
+  // Backend userIds are alphanumeric / slug strings (e.g. SA1000, usr_man_101, usr_woman_201). Accept them as-is.
+  if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) {
     return true;
   }
 
@@ -165,19 +183,115 @@ export const normalizeTextValue = (value: unknown): string | null => {
   return normalized;
 };
 
+/**
+ * Identity-scoped cache keys that must never survive a logout or an account
+ * switch (photos, phone, telegram, flags, tombstones...).
+ */
+const GLOBAL_USER_CACHE_KEYS = [
+  'onboardingImages',
+  'profileImage',
+  'deleted_image_uris',
+  '@local_onboarding_photos',
+];
+
+export const clearUserScopedCache = async (uid?: string | null) => {
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const clean = String(uid || '').trim();
+    const digits = clean.replace(/\D/g, '');
+    const suffixes = [clean, digits].filter(
+      (value, index, arr) => Boolean(value) && arr.indexOf(value) === index,
+    );
+
+    const staleKeys = allKeys.filter((key) => {
+      if (GLOBAL_USER_CACHE_KEYS.includes(key)) return true;
+      return suffixes.some((suffix) => key.endsWith(`_${suffix}`));
+    });
+
+    if (staleKeys.length > 0) {
+      await AsyncStorage.multiRemove(staleKeys);
+    }
+  } catch {}
+};
+
 export const clearAuthSession = async () => {
-  await AsyncStorage.multiRemove([
+  const currentUid = (await AsyncStorage.getItem(STORAGE_KEYS.userId).catch(() => null)) || '';
+
+  const keysToRemove = [
     STORAGE_KEYS.token,
     STORAGE_KEYS.userId,
     STORAGE_KEYS.isLoggedIn,
     STORAGE_KEYS.user,
     STORAGE_KEYS.userData,
+    STORAGE_KEYS.isSubscribed,
+    STORAGE_KEYS.selectedGender,
+    'isSubscribed',
+    '@subscription_plan',
+    '@subscription_endDate',
+    '@subscription_remainingDays',
     USER_VERIFIED_KEY,
     'userToken',
     'userMobile',
-  ]);
+    'phoneNumber',
+    'telegramUsername',
+    '@telegram_username',
+    'telegramLink',
+    '@amara_telegram_disconnected',
+    '@amara_phone_removed_global',
+    // Personal profile identity cached outside the scoped keys. These must be
+    // wiped on auth failure / account switch so the next account never
+    // inherits the previous user's DOB, name, bio or profile attributes.
+    'userDob',
+    'name',
+    'displayName',
+    'userName',
+    'bio',
+    'userBio',
+    'profileText',
+    '@onboarding_bio',
+    '@selfie_verified',
+    '@amara_height',
+    '@amara_appearance',
+    '@amara_body_type',
+    '@amara_ethnicity',
+    '@amara_smoking',
+    '@amara_drinking',
+    '@amara_looking_for',
+    '@amara_languages',
+    '@amara_english_level',
+    '@amara_kid_count',
+    '@amara_net_worth',
+    'selectedGender',
+    'userGender',
+    'GenderOrientation',
+    'gender',
+    'current_user_gender',
+    'oppositeGender',
+    'showMe',
+  ];
+
+  if (currentUid) {
+    keysToRemove.push(
+      `user_gender_${currentUid}`,
+      `user_phone_${currentUid}`,
+      `user_telegram_${currentUid}`,
+      `@telegram_username_${currentUid}`,
+      `@amara_telegram_disconnected_${currentUid}`,
+      `@amara_phone_removed_${currentUid}`,
+      `isSubscribed_${currentUid}`,
+      `@subscription_plan_${currentUid}`,
+      `@subscription_endDate_${currentUid}`,
+      `@subscription_remainingDays_${currentUid}`
+    );
+  }
+
+  await AsyncStorage.multiRemove(keysToRemove).catch(() => {});
+  // Photos/tombstones/phone are keyed by userId; drop them so the next login
+  // never reuses another account's identity-scoped data.
+  await clearUserScopedCache(currentUid);
 
   try {
+    await AsyncStorageService.clearToken();
     await AsyncStorageService.clearUser();
   } catch (e) {}
 };
@@ -188,6 +302,33 @@ export const clearOnboardingState = async () => {
     STORAGE_KEYS.entryHomeScreen,
     STORAGE_KEYS.onboardingStep,
     STORAGE_KEYS.selectedGender,
+    STORAGE_KEYS.firstImageUploaded,
+    STORAGE_KEYS.isSubscribed,
+    '@subscription_plan',
+    '@subscription_endDate',
+    '@subscription_remainingDays',
+    'GenderOrientation',
+    'selectedGender',
+    'userGender',
+    'userDob',
+    'displayName',
+    'name',
+    'userName',
+    'password',
+    'phoneNumber',
+    'profileImage',
+    'onboardingImages',
+    'registerSessionId',
+    '@amara_mock_images',
+    '@onboarding_bio',
+    '@amara_kid_count',
+    '@amara_net_worth',
+    '@selfie_verified',
+    'telegramUsername',
+    '@telegram_username',
+    'telegramLink',
+    'bio',
+    'profileText',
   ]);
 };
 
@@ -226,13 +367,26 @@ export const markIdentityVerified = async (userId: string) => {
  */
 export const getAuthToken = async (): Promise<string | null> => {
   try {
+    const secureToken = await AsyncStorageService.getToken();
+    if (secureToken && secureToken !== 'null') return secureToken;
+  } catch (e) {}
+
+  try {
     const token = await AsyncStorage.getItem(STORAGE_KEYS.token);
-    if (token && token !== '' && token !== 'null') return token;
+    if (token && token !== '' && token !== 'null') {
+      await AsyncStorageService.setToken(token);
+      await AsyncStorage.multiRemove([STORAGE_KEYS.token, 'userToken']);
+      return token;
+    }
   } catch (e) {}
 
   try {
     const legacyToken = await AsyncStorage.getItem('userToken');
-    if (legacyToken && legacyToken !== '' && legacyToken !== 'null') return legacyToken;
+    if (legacyToken && legacyToken !== '' && legacyToken !== 'null') {
+      await AsyncStorageService.setToken(legacyToken);
+      await AsyncStorage.removeItem('userToken');
+      return legacyToken;
+    }
   } catch (e) {}
 
   try {

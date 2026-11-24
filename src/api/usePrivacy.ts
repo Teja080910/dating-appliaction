@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from './apiClient';
 import { getUserId } from '../utils/sessionHelper';
+import { getAuthSession, isResolvedApiUserId } from '../utils/session';
 
 const normalizePlainResponse = (payload: unknown) => {
   if (typeof payload === 'string') {
@@ -105,12 +106,19 @@ const normalizeReports = (payload: unknown) =>
  */
 export const usePrivacy = (userId?: string) => {
   const queryClient = useQueryClient();
-  const resolveBackendUserId = async () => {
-    const resolvedUserId = userId || (await getUserId());
-    if (!resolvedUserId) {
-      throw new Error('Unable to resolve backend userId from session.');
+  const resolveBackendUserId = async (candidate?: string | number | null) => {
+    if (candidate && isResolvedApiUserId(String(candidate))) return String(candidate);
+    if (userId && isResolvedApiUserId(String(userId))) return String(userId);
+    const stored = await getUserId().catch(() => null);
+    if (stored && isResolvedApiUserId(stored)) return stored;
+    const session = await getAuthSession();
+    if (session?.userId && isResolvedApiUserId(session.userId)) {
+      return String(session.userId);
     }
-    return String(resolvedUserId);
+    if (stored) return stored;
+    if (userId) return String(userId);
+    if (candidate) return String(candidate);
+    throw new Error('Unable to resolve backend userId from session.');
   };
 
   // =========================
@@ -118,11 +126,15 @@ export const usePrivacy = (userId?: string) => {
   // =========================
 
   const acceptTerms = useMutation({
-    mutationFn: async (_uid?: string) => {
-      const resolvedUserId = await resolveBackendUserId();
-      const res = await apiClient.post('/privacy/accept', null, {
-        params: { userId: resolvedUserId },
-      });
+    mutationFn: async (uid?: string) => {
+      const resolvedUserId = await resolveBackendUserId(uid);
+      const res = await apiClient.post(
+        '/privacy/accept',
+        { userId: resolvedUserId },
+        {
+          params: { userId: resolvedUserId },
+        },
+      );
       return normalizePlainResponse(res.data);
     },
     onSuccess: () => {
@@ -163,11 +175,35 @@ export const usePrivacy = (userId?: string) => {
 
   const reportUser = useMutation({
     mutationFn: async (data: Record<string, any>) => {
-      const res = await apiClient.post('/reports/report', {
-        targetUserId: data?.targetUserId,
-        reason: data?.reason,
-        message: data?.message,
-      });
+      let activeBy = data?.byUserId || data?.reporterUserId || '';
+      if (!activeBy) {
+        try {
+          activeBy = await resolveBackendUserId();
+        } catch {
+          activeBy = '';
+        }
+      }
+      const targetId = String(data?.targetUserId || data?.reportedUserId || '');
+      const msg = data?.message || data?.details || '';
+      const res = await apiClient.post(
+        '/reports/report',
+        {
+          reporterUserId: activeBy,
+          reportedUserId: targetId,
+          byUserId: activeBy,
+          targetUserId: targetId,
+          reason: data?.reason,
+          message: msg,
+          details: msg,
+        },
+        {
+          params: {
+            reporterUserId: activeBy,
+            reportedUserId: targetId,
+            userId: activeBy,
+          },
+        },
+      );
       return res.data;
     },
     onSuccess: () => {

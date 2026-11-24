@@ -1,0 +1,12 @@
+diff --git a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraDevicesManager.kt b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraDevicesManager.kt
+index e6027a7..ea81d0e 100644
+--- a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraDevicesManager.kt
++++ b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/react/CameraDevicesManager.kt
+@@ -68,6 +68,7 @@ class CameraDevicesManager(private val reactContext: ReactApplicationContext) :
+         Log.i(TAG, "Initializing ExtensionsManager...")
+         extensionsManager = ExtensionsManager.getInstanceAsync(reactContext, cameraProvider!!).await(executor)
+         Log.i(TAG, "Successfully initialized!")
++        sendAvailableDevicesChangedEvent()
+       } catch (error: Throwable) {
+         Log.e(TAG, "Failed to initialize ProcessCameraProvider/ExtensionsManager! Error: ${error.message}", error)
+       }

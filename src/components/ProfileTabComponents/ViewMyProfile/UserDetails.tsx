@@ -1,26 +1,91 @@
-import React, { useContext } from 'react';
-import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Toast from 'react-native-toast-message';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  ActivityIndicator,
+  DeviceEventEmitter,
+  Image,
+  Linking,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+  Modal,
+  TextInput,
+  ScrollView,
+} from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { useNavigation } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useConnection } from '../../../api/useConnection';
-import { useReport } from '../../../api/useReport';
+import { useSubscription } from '../../../api/useSubscription';
+import { useReport, normalizeReportReason } from '../../../api/useReport';
 import AppContext from '../../../context/CreateGlobalStateContext';
-import { Colors } from '../../../theme';
+import { Colors, useTheme } from '../../../theme';
 import { isResolvedApiUserId, repairStoredSessionIdentity } from '../../../utils/session';
-import { getAuthToken } from '../../../utils/sessionHelper';
+import { getAuthToken, getUserId } from '../../../utils/sessionHelper';
+import { getUserFriendlyMessage, isSubscriptionGateError } from '../../../utils/userFriendlyMessages';
 import { useAlert } from '../../../components/AlertModal';
+import { openTelegramChat } from '../../../utils/telegramHelper';
+import { useMyTelegramStatus } from '../../../api/useTelegram';
+import { openWhatsAppChat, shareWhatsAppContact, extractPhone, extractTelegram, isInvalidPhoneNumber, isInvalidTelegramHandle, formatDisplayPhone } from '../../../utils/whatsappHelper';
+import { getLanguageFlag, filterSupportedLanguages } from '../../../utils/languageHelper';
+import { resolveProfileDistance } from '../../../utils/distanceHelper';
+import { getCurrentLocation } from '../../../utils/geolocation';
+import { t, useTranslation } from '../../../i18n';
+import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
+import { mockStore } from '../../../mock/mockStore';
+import apiClient from '../../../api/apiClient';
+import { getAgeFromDob } from '../../../utils/dateUtils';
+
+const getReportReasons = () => [
+  'Scam / Fraud',
+  'Fake profile',
+  'Harassment',
+  'Abusive language',
+  'Sexual harassment',
+  "Didn't show up",
+  'Soliciting',
+  'Appears to be underage',
+  'Extortion / Threats',
+  'Shared my contact',
+  'Sent unsolicited content',
+  'Wrong gender shown',
+  'Multiple accounts',
+  t('profile.userdetails.other'),
+];
 
 interface UserDetailsProps {
   profile?: any;
   currentUserId?: string | number | null;
   targetUserId?: string | number | null;
+  requestId?: string | number | null;
+  requestRole?: 'received' | 'sent';
+  requestStatus?: string | null;
 }
 
-const { width: windowWidth } = Dimensions.get('window');
-const isCompactDevice = windowWidth < 380;
+const UserDetails: React.FC<UserDetailsProps> = ({
+  profile: propProfile,
+  currentUserId,
+  targetUserId,
+  requestId,
+  requestRole,
+  requestStatus,
+}) => {
+  useTranslation();
+  const hiddenLanguages = new Set(['telugu']);
+  const hiddenLookingForValues = new Set([t('profile.userdetails.long_term_relationship'), 'friendship']);
+  const capitalizeLabel = (value: string) =>
+    value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+  const navigation = useNavigation<any>();
+  const { themeColors, isDark } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const isCompactDevice = windowWidth < 380;
+  const styles = useMemo(() => createStyles(themeColors, isCompactDevice), [themeColors, isCompactDevice]);
 
-const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, currentUserId, targetUserId }) => {
   const { 
     name, 
     displayName,
@@ -34,17 +99,138 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     selectedEthinicity,
     selectedSmoking,
     selectedDrinking,
-    setInvitations,
-    invitations,
     setPaywallVisible,
     isSubscribed,
+    setIsSubscribed,
     verifiedSelfie,
     profileText,
     selectedAppearance,
     selectedBodyType,
     selectedLookingFor,
     selectedLanguages,
+    selectedNetWorth,
+    selectedKids,
+    gender,
+    phoneNumber: contextPhone,
+    location,
   } = useContext(AppContext);
+
+  const [localNetWorth, setLocalNetWorth] = useState<string | null>(null);
+  const [localKids, setLocalKids] = useState<string | null>(null);
+  const [viewerGender, setViewerGender] = useState<string>('');
+  const [ownTelegram, setOwnTelegram] = useState<string>('');
+  const [storedPhone, setStoredPhone] = useState<string>('');
+  const { data: myTgStatus } = useMyTelegramStatus(currentUserId != null ? String(currentUserId) : undefined);
+  const { subscriptionStatus } = useSubscription(currentUserId != null ? String(currentUserId) : undefined);
+  const [localSubActive, setLocalSubActive] = useState<boolean | null>(null);
+  const [liveUserCoords, setLiveUserCoords] = useState<{ latitude?: number; longitude?: number } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const loc = await getCurrentLocation(false);
+        if (isMounted && loc) {
+          setLiveUserCoords({ latitude: loc.latitude, longitude: loc.longitude });
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const loadStoredContacts = useCallback(async () => {
+    try {
+      const activeUid = currentUserId || (await getUserId().catch(() => null));
+      const [tgScoped, p1, p2, p3, isPhoneRemovedGlobal, isPhoneRemovedUid, isTgRemovedGlobal, isTgRemovedUid] = await Promise.all([
+        activeUid ? AsyncStorage.getItem(`user_telegram_${activeUid}`).catch(() => null) : null,
+        AsyncStorage.getItem('phoneNumber'),
+        AsyncStorage.getItem('userMobile'),
+        activeUid ? AsyncStorage.getItem(`user_phone_${activeUid}`).catch(() => null) : null,
+        AsyncStorage.getItem('@amara_phone_removed_global').catch(() => null),
+        activeUid ? AsyncStorage.getItem(`@amara_phone_removed_${activeUid}`).catch(() => null) : null,
+        AsyncStorage.getItem('@amara_telegram_disconnected_global').catch(() => null),
+        activeUid ? AsyncStorage.getItem(`@amara_telegram_disconnected_${activeUid}`).catch(() => null) : null,
+      ]);
+      const isPhoneRemoved = isPhoneRemovedGlobal === 'true' || isPhoneRemovedUid === 'true';
+      const isTgRemoved = isTgRemovedGlobal === 'true' || isTgRemovedUid === 'true';
+
+      const effectiveTg = isTgRemoved ? null : tgScoped;
+      const effectiveP = isPhoneRemoved ? null : (p3 || (activeUid ? null : (p1 || p2)));
+      setOwnTelegram(effectiveTg ? effectiveTg.trim().replace(/^@+/, '').toLowerCase() : '');
+      setStoredPhone(effectiveP || '');
+    } catch {}
+  }, [currentUserId]);
+
+  useEffect(() => {
+    void loadStoredContacts();
+    const sub = DeviceEventEmitter.addListener('AMARA_PROFILE_UPDATED', () => {
+      void loadStoredContacts();
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [loadStoredContacts]);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [storedSub, storedEnd] = await Promise.all([
+          AsyncStorage.getItem('isSubscribed'),
+          AsyncStorage.getItem('@subscription_endDate'),
+        ]);
+        const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+        if (isMounted) {
+          setLocalSubActive(storedSub === 'true' && isNotExpired);
+        }
+      } catch {}
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const effectiveIsSubscribed = Boolean(
+    isSubscribed ||
+    subscriptionStatus?.active ||
+    localSubActive
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      const uid = await getUserId().catch(() => null);
+      const scopedGender = uid ? await AsyncStorage.getItem(`user_gender_${uid}`).catch(() => null) : null;
+      const [g1, g2] = await Promise.all([
+        AsyncStorage.getItem('userGender'),
+        AsyncStorage.getItem('selectedGender'),
+      ]);
+      if (isMounted) {
+        setViewerGender((scopedGender || g1 || g2 || gender || '').toLowerCase());
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [gender]);
+
+  const rawViewerGender = (viewerGender || gender || '').toLowerCase();
+  const isViewerWoman = rawViewerGender.includes('woman') || rawViewerGender.includes('female');
+
+  useEffect(() => {
+    let isMounted = true;
+    AsyncStorage.getItem('@amara_net_worth').then((val) => {
+      if (isMounted && val) setLocalNetWorth(val);
+    });
+    AsyncStorage.getItem('@amara_kid_count').then((val) => {
+      if (isMounted && val) setLocalKids(val);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedNetWorth, selectedKids]);
 
   // 🔄 Use prop profile if available, else fall back to context (legacy match)
   const profile = propProfile || {};
@@ -52,6 +238,97 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
   const connection = useConnection(currentUserId || undefined);
   const reportApi = useReport(currentUserId || undefined);
   const { alert, AlertComponent } = useAlert();
+  const isAcceptedStatus = (s?: string | null) => {
+    const upper = String(s || '').trim().toUpperCase();
+    return upper === 'ACCEPTED' || upper === 'APPROVED' || upper === 'MATCHED' || upper === 'CONNECTED' || upper === 'MUTUAL';
+  };
+  const isReceivedPendingRequest =
+    requestRole === 'received' && !isAcceptedStatus(requestStatus);
+
+  const handleApproveRequest = () => {
+    if (!requestId) return;
+    connection.accept.mutate(requestId, {
+      onSuccess: () => {
+        connection.refreshAll();
+        const alertMsg = isViewerWoman
+          ? t('profile.userdetails.glambu_woman_approved_msg', {
+              defaultValue: 'You have accepted this invitation. Your contact details have been shared with him, and he will reach out to you on WhatsApp or Telegram.',
+            })
+          : t('profile.userdetails.this_connection_is_approved_telegram_contact_is');
+        alert(t('profile.userdetails.request_approved'), alertMsg, [
+          { text: t('profile.userdetails.done'), onPress: () => navigation.goBack() },
+        ]);
+      },
+      onError: (error: any) => {
+        alert(t('profile.userdetails.couldnt_approve_invitation'), getUserFriendlyMessage(error, t('profile.userdetails.we_could_not_approve_this_invitation_right_now')));
+      },
+    });
+  };
+
+  const handleDeclineRequest = () => {
+    if (!requestId) return;
+    connection.reject.mutate(requestId, {
+      onSuccess: () => {
+        connection.refreshAll();
+        alert('Invitation Declined', 'You have declined this invitation.', [
+          { text: t('profile.userdetails.done'), onPress: () => navigation.goBack() },
+        ]);
+      },
+      onError: (error: any) => {
+        alert(
+          'Could not decline invitation',
+          getUserFriendlyMessage(error, t('profile.userdetails.please_try_again_in_a_moment'))
+        );
+      },
+    });
+  };
+
+  const handleOpenTelegram = (username?: string) => {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
+    openTelegramChat(username);
+  };
+
+  const handleShareTelegram = async (username?: string) => {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
+    if (!username) {
+      alert(t('profile.userdetails.telegram_not_connected'), t('profile.userdetails.no_username_available_to_share'));
+      return;
+    }
+    const cleanUsername = username.replace('@', '');
+    try {
+      await Share.share({
+        message: t('profile.userdetails.https_t_me', { cleanUsername }),
+      });
+    } catch {
+      // User dismissed share dialog
+    }
+  };
+
+  const handleOpenWhatsApp = (phone?: string) => {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
+    openWhatsAppChat(phone);
+  };
+
+  const handleShareWhatsApp = async (phone?: string) => {
+    if (!effectiveIsSubscribed && !isViewerWoman) {
+      setPaywallVisible?.(true);
+      return;
+    }
+    if (!phone) {
+      alert('WhatsApp Not Available', 'No phone number available to share.');
+      return;
+    }
+    shareWhatsAppContact(phone, profile?.displayName || profile?.name);
+  };
 
   const normalizeTextValue = (value: unknown, fallback: string) => {
     if (Array.isArray(value)) {
@@ -60,7 +337,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     }
 
     if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
+      return value ? t('profile.userdetails.yes') : t('profile.userdetails.no');
     }
 
     if (typeof value === 'string') {
@@ -74,12 +351,32 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     return fallback;
   };
 
-  const currentYear = new Date().getFullYear();
-  const myAge = date ? (currentYear - date.getFullYear()) : 25;
+  const profileDobForAge = (resolvedProfile as any)?.dob || (profile as any)?.dob;
+  const profileAgeForAge = Number((resolvedProfile as any)?.age ?? (profile as any)?.age);
+
+  const myAge = useMemo(() => {
+    // Prefer the fetched profile DOB/age (server-authoritative) so a birthday
+    // changed on another device is reflected. The local context date is only
+    // the offline fallback.
+    const ageFromProfileDob = profileDobForAge ? getAgeFromDob(profileDobForAge) : null;
+    if (ageFromProfileDob) return ageFromProfileDob;
+
+    if (Number.isFinite(profileAgeForAge) && profileAgeForAge > 0) return profileAgeForAge;
+
+    const safeDate = date ? new Date(date) : null;
+    if (!safeDate || Number.isNaN(safeDate.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - safeDate.getFullYear();
+    const m = today.getMonth() - safeDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < safeDate.getDate())) {
+      age -= 1;
+    }
+    return age > 0 ? age : null;
+  }, [date, profileDobForAge, profileAgeForAge]);
   const resolveNumericIdentifier = (...values: unknown[]) => {
     for (const value of values) {
       const normalized = String(value ?? '').trim();
-      if (/^[A-Za-z]+\d+$/.test(normalized)) {
+      if (/^[A-Za-z0-9_-]+$/.test(normalized) && /[A-Za-z]/.test(normalized)) {
         return normalized;
       }
       if (/^\d+$/.test(normalized)) {
@@ -93,7 +390,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     return null;
   };
 
-  const resolvedTargetUserId = resolveNumericIdentifier(
+  const candidateIds = [
     targetUserId,
     propProfile?.targetUserId,
     propProfile?.target?.id,
@@ -122,46 +419,406 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
     resolvedProfile?.user?.id,
     resolvedProfile?.user?.userId,
     resolvedProfile?.user?.profileId,
+  ];
+
+  const resolvedTargetUserId = resolveNumericIdentifier(...candidateIds);
+
+  const isSameAsCurrentUser = Boolean(
+    currentUserId &&
+    resolvedTargetUserId &&
+    String(currentUserId).trim().toLowerCase() === String(resolvedTargetUserId).trim().toLowerCase()
   );
+
   const isOwnProfile = Boolean(
-    viewMyProfile ||
-    (currentUserId && resolvedTargetUserId && Number(currentUserId) === Number(resolvedTargetUserId))
+    isSameAsCurrentUser ||
+    (viewMyProfile && (!targetUserId || isSameAsCurrentUser)) ||
+    (!resolvedTargetUserId && !targetUserId)
   );
 
-  const finalDisplayName = isOwnProfile
-    ? normalizeTextValue(
-        resolvedProfile?.displayName || profile.displayName || displayName || name,
-        'User'
-      )
-    : normalizeTextValue(
-        resolvedProfile?.displayName || profile.displayName || profile.name || cardUserName,
-        'User'
-      );
+  const finalDisplayName = (
+    isOwnProfile
+      ? normalizeTextValue(
+          displayName ||
+            resolvedProfile?.displayName ||
+            profile.displayName ||
+            name ||
+            resolvedProfile?.name ||
+            profile.name,
+          t('home.usercard.user')
+        )
+      : normalizeTextValue(
+          resolvedProfile?.displayName ||
+            profile.displayName ||
+            resolvedProfile?.name ||
+            profile.name ||
+            cardUserName,
+          t('home.usercard.user')
+        )
+  ).replace(/,\s*\d+$/, '').trim() || t('home.usercard.user');
 
+  const pickAge = (...values: any[]): string => {
+    for (const value of values) {
+      if (value === undefined || value === null || String(value).trim() === '') continue;
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric > 0) return String(numeric);
+    }
+    return '';
+  };
+
+  // Never fabricate an age; just omit it when the profile doesn't have one.
   const displayAge = isOwnProfile
-    ? normalizeTextValue(resolvedProfile?.age || profile.age, String(myAge))
-    : normalizeTextValue(resolvedProfile?.age || profile.age || cardUserAge, 'N/A');
+    ? pickAge(myAge, resolvedProfile?.age, profile?.age)
+    : pickAge(resolvedProfile?.age, profile?.age, cardUserAge);
 
-  // Check if this user is already invited
-  const isAlreadyInvited = invitations?.some((inv: any) => Number(inv.receiverId || inv.id) === Number(resolvedTargetUserId));
-  const resolvedLanguages = (isOwnProfile || propProfile)
-    ? normalizeTextValue(resolvedProfile?.language || profile.language, '')
-        .split(',')
-        .map((lang) => lang.trim())
-        .filter(Boolean)
-    : selectedLanguages;
+  const isSameId = (a: any, b: any) => {
+    const sa = String(a || '').trim().toLowerCase();
+    const sb = String(b || '').trim().toLowerCase();
+    if (!sa || !sb || sa === '0' || sb === '0') return false;
+    if (sa === sb) return true;
+    const da = sa.replace(/[^\d]/g, '');
+    const db = sb.replace(/[^\d]/g, '');
+    if (da && db && da === db && da !== '0') return true;
+    return false;
+  };
+
+  // Check if this user is already invited (from sent or received connections API)
+  const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+  const matchingInvitation = sentConnections.find((inv: any) => {
+    if (requestId && String(inv?.id).trim() === String(requestId).trim()) return true;
+    const receiverId = inv?.receiver?.id ?? inv?.receiver?.userId ?? inv?.receiverId;
+    return isSameId(receiverId, resolvedTargetUserId);
+  });
+  const receivedConnections = Array.isArray(connection.receivedList.data) ? connection.receivedList.data : [];
+  const matchingReceived = receivedConnections.find((inv: any) => {
+    if (requestId && String(inv?.id).trim() === String(requestId).trim()) return true;
+    const senderId = inv?.sender?.id ?? inv?.sender?.userId ?? inv?.senderId;
+    return isSameId(senderId, resolvedTargetUserId);
+  });
+  const isAlreadyInvited = Boolean(matchingInvitation);
+  const mutualConnections = Array.isArray(connection.connectionList?.data) ? connection.connectionList.data : [];
+  const matchingMatch = mutualConnections.find((conn: any) => {
+    const uId = conn?.receiver?.id ?? conn?.receiver?.userId ?? conn?.sender?.id ?? conn?.sender?.userId ?? conn?.id;
+    return isSameId(uId, resolvedTargetUserId);
+  });
+
+  const isApprovedInvitation = !isOwnProfile && Boolean(
+    matchingMatch ||
+    isAcceptedStatus(matchingInvitation?.status) ||
+    isAcceptedStatus(matchingReceived?.status) ||
+    isAcceptedStatus(requestStatus) ||
+    isAcceptedStatus((resolvedProfile as any)?.connectionStatus) ||
+    isAcceptedStatus((resolvedProfile as any)?.requestStatus)
+  );
+
+  const targetParty = (() => {
+    if (matchingMatch) {
+      const sId = matchingMatch?.sender?.id ?? matchingMatch?.sender?.userId ?? (matchingMatch as any)?.senderId;
+      const rId = matchingMatch?.receiver?.id ?? matchingMatch?.receiver?.userId ?? (matchingMatch as any)?.receiverId;
+      if (resolvedTargetUserId && isSameId(rId, resolvedTargetUserId)) return matchingMatch.receiver;
+      if (resolvedTargetUserId && isSameId(sId, resolvedTargetUserId)) return matchingMatch.sender;
+      if (currentUserId && isSameId(sId, currentUserId)) return matchingMatch.receiver;
+      if (currentUserId && isSameId(rId, currentUserId)) return matchingMatch.sender;
+      return matchingMatch.receiver;
+    }
+    if (matchingInvitation) {
+      return matchingInvitation.receiver || (matchingInvitation as any)?.receiverProfile;
+    }
+    if (matchingReceived) {
+      return matchingReceived.sender || (matchingReceived as any)?.senderProfile;
+    }
+    return null;
+  })();
+
+  const isProfileMine =
+    isSameId(resolvedProfile?.id, currentUserId) ||
+    isSameId(resolvedProfile?.userId, currentUserId);
+  const isContextProfileMine =
+    isSameId(profile?.id, currentUserId) ||
+    isSameId(profile?.userId, currentUserId);
+  const isPropProfileMine =
+    isSameId(propProfile?.id, currentUserId) ||
+    isSameId(propProfile?.userId, currentUserId);
+
+  const targetTelegramUsername = (() => {
+    let raw = '';
+    if (isOwnProfile) {
+      const isTgExplicitlyDisconnected =
+        myTgStatus?.isConnected === false ||
+        (resolvedProfile as any)?.telegramUsername === '' ||
+        (resolvedProfile as any)?.telegramUsername === 'NONE' ||
+        (profile as any)?.telegramUsername === '' ||
+        (profile as any)?.telegramUsername === 'NONE' ||
+        (propProfile as any)?.telegramUsername === '' ||
+        (propProfile as any)?.telegramUsername === 'NONE';
+      if (isTgExplicitlyDisconnected && !ownTelegram) {
+        return '';
+      }
+      raw = extractTelegram(
+        ownTelegram,
+        resolvedProfile,
+        profile,
+        propProfile,
+        myTgStatus?.isConnected ? myTgStatus?.telegramUsername : null
+      );
+    } else {
+      if (isViewerWoman) return '';
+      if (!isApprovedInvitation) return '';
+      if (
+        (resolvedProfile as any)?.telegramUsername === '' ||
+        (resolvedProfile as any)?.telegramUsername === 'NONE' ||
+        (profile as any)?.telegramUsername === '' ||
+        (profile as any)?.telegramUsername === 'NONE'
+      ) {
+        return '';
+      }
+      raw = extractTelegram(
+        !isProfileMine ? resolvedProfile : null,
+        targetParty,
+        !isContextProfileMine ? profile : null,
+        !isPropProfileMine ? propProfile : null
+      );
+    }
+    const clean = raw.trim().replace(/^@+/, '');
+    return clean;
+  })();
+
+  const targetPhoneNumber = (() => {
+    if (isOwnProfile) {
+      const isPhoneExplicitlyCleared =
+        (resolvedProfile as any)?.mobile === '' ||
+        (resolvedProfile as any)?.phoneNumber === '' ||
+        (profile as any)?.mobile === '' ||
+        (profile as any)?.phoneNumber === '' ||
+        (propProfile as any)?.mobile === '' ||
+        (propProfile as any)?.phoneNumber === '';
+      if (isPhoneExplicitlyCleared && !storedPhone) {
+        return '';
+      }
+      return (
+        extractPhone(
+          storedPhone,
+          resolvedProfile,
+          profile,
+          propProfile,
+          contextPhone
+        ) || ''
+      );
+    }
+    if (isViewerWoman) return '';
+    if (!isApprovedInvitation) return '';
+    if (
+      (resolvedProfile as any)?.mobile === '' ||
+      (resolvedProfile as any)?.phoneNumber === '' ||
+      (resolvedProfile as any)?.phone === '' ||
+      (profile as any)?.mobile === '' ||
+      (profile as any)?.phoneNumber === '' ||
+      (profile as any)?.phone === ''
+    ) {
+      return '';
+    }
+    return (
+      extractPhone(
+        !isProfileMine ? resolvedProfile : null,
+        targetParty,
+        !isContextProfileMine ? profile : null,
+        !isPropProfileMine ? propProfile : null
+      ) || ''
+    );
+  })();
+
+  const renderContactCard = () => {
+    if (!targetPhoneNumber && !targetTelegramUsername) {
+      return (
+        <View style={styles.cleanContactCard}>
+          <View style={styles.cleanFallbackRow}>
+            <Feather
+              name={isOwnProfile ? "info" : "check-circle"}
+              size={18}
+              color={isOwnProfile ? themeColors.primary : "#10B981"}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.cleanContactSubtext}>
+              {isOwnProfile
+                ? t('profile.contactdetails.no_contacts_subtitle', {
+                    defaultValue: 'Add your WhatsApp or Telegram in Profile Settings so matches can connect with you.',
+                  })
+                : t('profile.userdetails.accepted_missing_contact', {
+                    defaultValue: `${resolvedProfile?.name || profile?.name || 'User'} has accepted, but hasn't added contact details yet.`,
+                  })}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.cleanContactCard}>
+        {targetPhoneNumber ? (
+          <View style={styles.cleanContactRow}>
+            <View style={styles.cleanIconWrapWhatsApp}>
+              <Icon name="whatsapp" size={20} color="#25D366" />
+            </View>
+            <View style={styles.cleanContactInfo}>
+              <Text style={styles.cleanContactLabel}>WhatsApp</Text>
+              <Text selectable={true} style={styles.cleanContactValue}>
+                {formatDisplayPhone(targetPhoneNumber)}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.cleanChatBtnWhatsApp}
+              onPress={() => handleOpenWhatsApp(targetPhoneNumber)}
+            >
+              <Icon name="whatsapp" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+              <Text style={styles.cleanChatBtnText}>{t('requests.requestsinboxscreen.chat', { defaultValue: 'Chat' })}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.cleanShareIconBtn}
+              onPress={() => handleShareWhatsApp(targetPhoneNumber)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Share WhatsApp Contact"
+            >
+              <Icon name="share-variant-outline" size={16} color={themeColors.textSecondary || '#94A3B8'} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {targetPhoneNumber && targetTelegramUsername ? (
+          <View style={styles.cleanContactDivider} />
+        ) : null}
+
+        {targetTelegramUsername ? (
+          <View style={styles.cleanContactRow}>
+            <View style={styles.cleanIconWrapTelegram}>
+              <Icon name="send" size={15} color={Colors.primary} />
+            </View>
+            <View style={styles.cleanContactInfo}>
+              <Text style={styles.cleanContactLabel}>{t('nav.bottomtabs.telegram', { defaultValue: 'Telegram' })}</Text>
+              <Text selectable={true} style={styles.cleanContactValue}>
+                {`@${targetTelegramUsername.replace(/^@+/, '')}`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.cleanChatBtnTelegram}
+              onPress={() => handleOpenTelegram(targetTelegramUsername)}
+            >
+              <Icon name="send" size={13} color="#FFFFFF" style={{ marginRight: 5 }} />
+              <Text style={styles.cleanChatBtnText}>{t('requests.requestsinboxscreen.chat', { defaultValue: 'Chat' })}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.cleanShareIconBtn}
+              onPress={() => handleShareTelegram(targetTelegramUsername)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Share Telegram Handle"
+            >
+              <Icon name="share-variant-outline" size={16} color={themeColors.textSecondary || '#94A3B8'} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+
+  const rawLangSource =
+    resolvedProfile?.language ||
+    profile?.language ||
+    (Array.isArray(selectedLanguages) && selectedLanguages.length > 0 ? selectedLanguages : null);
+
+  const resolvedLanguages = filterSupportedLanguages(rawLangSource);
+  const visibleLookingFor = normalizeTextValue(
+    resolvedProfile?.lookingFor || profile?.lookingFor,
+    isOwnProfile
+      ? (Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || t('profile.userdetails.relationship')))
+      : t('profile.viewmyprofilescreen.long_term'),
+  )
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value && !hiddenLookingForValues.has(value.toLowerCase()))
+    .map(capitalizeLabel)
+    .join(', ');
   const locationText = normalizeTextValue(
     resolvedProfile?.currentCity || profile?.currentCity,
-    isOwnProfile ? 'Your location' : 'Nearby'
+    isOwnProfile ? t('profile.userdetails.your_location') : t('home.usercard.nearby')
   );
+  const distanceText = resolveProfileDistance(
+    resolvedProfile || profile,
+    liveUserCoords,
+    location
+  );
+  const cityText = normalizeTextValue(
+    resolvedProfile?.currentCity || profile?.currentCity || resolvedProfile?.city || profile?.city,
+    location && location !== t('search.location.my_current_location') ? location : 'Nearby'
+  );
+  const placeText = normalizeTextValue(
+    resolvedProfile?.location ||
+    profile?.location ||
+    resolvedProfile?.place ||
+    profile?.place ||
+    resolvedProfile?.neighborhood ||
+    profile?.neighborhood ||
+    (resolvedProfile?.area && (resolvedProfile?.currentCity || resolvedProfile?.city)
+      ? `${resolvedProfile.area}, ${resolvedProfile.currentCity || resolvedProfile.city}`
+      : null) ||
+    resolvedProfile?.currentCity ||
+    profile?.currentCity ||
+    resolvedProfile?.city ||
+    profile?.city,
+    location && location !== t('search.location.my_current_location') ? location : 'Nearby'
+  );
+  const activeStatusText = (() => {
+    const isOnline = resolvedProfile?.online ?? profile?.online;
+    if (isOnline === true || isOnline === 'true') return 'Online now';
+    const lastActive = resolvedProfile?.lastActive || profile?.lastActive;
+    if (lastActive) {
+      const activeStr = String(lastActive).trim();
+      return activeStr.toLowerCase().startsWith('active') ? activeStr : `Active ${activeStr}`;
+    }
+    return t('profile.userdetails.active_today', { defaultValue: 'Active today' });
+  })();
   const canAttemptInvite = Boolean(resolvedTargetUserId);
 
   const handleInvite = async () => {
-    // Always show the paywall first for unsubscribed users.
-    // Invite-specific identity validation should happen only after payment intent.
-    if (!isSubscribed) {
-        setPaywallVisible(true);
-        return;
+    // Always check both state and persisted/mock storage for subscription
+    let activeSubscribed = effectiveIsSubscribed;
+    if (!activeSubscribed) {
+      try {
+        const storedSub = await AsyncStorage.getItem('isSubscribed');
+        const storedEnd = await AsyncStorage.getItem('@subscription_endDate');
+        const isNotExpired = !storedEnd || new Date(storedEnd).getTime() > Date.now();
+        if (storedSub === 'true' && isNotExpired) {
+          activeSubscribed = true;
+          setIsSubscribed?.(true);
+        } else {
+          const checkId = currentUserId || (await getUserId().catch(() => null));
+          if (checkId) {
+            try {
+              const res = await apiClient.get('/subscriber/status', { params: { userId: String(checkId) } });
+              const d = res?.data?.data || res?.data;
+              if (d && (d.active || d.isActive || d.status === 'ACTIVE' || d.isSubscriber)) {
+                activeSubscribed = true;
+                setIsSubscribed?.(true);
+                await AsyncStorage.setItem('isSubscribed', 'true');
+              }
+            } catch {}
+            if (!activeSubscribed) {
+              const sub = await mockStore.getSubscriptionStatus(String(checkId));
+              if (sub && sub.status === 'ACTIVE') {
+                activeSubscribed = true;
+                await AsyncStorage.setItem('isSubscribed', 'true');
+                setIsSubscribed?.(true);
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    if (!activeSubscribed) {
+      setPaywallVisible(true);
+      return;
     }
 
     const repairedCurrentUserId =
@@ -188,96 +845,217 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
         resolvedProfileUserId: resolvedProfile?.userId,
         resolvedProfileTargetUserId: resolvedProfile?.targetUserId,
       });
-      Toast.show({
-        type: 'error',
-        text1: 'User unavailable',
-        text2: 'This profile cannot be invited right now.',
-      });
       return;
     }
 
     if (!activeCurrentUserId) {
-      const token = await getAuthToken();
-      Toast.show({
-        type: 'error',
-        text1: 'Account Sync Needed',
-        text2: token
-          ? 'Your login is missing a valid account id from the server.'
-          : 'Please log in again and try once more.',
-      });
+      return;
+    }
+
+    const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (normalizeId(resolvedTargetUserId) === normalizeId(activeCurrentUserId)) {
       return;
     }
 
     if (isAlreadyInvited) {
-        Toast.show({ type: 'info', text1: 'Already invited!' });
         return;
     }
 
-    const inviteData = {
-        receiverId: resolvedTargetUserId,
-        name: finalDisplayName || "Guest",
-        age: displayAge || 25,
-        image: selectedUserImage || '',
-    };
+    // Check daily request quota limit for active plan
+    const userPlan = (await AsyncStorage.getItem('@subscription_plan')) || 'STANDARD';
+    const planNormalized = userPlan.toUpperCase();
+    const dailyLimit =
+      planNormalized === 'STANDARD' || planNormalized === 'BASIC'
+        ? 10
+        : planNormalized === 'PREMIUM' || planNormalized === 'GOLD'
+        ? 20
+        : null; // null = Unlimited (ELITE)
 
+    if (dailyLimit !== null) {
+      const sentConnections = Array.isArray(connection.sentList.data) ? connection.sentList.data : [];
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const sentTodayCount = sentConnections.filter((inv: any) => {
+        if (!inv?.createdAt) return false;
+        return new Date(inv.createdAt).getTime() >= startOfDay.getTime();
+      }).length;
+
+      if (sentTodayCount >= dailyLimit) {
+        alert(
+          'Daily Request Limit Reached',
+          `You have used your ${dailyLimit} daily requests on the ${planNormalized === 'STANDARD' ? 'Standard' : 'Premium'} plan.\n\nUpgrade to ${planNormalized === 'STANDARD' ? 'Premium (20/day) or Elite (Unlimited)' : 'Elite (Unlimited requests)'} to send more requests today!`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Upgrade Plan', onPress: () => setPaywallVisible?.(true) },
+          ]
+        );
+        return;
+      }
+    }
+
+    // Use the verified identity resolved above instead of the hook's initial
+    // `currentUserId`, which may be stale after session repair.
     connection.send.mutate({
-      receiverId: String(resolvedTargetUserId),
       senderId: String(activeCurrentUserId),
+      receiverId: String(resolvedTargetUserId),
     }, {
       onSuccess: () => {
-        const newInvite = {
-          id: Date.now().toString(),
-          ...inviteData,
-          status: 'Pending',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setInvitations([newInvite, ...invitations]);
+        connection.sentList.refetch();
         connection.refreshAll();
-        Toast.show({ type: 'success', text1: 'Invitation sent!' });
       },
       onError: (error: any) => {
-        Toast.show({
-          type: 'error',
-          text1: 'Invite failed',
-          text2: error?.response?.data?.message || 'Please try again.',
-        });
+        const errorDetails = String(
+          error?.response?.data?.details ||
+          error?.response?.data?.message ||
+          error?.response?.data?.code ||
+          (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+          error?.message ||
+          ''
+        ).toLowerCase();
+
+        if (
+          error?.response?.status === 409 ||
+          ((error?.response?.status === 400) &&
+            (errorDetails.includes('duplicate') || errorDetails.includes('already')))
+        ) {
+          connection.sentList.refetch();
+          return;
+        }
+        if (isSubscriptionGateError(error)) {
+          setPaywallVisible(true);
+          return;
+        }
       },
     });
   };
 
-  const handleReport = () => {
-      if (!resolvedTargetUserId || !currentUserId) {
-        Toast.show({ type: 'error', text1: 'User unavailable' });
-        return;
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportStep, setReportStep] = useState<'INITIAL' | 'REASONS'>('INITIAL');
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [isReasonExpanded, setIsReasonExpanded] = useState(true);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+  const [additionalDetails, setAdditionalDetails] = useState('');
+  const [evidencePhotos, setEvidencePhotos] = useState<string[]>([]);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  const handleOpenReportModal = async () => {
+    let activeBy = currentUserId ? String(currentUserId).trim() : '';
+    if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+      activeBy = String((await getUserId()) || (await repairStoredSessionIdentity()) || '');
+    }
+
+    if (!resolvedTargetUserId || !activeBy) {
+      return;
+    }
+
+    const normalizeId = (id: unknown) => String(id ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (normalizeId(resolvedTargetUserId) === normalizeId(activeBy)) {
+      return;
+    }
+
+    setReportStep('INITIAL');
+    setSelectedReason(null);
+    setAdditionalDetails('');
+    setEvidencePhotos([]);
+    setIsReasonExpanded(true);
+    setIsDetailsExpanded(false);
+    setReportModalVisible(true);
+  };
+
+  const handleBlockOnly = async () => {
+    let activeBy = currentUserId ? String(currentUserId).trim() : '';
+    if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+      activeBy = String((await getUserId()) || (await repairStoredSessionIdentity()) || '');
+    }
+
+    const activeTarget = resolvedTargetUserId ? String(resolvedTargetUserId).trim() : '';
+    if (activeTarget && activeBy) {
+      await saveBlockedUser(activeBy, activeTarget);
+      try {
+        await reportApi.block.mutateAsync({ byUserId: activeBy, targetUserId: activeTarget });
+      } catch (err) {
+        console.warn('Block request warning:', err);
       }
+    }
 
-      alert(
-          "Report Profile",
-          "Are you sure you want to report or block this user?",
-          [
-              { text: "Cancel", style: "cancel" },
-              { text: "Report", style: "destructive", onPress: () => {
-                  reportApi.report.mutate({
-                    byUserId: currentUserId,
-                    targetUserId: resolvedTargetUserId,
-                    reason: 'Profile report',
-                    message: `Reported profile: ${finalDisplayName || 'Unknown user'}`,
-                  }, {
-                    onSuccess: () => {
-                      Toast.show({ type: 'info', text1: 'Profile reported successfully.' });
-                    },
-                    onError: () => {
-                      Toast.show({ type: 'error', text1: 'Report failed', text2: 'Please try again.' });
-                    },
-                  });
-              }}
-          ]
-      );
-  }
+    setReportModalVisible(false);
+    navigation.goBack();
+  };
 
-  const DetailPill = ({ icon, text }: { icon: string, text: string }) => (
+  const handlePickEvidencePhoto = async (slotIndex: number) => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+      if (result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        const newPhotos = [...evidencePhotos];
+        newPhotos[slotIndex] = result.assets[0].uri;
+        setEvidencePhotos(newPhotos);
+      }
+    } catch (err) {
+      console.warn('Evidence photo pick error:', err);
+    }
+  };
+
+  const handleRemoveEvidencePhoto = (slotIndex: number) => {
+    const newPhotos = [...evidencePhotos];
+    newPhotos.splice(slotIndex, 1);
+    setEvidencePhotos(newPhotos);
+  };
+
+  const handleSelectReason = (reason: string) => {
+    setSelectedReason(reason);
+    setIsReasonExpanded(false);
+    setIsDetailsExpanded(true);
+  };
+
+  const handleReportAndBlock = async () => {
+    if (!selectedReason) {
+      return;
+    }
+
+    let activeBy = currentUserId ? String(currentUserId).trim() : '';
+    if (!activeBy || activeBy === 'undefined' || activeBy === 'null') {
+      activeBy = String((await getUserId()) || (await repairStoredSessionIdentity()) || '');
+    }
+
+    const activeTarget = resolvedTargetUserId ? String(resolvedTargetUserId).trim() : '';
+    if (!activeTarget || activeTarget === 'undefined' || activeTarget === 'null') {
+      return;
+    }
+
+    if (activeTarget && activeBy) {
+      await saveBlockedUser(activeBy, activeTarget);
+    }
+
+    setIsSubmittingReport(true);
+    reportApi.report.mutate(
+      {
+        byUserId: activeBy,
+        targetUserId: activeTarget,
+        reason: normalizeReportReason(selectedReason),
+        message: additionalDetails.trim()
+          ? t('profile.userdetails.reported_reason_details', { finalDisplayName: finalDisplayName || t('home.usercard.user'), selectedReason, additionalDetails: additionalDetails.trim() })
+          : t('profile.userdetails.reported_reason', { finalDisplayName: finalDisplayName || t('home.usercard.user'), selectedReason }),
+      },
+      {
+        onSuccess: () => {
+          setIsSubmittingReport(false);
+          setReportModalVisible(false);
+          navigation.goBack();
+        },
+        onError: () => {
+          setIsSubmittingReport(false);
+        },
+      }
+    );
+  };
+
+  const DetailPill = ({ icon, text }: { icon?: string; text: string }) => (
     <View style={styles.pill}>
-      <Icon name={icon} size={18} color={Colors.primary} style={styles.pillIcon} />
+      {icon ? <Icon name={icon} size={16} color={themeColors.textSecondary || Colors.textSecondary} style={styles.pillIcon} /> : null}
       <Text style={styles.pillText}>{text}</Text>
     </View>
   );
@@ -287,100 +1065,509 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
       {/* Header Info */}
       <View style={styles.headerArea}>
         <View style={styles.nameRow}>
-          <Text style={styles.nameText}>{finalDisplayName || "User"}, {displayAge}</Text>
-          {(profile?.verifiedSelfie || resolvedProfile?.verifiedSelfie || verifiedSelfie) && (
-            <Icon name="check-decagram" size={24} color={Colors.primary} style={styles.verifiedIcon} />
+          <Text style={styles.nameText}>
+            {finalDisplayName || t('home.usercard.user')}
+            {displayAge ? `, ${displayAge}` : ''}
+          </Text>
+          {isOwnProfile ? (
+            <View style={styles.verifiedBadge}>
+              <Icon name="check-decagram-outline" size={16} color={themeColors.primary || Colors.primary} style={styles.verifiedIcon} />
+              <Text style={[styles.verifiedText, { color: themeColors.primary || Colors.primary }]}>{t('profile.userdetails.youre_verified_by_photo')}</Text>
+            </View>
+          ) : (
+            <View style={styles.verifiedBadge}>
+              <Icon name="check-circle-outline" size={16} color={themeColors.primary || Colors.primary} style={styles.verifiedIcon} />
+              <Text style={[styles.verifiedText, { color: themeColors.primary || Colors.primary }]}>
+                {t('profile.userdetails.photo_verified', { defaultValue: 'Photo verified' })}
+              </Text>
+            </View>
           )}
         </View>
-        
-        <View style={styles.statusRow}>
-            <View style={styles.statusItem}>
-                <Feather name="clock" size={12} color="#AAA" />
-                <Text style={styles.statusText}>Active today</Text>
+
+        {!isOwnProfile && (
+          <View style={styles.metaInfoRow}>
+            <View style={styles.metaItem}>
+              <Icon name="clock-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
+              <Text style={styles.metaText}>{activeStatusText}</Text>
             </View>
-            <View style={styles.statusItem}>
-                <Feather name="navigation" size={12} color="#AAA" />
-                <Text style={styles.statusText}>{locationText}</Text>
+            <View style={styles.metaItem}>
+              <Icon name="navigation-variant-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
+              <Text style={styles.metaText}>{distanceText}</Text>
             </View>
+            <View style={styles.metaItem}>
+              <Icon name="office-building-outline" size={15} color={themeColors.textSecondary || '#94A3B8'} style={styles.metaIcon} />
+              <Text style={styles.metaText} numberOfLines={1}>{placeText}</Text>
+            </View>
+          </View>
+        )}
+
+        {(() => {
+          const bioToDisplay = (
+            resolvedProfile?.bio !== undefined
+              ? String(resolvedProfile.bio).trim()
+              : (profile?.bio !== undefined
+                ? String(profile.bio).trim()
+                : (isOwnProfile ? String(profileText || '').trim() : ''))
+          );
+          if (bioToDisplay) {
+            return (
+              <View style={styles.bioBlock}>
+                <Text style={styles.sectionTitle}>{t('more_info.header.about_me')}</Text>
+                <Text style={styles.bioText}>{bioToDisplay}</Text>
+              </View>
+            );
+          }
+          if (isOwnProfile) {
+            return (
+              <View style={styles.bioBlock}>
+                <Text style={styles.sectionTitle}>{t('more_info.header.about_me')}</Text>
+                <Text style={[styles.bioText, { fontStyle: 'italic', opacity: 0.6 }]}>
+                  {t('profile.userdetails.no_bio', { defaultValue: 'No bio added yet.' })}
+                </Text>
+              </View>
+            );
+          }
+          return null;
+        })()}
+      </View>
+
+      {/* Details Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>{t('profile.userdetails.details')}</Text>
+          {isOwnProfile && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MoreInfoScreen')}
+              style={styles.editSectionBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.editSectionText}>{t('profile.userdetails.edit')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      </View>
-
-      {/* Bio Section */}
-      <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About me</Text>
-          <Text style={styles.bioText}>
-              {resolvedProfile?.bio || profile?.bio || profileText || "No bio added yet. Write something about yourself!"}
-          </Text>
-      </View>
-
-      {/* More Info Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>More info</Text>
         <View style={styles.pillsContainer}>
-          <DetailPill icon="emoticon-happy-outline" text={normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, selectedAppearance || "Natural")} />
-          <DetailPill icon="ruler" text={`${normalizeTextValue(resolvedProfile?.height || profile?.height, String(height || '---'))} cm`} />
-          <DetailPill icon="human-handsup" text={normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, selectedBodyType || "Average")} />
-          <DetailPill icon="ear-hearing" text={normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Beginner')} />
-          <DetailPill icon="account-outline" text={normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, selectedEthinicity || "Not specified")} />
-          <DetailPill icon="smoking" text={`Smoke: ${normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, selectedSmoking || 'No')}`} />
-          <DetailPill icon="glass-cocktail" text={`Drink: ${normalizeTextValue(resolvedProfile?.drink || profile?.drink, selectedDrinking || 'No')}`} />
-          <DetailPill icon="baby-face-outline" text={`Soon: ${normalizeTextValue(resolvedProfile?.lookingFor || profile?.lookingFor, Array.isArray(selectedLookingFor) ? selectedLookingFor.join(', ') : (selectedLookingFor || "Relationship"))}`} />
+          {Boolean(resolvedProfile?.height || profile?.height || (isOwnProfile && height)) && (
+            <DetailPill icon="tape-measure" text={t('more_info.heightselector.cm', { currentHeight: normalizeTextValue(resolvedProfile?.height || profile?.height, isOwnProfile ? String(height || '') : '') })} />
+          )}
+          {Boolean(resolvedProfile?.bodyType || profile?.bodyType || (isOwnProfile && selectedBodyType)) && (
+            <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.appearance || profile?.appearance || (isOwnProfile && selectedAppearance)) && (
+            <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.ethnicity || profile?.ethnicity || (isOwnProfile && selectedEthinicity)) && (
+            <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.smoke || profile?.smoke || (isOwnProfile && selectedSmoking)) && (
+            <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.drink || profile?.drink || (isOwnProfile && selectedDrinking)) && (
+            <DetailPill icon="glass-cocktail" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || '') : ''))} />
+          )}
+          {Boolean(resolvedProfile?.englishLevel || profile?.englishLevel || (isOwnProfile && englishSkillLevel)) && (
+            <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Medium') : 'Medium')) })} />
+          )}
+          {Boolean(resolvedProfile?.kids || resolvedProfile?.kidCount || profile?.kids || profile?.kidCount || (isOwnProfile && (selectedKids || localKids))) && (
+            <DetailPill
+              icon="baby-face-outline"
+              text={t('profile.userdetails.kids', {
+                normalizeTextValue: normalizeTextValue(
+                  resolvedProfile?.kids || resolvedProfile?.kidCount || profile?.kids || profile?.kidCount,
+                  isOwnProfile ? (selectedKids || localKids || "0") : "0"
+                ),
+              })}
+            />
+          )}
+          {Boolean(resolvedProfile?.netWorth || profile?.netWorth || (isOwnProfile && (selectedNetWorth || localNetWorth))) ? (
+            <DetailPill
+              icon="currency-usd"
+              text={normalizeTextValue(
+                resolvedProfile?.netWorth || profile?.netWorth,
+                isOwnProfile ? (selectedNetWorth || localNetWorth || "Below 50k") : "Below 50k"
+              )}
+            />
+          ) : null}
         </View>
       </View>
 
       {/* Languages Section */}
-      {(resolvedLanguages?.length || 0) > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Languages</Text>
-          <View style={styles.pillsContainer}>
-            {resolvedLanguages.map((lang: string) => (
-              <View key={lang} style={styles.pill}>
-                <Icon name="translate" size={16} color={Colors.primary} style={{ marginRight: 8 }} />
-                <Text style={styles.pillText}>{lang}</Text>
-              </View>
-            ))}
-          </View>
+      <View style={styles.section}>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>{t('profile.userdetails.languages')}</Text>
         </View>
-      )}
+        <View style={styles.pillsContainer}>
+          {(resolvedLanguages && resolvedLanguages.length > 0 ? resolvedLanguages : [t('profile.userdetails.english')]).map((lang: string) => (
+            <View key={lang} style={styles.pill}>
+              <Text style={styles.flagEmoji}>{getLanguageFlag(lang)}</Text>
+              <Text style={styles.pillText}>{capitalizeLabel(lang)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Looking For Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>{t('profile.userdetails.looking_for')}</Text>
+        </View>
+        <View style={styles.pillsContainer}>
+          {(visibleLookingFor ? visibleLookingFor.split(',').map((item) => item.trim()).filter(Boolean) : [t('profile.userdetails.casual_dating')]).map((item) => (
+            <View key={item} style={styles.pill}>
+              <Icon name="heart-outline" size={16} color={themeColors.primary || Colors.primary} style={styles.pillIcon} />
+              <Text style={styles.pillText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
 
       {/* Action Buttons */}
       {!isOwnProfile && (
-        <View style={styles.actionSection}>
+          <View style={styles.actionSection}>
+            {isReceivedPendingRequest ? (
+              <View style={styles.pendingActionsRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.declineOutlineBtn}
+                  onPress={handleDeclineRequest}
+                  disabled={connection.reject.isPending || connection.accept.isPending}
+                >
+                  {connection.reject.isPending ? (
+                    <ActivityIndicator color={themeColors.textSecondary || '#94A3B8'} />
+                  ) : (
+                    <Text style={styles.declineOutlineText}>{t('common.decline', { defaultValue: 'Decline' })}</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  style={styles.approveBtnFlex}
+                  onPress={handleApproveRequest}
+                  disabled={connection.accept.isPending || connection.reject.isPending}
+                >
+                  <LinearGradient
+                    colors={[Colors.primary, Colors.primaryLight]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.inviteBtn}
+                  >
+                    {connection.accept.isPending ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.inviteText}>{t('profile.userdetails.approve_request')}</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             <TouchableOpacity 
               activeOpacity={0.7} 
               style={styles.reportBtn} 
-              onPress={handleReport}
+              onPress={handleOpenReportModal}
             >
-                 <Icon name="alert-octagon-outline" size={18} color="#FF5A79" />
-                 <Text style={styles.reportText}>Report / block this profile</Text>
+              <Feather name="alert-triangle" size={16} color={themeColors.textSecondary || '#94A3B8'} style={{ marginRight: 6 }} />
+              <Text style={styles.reportText}>{t('profile.userdetails.report_this_profile')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              activeOpacity={0.9} 
-              style={[styles.inviteBtn, (!canAttemptInvite || isAlreadyInvited) && styles.disabledBtn]} 
-              onPress={handleInvite}
-              disabled={!canAttemptInvite || isAlreadyInvited || connection.send.isPending}
-            >
-                 {connection.send.isPending ? (
-                   <ActivityIndicator color="#fff" />
-                 ) : (
-                   <>
-                     <Icon
-                       name={!canAttemptInvite ? "lock-outline" : isAlreadyInvited ? "check-all" : "heart-flash"}
-                       size={22}
-                       color="#fff"
-                       style={styles.inviteIcon}
-                     />
-                     <Text style={styles.inviteText}>
-                       {!canAttemptInvite ? "Invite Unavailable" : isAlreadyInvited ? "Invited" : "Invite Now"}
-                     </Text>
-                   </>
-                 )}
-            </TouchableOpacity>
+            {isAlreadyInvited && !isApprovedInvitation ? (
+              <View style={styles.pendingInvitationBox}>
+                <Feather name="clock" size={20} color="#F59E0B" style={{ marginBottom: 6 }} />
+                <Text style={styles.pendingInvitationTitle}>
+                  {t('profile.userdetails.invitation_pending_approval', { defaultValue: 'Invitation Pending Approval' })}
+                </Text>
+                <Text style={styles.pendingInvitationSubtitle}>
+                  {t('profile.userdetails.contact_unlock_on_accept', {
+                    defaultValue: 'Her WhatsApp number and Telegram contact will unlock automatically once she accepts your invitation.',
+                  })}
+                </Text>
+              </View>
+            ) : isApprovedInvitation ? (
+              isViewerWoman ? (
+                <View style={styles.glambuFemaleAcceptedBox}>
+                  <View style={styles.glambuFemaleAcceptedHeader}>
+                    <View style={styles.glambuFemaleAcceptedIconBox}>
+                      <Feather name="check-circle" size={20} color={themeColors.primary} />
+                    </View>
+                    <View style={styles.glambuFemaleAcceptedTextBox}>
+                      <Text style={styles.glambuFemaleAcceptedTitle}>
+                        {t('profile.userdetails.glambu_invitation_accepted_title', { defaultValue: 'Invitation Accepted' })}
+                      </Text>
+                      <Text style={styles.glambuFemaleAcceptedSubtitle}>
+                        {t('profile.userdetails.glambu_female_wait_notice', {
+                          defaultValue: 'Your contact details have been shared with him. He will contact you on WhatsApp or Telegram to arrange your date.',
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (!effectiveIsSubscribed && !isViewerWoman) ? (
+                <View style={styles.lockedTelegramContainer}>
+                  <View style={styles.lockedTelegramHeader}>
+                    <View style={styles.lockedTelegramIconBox}>
+                      <Feather name="lock" size={20} color="#F59E0B" />
+                    </View>
+                    <View style={styles.lockedTelegramTextBox}>
+                      <Text style={styles.lockedTelegramTitle}>
+                        {t('profile.userdetails.contact_locked_title', { defaultValue: 'Contact Details Locked' })}
+                      </Text>
+                      <Text style={styles.lockedTelegramSubtitle}>
+                        {t('profile.userdetails.contact_locked_desc', { defaultValue: 'An active subscription is required to connect on WhatsApp or Telegram.' })}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={styles.lockedTelegramUpgradeBtn}
+                    onPress={() => setPaywallVisible?.(true)}
+                  >
+                    <LinearGradient
+                      colors={[Colors.primary, Colors.primaryLight]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.telegramGradient}
+                    >
+                      <Icon name="crown" size={18} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={styles.openTelegramBtnText}>
+                        {t('profile.userdetails.upgrade_to_view_contact', { defaultValue: 'Upgrade to View Contact' })}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                renderContactCard()
+              )
+            ) : null}
         </View>
       )}
 
-      <View style={{ height: 60 }} />
+      {/* Own Contact Details (View My Profile) */}
+      {isOwnProfile && (
+        <View style={styles.actionSection}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>
+              {t('profile.contactdetails.contact_details', { defaultValue: 'Contact Details' })}
+            </Text>
+          </View>
+          {renderContactCard()}
+        </View>
+      )}
+
+      {/* Report & Block 2-Step Modal */}
+      <Modal
+        visible={reportModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.reportModalOverlay}>
+          <View style={styles.reportModalCard}>
+            {reportStep === 'INITIAL' ? (
+              <View>
+                <Text style={styles.reportModalTitle}>{t('profile.userdetails.report_and_block_this_user')}</Text>
+                
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.we_are_committed_to_maintaining_a_safe_and_respectful_community_if_you')}</Text>
+
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.blocking_this_user_will_prevent_them_from_seeing_your_profile_or_conta')}</Text>
+
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.to_help_us_take_appropriate_action_please_provide_as_much_detail_as_po')}</Text>
+
+                <Text style={styles.reportModalParagraph}>{t('profile.userdetails.thank_you_for_helping_us_keep_amara_a_safe_and_welcoming_space_for_eve')}</Text>
+
+                <View style={styles.reportBtnStack}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.blockOnlyBtn}
+                    onPress={handleBlockOnly}
+                  >
+                    <Text style={styles.blockOnlyBtnText}>{t('profile.userdetails.block_only')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.coralPillBtn}
+                    onPress={() => setReportStep('REASONS')}
+                  >
+                    <Text style={styles.coralPillBtnText}>{t('profile.userdetails.report_block')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.modalCancelBtn}
+                    onPress={() => setReportModalVisible(false)}
+                  >
+                    <Text style={styles.modalCancelBtnText}>{t('profile.additionaluploadsection.cancel')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={{ maxHeight: '90%' }}>
+                <Text style={styles.reportModalTitle}>{t('profile.userdetails.why_are_you_reporting')}</Text>
+
+                <ScrollView showsVerticalScrollIndicator={false} style={styles.reportScrollArea}>
+                  {/* Reason Accordion */}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.accordionHeader}
+                    onPress={() => setIsReasonExpanded(!isReasonExpanded)}
+                  >
+                    <View style={styles.accordionHeaderLeft}>
+                      <Text style={styles.accordionTitle}>{t('profile.userdetails.reason')}</Text>
+                      {selectedReason && (
+                        <Text style={styles.accordionSelectedReasonText} numberOfLines={1}>
+                          ✓ {selectedReason}
+                        </Text>
+                      )}
+                    </View>
+                    <Feather
+                      name={isReasonExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={themeColors.textSecondary || '#94A3B8'}
+                    />
+                  </TouchableOpacity>
+
+                  {isReasonExpanded && (
+                    <View style={styles.reasonsList}>
+                      {getReportReasons().map((reason, index) => {
+                        const isSelected = selectedReason === reason;
+                        return (
+                          <TouchableOpacity
+                            key={reason}
+                            activeOpacity={0.7}
+                            style={[
+                              styles.reasonRow,
+                              index === getReportReasons().length - 1 && { borderBottomWidth: 0 },
+                            ]}
+                            onPress={() => handleSelectReason(reason)}
+                          >
+                            <Text
+                              style={[
+                                styles.reasonText,
+                                isSelected && styles.reasonTextSelected,
+                              ]}
+                            >
+                              {reason}
+                            </Text>
+                            {isSelected && (
+                              <Feather name="check" size={18} color="#EF4444" />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Additional Details Accordion */}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[styles.accordionHeader, { marginTop: 12 }]}
+                    onPress={() => setIsDetailsExpanded(!isDetailsExpanded)}
+                  >
+                    <Text style={styles.accordionTitle}>{t('profile.userdetails.additional_details')}</Text>
+                    <Feather
+                      name={isDetailsExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={themeColors.textSecondary || '#94A3B8'}
+                    />
+                  </TouchableOpacity>
+
+                  {isDetailsExpanded && (
+                    <View style={styles.detailsContentWrap}>
+                      <View style={styles.detailsInputBox}>
+                        <TextInput
+                          style={styles.detailsInput}
+                          multiline={true}
+                          numberOfLines={3}
+                          maxLength={1023}
+                          placeholder={t('profile.userdetails.description')}
+                          placeholderTextColor={themeColors.placeholder || '#94A3B8'}
+                          value={additionalDetails}
+                          onChangeText={setAdditionalDetails}
+                          textAlignVertical="top"
+                        />
+                      </View>
+                      <Text style={styles.charCountText}>
+                        {additionalDetails.length} / 1023
+                      </Text>
+
+                      <Text style={styles.evidencePhotosTitle}>{t('profile.userdetails.evidence_photos_optional')}</Text>
+
+                      <View style={styles.photoSlotsRow}>
+                        {[0, 1, 2].map((slotIndex) => {
+                          const photoUri = evidencePhotos[slotIndex];
+                          return (
+                            <TouchableOpacity
+                              key={`evidence-slot-${slotIndex}`}
+                              activeOpacity={0.8}
+                              style={styles.evidenceSlot}
+                              onPress={() => handlePickEvidencePhoto(slotIndex)}
+                            >
+                              {photoUri ? (
+                                <View style={styles.evidenceImageWrapper}>
+                                  <Image
+                                    source={{ uri: photoUri }}
+                                    style={styles.evidenceImage}
+                                    resizeMode="cover"
+                                  />
+                                  <TouchableOpacity
+                                    style={styles.evidenceDeleteBadge}
+                                    onPress={() => handleRemoveEvidencePhoto(slotIndex)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                  >
+                                    <Feather name="x" size={11} color="#FFFFFF" />
+                                  </TouchableOpacity>
+                                </View>
+                              ) : (
+                                <View style={styles.evidenceSlotEmpty}>
+                                  <Feather
+                                    name="camera"
+                                    size={24}
+                                    color={themeColors.textMuted || '#94A3B8'}
+                                  />
+                                  <View style={styles.evidencePlusBadge}>
+                                    <Feather name="plus" size={12} color={themeColors.textMuted || '#64748B'} />
+                                  </View>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
+
+                <View style={[styles.reportBtnStack, { marginTop: 16 }]}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[
+                      styles.coralPillBtn,
+                      !selectedReason && { opacity: 0.5 },
+                    ]}
+                    onPress={handleReportAndBlock}
+                    disabled={!selectedReason || isSubmittingReport}
+                  >
+                    {isSubmittingReport ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.coralPillBtnText}>{t('profile.userdetails.report_block')}</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.modalCancelBtn}
+                    onPress={() => setReportStep('INITIAL')}
+                  >
+                    <Text style={styles.modalCancelBtnText}>{t('profile.userdetails.back')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <View style={{ height: 40 }} />
       {AlertComponent}
     </View>
   );
@@ -388,149 +1575,705 @@ const UserDetails: React.FC<UserDetailsProps> = ({ profile: propProfile, current
 
 export default UserDetails;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isCompactDevice: boolean) => StyleSheet.create({
   container: {
-    paddingHorizontal: 25,
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    marginTop: -40,
-    paddingTop: 35,
+    paddingHorizontal: 16,
+    backgroundColor: colors.background,
+    paddingTop: 16,
   },
   headerArea: {
-      marginBottom: 35,
+    marginBottom: 20,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   nameText: {
-    fontSize: isCompactDevice ? 24 : 28,
-    fontWeight: '900',
-    color: Colors.text,
+    fontSize: isCompactDevice ? 20 : 23,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   verifiedIcon: {
-    marginLeft: 12,
+    marginRight: 2,
   },
-  statusRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 18,
+  verifiedText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: colors.primaryLight,
   },
-  statusItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
+  metaInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 14,
   },
-  statusText: {
-      fontSize: isCompactDevice ? 13 : 14,
-      color: Colors.textSecondary,
-      fontWeight: '600',
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaIcon: {
+    marginRight: 4,
+  },
+  metaText: {
+    fontSize: 13,
+    color: colors.textSecondary || '#94A3B8',
+    fontWeight: '500',
+  },
+  bioBlock: {
+    marginTop: 10,
+    marginBottom: 4,
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: isCompactDevice ? 18 : 20,
-    fontWeight: '900',
-    color: Colors.text,
-    marginBottom: 16,
+    fontSize: isCompactDevice ? 17 : 18.5,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  editSectionBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 22,
+    paddingVertical: 7,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editSectionText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: colors.white || '#FFFFFF',
   },
   bioText: {
-      fontSize: isCompactDevice ? 15 : 16,
-      color: Colors.textSecondary,
-      lineHeight: 24,
-      fontWeight: '500',
+    fontSize: isCompactDevice ? 14.5 : 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    fontWeight: '400',
+    marginTop: 10,
   },
   pillsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  interestTag: {
-      backgroundColor: Colors.glass,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: 10,
-  },
-  interestText: {
-      color: Colors.primary,
-      fontSize: 14,
-      fontWeight: '700',
+    gap: 10,
+    width: '100%',
   },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    borderRadius: 25,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: 24,
     paddingHorizontal: isCompactDevice ? 14 : 16,
-    paddingVertical: isCompactDevice ? 9 : 10,
-    marginBottom: 4,
-    backgroundColor: Colors.surface,
+    paddingVertical: 9.5,
   },
   pillIcon: {
+    marginRight: 7,
+  },
+  flagEmoji: {
+    fontSize: 16,
     marginRight: 8,
   },
-  flag: {
-      fontSize: 18,
-      marginRight: 10,
-  },
   pillText: {
-    fontSize: isCompactDevice ? 14 : 15,
-    color: Colors.text,
-    fontWeight: '700',
+    fontSize: isCompactDevice ? 13.5 : 14,
+    color: colors.text,
+    fontWeight: '600',
   },
   actionSection: {
-      gap: 18,
-      marginTop: 15,
+    gap: 16,
+    marginTop: 15,
   },
   reportBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 56,
-      borderRadius: 15,
-      borderWidth: 1.5,
-      borderColor: Colors.border,
-      gap: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    borderWidth: 1.2,
+    borderColor: colors.border || colors.glassBorder || 'rgba(148, 163, 184, 0.3)',
+    gap: 8,
+    width: '100%',
+    marginVertical: 6,
   },
   reportText: {
-      color: Colors.textMuted,
-      fontSize: 15,
-      fontWeight: '600',
+    color: colors.textSecondary || '#94A3B8',
+    fontSize: 14.5,
+    fontWeight: '600',
+  },
+  inviteBtnWrapper: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  pendingActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    marginBottom: 8,
+  },
+  declineOutlineBtn: {
+    flex: 1,
+    minHeight: isCompactDevice ? 52 : 56,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: colors.border || 'rgba(255,255,255,0.15)',
+    backgroundColor: colors.surfaceLight || 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  declineOutlineText: {
+    color: colors.textSecondary || '#94A3B8',
+    fontSize: isCompactDevice ? 15 : 16,
+    fontWeight: '700',
+  },
+  approveBtnFlex: {
+    flex: 1.4,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   inviteBtn: {
-      backgroundColor: Colors.primary,
-      minHeight: isCompactDevice ? 60 : 66,
-      borderRadius: 18,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 12,
-      shadowColor: Colors.primary,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.3,
-      shadowRadius: 10,
-      elevation: 6,
-  },
-  disabledBtn: {
-      backgroundColor: Colors.textMuted,
-      shadowOpacity: 0,
-      elevation: 0,
+    minHeight: isCompactDevice ? 56 : 60,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
   },
   inviteIcon: {
-      transform: [{ rotate: '-15deg' }],
+    transform: [{ rotate: '-15deg' }],
   },
   inviteText: {
-      color: '#fff',
-      fontSize: isCompactDevice ? 18 : 20,
-      fontWeight: '900',
+    color: '#fff',
+    fontSize: isCompactDevice ? 17 : 18,
+    fontWeight: '800',
+  },
+  recallBtnWrapper: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  recallGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: isCompactDevice ? 56 : 60,
+    borderRadius: 16,
+    width: '100%',
+  },
+  recallBtnText: {
+    color: '#fff',
+    fontSize: isCompactDevice ? 17 : 18,
+    fontWeight: '800',
+  },
+  pendingInvitationText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  pendingInvitationBox: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLight || '#1E1B2E',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pendingInvitationTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  pendingInvitationSubtitle: {
+    color: colors.textSecondary || colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  glambuFemaleAcceptedBox: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.35)',
+    marginBottom: 8,
+  },
+  glambuFemaleAcceptedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  glambuFemaleAcceptedIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  glambuFemaleAcceptedTextBox: {
+    flex: 1,
+  },
+  glambuFemaleAcceptedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  glambuFemaleAcceptedSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textMuted || '#94A3B8',
+  },
+  lockedTelegramContainer: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLight || '#1E1B2E',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    marginBottom: 8,
+  },
+  lockedTelegramHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  lockedTelegramIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  lockedTelegramTextBox: {
+    flex: 1,
+  },
+  lockedTelegramTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  lockedTelegramSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.textMuted || '#94A3B8',
+  },
+  lockedTelegramUpgradeBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  approvedWhatsAppContainer: {
+    width: '100%',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 211, 102, 0.3)',
+    marginBottom: 10,
+  },
+  approvedWhatsAppLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#25D366',
+    letterSpacing: 0.8,
+  },
+  openWhatsAppBtn: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  approvedTelegramContainer: {
+    width: '100%',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    marginBottom: 8,
+  },
+  approvedTelegramInfoBox: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  approvedTelegramLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  approvedTelegramHandle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  approvedTelegramBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  openTelegramBtn: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  telegramGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+  },
+  openTelegramBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  shareTelegramBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceLighter,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  cleanContactCard: {
+    width: '100%',
+    backgroundColor: colors.surfaceLight || '#1A1829',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.glassBorder || 'rgba(255, 255, 255, 0.08)',
+    marginTop: 8,
+  },
+  cleanContactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  cleanIconWrapWhatsApp: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(37, 211, 102, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cleanIconWrapTelegram: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cleanContactInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cleanContactLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textSecondary || '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  cleanContactValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cleanChatBtnWhatsApp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#25D366',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    marginRight: 8,
+  },
+  cleanChatBtnTelegram: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    marginRight: 8,
+  },
+  cleanChatBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  cleanShareIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceLighter || '#252238',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.glassBorder || 'rgba(255, 255, 255, 0.08)',
+  },
+  cleanContactDivider: {
+    height: 1,
+    backgroundColor: colors.glassBorder || 'rgba(255, 255, 255, 0.06)',
+    marginVertical: 2,
+  },
+  cleanFallbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  cleanContactSubtext: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary || '#94A3B8',
+    lineHeight: 18,
+  },
+  reportModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  reportModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.surface || '#161622',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.glassBorder || 'rgba(255, 255, 255, 0.08)',
+  },
+  reportModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  reportModalParagraph: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  reportBtnStack: {
+    gap: 12,
+    marginTop: 16,
+    width: '100%',
+  },
+  blockOnlyBtn: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: colors.border || colors.glassBorder,
+    backgroundColor: colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockOnlyBtnText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  coralPillBtn: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 24,
+    backgroundColor: '#F87171',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coralPillBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalCancelBtn: {
+    width: '100%',
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reportScrollArea: {
+    maxHeight: 340,
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+  },
+  accordionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  accordionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  accordionSelectedReasonText: {
+    fontSize: 14,
+    color: '#EF4444',
+    fontWeight: '600',
+    flex: 1,
+  },
+  reasonsList: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 14,
+    marginTop: 6,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider || colors.border || 'rgba(128, 128, 128, 0.15)',
+  },
+  reasonText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  reasonTextSelected: {
+    color: '#EF4444',
+    fontWeight: '700',
+  },
+  detailsContentWrap: {
+    marginTop: 10,
+  },
+  detailsInputBox: {
+    backgroundColor: colors.inputBackground || colors.surfaceLight,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+  },
+  detailsInput: {
+    color: colors.text,
+    fontSize: 14,
+    minHeight: 70,
+  },
+  charCountText: {
+    alignSelf: 'flex-end',
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  evidencePhotosTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 10,
+  },
+  photoSlotsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  evidenceSlot: {
+    flex: 1,
+    height: 105,
+    borderRadius: 14,
+    backgroundColor: colors.inputBackground || colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border || colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  evidenceSlotEmpty: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  evidencePlusBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+  },
+  evidenceImageWrapper: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  evidenceImage: {
+    width: '100%',
+    height: '100%',
+  },
+  evidenceDeleteBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
+
+

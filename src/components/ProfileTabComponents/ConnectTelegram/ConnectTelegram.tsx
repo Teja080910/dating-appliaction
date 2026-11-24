@@ -3,13 +3,15 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Icon from 'react-native-vector-icons/Feather';
+import { t, useTranslation } from '../../../i18n';
 
 const ConnectTelegram = ({ onPress }: any) => {
+  useTranslation();
   return (
     <TouchableOpacity style={styles.row} onPress={onPress}>
       <View style={styles.left}>
         <FontAwesome name="send" size={20} style={styles.icon} />
-        <Text style={styles.text}>Connect Your Telegram</Text>
+        <Text style={styles.text}>{t('profile.connecttelegram.connect_your_telegram')}</Text>
       </View>
       <Icon name="chevron-right" size={23} color="#c4c4c4" style={styles.chevron} />
     </TouchableOpacity>

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "649910001",
+    "project_id": "amara001-app",
+    "storage_bucket": "amara001-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:649910001:android:dd165cfe3add269fe13b50",
+        "android_client_info": {
+          "package_name": "app.amara.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzPFhviQo6LroErNKjaoK1QJdDV69ZOsU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:649910001:android:dd165cfe3add269fe13b50",
+        "android_client_info": {
+          "package_name": "com.datingapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzPFhviQo6LroErNKjaoK1QJdDV69ZOsU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,112 @@
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
+
+const values = ['Yes', 'No', 'Sometimes'];
+const valueLabel = (val: string) =>
+  val === 'Yes' ? t('profile.userdetails.yes')
+  : val === 'No' ? t('profile.userdetails.no')
+  : val === 'Sometimes' ? t('search.drinking.sometimes')
+  : val;
+
+interface DrinkingProps {
+  value?: string | boolean;
+  onChange?: (val: string | undefined) => void;
+}
+
+const isOptionSelected = (currentVal: string | boolean | undefined, optionVal: string) => {
+  if (currentVal === undefined || currentVal === null) return false;
+  if (typeof currentVal === 'boolean') {
+    if (optionVal === 'Yes') return currentVal === true;
+    if (optionVal === 'No') return currentVal === false;
+    return false;
+  }
+  const clean = String(currentVal).toLowerCase().trim();
+  const opt = optionVal.toLowerCase().trim();
+  if (clean === opt) return true;
+  if (opt === 'sometimes' && (clean === 'socially' || clean === 'occasionally')) return true;
+  if (opt === 'no' && (clean === 'never' || clean === 'non-drinker' || clean === 'non drinker')) return true;
+  if (opt === 'yes' && (clean === 'regularly')) return true;
+  return false;
+};
+
+const Drinking: React.FC<DrinkingProps> = ({ value, onChange }) => {
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+
+  const handlePress = (optVal: string) => {
+    if (isOptionSelected(value, optVal)) {
+      onChange?.(undefined);
+    } else {
+      onChange?.(optVal);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>{t('more_info.drinkingselector.do_you_drink')}</Text>
+      <View style={styles.optionsWrapper}>
+        {values.map((item) => {
+          const selected = isOptionSelected(value, item);
+          return (
+            <TouchableOpacity
+              key={item}
+              style={[styles.option, selected && styles.optionSelected]}
+              onPress={() => handlePress(item)}
+            >
+              <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                {valueLabel(item)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginTop: 24,
+      padding: 0,
+      backgroundColor: 'transparent',
+    },
+    label: {
+      fontWeight: '600',
+      fontSize: 16,
+      marginBottom: 12,
+      color: themeColors.text,
+      letterSpacing: -0.1,
+    },
+    optionsWrapper: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    option: {
+      paddingHorizontal: 16,
+      paddingVertical: 9,
+      borderRadius: 9999,
+      borderWidth: 1,
+      borderColor: themeColors.borderLight,
+      backgroundColor: themeColors.surface,
+    },
+    optionSelected: {
+      backgroundColor: themeColors.primary,
+      borderColor: themeColors.primary,
+    },
+    optionText: {
+      fontSize: 14,
+      color: themeColors.text,
+      fontWeight: '500',
+    },
+    optionTextSelected: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+  });
+
+export default Drinking;

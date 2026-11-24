@@ -1,90 +1,149 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform, LayoutChangeEvent, useWindowDimensions } from 'react-native';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import AppContext from '../../context/CreateGlobalStateContext';
-import { Colors, Spacing } from '../../theme';
+import { useTheme, ThemeColors, Spacing } from '../../theme';
+import { t, useTranslation } from '../../i18n';
 
 interface BodyHeightProps {
   onChange?: (min: number, max: number) => void;
 }
 
 const BodyHeight: React.FC<BodyHeightProps> = ({ onChange }) => {
-  const { bodyHeight } = useContext(AppContext);
-  const [localBodyHeight, setLocalBodyHeight] = useState(bodyHeight || [120, 200]);
+  useTranslation();
+  const { themeColors } = useTheme();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const { bodyHeight, setBodyHeight } = useContext(AppContext);
+  const { width: windowWidth } = useWindowDimensions();
+  const computeSliderWidth = (w: number) => Math.max(180, Math.round(w - 32 - 24));
+  const [sliderWidth, setSliderWidth] = useState<number>(() => computeSliderWidth(windowWidth));
+
+  useEffect(() => {
+    setSliderWidth(computeSliderWidth(windowWidth));
+  }, [windowWidth]);
+
+  const safeMin = Math.min(Math.max(bodyHeight?.[0] ?? 120, 120), 220);
+  const safeMax = Math.min(Math.max(bodyHeight?.[1] ?? 220, safeMin), 220);
+  const currentValues = [safeMin, safeMax];
 
   const handleValuesChange = (values: number[]) => {
-    setLocalBodyHeight(values);
-    if (onChange) onChange(values[0], values[1]);
+    const min = Math.round(values[0]);
+    const max = Math.round(values[1]);
+    setBodyHeight([min, max]);
+    if (onChange) onChange(min, max);
+  };
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const availableWidth = e.nativeEvent.layout.width;
+    if (availableWidth > 60) {
+      setSliderWidth(Math.max(180, Math.round(availableWidth - 24)));
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>
-        Body height: <Text style={styles.value}>{localBodyHeight[0]} cm - {localBodyHeight[1]} cm</Text>
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{t('search.bodyheight.height_range')}</Text>
+        <Text style={styles.valueText}>
+          {currentValues[0]} cm – {currentValues[1]} cm
+        </Text>
+      </View>
 
-      <MultiSlider
-        values={localBodyHeight}
-        sliderLength={330}
-        min={120}
-        max={200}
-        onValuesChange={handleValuesChange}
-        step={1}
-        selectedStyle={{ backgroundColor: Colors.primary }}
-        unselectedStyle={{ backgroundColor: Colors.surfaceLight }}
-        markerStyle={styles.marker}
-        containerStyle={styles.sliderContainer}
-        trackStyle={styles.track}
-      />
+      <View style={styles.sliderWrapper} onLayout={handleLayout}>
+        <MultiSlider
+          values={currentValues}
+          sliderLength={sliderWidth}
+          min={120}
+          max={220}
+          onValuesChange={handleValuesChange}
+          step={1}
+          allowOverlap={false}
+          minMarkerOverlapDistance={1}
+          snapped={true}
+          touchDimensions={{
+            height: 50,
+            width: 50,
+            borderRadius: 25,
+            slipDisplacement: 200,
+          }}
+          selectedStyle={styles.selectedTrack}
+          unselectedStyle={styles.unselectedTrack}
+          markerStyle={styles.marker}
+          pressedMarkerStyle={styles.markerPressed}
+          containerStyle={styles.sliderContainer}
+          trackStyle={styles.track}
+        />
+      </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    padding: Spacing.xl,
-    backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.screenPaddingHorizontal,
-    marginTop: Spacing.lg,
-    borderRadius: Spacing.radiusXl,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-  },
-  label: {
-    fontSize: 15,
-    marginBottom: Spacing.lg,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  value: {
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  marker: {
-    height: 26,
-    width: 26,
-    borderRadius: 13,
-    borderWidth: 3,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.white,
-    ...Platform.select({
-      ios: {
-        shadowColor: Colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-      },
-      android: { elevation: 4 },
-    }),
-  },
-  sliderContainer: {
-    marginLeft: 10,
-    height: 40,
-  },
-  track: {
-    height: 4,
-    borderRadius: 2,
-  },
-});
+const createStyles = (themeColors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginTop: 24,
+      padding: 0,
+      backgroundColor: 'transparent',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: themeColors.text,
+      letterSpacing: -0.1,
+    },
+    valueText: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: themeColors.textSecondary,
+    },
+    sliderWrapper: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: 4,
+    },
+    selectedTrack: {
+      backgroundColor: themeColors.primary,
+    },
+    unselectedTrack: {
+      backgroundColor: themeColors.surfaceLight,
+    },
+    marker: {
+      height: 24,
+      width: 24,
+      borderRadius: 12,
+      borderWidth: 3,
+      borderColor: themeColors.primary,
+      backgroundColor: '#FFFFFF',
+      ...Platform.select({
+        ios: {
+          shadowColor: themeColors.primary,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.35,
+          shadowRadius: 3,
+        },
+        android: { elevation: 3 },
+      }),
+    },
+    markerPressed: {
+      height: 28,
+      width: 28,
+      borderRadius: 14,
+    },
+    sliderContainer: {
+      height: 40,
+      justifyContent: 'center',
+    },
+    track: {
+      height: 4,
+      borderRadius: 2,
+    },
+  });
 
 export default BodyHeight;
