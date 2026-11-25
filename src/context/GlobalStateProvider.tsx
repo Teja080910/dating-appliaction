@@ -10,7 +10,7 @@ import { getSavedSearchFilters, clearSavedSearchFilters, getActiveFilterCount } 
 import { getThemeColors, Colors } from '../theme/colors';
 import { mockStore } from '../mock/mockStore';
 import { USE_MOCK } from '../environment/ApiConfig';
-import apiClient, { getAbsoluteUrl } from '../api/apiClient';
+import apiClient, { getAbsoluteUrl, SESSION_EXPIRED_EVENT } from '../api/apiClient';
 import { parseDobToLocalDate } from '../utils/dateUtils';
 
 const GlobalStateProvider = ({ children }: any) => {
@@ -734,6 +734,17 @@ const GlobalStateProvider = ({ children }: any) => {
 
   // ================= ACTIONS =================
   const logout = async () => {
+    // Navigate away first so no in-flight screen can push the user back into
+    // the app while the session is being cleared.
+    setLogin(false);
+    setAuthUserId(null);
+    setInitialScreen('Login');
+    DeviceEventEmitter.emit(SESSION_EXPIRED_EVENT);
+
+    try {
+      await queryClient.cancelQueries();
+    } catch {}
+
     await resetApp();
     setInitialScreen('Login');
   };
@@ -815,9 +826,14 @@ const GlobalStateProvider = ({ children }: any) => {
       setSelectedUserImage(null);
       AsyncStorage.multiRemove(['onboardingImages', 'profileImage']).catch(() => {});
       setLogin(false);
+      setAuthUserId(null);
       setIsSubscribed(false);
       setInvitations([]);
       setChats([]);
+
+      // Ensure no mock/test identity can be picked up after logout.
+      AsyncStorage.removeItem('@amara_mock_current_user_id').catch(() => {});
+      AsyncStorage.removeItem('@amara_mock_images').catch(() => {});
 
       console.log('App reset successful');
     } catch (e) {

@@ -323,6 +323,7 @@ export const clearOnboardingState = async () => {
     'onboardingImages',
     'registerSessionId',
     '@amara_mock_images',
+    '@amara_mock_current_user_id',
     '@onboarding_bio',
     '@amara_kid_count',
     '@amara_net_worth',

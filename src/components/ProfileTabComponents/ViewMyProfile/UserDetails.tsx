@@ -38,6 +38,7 @@ import { getCurrentLocation } from '../../../utils/geolocation';
 import { t, useTranslation } from '../../../i18n';
 import { normalizeEnglishLevel, CANONICAL_ENGLISH_LEVELS } from '../../../utils/englishLevel';
 import { normalizeAppearance } from '../../../utils/appearance';
+import { normalizeSmoke } from '../../../utils/smoke';
 import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
 import { mockStore } from '../../../mock/mockStore';
 import apiClient from '../../../api/apiClient';
@@ -1165,7 +1166,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || '') : ''))} />
           )}
           {Boolean(resolvedProfile?.smoke || profile?.smoke || (isOwnProfile && selectedSmoking)) && (
-            <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || '') : ''))} />
+            <DetailPill icon="smoking" text={normalizeSmoke(resolvedProfile?.smoke || profile?.smoke || (isOwnProfile ? selectedSmoking : '')) || capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || '') : '')) || ''} />
           )}
           {Boolean(resolvedProfile?.englishLevel || profile?.englishLevel || (isOwnProfile && englishSkillLevel)) && (
             <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: normalizeEnglishLevel(resolvedProfile?.englishLevel || profile?.englishLevel) || (isOwnProfile ? (CANONICAL_ENGLISH_LEVELS[englishSkillLevel] || 'Medium') : 'Medium') })} />

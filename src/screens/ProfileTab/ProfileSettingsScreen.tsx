@@ -56,7 +56,10 @@ const ProfileSettingsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [localDisplayName, setLocalDisplayName] = useState(displayName);
   const [localDescription, setLocalDescription] = useState(profileText);
-  const [localDob, setLocalDob] = useState(() => formatDateToDobString(date));
+  // Do not seed this from the context `date` (it defaults to today). An
+  // under-18 placeholder would flash the age-validation warning while the real
+  // DOB loads. Start empty and hydrate from storage/profile instead.
+  const [localDob, setLocalDob] = useState('');
   const lastSavedDobRef = useRef<string | null>(null);
   const hasUserEditedPhoneRef = useRef(false);
   const userExplicitlyRemovedPhoneRef = useRef(false);

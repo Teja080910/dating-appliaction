@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useRef } from 'react';
 import { ActivityIndicator, DeviceEventEmitter, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -74,10 +74,13 @@ const Routes = () => {
   };
 
 
+  const sessionClearedRef = useRef(false);
+
   useEffect(() => {
-    // Listener for global session expiry
+    // Listener for global session expiry / logout
     const subscription = DeviceEventEmitter.addListener(SESSION_EXPIRED_EVENT, () => {
-      console.log('Routes: Session expired event received');
+      console.log('Routes: Session cleared event received');
+      sessionClearedRef.current = true;
       setInitialScreen('Login');
     });
 
@@ -96,7 +99,7 @@ const Routes = () => {
 
       try {
         const nextRoute = await resolveInitialRoute();
-        if (!fallbackTriggered) {
+        if (!fallbackTriggered && !sessionClearedRef.current) {
           clearTimeout(fallbackTimer);
           setInitialScreen(nextRoute);
         }
