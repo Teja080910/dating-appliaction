@@ -100,6 +100,19 @@ export const calculateDistanceKm = (
   return Math.round(R * c);
 };
 
+const NON_CUSTOM_CITY_VALUES = new Set([
+  'mumbai, india',
+  'my current location',
+  'search near me',
+  'current location',
+]);
+
+const resolveUserCity = (value?: string | null): string | null => {
+  const city = String(value ?? '').trim();
+  if (!city) return null;
+  return NON_CUSTOM_CITY_VALUES.has(city.toLowerCase()) ? null : city;
+};
+
 export const getCityCoords = (cityName?: string | null): { lat: number; lng: number } | null => {
   if (!cityName) return null;
   const normalized = cityName.toLowerCase().replace(/[^a-z]/g, '');
@@ -154,7 +167,7 @@ export const resolveProfileDistanceKm = (
   const uLat = Number(userLocation?.latitude);
   const uLng = Number(userLocation?.longitude);
   const pCity = profile?.currentCity || profile?.city || targetProfile?.currentCity || targetProfile?.city;
-  const myCity = userCity && userCity !== 'Search near me' && userCity !== 'My current location' ? userCity : null;
+  const myCity = resolveUserCity(userCity);
   const targetCoords = (Number.isFinite(pLat) && Number.isFinite(pLng) && pLat !== 0)
     ? { lat: pLat, lng: pLng }
     : getCityCoords(pCity);
@@ -262,9 +275,9 @@ export const filterByRadius = (
       return 1 <= maxRadius;
     }
 
-    // We know where the user is but this profile has no resolvable location:
-    // a nearby search must not include it.
-    return false;
+    // Distance is unknown for this profile. Keep it instead of emptying the
+    // whole feed — the API does not always return distance/city for profiles.
+    return true;
   });
 };
 
@@ -309,7 +322,7 @@ export const resolveProfileDistance = (
   const uLat = Number(userLocation?.latitude);
   const uLng = Number(userLocation?.longitude);
   const pCity = profile?.currentCity || profile?.city || targetProfile?.currentCity || targetProfile?.city;
-  const myCity = userCity && userCity !== 'Search near me' && userCity !== 'My current location' ? userCity : null;
+  const myCity = resolveUserCity(userCity);
   const targetCoords = (Number.isFinite(pLat) && Number.isFinite(pLng) && pLat !== 0)
     ? { lat: pLat, lng: pLng }
     : getCityCoords(pCity);

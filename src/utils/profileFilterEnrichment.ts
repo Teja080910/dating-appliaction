@@ -96,7 +96,8 @@ export const enrichProfilesWithFilterFields = async (
 
   if (indicesByUid.size === 0) return items;
 
-  await mapWithConcurrency([...indicesByUid.keys()], 8, async (uid) => {
+  try {
+    await mapWithConcurrency([...indicesByUid.keys()], 8, async (uid) => {
     const meta = await fetchMeta(uid);
     if (!meta.englishLevel && !meta.ethnicity) return;
 
@@ -119,7 +120,10 @@ export const enrichProfilesWithFilterFields = async (
           : {}),
       };
     }
-  });
+    });
+  } catch (e) {
+    console.warn('[profileFilterEnrichment] enrichment failed:', e);
+  }
 
   return items;
 };

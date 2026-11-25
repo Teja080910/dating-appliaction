@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAlert } from '../../components/AlertModal';
 import { useTheme } from '../../theme';
 import { t, useTranslation } from '../../i18n';
+import { sanitizeDayInput, sanitizeMonthInput, sanitizeYearInput, maxDaysInMonth } from '../../utils/dobInput';
 
 const DOBScreen = ({ navigation }: any) => {
   useTranslation();
@@ -32,6 +33,16 @@ const DOBScreen = ({ navigation }: any) => {
   const dayRef = useRef<TextInput>(null);
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
+
+  // Keep the day valid when the month/year changes (e.g. 31 Feb -> 29/28 Feb).
+  useEffect(() => {
+    if (day.length === 2 && month) {
+      const max = maxDaysInMonth(month, year);
+      if (Number(day) > max) {
+        setDay(String(max).padStart(2, '0'));
+      }
+    }
+  }, [month, year]);
 
   const calculateAge = (d: number, m: number, y: number) => {
     const today = new Date();
@@ -168,8 +179,9 @@ const DOBScreen = ({ navigation }: any) => {
                 maxLength={2}
                 value={day}
                 onChangeText={(val) => {
-                  setDay(val);
-                  if (val.length === 2) monthRef.current?.focus();
+                  const next = sanitizeDayInput(val, month, year);
+                  setDay(next);
+                  if (next.length === 2) monthRef.current?.focus();
                 }}
               />
             </View>
@@ -186,8 +198,9 @@ const DOBScreen = ({ navigation }: any) => {
                 maxLength={2}
                 value={month}
                 onChangeText={(val) => {
-                  setMonth(val);
-                  if (val.length === 2) yearRef.current?.focus();
+                  const next = sanitizeMonthInput(val);
+                  setMonth(next);
+                  if (next.length === 2) yearRef.current?.focus();
                 }}
                 onKeyPress={({ nativeEvent }) => {
                   if (nativeEvent.key === 'Backspace' && !month) {
@@ -208,7 +221,7 @@ const DOBScreen = ({ navigation }: any) => {
                 keyboardType="number-pad"
                 maxLength={4}
                 value={year}
-                onChangeText={setYear}
+                onChangeText={(val) => setYear(sanitizeYearInput(val))}
                 onKeyPress={({ nativeEvent }) => {
                   if (nativeEvent.key === 'Backspace' && !year) {
                     monthRef.current?.focus();

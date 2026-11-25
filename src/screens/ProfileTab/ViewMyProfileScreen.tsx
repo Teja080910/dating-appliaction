@@ -1039,13 +1039,19 @@ const ViewMyProfileScreen = () => {
         : (isTargetUserFetched ? (normalizeTextValue(fetched?.netWorth) || '') : (normalizeTextValue(routed?.netWorth) || '')),
       currentCity: isViewingSelf
         ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(location) || '')
-        : (isTargetUserFetched ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(fetched?.city) || t('home.usercard.nearby')) : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(routed?.city) || t('home.usercard.nearby'))),
+        : (isTargetUserFetched
+            ? (normalizeTextValue(fetched?.currentCity) || normalizeTextValue(fetched?.city) || normalizeTextValue(routed?.currentCity) || normalizeTextValue(routed?.city) || '')
+            : (normalizeTextValue(routed?.currentCity) || normalizeTextValue(routed?.city) || '')),
       location: isViewingSelf
         ? (normalizeTextValue(fetched?.location) || normalizeTextValue(location) || '')
-        : (isTargetUserFetched ? (normalizeTextValue(fetched?.location) || normalizeTextValue(fetched?.currentCity) || '') : (normalizeTextValue(routed?.location) || normalizeTextValue(routed?.place) || '')),
-      place: (isTargetUserFetched ? fetched?.place : null) || routed?.place || fetched?.place || null,
+        : (isTargetUserFetched
+            ? (normalizeTextValue(fetched?.location) || normalizeTextValue(fetched?.currentCity) || normalizeTextValue(routed?.location) || normalizeTextValue(routed?.place) || normalizeTextValue(routed?.currentCity) || normalizeTextValue(routed?.city) || '')
+            : (normalizeTextValue(routed?.location) || normalizeTextValue(routed?.place) || '')),
+      place: (isTargetUserFetched ? fetched?.place : null) || routed?.place || fetched?.place || fetched?.location || routed?.location || null,
       neighborhood: (isTargetUserFetched ? fetched?.neighborhood : null) || routed?.neighborhood || fetched?.neighborhood || null,
       area: (isTargetUserFetched ? fetched?.area : null) || routed?.area || fetched?.area || null,
+      country: (isTargetUserFetched ? fetched?.country : null) || routed?.country || fetched?.country || null,
+      state: (isTargetUserFetched ? fetched?.state : null) || routed?.state || fetched?.state || null,
       lastActive: (isTargetUserFetched ? fetched?.lastActive : null) || routed?.lastActive || fetched?.lastActive || null,
       online: Boolean((isTargetUserFetched ? fetched?.online : null) ?? routed?.online ?? fetched?.online ?? false),
       distance: isViewingSelf

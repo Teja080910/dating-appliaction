@@ -752,7 +752,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   );
   const cityText = normalizeTextValue(
     resolvedProfile?.currentCity || profile?.currentCity || resolvedProfile?.city || profile?.city,
-    location && location !== t('search.location.my_current_location') ? location : 'Nearby'
+    isOwnProfile
+      ? (location && location !== t('search.location.my_current_location') ? location : 'Nearby')
+      : (resolvedProfile?.state || profile?.state || resolvedProfile?.country || profile?.country || 'Nearby')
   );
   const placeText = normalizeTextValue(
     resolvedProfile?.location ||
@@ -768,7 +770,9 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     profile?.currentCity ||
     resolvedProfile?.city ||
     profile?.city,
-    location && location !== t('search.location.my_current_location') ? location : 'Nearby'
+    isOwnProfile
+      ? (location && location !== t('search.location.my_current_location') ? location : 'Nearby')
+      : (resolvedProfile?.state || profile?.state || resolvedProfile?.country || profile?.country || 'Nearby')
   );
   const activeStatusText = (() => {
     const isOnline = resolvedProfile?.online ?? profile?.online;

@@ -175,68 +175,39 @@ const normalizeSearchRequest = (data: any) => {
   }
 
   return {
-    // === Core 9 Backend-supported fields ===
+    // Only send the fields the backend reliably supports. Everything else is
+    // applied client-side by matchesSearchFilters. This avoids a bad/missing
+    // backend field wiping out the entire result set.
     name: data?.name || data?.search || undefined,
-    gender: resolvedGender === 'both' ? undefined : resolvedGender,
-    minAge: Number.isFinite(Number(data?.minAge)) ? Number(data.minAge) : undefined,
-    maxAge: Number.isFinite(Number(data?.maxAge)) ? Number(data.maxAge) : undefined,
-    language:
-      typeof data?.language === 'string'
-        ? data.language.trim()
-        : Array.isArray(data?.language) && data.language.length === 1
-          ? String(data.language[0]).trim()
-          : undefined,
-    ethnicity:
-      typeof data?.ethnicity === 'string'
-        ? data.ethnicity.trim()
-        : Array.isArray(data?.ethnicity) && data.ethnicity.length === 1
-          ? String(data.ethnicity[0]).trim()
-          : undefined,
-    // Backend expects a string. Send it only for a single selection; multi-select
-    // is handled by matchesSearchFilters on the client.
-    smoke:
-      typeof data?.smoke === 'string'
-        ? data.smoke.trim()
-        : typeof data?.smoke === 'boolean'
-          ? data.smoke ? 'Yes' : 'No'
-          : undefined,
+    // Everything else is applied locally. Sending partially-supported fields
+    // to the backend was filtering the whole result set down to zero.
+    gender: undefined,
+    minAge: undefined,
+    maxAge: undefined,
     sortBy: typeof data?.sortBy === 'string' ? data.sortBy.trim() : 'createdAt',
 
-    // === Extra filter fields ready for backend ===
-    // Height range is filtered on the client because SearchFilterRequest does
-    // not expose minHeight/maxHeight.
-    minHeight: undefined,
-    maxHeight: undefined,
-    bodyType:
-      typeof data?.bodyType === 'string'
-        ? data.bodyType.trim()
-        : Array.isArray(data?.bodyType) && data.bodyType.length === 1
-          ? String(data.bodyType[0]).trim()
-          : undefined,
-    // These two are not in SearchFilterRequest; filtering happens locally.
+    // Handled locally so multi-select OR matching works:
+    language: undefined,
+    ethnicity: undefined,
+    smoke: undefined,
+    bodyType: undefined,
+    lookingFor: undefined,
     appearance: undefined,
     englishLevel: undefined,
-    lookingFor: normalizeArrayFilter(data?.lookingFor),
-    // Keep only the documented `distance` field below; aliases caused 400s.
+    minHeight: undefined,
+    maxHeight: undefined,
+    // Radius / worldwide / location are filtered locally using the selected
+    // city coordinates or device GPS, so the backend can't zero the results.
+    distance: undefined,
+    searchWorldwide: undefined,
+    worldwide: undefined,
     searchRadius: undefined,
     maxDistanceKm: undefined,
     radius: undefined,
-    // Backend SearchFilterRequest expects `distance` (not maxDistanceKm/radius).
-    distance: Number.isFinite(Number(data?.distance ?? data?.maxDistanceKm ?? data?.searchRadius ?? data?.radius))
-      ? Number(data.distance ?? data.maxDistanceKm ?? data.searchRadius ?? data.radius)
-      : undefined,
-    // Not in SearchFilterRequest; custom-location filtering is done client-side.
     latitude: undefined,
     longitude: undefined,
-    worldwide: undefined,
-    // Backend SearchFilterRequest expects `searchWorldwide`.
-    searchWorldwide:
-      typeof data?.searchWorldwide === 'boolean'
-        ? data.searchWorldwide
-        : typeof data?.worldwide === 'boolean'
-          ? data.worldwide
-          : undefined,
     city: undefined,
+    onlyOnline: undefined,
 
     page: Number.isFinite(Number(data?.page)) ? Number(data.page) : undefined,
     size: Number.isFinite(Number(data?.size)) ? Number(data.size) : undefined,

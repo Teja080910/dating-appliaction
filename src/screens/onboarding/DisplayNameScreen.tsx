@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback, useRef } from 'react';
+import React, { useState, useContext, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../../theme';
 import { useAlert } from '../../components/AlertModal';
 import { t, useTranslation } from '../../i18n';
+import { sanitizeDayInput, sanitizeMonthInput, sanitizeYearInput, maxDaysInMonth } from '../../utils/dobInput';
 
 const DisplayNameScreen = ({ navigation }: any) => {
   useTranslation();
@@ -34,6 +35,16 @@ const DisplayNameScreen = ({ navigation }: any) => {
   const dayRef = useRef<TextInput>(null);
   const monthRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
+
+  // Keep the day valid when the month/year changes (e.g. 31 Feb -> 29/28 Feb).
+  useEffect(() => {
+    if (day.length === 2 && month) {
+      const max = maxDaysInMonth(month, year);
+      if (Number(day) > max) {
+        setDay(String(max).padStart(2, '0'));
+      }
+    }
+  }, [month, year]);
 
   useFocusEffect(
     useCallback(() => {
@@ -213,8 +224,9 @@ const DisplayNameScreen = ({ navigation }: any) => {
                   maxLength={2}
                   value={day}
                   onChangeText={(val) => {
-                    setDay(val);
-                    if (val.length === 2) {
+                    const next = sanitizeDayInput(val, month, year);
+                    setDay(next);
+                    if (next.length === 2) {
                       monthRef.current?.focus();
                     }
                   }}
@@ -239,8 +251,9 @@ const DisplayNameScreen = ({ navigation }: any) => {
                   maxLength={2}
                   value={month}
                   onChangeText={(val) => {
-                    setMonth(val);
-                    if (val.length === 2) {
+                    const next = sanitizeMonthInput(val);
+                    setMonth(next);
+                    if (next.length === 2) {
                       yearRef.current?.focus();
                     }
                   }}
@@ -269,7 +282,7 @@ const DisplayNameScreen = ({ navigation }: any) => {
                   keyboardType="number-pad"
                   maxLength={4}
                   value={year}
-                  onChangeText={setYear}
+                  onChangeText={(val) => setYear(sanitizeYearInput(val))}
                   onKeyPress={({ nativeEvent }) => {
                     if (nativeEvent.key === 'Backspace' && !year) {
                       monthRef.current?.focus();

@@ -31,6 +31,7 @@ import { useAuth } from '../../api/useAuth';
 import apiClient from '../../api/apiClient';
 import { useAlert } from '../../components/AlertModal';
 import { extractSession, resolveInitialRoute, clearFullSession } from '../../utils/session';
+import { completeOnboarding } from '../../utils/sessionState';
 import {
   isAccountPendingDeletion,
   removeDeletedAccountLocally,
@@ -276,6 +277,32 @@ const LoginScreen = ({ navigation, route }: any) => {
                   userGender = 'straight_man';
                 }
               }
+
+              // A restored/deactivated account may have logged in before its
+              // profile was active, so the onboarding-complete flag was never
+              // hydrated. If the server profile is complete, mark it now so
+              // login opens the main app instead of asking for setup again.
+              const liveProfile =
+                liveData?.profile && typeof liveData.profile === 'object'
+                  ? liveData.profile
+                  : liveData;
+              const livePhotos = [
+                ...(Array.isArray(liveProfile?.photos) ? liveProfile.photos : []),
+                ...(Array.isArray(liveProfile?.images) ? liveProfile.images : []),
+                ...(Array.isArray(liveData?.photos) ? liveData.photos : []),
+                ...(Array.isArray(liveData?.images) ? liveData.images : []),
+              ].filter(Boolean);
+              const liveDob =
+                liveProfile?.dob || liveProfile?.dateOfBirth ||
+                liveData?.dob || liveData?.dateOfBirth;
+              const liveName =
+                liveProfile?.displayName || liveProfile?.name ||
+                liveData?.displayName || liveData?.name;
+              const liveGenderValue = liveProfile?.gender || liveData?.gender;
+
+              if (liveName && liveDob && liveGenderValue && livePhotos.length >= 2) {
+                await completeOnboarding();
+              }
             } catch {}
           }
 
@@ -425,6 +452,10 @@ const LoginScreen = ({ navigation, route }: any) => {
             if (targetId) {
               await activateAccount.mutateAsync(targetId).catch(() => null);
               await removeDeletedAccountLocally(targetId, cleanEmail);
+              // The account existed and was deleted from the Profile screen,
+              // so its onboarding was already finished. Do not send the user
+              // through profile setup again after restoring it.
+              await completeOnboarding();
             }
           } catch (autoRestoreErr) {
             console.warn('[Login] Auto-restore error:', autoRestoreErr);
@@ -450,6 +481,7 @@ const LoginScreen = ({ navigation, route }: any) => {
               setLoading(true);
               await activateAccount.mutateAsync(pendingUid);
               await removeDeletedAccountLocally(pendingUid, cleanEmail);
+              await completeOnboarding();
               handleLogin();
               return;
             } catch (actErr: any) {

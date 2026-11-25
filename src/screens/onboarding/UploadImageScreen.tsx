@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo } from 'react';
 import {
   Alert,
   BackHandler,
@@ -10,7 +10,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -44,7 +43,6 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     setProfileImageUrl,
   } = useContext(AppContext);
   const { deleteImage } = useUserImages();
-  const [removingIndex, setRemovingIndex] = useState<number | null>(null);
 
   // We enforce 6 slots
   const slots = [0, 1, 2, 3, 4, 5];
@@ -76,41 +74,42 @@ const UploadPhotosScreen = ({ navigation }: any) => {
 
   const handleRemovePhoto = async (index: number) => {
     const removedUri = images?.[index];
+    if (!removedUri) return;
     const updated = Array.isArray(images) ? [...images] : Array(6).fill(null);
     while (updated.length < 6) updated.push(null);
+    updated[index] = null;
+
+    // Remove from the UI immediately — before any async work — so one tap
+    // always removes the photo instantly.
+    setImages?.(updated);
+    if (index === 0) {
+      const nextMain = updated.find((image) => typeof image === 'string' && image.length > 0) || null;
+      setProfileImage?.(nextMain);
+      setProfileImageUrl?.(nextMain);
+    }
 
     let uid: string | null = null;
     try {
       uid = await getUserId();
     } catch {}
 
-    // Photos are uploaded to the server as soon as they are picked. Removing
-    // one from onboarding must therefore delete it on the server too, otherwise
-    // it reappears in Edit Profile after the account setup is completed.
-    if (removedUri && isApiHostedUrl(removedUri)) {
-      setRemovingIndex(index);
-      try {
-        await deleteImage.mutateAsync({
-          imageId: removedUri,
-          imageUrl: removedUri,
-          userId: uid ? String(uid) : undefined,
-        });
-      } catch (err: any) {
-        const message =
-          err?.response?.data?.message ||
-          err?.message ||
-          t('profile.uploadimage.failed_to_delete_image_from_server');
-        Alert.alert(t('profile.uploadimage.delete_failed'), String(message));
-        return;
-      } finally {
-        setRemovingIndex(null);
+    // Prefer the backend image id stored when the photo was uploaded.
+    let storedImageId: number | null = null;
+    try {
+      const rawIds = await AsyncStorage.getItem('@amara_onboarding_image_ids');
+      const ids = rawIds ? JSON.parse(rawIds) : {};
+      const candidate = Number(ids[index]);
+      if (Number.isFinite(candidate) && candidate > 0) {
+        storedImageId = candidate;
       }
-    }
+      if (ids[index] !== undefined) {
+        delete ids[index];
+        await AsyncStorage.setItem('@amara_onboarding_image_ids', JSON.stringify(ids));
+      }
+    } catch {}
 
-    updated[index] = null;
-    setImages?.(updated);
+    // 1. Persist the local removal.
     AsyncStorage.setItem('onboardingImages', JSON.stringify(updated)).catch(() => {});
-
     if (uid) {
       AsyncStorage.setItem(`user_photos_${String(uid)}`, JSON.stringify(updated)).catch(() => {});
     }
@@ -142,6 +141,43 @@ const UploadPhotosScreen = ({ navigation }: any) => {
         if (uid) {
           AsyncStorage.removeItem(`user_profile_photo_${String(uid)}`).catch(() => {});
         }
+      }
+    }
+
+    // 2. Tombstone immediately. This prevents a background server sync from
+    // bringing the removed photo back while the delete request is in flight.
+    try {
+      const tombstoneKeys = uid
+        ? [`deleted_photos_${String(uid)}`, 'deleted_image_uris']
+        : ['deleted_image_uris'];
+      for (const key of tombstoneKeys) {
+        const raw = await AsyncStorage.getItem(key);
+        const list: string[] = raw ? JSON.parse(raw) : [];
+        const next = Array.isArray(list) ? list : [];
+        if (!next.includes(removedUri)) next.push(removedUri);
+        await AsyncStorage.setItem(key, JSON.stringify(next));
+      }
+    } catch {}
+
+    // 3. Delete on the server in the background. The photo is already gone
+    // locally, so a backend failure never requires a second tap.
+    if (storedImageId || isApiHostedUrl(removedUri)) {
+      try {
+        await deleteImage.mutateAsync({
+          imageId: storedImageId ?? removedUri,
+          imageUrl: removedUri,
+          userId: uid ? String(uid) : undefined,
+        });
+      } catch (err: any) {
+        console.warn('[UploadImageScreen] Failed to delete image from server:', {
+          uri: removedUri,
+          imageId: storedImageId,
+          resolvedId: err?.imageId,
+          userId: err?.userId,
+          status: err?.response?.status ?? err?.attempts?.[0]?.status,
+          data: err?.response?.data ?? err?.attempts,
+          message: err?.message,
+        });
       }
     }
   };
@@ -220,15 +256,9 @@ const UploadPhotosScreen = ({ navigation }: any) => {
                 return (
                   <View key={slotIndex} style={styles.photoSlotFilled}>
                     <Image source={{ uri: imageUri as string }} style={styles.photoImage} />
-                    {removingIndex === slotIndex && (
-                      <View style={styles.removingOverlay}>
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      </View>
-                    )}
                     <TouchableOpacity
                       style={styles.deleteBadge}
                       onPress={() => handleRemovePhoto(slotIndex)}
-                      disabled={removingIndex === slotIndex}
                       activeOpacity={0.8}
                       testID={`remove-photo-${slotIndex}`}
                     >
@@ -386,13 +416,6 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
       height: '100%',
       borderRadius: 12,
       resizeMode: 'cover',
-    },
-    removingOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0, 0, 0, 0.45)',
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
     },
     addBadge: {
       position: 'absolute',

@@ -69,9 +69,9 @@ const ProfileScreen = () => {
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender, isSubscribed, authUserId } =
+  const { setViewMyProfile, setPaywallVisible, email: contextEmail, setLogin, setAuthUserId, gender, isSubscribed, authUserId, logout } =
     useContext(AppContext);
-  const { logout, deactivateAccount } = useAuth();
+  const { deactivateAccount } = useAuth();
   const { alert, AlertComponent } = useAlert();
   const { data: myProfile } = useMyProfile();
   const [userEmail, setUserEmail] = useState<string>('');

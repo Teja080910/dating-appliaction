@@ -28,6 +28,10 @@ import {
   getPasswordRequirementsSummary,
 } from '../../utils/passwordValidation';
 import { t, useTranslation } from '../../i18n';
+import {
+  getPendingDeletionUserIdByEmail,
+  removeDeletedAccountLocally,
+} from '../../utils/types/AsyncStorage';
 
 const ForgotPasswordScreen = ({ navigation }: any) => {
   useTranslation();
@@ -117,7 +121,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     };
   }, []);
 
-  const { forgotPasswordSendOtp, forgotPasswordReset } = useAuth();
+  const { forgotPasswordSendOtp, forgotPasswordReset, activateAccount } = useAuth();
   const passwordValidation = useMemo(() => validateStrongPassword(newPassword), [newPassword]);
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
@@ -133,7 +137,7 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
     }, []),
   );
 
-  const handleSendResetCode = () => {
+  const handleSendResetCode = async () => {
     setSubmitted(true);
     const cleanLowerEmail = email.trim().toLowerCase();
     if (!cleanLowerEmail || !EMAIL_REGEX.test(cleanLowerEmail)) {
@@ -142,6 +146,17 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
 
     setLoading(true);
     Keyboard.dismiss();
+
+    // A deleted account is only deactivated for 30 days. Restore it before
+    // asking for the reset code, otherwise the backend reports "not found".
+    try {
+      const pendingUid = await getPendingDeletionUserIdByEmail(cleanLowerEmail);
+      if (pendingUid) {
+        await activateAccount.mutateAsync(pendingUid).catch(() => null);
+        await removeDeletedAccountLocally(pendingUid, cleanLowerEmail).catch(() => null);
+      }
+    } catch {}
+
     forgotPasswordSendOtp.mutate(
       { email: cleanLowerEmail },
       {

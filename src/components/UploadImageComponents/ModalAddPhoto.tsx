@@ -38,7 +38,7 @@ const ModalAddPhoto = () => {
     setAuthUserId,
   } = useContext(AppContext);
 
-  const { uploadImage, setProfilePhoto } = useUserImages();
+  const { uploadImage, getAllImages, setProfilePhoto } = useUserImages();
   const [isUploading, setIsUploading] = useState(false);
   const uploadedImageCount = Array.isArray(images)
     ? images.filter((image) => Boolean(image)).length
@@ -153,7 +153,58 @@ const ModalAddPhoto = () => {
 
       const uploaded = parseUploadResponse(uploadResponse);
       const uploadedUrl = uploaded.imageUrl || asset.uri;
-      const uploadedImageId = uploaded.id;
+      let uploadedImageId = uploaded.id;
+
+      // Some backend builds omit the image id from the upload response. Resolve
+      // it from the gallery immediately so deletion can use the exact id later.
+      if (!uploadedImageId && userId) {
+        try {
+          const gallery = await getAllImages.mutateAsync(String(userId));
+          const targetFile = uploadedUrl.split('?')[0].split('/').pop()?.toLowerCase() || '';
+          const match = gallery.find((image) => {
+            if (!image.imageUrl || image.id === null) return false;
+            const imageFile = image.imageUrl.split('?')[0].split('/').pop()?.toLowerCase() || '';
+            return image.imageUrl === uploadedUrl || (targetFile && imageFile === targetFile);
+          });
+          if (match?.id) {
+            uploadedImageId = Number(match.id);
+          }
+        } catch (resolveErr) {
+          console.warn('[ModalAddPhoto] Could not resolve uploaded image id:', resolveErr);
+        }
+      }
+
+      // Remember the backend image id for this slot so removing it later can
+      // delete by id instead of relying on a URL lookup.
+      try {
+        const idsKey = '@amara_onboarding_image_ids';
+        const rawIds = await AsyncStorage.getItem(idsKey);
+        const ids = rawIds ? JSON.parse(rawIds) : {};
+        if (uploadedImageId) {
+          ids[targetIndex] = uploadedImageId;
+        } else {
+          delete ids[targetIndex];
+        }
+        await AsyncStorage.setItem(idsKey, JSON.stringify(ids));
+      } catch {}
+
+      // A newly uploaded/replaced photo must not stay hidden by an old
+      // deletion tombstone that happens to match the same URL.
+      if (userId) {
+        try {
+          const cleanUrl = uploadedUrl.split('?')[0];
+          const keys = [`deleted_photos_${String(userId)}`, 'deleted_image_uris'];
+          for (const key of keys) {
+            const raw = await AsyncStorage.getItem(key);
+            const list = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(list)) continue;
+            const filtered = list.filter(
+              (item) => item !== uploadedUrl && item !== cleanUrl
+            );
+            await AsyncStorage.setItem(key, JSON.stringify(filtered));
+          }
+        } catch {}
+      }
 
       if ((selectedIndex === 0 || selectedIndex === null) && uploadedImageId && userId) {
         await setProfilePhoto.mutateAsync({

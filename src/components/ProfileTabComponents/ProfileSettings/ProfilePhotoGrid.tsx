@@ -231,10 +231,22 @@ const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({
 
   const getDeletedUris = useCallback(async (activeUid?: string | null) => {
     try {
-      const key = activeUid ? `deleted_photos_${activeUid}` : 'deleted_image_uris';
-      const raw = await AsyncStorage.getItem(key);
-      const list: string[] = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list : [];
+      const keys = [
+        activeUid ? `deleted_photos_${activeUid}` : null,
+        'deleted_image_uris',
+      ].filter(Boolean) as string[];
+
+      const combined = new Set<string>();
+      for (const key of keys) {
+        const raw = await AsyncStorage.getItem(key);
+        const list = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(list)) {
+          list.forEach((item) => {
+            if (typeof item === 'string' && item.trim()) combined.add(item);
+          });
+        }
+      }
+      return Array.from(combined);
     } catch {
       return [];
     }

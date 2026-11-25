@@ -271,28 +271,12 @@ const SearchScreen = ({ navigation }: any) => {
         return;
       }
 
-      let profiles: any[] = [];
-      try {
-        const result = await filterUsers.mutateAsync(payload);
-        profiles = Array.isArray(result) ? result : (result?.content || []);
-      } catch (searchErr) {
-        console.warn('[SearchScreen] filterUsers API error, falling back to local search:', searchErr);
-      }
+      // Let Discover load the saved filters with pagination (it also falls
+      // back to the dashboard if the backend search returns nothing).
+      setFilteredProfiles(null);
 
-      if (!profiles || profiles.length === 0) {
-        profiles = [];
-      }
-
-      const deletedAccountIds = await getLocalDeletedAccounts();
-      const activeProfiles = (profiles || []).filter((p: any) => !isDeletedProfile(p, deletedAccountIds));
-
-      let filteredResults = activeProfiles;
-      if (!filters.worldwide && Number.isFinite(Number(filters.maxDistanceKm)) && Number(filters.maxDistanceKm) > 0) {
-        filteredResults = filterByRadius(activeProfiles, filters, searchCoords, location);
-      }
       setDistanceRange(Number(filters.maxDistanceKm) || 50);
       setIsChecked(Boolean(filters.worldwide));
-      setFilteredProfiles(filteredResults);
       setFilter(filters.onlyOnline ? 'online' : 'newest');
       navigation.goBack();
     } catch (err: any) {

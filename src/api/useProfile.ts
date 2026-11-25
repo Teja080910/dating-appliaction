@@ -91,6 +91,25 @@ export const normalizeProfile = (payload: any) => {
   const rawEmail = source?.email ? String(source.email).toLowerCase().trim() : '';
   const fakeHash = rawEmail ? generateDeterministicMobile(rawEmail) : '';
 
+  const resolvedCityValue =
+    source?.currentCity ||
+    source?.currentCityName ||
+    source?.current_city ||
+    source?.city ||
+    source?.cityName ||
+    source?.city_name ||
+    source?.town ||
+    '';
+  const resolvedPlaceValue =
+    source?.location ||
+    source?.place ||
+    source?.address ||
+    source?.formattedAddress ||
+    '';
+  const resolvedNeighborhoodValue =
+    source?.neighborhood || source?.locality || source?.suburb || '';
+  const resolvedAreaValue = source?.area || source?.district || '';
+
   const isRealPhone = (val: unknown): boolean => {
     if (!val) return false;
     const str = String(val).trim();
@@ -290,7 +309,14 @@ export const normalizeProfile = (payload: any) => {
     kidCount: rawKidCount !== undefined ? String(rawKidCount).replace(/^kids:\s*/i, '').trim() : '',
     kids: rawKidCount !== undefined ? String(rawKidCount).replace(/^kids:\s*/i, '').trim() : '',
     netWorth: rawNetWorth !== undefined ? String(rawNetWorth).replace(/^\$\s*/, '').trim() : '',
-    currentCity: source?.currentCity ? String(source.currentCity) : '',
+    currentCity: resolvedCityValue ? String(resolvedCityValue) : '',
+    city: resolvedCityValue ? String(resolvedCityValue) : '',
+    location: resolvedPlaceValue ? String(resolvedPlaceValue) : '',
+    place: resolvedPlaceValue ? String(resolvedPlaceValue) : '',
+    neighborhood: resolvedNeighborhoodValue ? String(resolvedNeighborhoodValue) : '',
+    area: resolvedAreaValue ? String(resolvedAreaValue) : '',
+    country: source?.country ? String(source.country) : '',
+    state: source?.state ? String(source.state) : '',
     telegramUsername: resolvedTelegram ? String(resolvedTelegram).trim().replace(/^@+/, '') : '',
     mobile: cleanResolvedPhone,
     phone: cleanResolvedPhone,
@@ -1056,15 +1082,25 @@ export const useProfile = () => {
 
       const basicPayload: {
         userId: string;
+        name: string;
         displayName: string;
         bio: string;
         age: number;
+        dob?: string;
+        mobile?: string;
       } = {
         userId: String(resolvedUserId),
+        name: String(cleanPayload.name || cleanPayload.displayName || 'User').trim(),
         displayName: String(cleanPayload.displayName || cleanPayload.name || 'User').trim(),
         bio: String(cleanPayload.bio || '').trim(),
         age: computedAgeToSave,
       };
+      if (cleanPayload.dob) {
+        basicPayload.dob = formatDateToDobString(cleanPayload.dob);
+      }
+      if (hasPhoneField) {
+        basicPayload.mobile = effectivePhone;
+      }
 
       let basicResponseData: any = null;
 
@@ -1121,6 +1157,19 @@ export const useProfile = () => {
         try {
           const postRes = await apiClient.post('/profile/update', cleanPayload);
           if (!basicResponseData) basicResponseData = postRes.data;
+        } catch {}
+      }
+
+      // Dedicated DOB save: if the combined payload was rejected because of an
+      // unrelated field, this minimal request still persists the birthday.
+      if (cleanPayload.dob) {
+        try {
+          const dobRes = await apiClient.put('/profile/update', {
+            userId: String(resolvedUserId),
+            dob: formatDateToDobString(cleanPayload.dob),
+            age: computedAgeToSave,
+          });
+          if (!basicResponseData) basicResponseData = dobRes.data;
         } catch {}
       }
 
@@ -1203,6 +1252,13 @@ export const useProfile = () => {
       }
 
       await Promise.allSettled(secondaryPromises);
+
+      if (cleanPayload.dob && !basicResponseData) {
+        throw new Error(
+          'Birthday could not be saved. Please check your connection and try again.'
+        );
+      }
+
       return basicResponseData || { status: 'success' };
     },
     onSuccess: async (_, variables) => {

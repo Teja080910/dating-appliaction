@@ -355,6 +355,50 @@ export const mapImagesToSlots = (payload: unknown, slotCount = MAX_PROFILE_IMAGE
   };
 };
 
+/**
+ * Loads every image record for the authenticated account. Different backend
+ * builds expose the gallery on different endpoints, so walk the same fallback
+ * chain used by Edit Profile and return normalized records (with numeric ids).
+ */
+const fetchNormalizedUserImages = async (
+  normalizedUserId: string,
+): Promise<NormalizedUserImage[]> => {
+  let payload: any = null;
+  try {
+    const res = await apiClient.get(`/users/${normalizedUserId}/images`);
+    payload = res.data;
+  } catch {
+    try {
+      const res = await apiClient.get(`/images/users/${normalizedUserId}`);
+      payload = res.data;
+    } catch {
+      try {
+        const res = await apiClient.get(`/images/${normalizedUserId}`);
+        payload = res.data;
+      } catch {
+        try {
+          const res = await apiClient.get('/profile/get', { params: { userId: normalizedUserId } });
+          payload = res.data;
+        } catch {
+          try {
+            const res = await apiClient.post('/profile/me', null, { params: { userId: normalizedUserId } });
+            payload = res.data;
+          } catch {
+            try {
+              const res = await apiClient.get(`/profile/me/${normalizedUserId}`);
+              payload = res.data;
+            } catch {
+              payload = null;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return normalizeUserImagesResponse(payload);
+};
+
 export const useUserImages = (userId?: string) => {
   const resolveUserId = async (candidate?: string) => {
     let activeId = candidate || userId || (await getUserId());
@@ -449,40 +493,7 @@ export const useUserImages = (userId?: string) => {
         throw new Error('UserId not resolved');
       }
 
-      let payload: any = null;
-      try {
-        const res = await apiClient.get(`/users/${normalizedUserId}/images`);
-        payload = res.data;
-      } catch (e1) {
-        try {
-          const res = await apiClient.get(`/images/users/${normalizedUserId}`);
-          payload = res.data;
-        } catch (e2) {
-          try {
-            const res = await apiClient.get(`/images/${normalizedUserId}`);
-            payload = res.data;
-          } catch (e3) {
-            try {
-              const res = await apiClient.get(`/profile/get`, { params: { userId: normalizedUserId } });
-              payload = res.data;
-            } catch (e4) {
-              try {
-                const res = await apiClient.post(`/profile/me`, null, { params: { userId: normalizedUserId } });
-                payload = res.data;
-              } catch (e5) {
-                try {
-                  const res = await apiClient.get(`/profile/me/${normalizedUserId}`);
-                  payload = res.data;
-                } catch (e6) {
-                  payload = null;
-                }
-              }
-            }
-          }
-        }
-      }
-
-      return normalizeUserImagesResponse(payload);
+      return fetchNormalizedUserImages(normalizedUserId);
     },
   });
 
@@ -499,58 +510,152 @@ export const useUserImages = (userId?: string) => {
 
       let numericImageId = isNumeric ? parsedNum : null;
 
-      // If ID is not numeric but we have the imageUrl, look up true ID from /users/{userId}/images
-      if (!numericImageId && normalizedUserId && candidateImageUrl) {
+      // The uploaded file path itself contains the owning account code, e.g.
+      // http://host/amara/usr_1134/1.jpg -> usr_1134. This is the most reliable
+      // id to query the image list with, even if the cached/JWT user id differs.
+      let imageUrlUserId: string | null = null;
+      if (candidateImageUrl) {
         try {
-          const res = await apiClient.get(`/users/${normalizedUserId}/images`);
-          const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
-          const candFilename = candidateImageUrl.substring(candidateImageUrl.lastIndexOf('/') + 1);
-          const isGeneric = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(candFilename.toLowerCase());
-          const found = list.find((img: any) => {
-            const u = String(img?.imageUrl || img?.url || '');
-            if (u === candidateImageUrl || getAbsoluteUrl(u) === getAbsoluteUrl(candidateImageUrl)) return true;
-            const uFile = u.substring(u.lastIndexOf('/') + 1);
-            if (!isGeneric && candFilename && uFile && candFilename === uFile) return true;
-            return false;
-          });
-          if (found?.id && !isNaN(Number(found.id))) {
-            numericImageId = Number(found.id);
+          const path = candidateImageUrl.replace(/^https?:\/\/[^/]+/i, '').split('?')[0];
+          const segments = path.split('/').filter(Boolean);
+          const candidate = segments.length >= 2 ? segments[segments.length - 2] : '';
+          if (/usr[_-]/i.test(candidate) || /^SA\d+/i.test(candidate)) {
+            imageUrlUserId = candidate;
           }
         } catch {}
       }
 
-      const validId = numericImageId ?? (isNumeric ? parsedNum : rawId);
+      const tokenSubject = getBearerSubject(await getAuthToken().catch(() => null));
+      const validTokenSubject =
+        tokenSubject && isResolvedApiUserId(tokenSubject) ? tokenSubject : null;
+      const numericUserCandidate = normalizedUserId
+        ? normalizedUserId.replace(/^usr[_-]/i, '')
+        : null;
+
+      const candidateUserIds = Array.from(
+        new Set(
+          [
+            imageUrlUserId,
+            validTokenSubject,
+            normalizedUserId,
+            numericUserCandidate,
+          ].filter(Boolean) as string[]
+        )
+      );
+
+      let lookupUserId: string | null =
+        imageUrlUserId || validTokenSubject || normalizedUserId;
+
+      // The upload only gives us the URL, not the DB id. Load the gallery for
+      // every plausible userId and map the URL to its numeric image id.
+      if (!numericImageId && candidateImageUrl) {
+        const candFilename = candidateImageUrl.substring(candidateImageUrl.lastIndexOf('/') + 1);
+        const isGeneric = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(candFilename.toLowerCase());
+
+        for (const candidateUserId of candidateUserIds) {
+          try {
+            const normalizedImages = await fetchNormalizedUserImages(candidateUserId);
+            const found = normalizedImages.find((img) => {
+              if (!img.imageUrl || img.id === null) return false;
+              if (
+                img.imageUrl === candidateImageUrl ||
+                getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(candidateImageUrl)
+              ) {
+                return true;
+              }
+              const uFile = img.imageUrl.substring(img.imageUrl.lastIndexOf('/') + 1);
+              return Boolean(!isGeneric && candFilename && uFile && candFilename === uFile);
+            });
+            if (found?.id && !isNaN(Number(found.id))) {
+              numericImageId = Number(found.id);
+              lookupUserId = candidateUserId;
+              break;
+            }
+          } catch (lookupError: any) {
+            console.warn('[useImages] Image id lookup failed:', {
+              userId: candidateUserId,
+              status: lookupError?.response?.status,
+              data: lookupError?.response?.data,
+            });
+          }
+        }
+      }
 
       const deleteParams: Record<string, any> = {};
-      if (normalizedUserId) deleteParams.userId = normalizedUserId;
+      if (lookupUserId) deleteParams.userId = lookupUserId;
       if (candidateImageUrl) deleteParams.imageUrl = candidateImageUrl;
 
-      const attempts: Array<() => Promise<any>> = [];
+      type DeleteAttempt = { label: string; run: () => Promise<any> };
+      const attempts: DeleteAttempt[] = [];
+
       if (numericImageId) {
         // Primary backend endpoint per OpenAPI / Swagger: DELETE /users/images/{imageId}
-        attempts.push(() => apiClient.delete(`/users/images/${numericImageId}`));
-        if (normalizedUserId) {
-          attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${numericImageId}`));
+        attempts.push({
+          label: `DELETE /users/images/${numericImageId}`,
+          run: () => apiClient.delete(`/users/images/${numericImageId}`),
+        });
+        if (lookupUserId) {
+          attempts.push({
+            label: `DELETE /users/${lookupUserId}/images/${numericImageId}`,
+            run: () => apiClient.delete(`/users/${lookupUserId}/images/${numericImageId}`),
+          });
+          // Some backend builds expose a collection-level delete.
+          attempts.push({
+            label: `DELETE /users/${lookupUserId}/images (imageUrl)`,
+            run: () =>
+              apiClient.delete(`/users/${lookupUserId}/images`, {
+                params: deleteParams,
+                data: deleteParams,
+              }),
+          });
         }
-        attempts.push(() => apiClient.delete(`/images/${numericImageId}`, { params: deleteParams, data: deleteParams }));
-      } else {
-        attempts.push(() => apiClient.delete(`/users/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
-        if (normalizedUserId) {
-          attempts.push(() => apiClient.delete(`/users/${normalizedUserId}/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
-        }
-        attempts.push(() => apiClient.delete(`/images/${encodeURIComponent(String(validId))}`, { params: deleteParams, data: deleteParams }));
+        attempts.push({
+          label: `DELETE /images/${numericImageId}`,
+          run: () => apiClient.delete(`/images/${numericImageId}`, { params: deleteParams, data: deleteParams }),
+        });
+      } else if (lookupUserId && candidateImageUrl) {
+        // No numeric id could be resolved. Do not put the URL in the imageId
+        // path (that produces Tomcat 400/404); try a URL-based collection delete.
+        attempts.push({
+          label: `DELETE /users/${lookupUserId}/images (imageUrl)`,
+          run: () =>
+            apiClient.delete(`/users/${lookupUserId}/images`, {
+              params: deleteParams,
+              data: deleteParams,
+            }),
+        });
       }
 
-      let lastError: any = null;
+      const failures: Array<Record<string, any>> = [];
       for (const attempt of attempts) {
         try {
-          const res = await attempt();
+          const res = await attempt.run();
           return res.data;
         } catch (err: any) {
-          lastError = err;
+          failures.push({
+            label: attempt.label,
+            status: err?.response?.status ?? null,
+            data: err?.response?.data ?? null,
+            message: err?.message || 'Request failed',
+          });
         }
       }
-      throw lastError;
+
+      const jsonFailure = failures.find(
+        (failure) => failure.data && typeof failure.data === 'object'
+      );
+      const primaryFailure = jsonFailure || failures[0];
+      const summary = primaryFailure
+        ? `${primaryFailure.label} failed: ${
+            primaryFailure.data?.message || primaryFailure.message
+          }`
+        : 'Could not resolve the image id for deletion.';
+      const deleteError: any = new Error(summary);
+      deleteError.attempts = failures;
+      deleteError.imageId = numericImageId;
+      deleteError.imageUrl = candidateImageUrl;
+      deleteError.userId = lookupUserId;
+      throw deleteError;
     },
     onSuccess: async (_, variables) => {
       const candidateUid = typeof variables === 'object' && variables !== null ? variables.userId : undefined;

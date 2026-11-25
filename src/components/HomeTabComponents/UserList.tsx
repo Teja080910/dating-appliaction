@@ -98,32 +98,38 @@ export const matchesSearchFilters = (
 
   // 2. Height
   const pHeight = Number(p.height ?? item.height);
+  const hasHeightFilter =
+    (Number.isFinite(Number(savedFilters.minHeight)) && Number(savedFilters.minHeight) > 120) ||
+    (Number.isFinite(Number(savedFilters.maxHeight)) && Number(savedFilters.maxHeight) < 200);
   if (Number.isFinite(pHeight) && pHeight > 0) {
     if (Number.isFinite(Number(savedFilters.minHeight)) && pHeight < Number(savedFilters.minHeight)) return false;
     if (Number.isFinite(Number(savedFilters.maxHeight)) && pHeight > Number(savedFilters.maxHeight)) return false;
+  } else if (hasHeightFilter) {
+    return false;
   }
 
   // 3. Body Type
   if (Array.isArray(savedFilters.bodyType) && savedFilters.bodyType.length > 0) {
     const rawBt = String(p.bodyType ?? item.bodyType ?? '').toLowerCase().trim();
-    if (rawBt) {
-      const match = savedFilters.bodyType.some((bt: string) => {
-        const target = String(bt).toLowerCase().trim();
-        return rawBt.includes(target) || target.includes(rawBt);
-      });
-      if (!match) return false;
-    }
+    if (!rawBt) return false;
+    const match = savedFilters.bodyType.some((bt: string) => {
+      const target = String(bt).toLowerCase().trim();
+      return rawBt.includes(target) || target.includes(rawBt);
+    });
+    if (!match) return false;
   }
 
   // 4. Appearance
   if (Array.isArray(savedFilters.appearance) && savedFilters.appearance.length > 0) {
-    const rawApp = normalizeAppearance(p.appearance ?? item.appearance);
-    if (rawApp) {
-      const match = savedFilters.appearance.some(
-        (app: string) => normalizeAppearance(app) === rawApp
-      );
-      if (!match) return false;
-    }
+    const rawAppText = String(p.appearance ?? item.appearance ?? '').toLowerCase().trim();
+    if (!rawAppText) return false;
+    const rawApp = normalizeAppearance(rawAppText);
+    const match = savedFilters.appearance.some((app: string) => {
+      const targetNorm = normalizeAppearance(app);
+      if (rawApp && targetNorm) return rawApp === targetNorm;
+      return rawAppText === String(app).toLowerCase().trim();
+    });
+    if (!match) return false;
   }
 
   // 5. Language
@@ -132,60 +138,60 @@ export const matchesSearchFilters = (
     const pLangs = Array.isArray(p.languages ?? item.languages)
       ? (p.languages ?? item.languages).map((l: any) => String(l).toLowerCase())
       : [];
+    if (!pLang && pLangs.length === 0) return false;
     const match = savedFilters.language.some((lang: string) => {
       const target = String(lang).toLowerCase().trim();
       return pLang.includes(target) || pLangs.some((l: string) => l.includes(target));
     });
-    if (!match && (pLang || pLangs.length > 0)) return false;
+    if (!match) return false;
   }
 
   // 6. English Level
   if (Array.isArray(savedFilters.englishLevel) && savedFilters.englishLevel.length > 0) {
-    const rawLvl = normalizeEnglishLevel(p.englishLevel ?? item.englishLevel);
-    if (rawLvl) {
-      const match = savedFilters.englishLevel.some(
-        (lvl: string) => normalizeEnglishLevel(lvl) === rawLvl
-      );
-      if (!match) return false;
-    }
+    const rawLvlText = String(p.englishLevel ?? item.englishLevel ?? '').toLowerCase().trim();
+    if (!rawLvlText) return false;
+    const rawLvl = normalizeEnglishLevel(rawLvlText);
+    const match = savedFilters.englishLevel.some((lvl: string) => {
+      const targetNorm = normalizeEnglishLevel(lvl);
+      if (rawLvl && targetNorm) return targetNorm === rawLvl;
+      return rawLvlText === String(lvl).toLowerCase().trim();
+    });
+    if (!match) return false;
   }
 
   // 7. Ethnicity
   if (Array.isArray(savedFilters.ethnicity) && savedFilters.ethnicity.length > 0) {
     const rawEth = String(p.ethnicity ?? item.ethnicity ?? '').toLowerCase().trim();
-    if (rawEth) {
-      const match = savedFilters.ethnicity.some((eth: string) => {
-        const target = String(eth).toLowerCase().trim();
-        return rawEth.includes(target) || target.includes(rawEth);
-      });
-      if (!match) return false;
-    }
+    if (!rawEth) return false;
+    const match = savedFilters.ethnicity.some((eth: string) => {
+      const target = String(eth).toLowerCase().trim();
+      return rawEth.includes(target) || target.includes(rawEth);
+    });
+    if (!match) return false;
   }
 
   // 8. Looking For
   if (Array.isArray(savedFilters.lookingFor) && savedFilters.lookingFor.length > 0) {
     const rawLf = String(p.lookingFor ?? item.lookingFor ?? '').toLowerCase().trim();
-    if (rawLf) {
-      const match = savedFilters.lookingFor.some((lf: string) => {
-        const target = String(lf).toLowerCase().trim();
-        return rawLf.includes(target) || target.includes(rawLf);
-      });
-      if (!match) return false;
-    }
+    if (!rawLf) return false;
+    const match = savedFilters.lookingFor.some((lf: string) => {
+      const target = String(lf).toLowerCase().trim();
+      return rawLf.includes(target) || target.includes(rawLf);
+    });
+    if (!match) return false;
   }
 
   // 9. Smoke
   if (savedFilters.smoke !== undefined && savedFilters.smoke !== null && savedFilters.smoke !== '') {
     const rawSmoke = String(p.smoke ?? item.smoke ?? '').toLowerCase().trim();
     const filterSmoke = String(savedFilters.smoke).toLowerCase().trim();
-    if (rawSmoke) {
-      if (filterSmoke === 'no') {
-        if (!['no', 'false', '0', 'never', 'non-smoker', 'non smoker'].includes(rawSmoke)) return false;
-      } else if (filterSmoke === 'yes') {
-        if (!['yes', 'true', '1', 'smoker'].includes(rawSmoke)) return false;
-      } else if (filterSmoke === 'sometimes') {
-        if (!['sometimes', 'occasionally'].includes(rawSmoke)) return false;
-      }
+    if (!rawSmoke) return false;
+    if (filterSmoke === 'no') {
+      if (!['no', 'false', '0', 'never', 'non-smoker', 'non smoker'].includes(rawSmoke)) return false;
+    } else if (filterSmoke === 'yes') {
+      if (!['yes', 'true', '1', 'smoker'].includes(rawSmoke)) return false;
+    } else if (filterSmoke === 'sometimes') {
+      if (!['sometimes', 'occasionally'].includes(rawSmoke)) return false;
     }
   }
 
@@ -517,6 +523,8 @@ const UserList = ({
         // Men browsing always target women ('straight_woman') per PRD FR-12 / BR-04
         const selectedGender = filterByGender || 'straight_woman';
         let items: any[] = [];
+        let loadedPage = 0;
+        let rawHasMore = true;
 
         const resolvedUserId = resolvedBackendUserId || (await getUserId());
         const savedFilters = await getSavedSearchFilters(resolvedUserId);
@@ -541,8 +549,54 @@ const UserList = ({
               page: 0,
               size: 100,
             };
-            const searchRes = await filterUsersMutationRef.current(searchPayload);
-            items = parseUserCollection(searchRes);
+            // Pull several pages up front so local filtering has a useful
+            // candidate pool, then keep paginating on scroll.
+            const FILTER_PAGE_SIZE = 100;
+            const merged: any[] = [];
+            const seenIds = new Set<string>();
+            let more = true;
+
+            for (let fetchPage = 0; fetchPage < 5 && more; fetchPage++) {
+              try {
+                const searchRes = await filterUsersMutationRef.current({
+                  ...searchPayload,
+                  page: fetchPage,
+                  size: FILTER_PAGE_SIZE,
+                });
+                const pageItems = parseUserCollection(searchRes);
+
+                for (const pageItem of pageItems) {
+                  const id = String(resolveProfileUserId(pageItem) || pageItem?.id || '');
+                  if (id && seenIds.has(id)) continue;
+                  if (id) seenIds.add(id);
+                  merged.push(pageItem);
+                }
+
+                more = pageItems.length >= FILTER_PAGE_SIZE;
+                loadedPage = fetchPage;
+              } catch (searchErr) {
+                console.warn('[UserList] /search failed, falling back to dashboard candidates:', searchErr);
+                more = false;
+              }
+            }
+
+            items = merged;
+            rawHasMore = more;
+
+            // Safety net: if the backend search returns nothing (bad filter
+            // mapping / location issue), fall back to the dashboard list and
+            // let the client-side filters decide.
+            if (items.length === 0) {
+              try {
+                const fallbackRes = await apiClient.get(
+                  mode === 'online' ? '/dashboard/online' : '/dashboard/recent',
+                  { params: { page: 0, size: 100, userId: resolvedUserId || undefined } }
+                );
+                items = parseUserCollection(fallbackRes.data);
+                loadedPage = 0;
+                rawHasMore = false;
+              } catch {}
+            }
           } else if (mode === 'online') {
             try {
               const res = await apiClient.get('/dashboard/online', {
@@ -652,6 +706,11 @@ const UserList = ({
           items = [];
         }
 
+        if (!hasFilters) {
+          loadedPage = 0;
+          rawHasMore = items.length >= 50;
+        }
+
         // Discover only shows real database profiles. If the API returns nothing
         // (or fails), the list stays empty so errors are visible instead of
         // being replaced by demo/mock profiles.
@@ -698,13 +757,26 @@ const UserList = ({
           Array.isArray(savedFilters?.englishLevel) && savedFilters.englishLevel.length > 0;
         const needsEthnicity =
           Array.isArray(savedFilters?.ethnicity) && savedFilters.ethnicity.length > 0;
-        const filterReadyItems =
-          needsEnglishLevel || needsEthnicity
-            ? await enrichProfilesWithFilterFields(items, {
-                english: needsEnglishLevel,
-                ethnicity: needsEthnicity,
-              })
-            : items;
+        let filterReadyItems = items;
+        if (needsEnglishLevel || needsEthnicity) {
+          // Apply every other filter first so we only fetch full profiles for
+          // candidates that can actually match.
+          const preFiltered =
+            hasFilters && savedFilters
+              ? items.filter((item) =>
+                  matchesSearchFilters(item, {
+                    ...savedFilters,
+                    englishLevel: [],
+                    ethnicity: [],
+                  })
+                )
+              : items;
+
+          filterReadyItems = await enrichProfilesWithFilterFields(preFiltered, {
+            english: needsEnglishLevel,
+            ethnicity: needsEthnicity,
+          });
+        }
 
         const activeGenders =
           savedFilters?.gender ||
@@ -748,8 +820,8 @@ const UserList = ({
 
         if (isMounted) {
           setProfiles(dedupeProfiles(finalItems));
-          setPage(0);
-          setHasMore(finalItems.length >= 10);
+          setPage(loadedPage);
+          setHasMore(rawHasMore);
           setLoadingMore(false);
         }
       } catch (error) {
@@ -772,7 +844,7 @@ const UserList = ({
   }, [mode, filterByGender, showMe, resolvedBackendUserId, filteredProfiles, refreshKey, distanceRange, isChecked, userLocation, locationCoords, effectiveUserLocation, location]);
 
   const handleLoadMore = async () => {
-    if (loading || loadingMore || !hasMore || profiles.length < 10) return;
+    if (loading || loadingMore || !hasMore) return;
     try {
       setLoadingMore(true);
       const nextPage = page + 1;
@@ -781,7 +853,23 @@ const UserList = ({
       const savedFilters = await getSavedSearchFilters(resolvedUserId);
       const hasFilters = hasActiveSearchFilters(savedFilters);
 
+      const pageSize = hasFilters ? 100 : 50;
+      const genderParam = selectedGender === 'straight_man' ? 'man' : 'woman';
       let newItems: any[] = [];
+      let rawHasMore = false;
+
+      const mergeUnique = (base: any[], extra: any[]) => {
+        const seen = new Set(base.map((i) => String(resolveProfileUserId(i) || i?.id || '')));
+        const merged = [...base];
+        for (const item of extra) {
+          const id = String(resolveProfileUserId(item) || item?.id || '');
+          if (id && seen.has(id)) continue;
+          if (id) seen.add(id);
+          merged.push(item);
+        }
+        return merged;
+      };
+
       if (hasFilters) {
         const searchPayload: Record<string, any> = {
           ...savedFilters,
@@ -790,24 +878,44 @@ const UserList = ({
           onlyOnline: mode === 'online' ? (savedFilters?.onlyOnline === true) : undefined,
           sortBy: mode === 'online' ? 'active' : 'createdAt',
           page: nextPage,
-          size: 10,
+          size: pageSize,
         };
         const searchRes = await filterUsersMutationRef.current(searchPayload);
         newItems = parseUserCollection(searchRes);
+        rawHasMore = newItems.length >= pageSize;
+      } else if (mode === 'online') {
+        const [onlineRes, recentRes] = await Promise.all([
+          apiClient.get('/dashboard/online', {
+            params: { page: nextPage, size: pageSize, userId: resolvedUserId || undefined, gender: genderParam },
+          }).catch(() => null),
+          apiClient.get('/dashboard/recent', {
+            params: { page: nextPage, size: pageSize, userId: resolvedUserId || undefined, gender: genderParam },
+          }).catch(() => null),
+        ]);
+        const onlineItems = parseUserCollection(onlineRes?.data);
+        const recentItems = parseUserCollection(recentRes?.data);
+        newItems = mergeUnique(onlineItems, recentItems);
+        rawHasMore = onlineItems.length >= pageSize || recentItems.length >= pageSize;
       } else {
-        const endpoint = mode === 'online' ? '/dashboard/online' : '/dashboard/recent';
-        const res = await apiClient.get(endpoint, {
-          params: {
+        const [recentRes, searchRes] = await Promise.all([
+          apiClient.get('/dashboard/recent', {
+            params: { page: nextPage, size: pageSize, userId: resolvedUserId || undefined, gender: genderParam },
+          }).catch(() => null),
+          searchUsersMutationRef.current({
+            sortBy: 'createdAt',
+            gender: genderParam,
             page: nextPage,
-            size: 10,
-            userId: resolvedUserId || undefined,
-            gender: selectedGender === 'straight_man' ? 'man' : 'woman',
-          },
-        });
-        newItems = parseUserCollection(res.data);
+            size: pageSize,
+          }).catch(() => null),
+        ]);
+        const recentItems = parseUserCollection(recentRes?.data);
+        const searchItems = parseUserCollection(searchRes);
+        newItems = mergeUnique(recentItems, searchItems);
+        rawHasMore = recentItems.length >= pageSize || searchItems.length >= pageSize;
       }
+
       if (!newItems || newItems.length === 0) {
-        setHasMore(false);
+        setHasMore(rawHasMore);
       } else {
         const selectedGender = filterByGender || 'straight_woman';
         const activeGenders =
@@ -821,13 +929,24 @@ const UserList = ({
           Array.isArray(savedFilters?.englishLevel) && savedFilters.englishLevel.length > 0;
         const needsEthnicity =
           Array.isArray(savedFilters?.ethnicity) && savedFilters.ethnicity.length > 0;
-        const filterReadyNewItems =
-          needsEnglishLevel || needsEthnicity
-            ? await enrichProfilesWithFilterFields(newItems, {
-                english: needsEnglishLevel,
-                ethnicity: needsEthnicity,
-              })
-            : newItems;
+        let filterReadyNewItems = newItems;
+        if (needsEnglishLevel || needsEthnicity) {
+          const preFiltered =
+            hasFilters && savedFilters
+              ? newItems.filter((item: any) =>
+                  matchesSearchFilters(item, {
+                    ...savedFilters,
+                    englishLevel: [],
+                    ethnicity: [],
+                  })
+                )
+              : newItems;
+
+          filterReadyNewItems = await enrichProfilesWithFilterFields(preFiltered, {
+            english: needsEnglishLevel,
+            ethnicity: needsEthnicity,
+          });
+        }
 
         const filteredByAttributes = hasFilters && savedFilters
           ? filterReadyNewItems.filter((item: any) => matchesSearchFilters(item, savedFilters))
@@ -865,21 +984,15 @@ const UserList = ({
             })
           : radiusFiltered;
 
-        if (finalItems.length === 0) {
-          setHasMore(false);
-        } else {
-          setProfiles((prev) => {
-            const existingIds = new Set(prev.map((p) => String(resolveProfileUserId(p) || p.id)));
-            const uniqueNew = dedupeProfiles(
-              finalItems.filter((p) => !existingIds.has(String(resolveProfileUserId(p) || p.id)))
-            );
-            return [...prev, ...uniqueNew];
-          });
-          setPage(nextPage);
-          if (newItems.length < 10 || finalItems.length < 10) {
-            setHasMore(false);
-          }
-        }
+        setProfiles((prev) => {
+          const existingIds = new Set(prev.map((p) => String(resolveProfileUserId(p) || p.id)));
+          const uniqueNew = dedupeProfiles(
+            finalItems.filter((p) => !existingIds.has(String(resolveProfileUserId(p) || p.id)))
+          );
+          return [...prev, ...uniqueNew];
+        });
+        setPage(nextPage);
+        setHasMore(rawHasMore);
       }
     } catch {
       setHasMore(false);
@@ -927,10 +1040,10 @@ const UserList = ({
       ]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
-      onEndReached={hasMore && profiles.length >= 10 ? handleLoadMore : null}
+      onEndReached={hasMore ? handleLoadMore : null}
       onEndReachedThreshold={0.2}
       ListFooterComponent={
-        loadingMore && hasMore && profiles.length >= 10 ? (
+        loadingMore && hasMore ? (
           <View style={{ paddingVertical: 16, alignItems: 'center' }}>
             <ActivityIndicator size="small" color={themeColors.primary} />
           </View>

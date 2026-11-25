@@ -496,6 +496,15 @@ const SelfieVerificationScreen = ({ navigation, route }: any) => {
           if (uploaded.imageUrl) {
             spotPhotoUri = uploaded.imageUrl;
           }
+          if (uploaded.id) {
+            try {
+              const idsKey = '@amara_onboarding_image_ids';
+              const rawIds = await AsyncStorage.getItem(idsKey);
+              const ids = rawIds ? JSON.parse(rawIds) : {};
+              ids[0] = uploaded.id;
+              await AsyncStorage.setItem(idsKey, JSON.stringify(ids));
+            } catch {}
+          }
         }
 
         await verifySelfie.mutateAsync({

@@ -2,7 +2,6 @@ import React, { useContext } from 'react';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, CommonActions } from '@react-navigation/native';
-import { useAuth } from '../../../api/useAuth';
 import AppContext from '../../../context/CreateGlobalStateContext';
 import { Colors, Spacing } from '../../../theme';
 import { t, useTranslation } from '../../../i18n';
@@ -10,8 +9,7 @@ import { t, useTranslation } from '../../../i18n';
 const Logout = () => {
   useTranslation();
   const navigation = useNavigation();
-  const { logout } = useAuth();
-  const { setLogin, setAuthUserId } = useContext(AppContext);
+  const { logout, setLogin, setAuthUserId } = useContext(AppContext);
 
   const handleLogout = async () => {
     try {

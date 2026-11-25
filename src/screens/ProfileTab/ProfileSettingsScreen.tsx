@@ -66,6 +66,7 @@ const ProfileSettingsScreen = () => {
   const hasUserEditedNameRef = useRef(false);
   const hasUserEditedDescriptionRef = useRef(false);
   const hasUserEditedDobRef = useRef(false);
+  const hasLocalDobRef = useRef(false);
 
   // Contact details state (defaults to primary app language country)
   const [countryCode, setCountryCode] = useState(defaultCountry.code);
@@ -137,6 +138,7 @@ const ProfileSettingsScreen = () => {
         const storedDob = userScopedDob || (await AsyncStorage.getItem('userDob'));
         if (storedDob && !hasUserEditedDobRef.current) {
           const cleanDob = formatDateToDobString(storedDob);
+          hasLocalDobRef.current = true;
           setLocalDob(cleanDob);
           setDate(parseDobToLocalDate(cleanDob));
         }
@@ -232,6 +234,9 @@ const ProfileSettingsScreen = () => {
         // User has picked a new birthday in this session; keep it.
       } else if (lastSavedDobRef.current && lastSavedDobRef.current !== cleanDob) {
         // Retain the user's freshly saved birthday instead of reverting to stale server response
+      } else if (hasLocalDobRef.current) {
+        // A locally persisted birthday is newer than a stale/ignored backend
+        // response; keep the locally saved value.
       } else {
         setLocalDob(cleanDob);
         setDate(parseDobToLocalDate(cleanDob));

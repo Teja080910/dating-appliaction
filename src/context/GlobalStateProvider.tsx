@@ -117,6 +117,10 @@ const GlobalStateProvider = ({ children }: any) => {
   const [locationModalVisible, setLocationModalVisible] = useState(false);
 
   useEffect(() => {
+    // Remove the legacy global filter key from older builds. It used to be a
+    // fallback and caused filters to leak between accounts.
+    AsyncStorage.removeItem('@search_filters').catch(() => {});
+
     AsyncStorage.getItem('@amara_active_location_coords')
       .then((raw) => {
         if (!raw) return;
@@ -174,6 +178,7 @@ const GlobalStateProvider = ({ children }: any) => {
           userScopedImages,
           userScopedProfileImage,
           deletedRaw,
+          globalDeletedRaw,
           userScopedGender,
         ] = await Promise.all([
           AsyncStorage.getItem('name'),
@@ -190,6 +195,7 @@ const GlobalStateProvider = ({ children }: any) => {
           id ? AsyncStorage.getItem(`user_photos_${id}`).catch(() => null) : Promise.resolve(null),
           id ? AsyncStorage.getItem(`user_profile_photo_${id}`).catch(() => null) : Promise.resolve(null),
           id ? AsyncStorage.getItem(`deleted_photos_${id}`).catch(() => null) : Promise.resolve(null),
+          AsyncStorage.getItem('deleted_image_uris').catch(() => null),
           id ? AsyncStorage.getItem(`user_gender_${id}`).catch(() => null) : Promise.resolve(null),
         ]);
         if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
@@ -248,7 +254,22 @@ const GlobalStateProvider = ({ children }: any) => {
             try {
               const parsed = JSON.parse(effectiveImages);
               if (Array.isArray(parsed) && parsed.some(Boolean)) {
-                const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+                const deletedSet = new Set<string>();
+                for (const raw of [deletedRaw, globalDeletedRaw]) {
+                  if (!raw) continue;
+                  try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                      parsed.forEach((u) => {
+                        if (typeof u === 'string' && u.trim()) {
+                          deletedSet.add(u);
+                          deletedSet.add(u.split('?')[0]);
+                        }
+                      });
+                    }
+                  } catch {}
+                }
+                const deletedList: string[] = Array.from(deletedSet);
                 const filtered = parsed.map((u) => (u && deletedList.includes(u) ? null : u));
                 while (filtered.length < MAX_PROFILE_IMAGES) filtered.push(null);
                 setImages(filtered);
@@ -271,7 +292,10 @@ const GlobalStateProvider = ({ children }: any) => {
           }
           if (effectiveProfilePhoto) {
             try {
-              const deletedList: string[] = deletedRaw ? JSON.parse(deletedRaw) : [];
+              const deletedList: string[] = [
+                ...(deletedRaw ? JSON.parse(deletedRaw) : []),
+                ...(globalDeletedRaw ? JSON.parse(globalDeletedRaw) : []),
+              ];
               if (!deletedList.includes(effectiveProfilePhoto)) {
                 setProfileImage(effectiveProfilePhoto);
                 setProfileImageUrl(effectiveProfilePhoto);
@@ -347,17 +371,48 @@ const GlobalStateProvider = ({ children }: any) => {
           // Live server synchronization for profile photos to prevent stale local cache
           if (id) {
             try {
-              apiClient.get(`/users/${id}/images`).then((res) => {
+              apiClient.get(`/users/${id}/images`).then(async (res) => {
                 const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.images) ? res.data.images : []);
                 if (list.length > 0) {
                   const liveUrls = list.map((item: any) => item?.imageUrl || item?.url || (typeof item === 'string' ? item : null)).filter(Boolean);
-                  if (liveUrls.length > 0) {
-                    const slots = [...liveUrls];
-                    while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
-                    setImages(slots);
+
+                  // Respect locally deleted photos so the server copy cannot
+                  // resurrect them after restarting/resuming profile setup.
+                  const [scopedDeletedRaw, globalDeletedRaw] = await Promise.all([
+                    AsyncStorage.getItem(`deleted_photos_${id}`).catch(() => null),
+                    AsyncStorage.getItem('deleted_image_uris').catch(() => null),
+                  ]);
+                  const deletedSet = new Set<string>();
+                  for (const raw of [scopedDeletedRaw, globalDeletedRaw]) {
+                    if (!raw) continue;
+                    try {
+                      const parsed = JSON.parse(raw);
+                      if (Array.isArray(parsed)) {
+                        parsed.forEach((u) => {
+                          if (typeof u === 'string' && u.trim()) {
+                            deletedSet.add(u);
+                            deletedSet.add(u.split('?')[0]);
+                          }
+                        });
+                      }
+                    } catch {}
+                  }
+                  const filteredUrls = liveUrls.filter((u: string) => {
+                    const clean = String(u);
+                    return !deletedSet.has(clean) && !deletedSet.has(clean.split('?')[0]);
+                  });
+
+                  const slots: (string | null)[] = [...filteredUrls];
+                  while (slots.length < MAX_PROFILE_IMAGES) slots.push(null);
+                  setImages(slots);
+                  setProfileImage(slots[0] || null);
+                  setProfileImageUrl(slots[0] || null);
+                  AsyncStorage.setItem(`user_photos_${id}`, JSON.stringify(slots)).catch(() => {});
+                  if (slots[0]) {
                     setProfileImage(slots[0]);
                     setProfileImageUrl(slots[0]);
-                    AsyncStorage.setItem(`user_photos_${id}`, JSON.stringify(slots)).catch(() => {});
+                  } else {
+                    AsyncStorage.removeItem('profileImage').catch(() => {});
                   }
                 }
               }).catch(() => {});
@@ -696,8 +751,21 @@ const GlobalStateProvider = ({ children }: any) => {
 
   const resetApp = async () => {
     try {
+      const activeUid = await getUserId().catch(() => null);
       await clearFullSession();
       queryClient.clear();
+
+      // Clear this account's saved search filters so a logout always starts
+      // from the defaults (no cross-account and no same-account carry-over).
+      if (activeUid) {
+        const cleanUid = String(activeUid).trim();
+        const digits = cleanUid.replace(/\D/g, '');
+        AsyncStorage.removeItem(`@search_filters_${cleanUid}`).catch(() => {});
+        if (digits && digits !== cleanUid) {
+          AsyncStorage.removeItem(`@search_filters_${digits}`).catch(() => {});
+        }
+      }
+      AsyncStorage.removeItem('@search_filters').catch(() => {});
 
       setName('');
       setDisplayName('');
@@ -720,9 +788,26 @@ const GlobalStateProvider = ({ children }: any) => {
       setSelectedNetWorth(null);
       setEnglishSkillLevel(0);
       setVerifiedSelfie(false);
+
+      // Reset search settings so the next account starts clean.
+      setAgeRange([18, 40]);
+      setDistanceRange(50);
+      setBodyHeight([120, 200]);
+      setSelectBodyTypes([]);
+      setSelectedOptions([]);
+      setSearchLanguages([]);
+      setEnglishProficiency([]);
+      setEthnicity([]);
+      setLookingFor([]);
+      setSmokeFilter(undefined);
+      setLocation('');
       setLocationCoords(null);
-      setOppositeGender(null);
       setShowMe(null);
+      setFilter('online');
+      setFilteredProfiles(null);
+      AsyncStorage.removeItem('@amara_active_location_coords').catch(() => {});
+
+      setOppositeGender(null);
       // Preserved across logout/login per user requirement
       setImages(emptyImageSlots());
       setProfileImage(null);

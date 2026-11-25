@@ -146,6 +146,10 @@ export const getActiveFilterCount = (filters?: SavedSearchFilters | null): numbe
     count++;
   }
 
+  if (filters.showMe === 'straight_man' || filters.showMe === 'both') {
+    count++;
+  }
+
   if (Array.isArray(filters.bodyType) && filters.bodyType.length > 0) {
     count += filters.bodyType.length;
   }
@@ -180,10 +184,10 @@ export const saveSearchFilters = async (
   userId?: string | number | null
 ): Promise<void> => {
   try {
+    // Filters are per account. Never mirror them to the global key when a
+    // user is known, otherwise the next account inherits them.
     const key = userId ? `@search_filters_${userId}` : '@search_filters';
     await AsyncStorage.setItem(key, JSON.stringify(filters));
-    // Also save under global key as fallback
-    await AsyncStorage.setItem('@search_filters', JSON.stringify(filters));
   } catch (e) {
     console.error('Error saving search filters:', e);
   }
@@ -195,9 +199,10 @@ export const getSavedSearchFilters = async (
   try {
     let raw = null;
     if (userId) {
+      // Only the scoped key. Falling back to the global key leaked one
+      // account's filters into every other account.
       raw = await AsyncStorage.getItem(`@search_filters_${userId}`);
-    }
-    if (!raw) {
+    } else {
       raw = await AsyncStorage.getItem('@search_filters');
     }
     if (raw) {

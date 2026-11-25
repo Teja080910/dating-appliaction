@@ -93,6 +93,103 @@ describe('Onboarding photo removal', () => {
     expect(JSON.parse(stored as string)[1]).toBeNull();
   });
 
+  it('uses the stored backend image id when deleting a slot', async () => {
+    const remove = `${APIURL}/uploads/with-id.jpg`;
+    await AsyncStorage.setItem('@amara_onboarding_image_ids', JSON.stringify({ 0: 4821 }));
+    const setImages = jest.fn();
+
+    let renderer: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <AppContext.Provider
+          value={{
+            images: [remove],
+            setImages,
+            name: 'Test',
+            isModalVisible: false,
+            setIsModalVisible: jest.fn(),
+            setSelectedIndex: jest.fn(),
+            setProfileImage: jest.fn(),
+            setProfileImageUrl: jest.fn(),
+          } as any}
+        >
+          <UploadPhotosScreen
+            navigation={{
+              canGoBack: () => true,
+              goBack: jest.fn(),
+              replace: jest.fn(),
+              navigate: jest.fn(),
+            }}
+          />
+        </AppContext.Provider>
+      );
+    });
+
+    const removeButton = renderer!.root
+      .findAllByProps({ testID: 'remove-photo-0' })
+      .find((node) => typeof node.props.onPress === 'function');
+
+    await act(async () => {
+      await removeButton!.props.onPress();
+    });
+
+    expect(useImagesMock.__mockDeleteImageMutateAsync).toHaveBeenCalledWith({
+      imageId: 4821,
+      imageUrl: remove,
+      userId: 'usr_woman_201',
+    });
+    expect(JSON.parse((await AsyncStorage.getItem('@amara_onboarding_image_ids')) as string)).toEqual({});
+  });
+
+  it('still removes the photo locally and records a tombstone when the delete endpoint rejects it', async () => {
+    const remove = `${APIURL}/uploads/rejected.jpg`;
+    useImagesMock.__mockDeleteImageMutateAsync.mockRejectedValueOnce({
+      response: { status: 400, data: { status: 'error', message: 'Endpoint not found.' } },
+    });
+    const setImages = jest.fn();
+
+    let renderer: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <AppContext.Provider
+          value={{
+            images: [remove],
+            setImages,
+            name: 'Test',
+            isModalVisible: false,
+            setIsModalVisible: jest.fn(),
+            setSelectedIndex: jest.fn(),
+            setProfileImage: jest.fn(),
+            setProfileImageUrl: jest.fn(),
+          } as any}
+        >
+          <UploadPhotosScreen
+            navigation={{
+              canGoBack: () => true,
+              goBack: jest.fn(),
+              replace: jest.fn(),
+              navigate: jest.fn(),
+            }}
+          />
+        </AppContext.Provider>
+      );
+    });
+
+    const removeButton = renderer!.root
+      .findAllByProps({ testID: 'remove-photo-0' })
+      .find((node) => typeof node.props.onPress === 'function');
+
+    await act(async () => {
+      await removeButton!.props.onPress();
+    });
+
+    expect(setImages).toHaveBeenCalled();
+    const tombstones = JSON.parse(
+      (await AsyncStorage.getItem('deleted_photos_usr_woman_201')) as string
+    );
+    expect(tombstones).toContain(remove);
+  });
+
   it('does not call the server for a local-only image', async () => {
     const local = 'file:///tmp/local-photo.jpg';
     const setImages = jest.fn();
