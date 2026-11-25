@@ -70,7 +70,7 @@ const resolveProfilePayload = (payload: any) => {
   return nestedData || payload;
 };
 
-const normalizeProfile = (payload: any) => {
+export const normalizeProfile = (payload: any) => {
   const payloadSource = resolveProfilePayload(payload);
   // The API may return a flat profile, { profile }, or { user: { profile } }.
   // Flatten those compatible shapes so persisted values are not lost in the UI.

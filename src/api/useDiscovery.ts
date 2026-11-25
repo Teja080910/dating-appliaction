@@ -115,6 +115,8 @@ const CORE_SEARCH_KEYS = [
   'ethnicity',
   'smoke',
   'drink',
+  'distance',
+  'searchWorldwide',
   'sortBy',
 ];
 
@@ -175,57 +177,69 @@ const normalizeSearchRequest = (data: any) => {
   return {
     // === Core 9 Backend-supported fields ===
     name: data?.name || data?.search || undefined,
-    gender: resolvedGender,
+    gender: resolvedGender === 'both' ? undefined : resolvedGender,
     minAge: Number.isFinite(Number(data?.minAge)) ? Number(data.minAge) : undefined,
     maxAge: Number.isFinite(Number(data?.maxAge)) ? Number(data.maxAge) : undefined,
     language:
       typeof data?.language === 'string'
         ? data.language.trim()
-        : Array.isArray(data?.language) && data.language.length > 0
+        : Array.isArray(data?.language) && data.language.length === 1
           ? String(data.language[0]).trim()
           : undefined,
     ethnicity:
       typeof data?.ethnicity === 'string'
         ? data.ethnicity.trim()
-        : Array.isArray(data?.ethnicity) && data.ethnicity.length > 0
+        : Array.isArray(data?.ethnicity) && data.ethnicity.length === 1
           ? String(data.ethnicity[0]).trim()
           : undefined,
-    smoke: normalizeSmokeDrink(data?.smoke),
-    drink: normalizeSmokeDrink(data?.drink),
+    // Backend expects a string. Send it only for a single selection; multi-select
+    // is handled by matchesSearchFilters on the client.
+    smoke:
+      typeof data?.smoke === 'string'
+        ? data.smoke.trim()
+        : typeof data?.smoke === 'boolean'
+          ? data.smoke ? 'Yes' : 'No'
+          : undefined,
     sortBy: typeof data?.sortBy === 'string' ? data.sortBy.trim() : 'createdAt',
 
     // === Extra filter fields ready for backend ===
-    minHeight: Number.isFinite(Number(data?.minHeight)) ? Number(data.minHeight) : undefined,
-    maxHeight: Number.isFinite(Number(data?.maxHeight)) ? Number(data.maxHeight) : undefined,
-    bodyType: normalizeArrayFilter(data?.bodyType),
-    appearance: normalizeArrayFilter(data?.appearance),
-    englishLevel: normalizeArrayFilter(data?.englishLevel),
-    lookingFor: normalizeArrayFilter(data?.lookingFor),
-    searchRadius: Number.isFinite(Number(data?.searchRadius ?? data?.maxDistanceKm ?? data?.radius))
-      ? Number(data.searchRadius ?? data.maxDistanceKm ?? data.radius)
-      : undefined,
-    maxDistanceKm: Number.isFinite(Number(data?.maxDistanceKm ?? data?.searchRadius ?? data?.radius))
-      ? Number(data.maxDistanceKm ?? data.searchRadius ?? data.radius)
-      : undefined,
-    radius: Number.isFinite(Number(data?.radius ?? data?.searchRadius ?? data?.maxDistanceKm))
-      ? Number(data.radius ?? data.searchRadius ?? data.maxDistanceKm)
-      : undefined,
-    latitude: Number.isFinite(Number(data?.latitude)) ? Number(data.latitude) : undefined,
-    longitude: Number.isFinite(Number(data?.longitude)) ? Number(data.longitude) : undefined,
-    worldwide: typeof data?.worldwide === 'boolean' ? data.worldwide : undefined,
-    city:
-      typeof data?.city === 'string' &&
-      data.city.trim() !== '' &&
-      data.city.trim() !== 'Mumbai, India' &&
-      data.city.trim() !== 'My current location'
-        ? data.city.trim()
-        : typeof data?.location === 'string' &&
-          data.location.trim() !== '' &&
-          data.location.trim() !== 'Mumbai, India' &&
-          data.location.trim() !== 'My current location'
-          ? data.location.trim()
+    // Height range is filtered on the client because SearchFilterRequest does
+    // not expose minHeight/maxHeight.
+    minHeight: undefined,
+    maxHeight: undefined,
+    bodyType:
+      typeof data?.bodyType === 'string'
+        ? data.bodyType.trim()
+        : Array.isArray(data?.bodyType) && data.bodyType.length === 1
+          ? String(data.bodyType[0]).trim()
           : undefined,
-    onlyOnline: data?.onlyOnline === true ? true : undefined,
+    // These two are not in SearchFilterRequest; filtering happens locally.
+    appearance: undefined,
+    englishLevel: undefined,
+    lookingFor: normalizeArrayFilter(data?.lookingFor),
+    // Keep only the documented `distance` field below; aliases caused 400s.
+    searchRadius: undefined,
+    maxDistanceKm: undefined,
+    radius: undefined,
+    // Backend SearchFilterRequest expects `distance` (not maxDistanceKm/radius).
+    distance: Number.isFinite(Number(data?.distance ?? data?.maxDistanceKm ?? data?.searchRadius ?? data?.radius))
+      ? Number(data.distance ?? data.maxDistanceKm ?? data.searchRadius ?? data.radius)
+      : undefined,
+    // Not in SearchFilterRequest; custom-location filtering is done client-side.
+    latitude: undefined,
+    longitude: undefined,
+    worldwide: undefined,
+    // Backend SearchFilterRequest expects `searchWorldwide`.
+    searchWorldwide:
+      typeof data?.searchWorldwide === 'boolean'
+        ? data.searchWorldwide
+        : typeof data?.worldwide === 'boolean'
+          ? data.worldwide
+          : undefined,
+    city: undefined,
+
+    page: Number.isFinite(Number(data?.page)) ? Number(data.page) : undefined,
+    size: Number.isFinite(Number(data?.size)) ? Number(data.size) : undefined,
   };
 };
 

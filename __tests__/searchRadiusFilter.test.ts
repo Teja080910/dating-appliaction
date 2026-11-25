@@ -71,6 +71,25 @@ describe('Search Radius Filter Verification', () => {
     expect(results.length).toBe(mockProfiles.length);
   });
 
+  test('parses thousands separators so profiles 1,000+ km away are filtered out', () => {
+    const farProfile = {
+      id: 'p5',
+      name: 'Very Far User (formatted distance)',
+      distance: '1,200 km away',
+      city: 'Delhi',
+    };
+
+    expect(resolveProfileDistanceKm(farProfile, userLocationHyderabad, 'Hyderabad')).toBe(1200);
+
+    const results = filterByRadius(
+      [farProfile],
+      { maxDistanceKm: 50, worldwide: false },
+      userLocationHyderabad,
+      'Hyderabad'
+    );
+    expect(results).toEqual([]);
+  });
+
   test('resolveProfileDistance returns consistent human-readable string', () => {
     expect(resolveProfileDistance(mockProfiles[0], userLocationHyderabad, 'Hyderabad')).toBe('3 km away');
     expect(resolveProfileDistance(mockProfiles[1], userLocationHyderabad, 'Hyderabad')).toBe('15 km away');

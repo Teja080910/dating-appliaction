@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import SearchSettingsHeader from '../../components/SearchSettingsComponents/SearchSettingHeader';
@@ -17,7 +18,7 @@ import Appearance from '../../components/SearchSettingsComponents/Appearance';
 import Languages from '../../components/SearchSettingsComponents/Languages';
 import EnglishProficiency from '../../components/SearchSettingsComponents/EnglishProficiency';
 import Ethnicity from '../../components/SearchSettingsComponents/Ethnicity';
-import Drinking from '../../components/SearchSettingsComponents/Drinking';
+import Smoke from '../../components/SearchSettingsComponents/Smoke';
 import LookingFor from '../../components/SearchSettingsComponents/LookingFor';
 import ShowMe from '../../components/SearchSettingsComponents/ShowMe';
 import SaveResetButtons from '../../components/SearchSettingsComponents/SaveResetButtons';
@@ -63,6 +64,8 @@ const SearchScreen = ({ navigation }: any) => {
     isChecked,
     location,
     setLocation,
+    locationCoords,
+    setLocationCoords,
     setFilter,
     setFilteredProfiles,
     bodyHeight,
@@ -75,8 +78,8 @@ const SearchScreen = ({ navigation }: any) => {
     setEthnicity,
     lookingFor,
     setLookingFor,
-    drinkFilter,
-    setDrinkFilter,
+    smokeFilter,
+    setSmokeFilter,
     selectedOptions,
     setSelectedOptions,
     selectBodyTypes,
@@ -85,6 +88,9 @@ const SearchScreen = ({ navigation }: any) => {
     setShowMe,
     hydrateSavedFilters,
   } = React.useContext(AppContext);
+
+  // Custom location coordinates take priority over device GPS so "search in
+  // London" filters around London, not around where the phone physically is.
 
   const [filters, setFilters] = React.useState<any>(() => ({
     minAge: ageRange?.[0] ?? 18,
@@ -105,8 +111,9 @@ const SearchScreen = ({ navigation }: any) => {
     englishLevel: englishProficiency || [],
     ethnicity: ethnicity || [],
     lookingFor: lookingFor || [],
-    drink: drinkFilter,
+    smoke: smokeFilter,
     onlyOnline: false,
+    hasExplicitDistance: false,
     page: 0,
     size: 20,
   }));
@@ -145,7 +152,7 @@ const SearchScreen = ({ navigation }: any) => {
           if (saved.englishLevel) setEnglishProficiency(saved.englishLevel);
           if (saved.ethnicity) setEthnicity(saved.ethnicity);
           if (saved.lookingFor) setLookingFor(saved.lookingFor);
-          if (saved.drink !== undefined) setDrinkFilter(saved.drink);
+          if (saved.smoke !== undefined) setSmokeFilter(saved.smoke);
           if (saved.showMe) setShowMe(saved.showMe);
 
           if (saved.minAge !== undefined && saved.maxAge !== undefined) {
@@ -181,10 +188,16 @@ const SearchScreen = ({ navigation }: any) => {
       setSaving(true);
       Keyboard.dismiss();
       const resolvedUserId = await getUserId();
+      // Use freshly resolved coordinates at save time so "Search near me"
+      // reflects the current position, not the one captured when the screen opened.
+      const liveCoords = await getCurrentLocation(false).catch(() => userLocation);
+      // Custom location coords win over device GPS; otherwise use live GPS.
+      const searchCoords = locationCoords ?? liveCoords ?? userLocation;
+      const effectiveMaxAge = Number(filters.maxAge) >= 55 ? 100 : filters.maxAge;
       const payload = {
         userId: resolvedUserId || undefined,
         minAge: filters.minAge,
-        maxAge: filters.maxAge,
+        maxAge: effectiveMaxAge,
         minHeight: filters.minHeight,
         maxHeight: filters.maxHeight,
         bodyType: filters.bodyType,
@@ -193,7 +206,7 @@ const SearchScreen = ({ navigation }: any) => {
         englishLevel: filters.englishLevel,
         ethnicity: filters.ethnicity,
         lookingFor: filters.lookingFor,
-        drink: filters.drink,
+        smoke: filters.smoke,
         maxDistanceKm: filters.maxDistanceKm,
         searchRadius: filters.maxDistanceKm,
         radius: filters.maxDistanceKm,
@@ -202,15 +215,17 @@ const SearchScreen = ({ navigation }: any) => {
         showMe: showMe,
         city: location,
         location: location,
+        latitude: searchCoords?.latitude,
+        longitude: searchCoords?.longitude,
         onlyOnline: filters.onlyOnline,
         sortBy: 'createdAt',
         page: 0,
-        size: 20,
+        size: 100,
       };
 
       const filterToPersist = {
         minAge: filters.minAge,
-        maxAge: filters.maxAge,
+        maxAge: effectiveMaxAge,
         maxDistanceKm: filters.maxDistanceKm,
         searchRadius: filters.maxDistanceKm,
         radius: filters.maxDistanceKm,
@@ -225,10 +240,13 @@ const SearchScreen = ({ navigation }: any) => {
         englishLevel: filters.englishLevel,
         ethnicity: filters.ethnicity,
         lookingFor: filters.lookingFor,
-        drink: filters.drink,
+        smoke: filters.smoke,
         gender: filters.gender,
         showMe: showMe,
         onlyOnline: filters.onlyOnline,
+        hasExplicitDistance: Boolean(filters.hasExplicitDistance),
+        latitude: searchCoords?.latitude,
+        longitude: searchCoords?.longitude,
       };
 
       const activeCount = getActiveFilterCount(filterToPersist);
@@ -270,7 +288,7 @@ const SearchScreen = ({ navigation }: any) => {
 
       let filteredResults = activeProfiles;
       if (!filters.worldwide && Number.isFinite(Number(filters.maxDistanceKm)) && Number(filters.maxDistanceKm) > 0) {
-        filteredResults = filterByRadius(activeProfiles, filters, userLocation, location);
+        filteredResults = filterByRadius(activeProfiles, filters, searchCoords, location);
       }
       setDistanceRange(Number(filters.maxDistanceKm) || 50);
       setIsChecked(Boolean(filters.worldwide));
@@ -311,7 +329,7 @@ const SearchScreen = ({ navigation }: any) => {
       englishLevel: [],
       ethnicity: [],
       lookingFor: [],
-      drink: undefined,
+      smoke: undefined,
       onlyOnline: false,
       page: 0,
       size: 20,
@@ -325,11 +343,13 @@ const SearchScreen = ({ navigation }: any) => {
     setEnglishProficiency([]);
     setEthnicity([]);
     setLookingFor([]);
-    setDrinkFilter(undefined);
+    setSmokeFilter(undefined);
     setShowMe('straight_woman');
     setFilters((prev: any) => ({ ...prev, gender: [t('home.userlist.female')] }));
     setIsChecked(false);
     setLocation(t('search.location.my_current_location'));
+    setLocationCoords(null);
+    AsyncStorage.removeItem('@amara_active_location_coords').catch(() => {});
     setFilteredProfiles(null);
 
     // Clear saved storage in background
@@ -417,7 +437,16 @@ const SearchScreen = ({ navigation }: any) => {
           />
 
           {/* 2. Search location (Search near me / Custom location) */}
-          <Location />
+          <Location
+            onNearMeSelected={() => {
+              setIsChecked(false);
+              setFilters((prev: any) => ({
+                ...prev,
+                worldwide: false,
+                hasExplicitDistance: true,
+              }));
+            }}
+          />
 
           {/* 3. Age range (18 – 55+) */}
           <AgeRangeSlider
@@ -450,10 +479,10 @@ const SearchScreen = ({ navigation }: any) => {
           {/* 9. Race/ethnicity */}
           <Ethnicity onChange={(value) => setFilters((prev: any) => ({ ...prev, ethnicity: value }))} />
 
-          {/* 10. Drinking */}
-          <Drinking
-            value={filters.drink}
-            onChange={(value) => setFilters((prev: any) => ({ ...prev, drink: value }))}
+          {/* 10. Smoker */}
+          <Smoke
+            value={filters.smoke}
+            onChange={(value) => setFilters((prev: any) => ({ ...prev, smoke: value }))}
           />
 
           {/* 11. What are you looking for? */}

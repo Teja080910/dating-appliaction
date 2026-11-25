@@ -102,7 +102,7 @@ const GlobalStateProvider = ({ children }: any) => {
   const [ethnicity, setEthnicity] = useState<string[]>([]);
   const [lookingFor, setLookingFor] = useState<string[]>([]);
   const [smoke, setSmoke] = useState<string[]>([]);
-  const [drinkFilter, setDrinkFilter] = useState<string | boolean | undefined>(undefined);
+  const [smokeFilter, setSmokeFilter] = useState<string | boolean | undefined>(undefined);
   const [showMe, setShowMe] = useState<'straight_man' | 'straight_woman' | 'both' | null>(null);
 
   // Missing properties from components
@@ -112,8 +112,25 @@ const GlobalStateProvider = ({ children }: any) => {
 
   // ================= LOCATION =================
   const [location, setLocation] = useState('Mumbai, India');
+  const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [previousLocations, setPreviousLocations] = useState<string[]>([]);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@amara_active_location_coords')
+      .then((raw) => {
+        if (!raw) return;
+        try {
+          const parsed = JSON.parse(raw);
+          const latitude = Number(parsed?.lat ?? parsed?.latitude);
+          const longitude = Number(parsed?.lng ?? parsed?.longitude);
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            setLocationCoords({ latitude, longitude });
+          }
+        } catch {}
+      })
+      .catch(() => {});
+  }, []);
 
   // ================= UI =================
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -594,7 +611,7 @@ const GlobalStateProvider = ({ children }: any) => {
           else if (hasMale) setShowMe('straight_man');
           else setShowMe('straight_woman');
         }
-        if (savedFilters.drink !== undefined) setDrinkFilter(savedFilters.drink);
+        if (savedFilters.smoke !== undefined) setSmokeFilter(savedFilters.smoke);
         if (savedFilters.worldwide !== undefined) setIsChecked(savedFilters.worldwide);
         if (savedFilters.location) setLocation(savedFilters.location);
       }
@@ -616,9 +633,11 @@ const GlobalStateProvider = ({ children }: any) => {
       setEnglishProficiency([]);
       setEthnicity([]);
       setLookingFor([]);
-      setDrinkFilter(undefined);
+      setSmokeFilter(undefined);
       setIsChecked(false);
       setLocation('');
+      setLocationCoords(null);
+      AsyncStorage.removeItem('@amara_active_location_coords').catch(() => {});
       setShowMe('straight_woman');
       setFilteredProfiles(null);
     } catch (e) {
@@ -641,7 +660,7 @@ const GlobalStateProvider = ({ children }: any) => {
       englishLevel: englishProficiency,
       ethnicity: ethnicity,
       lookingFor: lookingFor,
-      drink: drinkFilter,
+      smoke: smokeFilter,
     });
   }, [
     ageRange,
@@ -655,7 +674,7 @@ const GlobalStateProvider = ({ children }: any) => {
     englishProficiency,
     ethnicity,
     lookingFor,
-    drinkFilter,
+    smokeFilter,
   ]);
 
   // ================= ACTIONS =================
@@ -701,6 +720,7 @@ const GlobalStateProvider = ({ children }: any) => {
       setSelectedNetWorth(null);
       setEnglishSkillLevel(0);
       setVerifiedSelfie(false);
+      setLocationCoords(null);
       setOppositeGender(null);
       setShowMe(null);
       // Preserved across logout/login per user requirement
@@ -770,7 +790,7 @@ const GlobalStateProvider = ({ children }: any) => {
         ethnicity, setEthnicity,
         lookingFor, setLookingFor,
         smoke, setSmoke,
-        drinkFilter, setDrinkFilter,
+        smokeFilter, setSmokeFilter,
         showMe, setShowMe,
 
         selectedOptions, setSelectedOptions,
@@ -779,6 +799,7 @@ const GlobalStateProvider = ({ children }: any) => {
 
         // location
         location, setLocation,
+        locationCoords, setLocationCoords,
         previousLocations, setPreviousLocations,
         locationModalVisible, setLocationModalVisible,
 

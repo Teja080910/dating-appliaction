@@ -10,7 +10,7 @@ const valueLabel = (val: string) =>
   : val === 'Sometimes' ? t('search.drinking.sometimes')
   : val;
 
-interface DrinkingProps {
+interface SmokeProps {
   value?: string | boolean;
   onChange?: (val: string | undefined) => void;
 }
@@ -25,13 +25,13 @@ const isOptionSelected = (currentVal: string | boolean | undefined, optionVal: s
   const clean = String(currentVal).toLowerCase().trim();
   const opt = optionVal.toLowerCase().trim();
   if (clean === opt) return true;
-  if (opt === 'sometimes' && (clean === 'socially' || clean === 'occasionally')) return true;
-  if (opt === 'no' && (clean === 'never' || clean === 'non-drinker' || clean === 'non drinker')) return true;
-  if (opt === 'yes' && (clean === 'regularly')) return true;
+  if (opt === 'sometimes' && (clean === 'occasionally')) return true;
+  if (opt === 'no' && (clean === 'never' || clean === 'non-smoker' || clean === 'non smoker')) return true;
+  if (opt === 'yes' && (clean === 'smoker')) return true;
   return false;
 };
 
-const Drinking: React.FC<DrinkingProps> = ({ value, onChange }) => {
+const Smoke: React.FC<SmokeProps> = ({ value, onChange }) => {
   useTranslation();
   const { themeColors } = useTheme();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -46,7 +46,7 @@ const Drinking: React.FC<DrinkingProps> = ({ value, onChange }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{t('more_info.drinkingselector.do_you_drink')}</Text>
+      <Text style={styles.label}>{t('search.smoke.smoker')}</Text>
       <View style={styles.optionsWrapper}>
         {values.map((item) => {
           const selected = isOptionSelected(value, item);
@@ -55,6 +55,7 @@ const Drinking: React.FC<DrinkingProps> = ({ value, onChange }) => {
               key={item}
               style={[styles.option, selected && styles.optionSelected]}
               onPress={() => handlePress(item)}
+              activeOpacity={0.7}
             >
               <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
                 {valueLabel(item)}
@@ -109,4 +110,4 @@ const createStyles = (themeColors: ThemeColors) =>
     },
   });
 
-export default Drinking;
+export default Smoke;

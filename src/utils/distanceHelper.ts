@@ -141,18 +141,34 @@ export const resolveProfileDistanceKm = (
     return Math.round(rawDist);
   }
   if (typeof rawDist === 'string' && rawDist.trim().length > 0) {
-    const match = rawDist.trim().match(/^(\d+(\.\d+)?)/);
+    // Backends sometimes format distances with thousands separators ("1,200 km").
+    const normalizedDist = rawDist.trim().replace(/,/g, '');
+    const match = normalizedDist.match(/^(\d+(\.\d+)?)/);
     if (match) {
       return Math.round(parseFloat(match[1]));
     }
   }
 
-  // 2. Real GPS distance if both user and profile have coordinates
   const pLat = Number(profile?.latitude ?? profile?.lat ?? targetProfile?.latitude ?? targetProfile?.lat);
   const pLng = Number(profile?.longitude ?? profile?.lng ?? targetProfile?.longitude ?? targetProfile?.lng);
   const uLat = Number(userLocation?.latitude);
   const uLng = Number(userLocation?.longitude);
+  const pCity = profile?.currentCity || profile?.city || targetProfile?.currentCity || targetProfile?.city;
+  const myCity = userCity && userCity !== 'Search near me' && userCity !== 'My current location' ? userCity : null;
+  const targetCoords = (Number.isFinite(pLat) && Number.isFinite(pLng) && pLat !== 0)
+    ? { lat: pLat, lng: pLng }
+    : getCityCoords(pCity);
+  const selectedCityCoords = getCityCoords(myCity);
 
+  // 2. A custom city is selected: measure from that city, never from device GPS.
+  if (selectedCityCoords && targetCoords) {
+    const isSameCity = Boolean(myCity && pCity && myCity.toLowerCase().trim() === pCity.toLowerCase().trim());
+    const cityKm = calculateDistanceKm(selectedCityCoords.lat, selectedCityCoords.lng, targetCoords.lat, targetCoords.lng);
+    if (isSameCity && cityKm <= 1) return 1;
+    return cityKm;
+  }
+
+  // 3. Device GPS may only be used for "search near me".
   if (
     Number.isFinite(pLat) &&
     Number.isFinite(pLng) &&
@@ -164,25 +180,16 @@ export const resolveProfileDistanceKm = (
     return calculateDistanceKm(uLat, uLng, pLat, pLng);
   }
 
-  // 3. Coordinate / City-based real distance calculation
-  const pCity = profile?.currentCity || profile?.city || targetProfile?.currentCity || targetProfile?.city;
-  const myCity = userCity && userCity !== 'Search near me' && userCity !== 'My current location' ? userCity : null;
-
-  const myCoords = getCityCoords(myCity) || (
+  // 4. Custom coordinates passed by the UI (unknown city names) or GPS + city coords.
+  const myCoords = selectedCityCoords || (
     Number.isFinite(uLat) && Number.isFinite(uLng) && uLat !== 0
       ? { lat: uLat, lng: uLng }
       : null
   );
-  const targetCoords = (Number.isFinite(pLat) && Number.isFinite(pLng) && pLat !== 0)
-    ? { lat: pLat, lng: pLng }
-    : getCityCoords(pCity);
-
   if (myCoords && targetCoords) {
     const isSameCity = Boolean(myCity && pCity && myCity.toLowerCase().trim() === pCity.toLowerCase().trim());
     const cityKm = calculateDistanceKm(myCoords.lat, myCoords.lng, targetCoords.lat, targetCoords.lng);
-    if (isSameCity && cityKm <= 1) {
-      return 1;
-    }
+    if (isSameCity && cityKm <= 1) return 1;
     return cityKm;
   }
 
@@ -232,18 +239,32 @@ export const filterByRadius = (
     }
     const profile = item?.profile || item;
     const pCity = profile?.currentCity || profile?.city;
-      const myCity =
+    const myCity =
       userCity &&
       userCity !== 'Search near me' &&
       userCity !== 'My current location' &&
       userCity !== 'Mumbai, India'
         ? userCity
         : null;
+
+    const uLat = Number(userLocation?.latitude);
+    const uLng = Number(userLocation?.longitude);
+    const hasUserCoords =
+      Number.isFinite(uLat) && Number.isFinite(uLng) && uLat !== 0 && uLng !== 0;
+
+    // If we cannot anchor the search to a city or GPS coordinates, do not hide
+    // profiles just because their distance is unknown.
+    if (!myCity && !hasUserCoords) {
+      return true;
+    }
+
     if (myCity && pCity && myCity.toLowerCase().trim() === pCity.toLowerCase().trim()) {
       return 1 <= maxRadius;
     }
-    // If distance cannot be determined, do not drop the profile
-    return true;
+
+    // We know where the user is but this profile has no resolvable location:
+    // a nearby search must not include it.
+    return false;
   });
 };
 
@@ -283,12 +304,24 @@ export const resolveProfileDistance = (
     return trimmed;
   }
 
-  // 2. Real GPS distance if both user and profile have coordinates
   const pLat = Number(profile?.latitude ?? profile?.lat ?? targetProfile?.latitude ?? targetProfile?.lat);
   const pLng = Number(profile?.longitude ?? profile?.lng ?? targetProfile?.longitude ?? targetProfile?.lng);
   const uLat = Number(userLocation?.latitude);
   const uLng = Number(userLocation?.longitude);
+  const pCity = profile?.currentCity || profile?.city || targetProfile?.currentCity || targetProfile?.city;
+  const myCity = userCity && userCity !== 'Search near me' && userCity !== 'My current location' ? userCity : null;
+  const targetCoords = (Number.isFinite(pLat) && Number.isFinite(pLng) && pLat !== 0)
+    ? { lat: pLat, lng: pLng }
+    : getCityCoords(pCity);
+  const selectedCityCoords = getCityCoords(myCity);
+  const formatKm = (km: number) => (km < 1 ? '< 1 km away' : `${km} km away`);
 
+  // 2. A custom city is selected: measure from that city, never from device GPS.
+  if (selectedCityCoords && targetCoords) {
+    return formatKm(calculateDistanceKm(selectedCityCoords.lat, selectedCityCoords.lng, targetCoords.lat, targetCoords.lng));
+  }
+
+  // 3. Device GPS may only be used for "search near me".
   if (
     Number.isFinite(pLat) &&
     Number.isFinite(pLng) &&
@@ -297,30 +330,17 @@ export const resolveProfileDistance = (
     pLat !== 0 &&
     uLat !== 0
   ) {
-    const km = calculateDistanceKm(uLat, uLng, pLat, pLng);
-    return km < 1 ? '< 1 km away' : `${km} km away`;
+    return formatKm(calculateDistanceKm(uLat, uLng, pLat, pLng));
   }
 
-  // 3. Coordinate / City-based real distance calculation
-  const pCity = profile?.currentCity || profile?.city || targetProfile?.currentCity || targetProfile?.city;
-  const myCity = userCity && userCity !== 'Search near me' && userCity !== 'My current location' ? userCity : null;
-
-  const myCoords = getCityCoords(myCity) || (
+  // 4. Custom coordinates passed by the UI (unknown city names) or GPS + city coords.
+  const myCoords = selectedCityCoords || (
     Number.isFinite(uLat) && Number.isFinite(uLng) && uLat !== 0
       ? { lat: uLat, lng: uLng }
       : null
   );
-  const targetCoords = (Number.isFinite(pLat) && Number.isFinite(pLng) && pLat !== 0)
-    ? { lat: pLat, lng: pLng }
-    : getCityCoords(pCity);
-
   if (myCoords && targetCoords) {
-    const isSameCity = Boolean(myCity && pCity && myCity.toLowerCase().trim() === pCity.toLowerCase().trim());
-    const cityKm = calculateDistanceKm(myCoords.lat, myCoords.lng, targetCoords.lat, targetCoords.lng);
-    if (cityKm === 0 || (isSameCity && cityKm <= 1)) {
-      return '< 1 km away';
-    }
-    return `${cityKm} km away`;
+    return formatKm(calculateDistanceKm(myCoords.lat, myCoords.lng, targetCoords.lat, targetCoords.lng));
   }
 
   // 4. Proximity distance when user location is active

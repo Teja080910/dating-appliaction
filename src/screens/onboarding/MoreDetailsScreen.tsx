@@ -259,8 +259,9 @@ const MoreDetailsScreen = ({ navigation }: any) => {
         t('home.usercard.user'),
       );
 
-      const englishLevels = [t('onboarding.moredetailsscreen.basic'), t('profile.userdetails.medium'), 'Good', 'Very Good'];
-      const englishLevelStr = englishLevels[englishSkillLevel || 0] || t('onboarding.moredetailsscreen.basic');
+      // Store canonical values so profile display and Search Settings match.
+      const englishLevels = ['Basic', 'Medium', 'Good', 'Very Good'];
+      const englishLevelStr = englishLevels[englishSkillLevel || 0] || 'Basic';
 
       const storedSelfie = (await AsyncStorage.getItem('@selfie_verified')) === 'true';
       const isSelfieVerified = Boolean(verifiedSelfie || storedSelfie);

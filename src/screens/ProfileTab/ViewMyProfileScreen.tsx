@@ -49,6 +49,7 @@ import { getUserFriendlyMessage, isSubscriptionGateError } from "../../utils/use
 import { RootParamList } from "../../utils/types/navigation.types";
 import { t, useTranslation } from '../../i18n';
 import { calculateAgeFromDob, getAgeFromDob } from '../../utils/dateUtils';
+import { normalizeEnglishLevel, CANONICAL_ENGLISH_LEVELS } from '../../utils/englishLevel';
 
 const normalizeTextValue = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -906,8 +907,7 @@ const ViewMyProfileScreen = () => {
       ? selectedLookingFor.filter(Boolean).join(", ")
       : normalizeTextValue(selectedLookingFor);
     const contextEnglishLevel =
-      [t('profile.viewmyprofilescreen.beginner'), t('profile.userdetails.intermediate'), "Advanced", "Native"][englishSkillLevel] ||
-      t('profile.viewmyprofilescreen.beginner');
+      CANONICAL_ENGLISH_LEVELS[englishSkillLevel] || 'Medium';
     const contextPrimaryImage =
       dedupeImageUris([profileImageUrl, profileImage, contextImages])[0] || null;
 
@@ -1012,8 +1012,10 @@ const ViewMyProfileScreen = () => {
         ? filterSupportedLanguages(fetched?.language || contextLanguage).join(', ')
         : filterSupportedLanguages(isTargetUserFetched ? fetched?.language : (routed?.language || t('profile.userdetails.english'))).join(', '),
       englishLevel: isViewingSelf
-        ? (normalizeTextValue(fetched?.englishLevel) || contextEnglishLevel || '')
-        : (isTargetUserFetched ? normalizeTextValue(fetched?.englishLevel) : (normalizeTextValue(routed?.englishLevel) || t('profile.viewmyprofilescreen.conversational'))),
+        ? (normalizeEnglishLevel(fetched?.englishLevel) || contextEnglishLevel || '')
+        : (isTargetUserFetched
+            ? normalizeEnglishLevel(fetched?.englishLevel)
+            : (normalizeEnglishLevel(routed?.englishLevel) || t('profile.viewmyprofilescreen.conversational'))),
       ethnicity: isViewingSelf
         ? (normalizeTextValue(fetched?.ethnicity) || normalizeTextValue(selectedEthinicity) || '')
         : (isTargetUserFetched ? normalizeTextValue(fetched?.ethnicity) : (normalizeTextValue(routed?.ethnicity) || t('profile.viewmyprofilescreen.asian'))),

@@ -16,7 +16,7 @@ import { useProfile, extractSessionIdFromResponse } from '../../api/useProfile';
 import Description from '../../components/ProfileTabComponents/ProfileSettings/Description';
 import DisplayName from '../../components/ProfileTabComponents/ProfileSettings/DisplayName';
 import ProfileSettingsHeader from '../../components/ProfileTabComponents/ProfileSettings/ProfileSettingHeader';
-import ProfilePhotoGrid, { ProfilePhotoGridHandle } from '../../components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid';
+import ProfilePhotoGrid from '../../components/ProfileTabComponents/ProfileSettings/ProfilePhotoGrid';
 import YourBirthday from '../../components/ProfileTabComponents/ProfileSettings/YourBirthday';
 import ContactDetails, { getDefaultCountryForLanguage, parsePhoneNumberAndCountry } from '../../components/ProfileTabComponents/ProfileSettings/ContactDetails';
 import PhoneOtpModal from '../../components/ProfileTabComponents/ProfileSettings/PhoneOtpModal';
@@ -37,7 +37,6 @@ const ProfileSettingsScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
-  const photoGridRef = useRef<ProfilePhotoGridHandle>(null);
 
   const {
     displayName,
@@ -328,14 +327,6 @@ const ProfileSettingsScreen = () => {
           onPress: () => navigation.replace('Login'),
         },
       ]);
-      setLoading(false);
-      return;
-    }
-
-    // Photo removals are staged while editing. Apply them only now, so backing
-    // out without Save keeps the original photos.
-    const photosCommitted = await photoGridRef.current?.commitPendingDeletions?.();
-    if (photosCommitted === false) {
       setLoading(false);
       return;
     }
@@ -866,7 +857,6 @@ const ProfileSettingsScreen = () => {
         />
 
         <ProfilePhotoGrid
-          ref={photoGridRef}
           initialPhotos={profilePhotos}
           userId={String(profileQuery.data?.userId || storedUserId || '') || undefined}
           verifiedSelfie={Boolean(

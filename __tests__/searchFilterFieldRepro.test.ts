@@ -170,12 +170,20 @@ describe('Search Filter Field Match Test', () => {
       })
     ).toBe(false);
 
-    // The Smoker filter was removed from Search Settings, so a legacy `smoke`
-    // value must be ignored instead of hiding profiles.
+    // Should reject if smoke is different (Smoker filter is in Search Settings).
     expect(
       matchesSearchFilters(profile, {
         isFilterActive: true,
         smoke: 'Yes',
+      })
+    ).toBe(false);
+
+    // The Drinking filter was removed from Search Settings, so a legacy `drink`
+    // value must be ignored instead of hiding profiles.
+    expect(
+      matchesSearchFilters(profile, {
+        isFilterActive: true,
+        drink: 'Never',
       })
     ).toBe(true);
   });

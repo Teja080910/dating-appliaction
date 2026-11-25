@@ -118,7 +118,7 @@ export const getActiveFilterCount = (filters?: SavedSearchFilters | null): numbe
 
   if (
     (filters.minAge !== undefined && filters.minAge > 18) ||
-    (filters.maxAge !== undefined && filters.maxAge < 40)
+    (filters.maxAge !== undefined && filters.maxAge !== 40)
   ) {
     count++;
   }
@@ -166,9 +166,6 @@ export const getActiveFilterCount = (filters?: SavedSearchFilters | null): numbe
   }
 
   if (filters.smoke !== undefined && filters.smoke !== null && filters.smoke !== '') {
-    count++;
-  }
-  if (filters.drink !== undefined && filters.drink !== null && filters.drink !== '') {
     count++;
   }
   if (filters.onlyOnline === true) {

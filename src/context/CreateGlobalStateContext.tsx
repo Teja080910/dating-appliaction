@@ -87,8 +87,8 @@ interface AppContextType {
   setLookingFor: Dispatch<SetStateAction<string[]>>;
   smoke: string[];
   setSmoke: Dispatch<SetStateAction<string[]>>;
-  drinkFilter?: string | boolean | undefined;
-  setDrinkFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
+  smokeFilter?: string | boolean | undefined;
+  setSmokeFilter: Dispatch<SetStateAction<string | boolean | undefined>>;
   showMe: 'straight_man' | 'straight_woman' | 'both' | null;
   setShowMe: Dispatch<SetStateAction<'straight_man' | 'straight_woman' | 'both' | null>>;
 
@@ -103,6 +103,8 @@ interface AppContextType {
   // location
   location: string;
   setLocation: Dispatch<SetStateAction<string>>;
+  locationCoords: { latitude: number; longitude: number } | null;
+  setLocationCoords: Dispatch<SetStateAction<{ latitude: number; longitude: number } | null>>;
   previousLocations: string[];
   setPreviousLocations: Dispatch<SetStateAction<string[]>>;
   locationModalVisible: boolean;

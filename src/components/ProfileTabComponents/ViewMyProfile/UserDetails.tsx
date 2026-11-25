@@ -36,6 +36,8 @@ import { getLanguageFlag, filterSupportedLanguages } from '../../../utils/langua
 import { resolveProfileDistance } from '../../../utils/distanceHelper';
 import { getCurrentLocation } from '../../../utils/geolocation';
 import { t, useTranslation } from '../../../i18n';
+import { normalizeEnglishLevel, CANONICAL_ENGLISH_LEVELS } from '../../../utils/englishLevel';
+import { normalizeAppearance } from '../../../utils/appearance';
 import { saveBlockedUser } from '../../../utils/types/AsyncStorage';
 import { mockStore } from '../../../mock/mockStore';
 import apiClient from '../../../api/apiClient';
@@ -1153,7 +1155,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
             <DetailPill icon="account-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.bodyType || profile?.bodyType, isOwnProfile ? (selectedBodyType || '') : ''))} />
           )}
           {Boolean(resolvedProfile?.appearance || profile?.appearance || (isOwnProfile && selectedAppearance)) && (
-            <DetailPill icon="emoticon-happy-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || '') : ''))} />
+            <DetailPill icon="emoticon-happy-outline" text={normalizeAppearance(resolvedProfile?.appearance || profile?.appearance || (isOwnProfile ? selectedAppearance : '')) || capitalizeLabel(normalizeTextValue(resolvedProfile?.appearance || profile?.appearance, isOwnProfile ? (selectedAppearance || '') : '')) || ''} />
           )}
           {Boolean(resolvedProfile?.ethnicity || profile?.ethnicity || (isOwnProfile && selectedEthinicity)) && (
             <DetailPill icon="account-multiple-outline" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.ethnicity || profile?.ethnicity, isOwnProfile ? (selectedEthinicity || '') : ''))} />
@@ -1161,11 +1163,8 @@ const UserDetails: React.FC<UserDetailsProps> = ({
           {Boolean(resolvedProfile?.smoke || profile?.smoke || (isOwnProfile && selectedSmoking)) && (
             <DetailPill icon="smoking" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.smoke || profile?.smoke, isOwnProfile ? (selectedSmoking || '') : ''))} />
           )}
-          {Boolean(resolvedProfile?.drink || profile?.drink || (isOwnProfile && selectedDrinking)) && (
-            <DetailPill icon="glass-cocktail" text={capitalizeLabel(normalizeTextValue(resolvedProfile?.drink || profile?.drink, isOwnProfile ? (selectedDrinking || '') : ''))} />
-          )}
           {Boolean(resolvedProfile?.englishLevel || profile?.englishLevel || (isOwnProfile && englishSkillLevel)) && (
-            <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: capitalizeLabel(normalizeTextValue(resolvedProfile?.englishLevel || profile?.englishLevel, isOwnProfile ? (englishSkillLevel === 3 ? 'Native' : englishSkillLevel === 2 ? 'Advanced' : englishSkillLevel === 1 ? 'Intermediate' : 'Medium') : 'Medium')) })} />
+            <DetailPill text={t('profile.userdetails.english_fluency', { capitalizeLabel: normalizeEnglishLevel(resolvedProfile?.englishLevel || profile?.englishLevel) || (isOwnProfile ? (CANONICAL_ENGLISH_LEVELS[englishSkillLevel] || 'Medium') : 'Medium') })} />
           )}
           {Boolean(resolvedProfile?.kids || resolvedProfile?.kidCount || profile?.kids || profile?.kidCount || (isOwnProfile && (selectedKids || localKids))) && (
             <DetailPill

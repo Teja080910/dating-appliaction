@@ -10,6 +10,7 @@ import {
   FlatList,
   Keyboard,
   ScrollView,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
@@ -146,18 +147,38 @@ const findNearestCity = (lat: number, lng: number): SuggestionItem | null => {
   return null;
 };
 
-const Location = () => {
+interface LocationProps {
+  onNearMeSelected?: () => void;
+}
+
+const Location: React.FC<LocationProps> = ({ onNearMeSelected }) => {
   useTranslation();
   const { themeColors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(themeColors, isDark), [themeColors, isDark]);
   const {
     location,
     setLocation,
+    setLocationCoords,
     locationModalVisible,
     setLocationModalVisible,
   } = useContext(AppContext);
 
   const { addLocation, getLocationErrorMessage } = useLocation();
+
+  // Persist the exact coordinates of the chosen location so search can filter
+  // around that city instead of the device's physical GPS position.
+  const persistActiveCoords = async (coords: { lat: number; lng: number } | null) => {
+    if (coords) {
+      setLocationCoords({ latitude: coords.lat, longitude: coords.lng });
+      await AsyncStorage.setItem(
+        '@amara_active_location_coords',
+        JSON.stringify({ lat: coords.lat, lng: coords.lng })
+      ).catch(() => {});
+    } else {
+      setLocationCoords(null);
+      await AsyncStorage.removeItem('@amara_active_location_coords').catch(() => {});
+    }
+  };
 
   // State
   const [activeLocationType, setActiveLocationType] = useState<"gps" | "custom">("gps");
@@ -310,7 +331,12 @@ const Location = () => {
 
       setActiveLocationType("gps");
       setLocation(resolvedCity);
+      await persistActiveCoords({ lat: coords.latitude, lng: coords.longitude });
       await AsyncStorage.setItem(STORAGE_ACTIVE_LOCATION_TYPE, "gps");
+      await AsyncStorage.multiSet([
+        ["userLat", String(coords.latitude)],
+        ["userLng", String(coords.longitude)],
+      ]).catch(() => {});
 
       // Sync with backend
       addLocation.mutate({
@@ -321,12 +347,21 @@ const Location = () => {
         lng: coords.longitude,
       });
 
+      onNearMeSelected?.();
+
       setLocationModalVisible(false);
       setIsMapVisible(false);
       setSearchQuery("");
       setSuggestions([]);
     } catch (err: any) {
       console.warn('[Location] GPS resolution error:', err);
+      Alert.alert(
+        t('search.location.location_error', { defaultValue: 'Location Error' }),
+        t('profile.resetlocationscreen.could_not_fetch_your_current_gps_location_please', {
+          defaultValue:
+            'Could not get your current location. Please enable GPS/location access and try again.',
+        })
+      );
     } finally {
       setIsResolvingGps(false);
     }
@@ -350,6 +385,7 @@ const Location = () => {
   const handleSelectSavedLocation = async (item: SavedLocationItem) => {
     setActiveLocationType("custom");
     setLocation(item.name || item.fullAddress);
+    await persistActiveCoords({ lat: item.lat, lng: item.lng });
     await AsyncStorage.setItem(STORAGE_ACTIVE_LOCATION_TYPE, "custom");
 
     addLocation.mutate({
@@ -404,6 +440,7 @@ const Location = () => {
 
     setActiveLocationType("custom");
     setLocation(locName);
+    await persistActiveCoords({ lat, lng });
     await AsyncStorage.setItem(STORAGE_ACTIVE_LOCATION_TYPE, "custom");
 
     // Sync with backend
@@ -459,7 +496,7 @@ const Location = () => {
             colors={[themeColors.primary, themeColors.secondary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.nearMeGradient}
+            style={[styles.nearMeGradient, isResolvingGps && styles.nearMeGradientCentered]}
           >
             {isResolvingGps ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -848,10 +885,13 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
     nearMeGradient: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
+      justifyContent: "flex-start",
       height: 56,
       paddingHorizontal: 16,
       borderRadius: 14,
+    },
+    nearMeGradientCentered: {
+      justifyContent: "center",
     },
     nearMeText: {
       color: "#FFFFFF",

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback, useRef, useImperativeHandle, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -75,22 +75,11 @@ interface ProfilePhotoGridProps {
   verifiedSelfie?: boolean;
 }
 
-export interface ProfilePhotoGridHandle {
-  /**
-   * Applies photo removals that the user staged while editing. Called by the
-   * Edit Profile screen only when the user taps Save.
-   */
-  commitPendingDeletions: () => Promise<boolean>;
-}
-
-interface PendingPhotoDeletion {
-  uri: string;
-  imageId?: number;
-  wasPrimary: boolean;
-}
-
-const ProfilePhotoGrid = React.forwardRef<ProfilePhotoGridHandle, ProfilePhotoGridProps>(
-  ({ initialPhotos, userId: propUserId, verifiedSelfie: propVerifiedSelfie }, ref) => {
+const ProfilePhotoGrid: React.FC<ProfilePhotoGridProps> = ({
+  initialPhotos,
+  userId: propUserId,
+  verifiedSelfie: propVerifiedSelfie,
+}) => {
   useTranslation();
   const queryClient = useQueryClient();
   const { themeColors, isDark } = useTheme();
@@ -119,15 +108,6 @@ const ProfilePhotoGrid = React.forwardRef<ProfilePhotoGridHandle, ProfilePhotoGr
   const [selfieVerifiedFlag, setSelfieVerifiedFlag] = useState(false);
 
   const hasUserEdited = useRef(false);
-  // Photo removals are staged here and only sent to the server when the user
-  // taps Save on the Edit Profile screen.
-  const pendingDeletesRef = useRef<PendingPhotoDeletion[]>([]);
-  const pendingSnapshotRef = useRef<(string | null)[] | null>(null);
-  const committedDeletesRef = useRef(false);
-  const latestImagesRef = useRef<(string | null)[]>(images || []);
-  latestImagesRef.current = images || [];
-  const latestUidRef = useRef<string | null>(null);
-  latestUidRef.current = localUserId;
   const isInitRef = useRef(false);
   const hasHydratedFromInitial = useRef(false);
   const activeUserKeyRef = useRef<string | null>(null);
@@ -699,153 +679,63 @@ const ProfilePhotoGrid = React.forwardRef<ProfilePhotoGridHandle, ProfilePhotoGr
     }
   };
 
-  const performDeleteImage = (index: number) => {
+  const performDeleteImage = async (index: number) => {
     const currentList = [...(images || [])];
     hasUserEdited.current = true;
     const targetUri = currentList[index];
     if (!targetUri) return;
 
-    // 1. Instant optimistic update: remove immediately so UI changes with 0ms lag.
-    // Keep the other photos in their existing slots. Re-ordering every photo
-    // on each delete made all the images reload and caused visible flicker.
-    const nextSlots: (string | null)[] = [...currentList];
+    // 1. Instant optimistic update: remove immediately so UI changes with 0ms lag
+    const remainingPhotos = currentList.filter((item, i) => i !== index && Boolean(item)) as string[];
+    const nextSlots: (string | null)[] = [...remainingPhotos];
     while (nextSlots.length < TOTAL_SLOTS) {
       nextSlots.push(null);
     }
-    nextSlots[index] = null;
-
-    // Only the main photo needs promotion into slot 0.
-    let promoteIndex = -1;
-    if (index === 0) {
-      promoteIndex = nextSlots.findIndex((item, i) => i > 0 && Boolean(item));
-      if (promoteIndex > 0) {
-        nextSlots[0] = nextSlots[promoteIndex];
-        nextSlots[promoteIndex] = null;
-      }
-    }
-
-    // Remember the original grid so leaving without Save can put it back.
-    if (!pendingSnapshotRef.current) {
-      pendingSnapshotRef.current = [...currentList];
-      committedDeletesRef.current = false;
-    }
-
-    // 2. Stage the removal locally. The server delete happens only on Save.
-    if (!pendingDeletesRef.current.some((item) => item.uri === targetUri)) {
-      pendingDeletesRef.current.push({
-        uri: targetUri,
-        imageId: imageMap[index],
-        wasPrimary: index === 0,
-      });
-    }
-
     setImages(nextSlots);
 
-    // 3. Update primary profile photo in context (visual only until Save)
+    // 2. Update primary profile photo in context
     const newPrimary = nextSlots[0] || null;
     setProfileImage(newPrimary);
     setProfileImageUrl(newPrimary);
 
-    // 4. Update imageMap slot indices immediately
+    // 3. Update imageMap slot indices immediately
+    const deletedImageId = imageMap[index];
     setImageMap((prev) => {
-      const updated: Record<number, number> = { ...prev };
-      delete updated[index];
-      if (index === 0 && promoteIndex > 0) {
-        if (prev[promoteIndex] !== undefined) {
-          updated[0] = prev[promoteIndex];
+      const updated: Record<number, number> = {};
+      let nextIdx = 0;
+      for (let i = 0; i < currentList.length; i++) {
+        if (i !== index && currentList[i] && prev[i]) {
+          updated[nextIdx] = prev[i];
+          nextIdx++;
         }
-        delete updated[promoteIndex];
       }
       return updated;
     });
-  };
 
-  const commitPendingDeletions = async (): Promise<boolean> => {
-    const pending = [...pendingDeletesRef.current];
-    if (pending.length === 0) return true;
+    const uid = localUserId || (await resolveActiveUserId());
+    if (uid && !localUserId) setLocalUserId(uid);
 
-    const uid = latestUidRef.current || (await resolveActiveUserId());
-    const finalSlots: (string | null)[] = [...(latestImagesRef.current || [])];
-    while (finalSlots.length < TOTAL_SLOTS) finalSlots.push(null);
+    // 4. Record as deleted in AsyncStorage so background queries NEVER resurrect it
+    if (targetUri) void recordDeletedUri(targetUri, uid);
 
-    // Refresh server ids first: slots may have shifted after staged removals,
-    // so index-based ids from the grid can point at the wrong image.
-    let currentServerImages = serverImages;
+    // 5. Persist to AsyncStorage immediately (both global and user-scoped)
+    AsyncStorage.setItem('onboardingImages', JSON.stringify(nextSlots)).catch(() => {});
     if (uid) {
-      try {
-        const fetched = await getAllImages.mutateAsync(uid);
-        const mapped = mapImagesToSlots(fetched, TOTAL_SLOTS);
-        currentServerImages = mapped.normalized;
-        setServerImages(mapped.normalized);
-        setImageMap(mapped.imageIdByIndex);
-      } catch (e) {
-        console.warn('[ProfilePhotoGrid] Could not refresh server images before delete:', e);
-      }
+      AsyncStorage.setItem(`user_photos_${uid}`, JSON.stringify(nextSlots)).catch(() => {});
+    }
+    if (newPrimary) {
+      AsyncStorage.setItem('profileImage', newPrimary).catch(() => {});
+    } else {
+      AsyncStorage.removeItem('profileImage').catch(() => {});
     }
 
-    const findImageId = (uri: string, fallbackId?: number) => {
-      if (fallbackId) return fallbackId;
-      const targetFilename = getFilenameFromUrl(uri).toLowerCase();
-      const isGeneric = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(targetFilename);
-      const match = currentServerImages.find((img) => {
-        if (img.id === null || img.id === undefined || !img.imageUrl) return false;
-        if (img.imageUrl === uri || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(uri)) return true;
-        const imgFilename = getFilenameFromUrl(img.imageUrl).toLowerCase();
-        return Boolean(targetFilename && imgFilename && !isGeneric && targetFilename === imgFilename);
-      });
-      return match?.id ?? fallbackId;
-    };
+    // Ensure remaining active photos are NEVER in deleted tombstones
+    const allRemaining = nextSlots.filter(Boolean) as string[];
+    const activeSet = new Set([
+      ...allRemaining,
+      ...allRemaining.map((item) => getAbsoluteUrl(item) || ''),
+    ].filter(Boolean));
 
-    let failed = false;
-
-    for (const item of pending) {
-      const imageId = findImageId(item.uri, item.imageId);
-      try {
-        await deleteImage.mutateAsync({
-          imageId: imageId ?? item.uri,
-          userId: uid || undefined,
-          imageUrl: item.uri,
-        } as any);
-        void recordDeletedUri(item.uri, uid);
-      } catch (err) {
-        console.warn('[ProfilePhotoGrid] Deferred photo delete failed:', err);
-        failed = true;
-        break;
-      }
-    }
-
-    if (failed) {
-      alert(
-        t('common.error', { defaultValue: 'Error' }),
-        t('profile.uploadimage.failed_to_delete_image_from_server', {
-          defaultValue: 'Could not delete photo from server.',
-        })
-      );
-      // Server stays the source of truth: reload the real photo list.
-      if (uid) {
-        getAllImagesRef.current(uid, {
-          onSuccess: (data: any) => {
-            const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
-            setImageMap(mapped.imageIdByIndex);
-            setServerImages(mapped.normalized);
-            setImages(mapped.slots);
-            if (mapped.slots[0]) {
-              setProfileImage(mapped.slots[0]);
-              setProfileImageUrl(mapped.slots[0]);
-            }
-          },
-        });
-      }
-      pendingDeletesRef.current = [];
-      pendingSnapshotRef.current = null;
-      return false;
-    }
-
-    // Keep tombstones clean for photos that still exist.
-    const activePhotos = finalSlots.filter(Boolean) as string[];
-    const activeSet = new Set(
-      [...activePhotos, ...activePhotos.map((u) => getAbsoluteUrl(u) || '')].filter(Boolean)
-    );
     const keysToClean = uid ? [`deleted_photos_${uid}`, 'deleted_image_uris'] : ['deleted_image_uris'];
     for (const key of keysToClean) {
       try {
@@ -856,67 +746,101 @@ const ProfilePhotoGrid = React.forwardRef<ProfilePhotoGridHandle, ProfilePhotoGr
       } catch {}
     }
 
-    await saveStoredUserPhotos(uid, finalSlots);
-    if (finalSlots[0]) {
-      AsyncStorage.setItem('profileImage', finalSlots[0]).catch(() => {});
-    } else {
-      AsyncStorage.removeItem('profileImage').catch(() => {});
+    // 6. In background: resolve server imageId and delete on server
+    let currentServerImages = serverImages;
+    let imageId: number | undefined = deletedImageId;
+
+    if (!imageId) {
+      const targetFilename = getFilenameFromUrl(targetUri);
+      const isGenericFilename = ['photo.jpg', 'image.jpg', 'default.jpg'].includes(targetFilename.toLowerCase());
+      const matched = currentServerImages.find((img) => {
+        if (img.id === null || img.id === undefined) return false;
+        if (!img.imageUrl || !targetUri) return false;
+        if (img.imageUrl === targetUri) return true;
+        if (getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri)) return true;
+        const imgFilename = getFilenameFromUrl(img.imageUrl);
+        if (targetFilename && imgFilename && !isGenericFilename && targetFilename === imgFilename) return true;
+        return false;
+      });
+      imageId = matched?.id ?? (currentServerImages[index]?.id ? Number(currentServerImages[index].id) : undefined);
+      if (matched?.imageUrl && matched.imageUrl !== targetUri) void recordDeletedUri(matched.imageUrl, uid);
     }
 
-    // If the main photo was removed, promote the new first photo on the server.
-    const removedPrimary = pending.some((item) => item.wasPrimary);
-    if (removedPrimary && uid && finalSlots[0]) {
-      const nextPrimaryId = findImageId(finalSlots[0]);
-      if (nextPrimaryId) {
-        setProfilePhoto.mutate({ uid, imageId: nextPrimaryId } as any);
-      }
-    }
-
-    pendingDeletesRef.current = [];
-    pendingSnapshotRef.current = null;
-    committedDeletesRef.current = true;
-    return true;
-  };
-
-  useImperativeHandle(ref, () => ({ commitPendingDeletions }));
-
-  // Leaving Edit Profile without Save must undo staged removals.
-  useEffect(() => {
-    return () => {
-      if (committedDeletesRef.current) return;
-      if (pendingDeletesRef.current.length === 0) return;
-
-      const snapshot = pendingSnapshotRef.current;
-      pendingDeletesRef.current = [];
-      pendingSnapshotRef.current = null;
-
-      if (snapshot) {
-        const restored = [...snapshot];
-        while (restored.length < TOTAL_SLOTS) restored.push(null);
-        setImages(restored);
-        setProfileImage(restored[0] || null);
-        setProfileImageUrl(restored[0] || null);
-      }
-
-      // Re-sync with the server so any uploads made meanwhile are kept too.
-      const uid = latestUidRef.current;
-      if (uid) {
-        getAllImagesRef.current(uid, {
-          onSuccess: (data: any) => {
-            const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
-            setImageMap(mapped.imageIdByIndex);
-            setServerImages(mapped.normalized);
-            setImages(mapped.slots);
-            if (mapped.slots[0]) {
-              setProfileImage(mapped.slots[0]);
-              setProfileImageUrl(mapped.slots[0]);
-            }
-            void saveStoredUserPhotos(uid, mapped.slots);
-          },
+    if (!imageId && uid) {
+      try {
+        const fetched = await getAllImages.mutateAsync(uid);
+        const mapped = mapImagesToSlots(fetched, TOTAL_SLOTS);
+        currentServerImages = mapped.normalized;
+        setServerImages(mapped.normalized);
+        const matched = mapped.normalized.find((img) => {
+          if (!img.imageUrl || !targetUri) return false;
+          if (img.imageUrl === targetUri || getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(targetUri)) return true;
+          return false;
         });
+        if (matched?.id) imageId = matched.id;
+      } catch (e) {
+        console.warn('[ProfilePhotoGrid] Could not refresh server images before delete:', e);
       }
-    };
-  }, [setImages, setProfileImage, setProfileImageUrl, saveStoredUserPhotos]);
+    }
+
+    // Update serverImages list
+    if (imageId) {
+      setServerImages((prev) => prev.filter((img) => img.id !== imageId));
+    }
+
+    // 7. Delete on server (pass imageId or targetUri, plus userId & imageUrl)
+    // Note: Do NOT emit AMARA_PROFILE_UPDATED here; deleteImage.mutate onSuccess will emit once server delete succeeds
+    const effectiveDeleteId = imageId ?? targetUri;
+    if (effectiveDeleteId) {
+      deleteImage.mutate(
+        {
+          imageId: effectiveDeleteId,
+          userId: uid || undefined,
+          imageUrl: targetUri || undefined,
+        } as any,
+        {
+          onSuccess: () => {
+            // If the deleted photo was slot 0 (primary) and we have remaining photos, promote slot 0 on backend
+            if (index === 0 && uid && nextSlots[0]) {
+              const nextPrimaryId = currentServerImages.find(
+                (img) =>
+                  img.id !== imageId &&
+                  img.imageUrl &&
+                  nextSlots[0] &&
+                  (img.imageUrl === nextSlots[0] ||
+                    getAbsoluteUrl(img.imageUrl) === getAbsoluteUrl(nextSlots[0]) ||
+                    (getFilenameFromUrl(img.imageUrl) && getFilenameFromUrl(img.imageUrl) === getFilenameFromUrl(nextSlots[0])))
+              )?.id;
+              if (nextPrimaryId) {
+                setProfilePhoto.mutate({ uid, imageId: nextPrimaryId });
+              }
+            }
+          },
+          onError: (err: any) => {
+            console.warn('[ProfilePhotoGrid] Delete image server error:', err);
+            const serverMessage =
+              err?.response?.data?.message ||
+              err?.response?.data?.error ||
+              t('profile.uploadimage.failed_to_delete_image_from_server', {
+                defaultValue: 'Could not delete photo from server.',
+              });
+            alert(t('common.error', { defaultValue: 'Error' }), serverMessage);
+            // Restore images if server rejected the deletion
+            if (uid) {
+              getAllImagesRef.current(uid, {
+                onSuccess: (data: any) => {
+                  const mapped = mapImagesToSlots(data, TOTAL_SLOTS);
+                  setImageMap(mapped.imageIdByIndex);
+                  setServerImages(mapped.normalized);
+                  setImages(mapped.slots);
+                },
+              });
+            }
+          },
+        }
+      );
+    }
+  };
 
   const handleDeleteImage = (index: number) => {
     const currentList = [...(images || [])];
@@ -1156,7 +1080,7 @@ const ProfilePhotoGrid = React.forwardRef<ProfilePhotoGridHandle, ProfilePhotoGr
       {AlertComponent}
     </View>
   );
-});
+};
 
 export default ProfilePhotoGrid;
 
