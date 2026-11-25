@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from 'react';
+import React, { useCallback, useContext, useMemo, useState } from 'react';
 import {
   Alert,
   BackHandler,
@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,6 +21,9 @@ import AppContext from '../../context/CreateGlobalStateContext';
 import { Colors, useTheme, type ThemeColors } from '../../theme';
 import ModalAddPhoto from '../../components/UploadImageComponents/ModalAddPhoto';
 import { t, useTranslation } from '../../i18n';
+import { useUserImages } from '../../api/useImages';
+import { getUserId } from '../../utils/sessionHelper';
+import { isApiHostedUrl } from '../../api/apiClient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TOTAL_STEPS = 8;
@@ -36,7 +40,11 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     name,
     setIsModalVisible,
     setSelectedIndex,
+    setProfileImage,
+    setProfileImageUrl,
   } = useContext(AppContext);
+  const { deleteImage } = useUserImages();
+  const [removingIndex, setRemovingIndex] = useState<number | null>(null);
 
   // We enforce 6 slots
   const slots = [0, 1, 2, 3, 4, 5];
@@ -66,12 +74,76 @@ const UploadPhotosScreen = ({ navigation }: any) => {
     setIsModalVisible?.(true);
   };
 
-  const handleRemovePhoto = (index: number) => {
+  const handleRemovePhoto = async (index: number) => {
+    const removedUri = images?.[index];
     const updated = Array.isArray(images) ? [...images] : Array(6).fill(null);
     while (updated.length < 6) updated.push(null);
+
+    let uid: string | null = null;
+    try {
+      uid = await getUserId();
+    } catch {}
+
+    // Photos are uploaded to the server as soon as they are picked. Removing
+    // one from onboarding must therefore delete it on the server too, otherwise
+    // it reappears in Edit Profile after the account setup is completed.
+    if (removedUri && isApiHostedUrl(removedUri)) {
+      setRemovingIndex(index);
+      try {
+        await deleteImage.mutateAsync({
+          imageId: removedUri,
+          imageUrl: removedUri,
+          userId: uid ? String(uid) : undefined,
+        });
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.message ||
+          err?.message ||
+          t('profile.uploadimage.failed_to_delete_image_from_server');
+        Alert.alert(t('profile.uploadimage.delete_failed'), String(message));
+        return;
+      } finally {
+        setRemovingIndex(null);
+      }
+    }
+
     updated[index] = null;
     setImages?.(updated);
     AsyncStorage.setItem('onboardingImages', JSON.stringify(updated)).catch(() => {});
+
+    if (uid) {
+      AsyncStorage.setItem(`user_photos_${String(uid)}`, JSON.stringify(updated)).catch(() => {});
+    }
+
+    // Keep the local-photo cache used for face validation aligned with the slots.
+    AsyncStorage.getItem('@local_onboarding_photos')
+      .then((raw) => {
+        const list = raw ? JSON.parse(raw) : Array(6).fill(null);
+        if (Array.isArray(list)) {
+          while (list.length < 6) list.push(null);
+          list[index] = null;
+          return AsyncStorage.setItem('@local_onboarding_photos', JSON.stringify(list));
+        }
+      })
+      .catch(() => {});
+
+    // If the main photo was removed, promote the next available photo.
+    if (index === 0) {
+      const nextMain = updated.find((image) => typeof image === 'string' && image.length > 0) || null;
+      setProfileImage?.(nextMain);
+      setProfileImageUrl?.(nextMain);
+      if (nextMain) {
+        AsyncStorage.setItem('profileImage', nextMain).catch(() => {});
+        if (uid) {
+          AsyncStorage.setItem(`user_profile_photo_${String(uid)}`, nextMain).catch(() => {});
+        }
+      } else {
+        AsyncStorage.removeItem('profileImage').catch(() => {});
+        if (uid) {
+          AsyncStorage.removeItem(`user_profile_photo_${String(uid)}`).catch(() => {});
+        }
+      }
+    }
   };
 
   const handleNext = async () => {
@@ -148,10 +220,17 @@ const UploadPhotosScreen = ({ navigation }: any) => {
                 return (
                   <View key={slotIndex} style={styles.photoSlotFilled}>
                     <Image source={{ uri: imageUri as string }} style={styles.photoImage} />
+                    {removingIndex === slotIndex && (
+                      <View style={styles.removingOverlay}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      </View>
+                    )}
                     <TouchableOpacity
                       style={styles.deleteBadge}
                       onPress={() => handleRemovePhoto(slotIndex)}
+                      disabled={removingIndex === slotIndex}
                       activeOpacity={0.8}
+                      testID={`remove-photo-${slotIndex}`}
                     >
                       <Icon name="trash-can-outline" size={16} color={isDark ? '#000000' : '#FFFFFF'} />
                     </TouchableOpacity>
@@ -307,6 +386,13 @@ const createStyles = (themeColors: ThemeColors, isDark: boolean) =>
       height: '100%',
       borderRadius: 12,
       resizeMode: 'cover',
+    },
+    removingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     addBadge: {
       position: 'absolute',

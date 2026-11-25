@@ -684,10 +684,8 @@
   "profile.profilescreen.membership_days_left": "{membership} ({days}d left)",
   "profile.profilescreen.membership_plan": "{membership}",
   "profile.userdetails.contact_unlock_on_accept": "Her WhatsApp number and Telegram contact will unlock automatically once she accepts your invitation.",
-  "profile.userdetails.glambu_female_wait_notice": "Your contact details have been shared with him. He will contact you on WhatsApp or Telegram to arrange your date.",
   "profile.userdetails.contact_locked_desc": "An active subscription is required to connect on WhatsApp or Telegram.",
   "profile.contactdetails.select_chat_app": "Would you like to chat via WhatsApp or Telegram?",
-  "requests.requestsinboxscreen.he_will_contact_notice": "He will contact you on WhatsApp or Telegram to arrange your date!",
   "common.subscriptionmodal.plan_active_days_remaining": "You currently have the {plan} Plan active ({days} days remaining).",
   "common.subscriptionmodal.plan_active": "Active Plan ({plan})",
   "common.subscriptionmodal.upgrade_to_plan": "Upgrade to {plan} ({price})",
@@ -718,5 +716,13 @@
   "profile.phone_otp.session_expired_action": "This verification session has expired. Please tap 'Resend Code' above to receive a fresh code.",
   "profile.phone_otp.code_sent_title": "Code Sent",
   "profile.phone_otp.new_code_sent_desc": "A new verification code has been sent to your WhatsApp number. Please enter the latest code.",
-  "profile.phone_otp.resend_code_now": "Resend Code Now"
+  "profile.phone_otp.resend_code_now": "Resend Code Now",
+  "profile.verifiedselfie.title": "Verified selfie",
+  "profile.verifiedselfie.verified": "Verified",
+  "profile.verifiedselfie.description": "Your verification selfie is private and kept separate from your profile photos. It is used only to confirm that your photos are really you, so it cannot be deleted here.",
+  "profile.verifiedselfie.removal_note": "To remove your verified selfie and face data, send a request to support. Your verified badge will be removed once the request is processed.",
+  "profile.verifiedselfie.reverify": "Re-verify selfie",
+  "profile.verifiedselfie.request_removal": "Request removal",
+  "profile.profilephotogrid.cannot_delete_verified_title": "Can't Delete Verified Photo",
+  "profile.profilephotogrid.cannot_delete_verified_desc": "This is your verified selfie photo. It is used to confirm your profile is genuine, so it can't be deleted."
 }

@@ -68,8 +68,11 @@ const DEFAULT_FRONT_DEVICE: CameraDevice = {
 
 type ScreenMode = 'camera' | 'review';
 
-const SelfieVerificationScreen = ({ navigation }: any) => {
+const SelfieVerificationScreen = ({ navigation, route }: any) => {
   useTranslation();
+  // Re-verification from Edit Profile: the reference selfie is replaced, but
+  // it must NOT be added to the profile photo grid (Glambu-style separation).
+  const isReVerify = route?.params?.mode === 'reverify';
   const { alert, AlertComponent } = useAlert();
   const {
     setVerifiedSelfie,
@@ -476,19 +479,23 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
         });
 
         // The backend refuses to verify before the account has a profile photo
-        // ("Upload a profile photo first."), so the selfie also becomes the
-        // first gallery image. It is the user's face by definition.
-        const uploaded = parseUploadResponse(
-          await uploadImage.mutateAsync({
-            photo: {
-              uri: capturedPhotoUri,
-              name: `selfie_${Date.now()}.jpg`,
-              type: 'image/jpeg',
-            },
-          })
-        );
-        if (uploaded.imageUrl) {
-          spotPhotoUri = uploaded.imageUrl;
+        // ("Upload a profile photo first."), so during onboarding the selfie
+        // also becomes the first gallery image. When re-verifying from Edit
+        // Profile the user already has photos, so keep the reference selfie
+        // separate from the gallery (Glambu behaviour).
+        if (!isReVerify) {
+          const uploaded = parseUploadResponse(
+            await uploadImage.mutateAsync({
+              photo: {
+                uri: capturedPhotoUri,
+                name: `selfie_${Date.now()}.jpg`,
+                type: 'image/jpeg',
+              },
+            })
+          );
+          if (uploaded.imageUrl) {
+            spotPhotoUri = uploaded.imageUrl;
+          }
         }
 
         await verifySelfie.mutateAsync({
@@ -548,24 +555,40 @@ const SelfieVerificationScreen = ({ navigation }: any) => {
 
       // 2. Mark verified in storage and state only after the backend agreed
       await AsyncStorage.setItem('@selfie_verified', 'true');
+      if (spotPhotoUri) {
+        // Remember which photo is the verified selfie so Edit Profile refuses
+        // to delete it.
+        await AsyncStorage.setItem('@amara_verified_selfie_photo', String(spotPhotoUri));
+      }
       setVerifiedSelfie?.(true);
 
-      // 3. Pre-fill slot 0 in profile images so Step 4 (UploadImageScreen) has 1 verified face photo ready
-      const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
-      while (currentSlots.length < 6) currentSlots.push(null);
-      currentSlots[0] = spotPhotoUri;
-      setImages?.(currentSlots);
-      setProfileImage?.(spotPhotoUri);
-      setProfileImageUrl?.(spotPhotoUri);
-      AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots)).catch(() => {});
-      AsyncStorage.setItem('profileImage', spotPhotoUri).catch(() => {});
-      if (uid) {
-        AsyncStorage.setItem(`user_photos_${String(uid)}`, JSON.stringify(currentSlots)).catch(() => {});
-        AsyncStorage.setItem(`user_profile_photo_${String(uid)}`, spotPhotoUri).catch(() => {});
+      // 3. Onboarding only: pre-fill slot 0 so Step 4 (UploadImageScreen) has
+      // one verified face photo ready. Re-verification leaves the gallery
+      // untouched.
+      if (!isReVerify) {
+        const currentSlots = Array.isArray(images) ? [...images] : Array(6).fill(null);
+        while (currentSlots.length < 6) currentSlots.push(null);
+        currentSlots[0] = spotPhotoUri;
+        setImages?.(currentSlots);
+        setProfileImage?.(spotPhotoUri);
+        setProfileImageUrl?.(spotPhotoUri);
+        AsyncStorage.setItem('onboardingImages', JSON.stringify(currentSlots)).catch(() => {});
+        AsyncStorage.setItem('profileImage', spotPhotoUri).catch(() => {});
+        if (uid) {
+          AsyncStorage.setItem(`user_photos_${String(uid)}`, JSON.stringify(currentSlots)).catch(() => {});
+          AsyncStorage.setItem(`user_profile_photo_${String(uid)}`, spotPhotoUri).catch(() => {});
+        }
       }
 
-      // 4. Navigate to Step 4: Photo Upload
-      if (navigation.canGoBack()) {
+      // 4. Onboarding continues to photo upload. Re-verification returns to
+      // Edit Profile.
+      if (isReVerify) {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.replace('ProfileSettingsScreen');
+        }
+      } else if (navigation.canGoBack()) {
         navigation.navigate('UploadImage');
       } else {
         navigation.replace('UploadImage');
